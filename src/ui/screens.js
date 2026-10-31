@@ -4,7 +4,7 @@ import { camera } from '../core/view.js';
 import { el, escapeHtml, fmtInt } from '../core/util.js';
 import { sfx, applyVolumes, initAudio } from '../core/audio.js';
 import { CLASS_IDS, A } from '../core/assets.js';
-import { CLASSES, ATTRS } from '../data/classes.js';
+import { CLASSES, ACTIVE_CLASS_IDS, ATTRS } from '../data/classes.js';
 import { UI, $ } from './ui.js';
 import { listSaves, heroesByClass, deleteClassSaves, classSaves, writeSave, savesReadable, unreadableSaves } from '../game/save.js';
 import { backupHeroes, listBackups } from '../game/herobackup.js';
@@ -63,8 +63,9 @@ export function titleScreen() {
   // rebuilt when the cloud brings heroes in while the title is up
   const fill = () => {
     menu.textContent = '';
-    const last = listSaves()[0];
-    const used = Object.keys(heroesByClass()).length;
+    const activeSaves = listSaves().filter((c) => ACTIVE_CLASS_IDS.includes(c.classId));
+    const last = activeSaves[0];
+    const used = Object.keys(heroesByClass()).filter((id) => ACTIVE_CLASS_IDS.includes(id)).length;
     if (last) {
       const clsName = CLASSES[last.classId]?.name || '';
       const nameStr = (last.name || '').trim();
@@ -72,11 +73,11 @@ export function titleScreen() {
       const classTag = alreadyHasClass ? '' : ` ${clsName}`;
       add(`Continue<br><span style="font-size:13px;color:#a8977c">${escapeHtml(nameStr || clsName)} · Lv ${last.level}${classTag} · Depth ${last.depth}</span>`, async () => {
         await Cloud.settle();
-        const c = listSaves()[0];
+        const c = listSaves().find((x) => ACTIVE_CLASS_IDS.includes(x.classId));
         if (c) gameModeScreen(c, false, titleScreen);
       });
     }
-    add(`Heroes <span style="font-size:13px;color:#a8977c">· ${used}/${CLASS_IDS.length}</span>`, () => classSelect(last ? last.classId : 'paladin'));
+    add(`Heroes <span style="font-size:13px;color:#a8977c">· ${used}/${ACTIVE_CLASS_IDS.length}</span>`, () => classSelect(last ? last.classId : 'paladin'));
     add('VELSCOUR DEFENSE', () => { location.href = 'defense/index.html'; }, 'btn blue'); // the Riftgate's game (defense/), from the title too
     add('Settings', settingsDialog, 'btn');
     add('Credits', () => creditsScreen(titleScreen), 'btn');
@@ -234,11 +235,13 @@ const plaque = (name) => `<div class="plaque"><span>${escapeHtml(name)}</span></
 /** Hero select: one hero per class. A class with a hero plays it; an empty class names and starts a new one.
  * Delete arms delete mode: the next class picked with a hero is deleted (after a confirm), freeing that class. */
 export function classSelect(sel = 'paladin', back = titleScreen) {
+  if (!ACTIVE_CLASS_IDS.includes(sel)) sel = 'paladin';
   const heroes = heroesByClass();
+  const activeCount = Object.keys(heroes).filter((id) => ACTIVE_CLASS_IDS.includes(id)).length;
   let delMode = false;
-  preloadPortraits(CLASS_IDS);
+  preloadPortraits(ACTIVE_CLASS_IDS);
   const s = el('div', 'screen class-screen');
-  s.appendChild(el('h2', 'screen-title', `CHOOSE YOUR HERO <small>${Object.keys(heroes).length} of ${CLASS_IDS.length} heroes</small>`));
+  s.appendChild(el('h2', 'screen-title', `CHOOSE YOUR HERO <small>${activeCount} of ${ACTIVE_CLASS_IDS.length} heroes</small>`));
   const grid = el('div', 'class-grid');
   const info = el('div', 'class-info');
   const bigBox = el('div', 'class-big');
@@ -286,7 +289,7 @@ export function classSelect(sel = 'paladin', back = titleScreen) {
     renderInfo();
     UI.confirm('Delete hero?', `Permanently delete ${escapeHtml(heroes[id].name)}, the ${CLASSES[id].name}? You can then start a new ${CLASSES[id].name}.`, () => { deleteClassSaves(id); classSelect(id, back); }, 'Delete');
   };
-  for (const id of CLASS_IDS) {
+  for (const id of ACTIVE_CLASS_IDS) {
     const card = el('div', 'class-card' + (heroes[id] ? ' has-hero' : ''));
     const anim = heroCanvas(id);
     card.appendChild(anim.canvas);
@@ -683,7 +686,7 @@ export function helpDialog() {
     <div><kbd>&#96;</kbd> <kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd> <kbd>-</kbd> <kbd>=</kbd> cast skills at the cursor (13 keys + both mouse buttons)</div>
     <div><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> potions</div>
     <div><kbd>R</kbd> <kbd>E</kbd> <kbd>Y</kbd> <kbd>U</kbd> <kbd>O</kbd> macros: several skills on one key, set up from the skill tree's <b>Macros</b> button (or the menu)</div>
-    <div><kbd>I</kbd> inventory · <kbd>K</kbd> skill tree · <kbd>B</kbd> skill book · <kbd>Q</kbd> quest log</div>
+    <div><kbd>I</kbd> inventory · <kbd>K</kbd> skill tree · <kbd>T</kbd> passive talent tree · <kbd>B</kbd> skill book · <kbd>Q</kbd> quest log</div>
     <div><kbd>Tab</kbd>/<kbd>M</kbd> map · <kbd>Esc</kbd> menu · wheel zoom</div>
     <div><kbd>Alt</kbd>+<kbd>P</kbd> or the <b>Auto</b> button: auto-play (the hero fights, loots, shops and delves on autopilot)</div>
     <div><kbd>G</kbd> MADNESS · <kbd>F</kbd> SMITE, then click where it should strike (both fill as you fight)</div>

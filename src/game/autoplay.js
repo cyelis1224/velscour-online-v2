@@ -22,6 +22,7 @@ import { marksFree, autoSpend } from './marks.js';
 import { drawBiome } from '../data/biomes.js';
 import { augHits } from '../data/rings.js';
 import { canLearn } from '../ui/skills.js';
+import { CLASS_TALENTS, canLearnTalent, learnTalent, talentPointsSpent } from '../data/talents.js';
 import { equipFromBag, socketGem, dropFromBag, changed } from '../ui/inventory.js';
 import { GLYPHWORDS, glyphOf } from '../data/relics.js';
 import { Vendor, fuseAll } from '../ui/vendor.js';
@@ -592,12 +593,40 @@ export const Auto = {
   hammersSince: 1,
   countFocus(sk) { if (sk.m.ricochet) this.hammersSince = 0; else if (isHammer(sk)) this.hammersSince++; },
 
-  /** Put each skill point where it raises buildPower most (counting the prerequisites a new skill needs). */
+  /** Put each skill point where it raises buildPower most (counting the prerequisites a new skill needs), while also investing in Passive Talents. */
   spendSkills() {
     const p = G.player, c = G.char;
     const list = CLASS_SKILLS[c.classId];
     let spent = false;
     while (c.skillPoints > 0) {
+      // Invest in the Passive Talent Tree (T) alongside active skills (roughly 1 talent point per 3 hero levels)
+      const tBranches = CLASS_TALENTS[c.classId];
+      if (tBranches && c.level >= 4 && talentPointsSpent(c) < Math.floor(c.level / 3)) {
+        const prefBranch = clamp(mainTree(p), 0, tBranches.length - 1);
+        let bestNode = null, bestScore = -Infinity;
+        for (let bIdx = 0; bIdx < tBranches.length; bIdx++) {
+          for (const node of tBranches[bIdx].nodes) {
+            if (canLearnTalent(c, node)) continue;
+            const gain = simulate(p, () => {
+              c.talents = c.talents || {};
+              c.talents[node.id] = (c.talents[node.id] || 0) + 1;
+              return () => {
+                if (!--c.talents[node.id]) delete c.talents[node.id];
+              };
+            });
+            const score = gain + (bIdx === prefBranch ? 0.04 : 0) + (node.choice ? 0.025 : 0);
+            if (score > bestScore) { bestScore = score; bestNode = node; }
+          }
+        }
+        if (bestNode && learnTalent(c, bestNode.id)) {
+          p.recompute();
+          spent = true;
+          if ((c.talents[bestNode.id] || 0) === 1) {
+            G.ui.log(`Auto-play unlocked talent <b>${escapeHtml(bestNode.name)}</b>.`, '#8fe0ff');
+          }
+          continue;
+        }
+      }
       const base = buildPower(p, CROWD, null, true).total;
       let best = null, bv = 0;
       const focus = focusSkills(c.classId) || [];

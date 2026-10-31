@@ -2022,118 +2022,96 @@ export const TAUNTS = {
 /** Class-only lines, [mood, text]: one of these comes up now and then for that class. */
 export const CLASS_TAUNTS = {
   paladin: [
-    ['mock', 'A Paladin, how holy|Do you pray before you trip, too?'],
-    ['rage', 'Your light burns my eyes!|PUT IT OUT! PUT IT OUT!'],
-    ['cheer', 'Shine, little Paladin!|Your faith tastes so crunchy!'],
+    ['dread', 'A Paladin of the silver oath…|Your light will gutter in the deep'],
+    ['rage', 'Your radiant wards sear the stone!|THE ABYSS WILL SNUFF THEM OUT!'],
+    ['dread', 'Pray to your distant heavens, Paladin|Down here, only iron answers'],
     ['dread', 'Your god is very far away|I am very, very close'],
   ],
   ranger: [
-    ['mock', 'A Ranger, how rustic|Did you name all your arrows?'],
-    ['rage', 'STOP SHOOTING MY MINIONS!|From way over there! COWARD!'],
-    ['cheer', 'What aim! What a quiver!|Bullseye, my little archer!'],
-    ['sulk', "You keep everyone at arm's length|Bow's length. Same thing. Sad"],
+    ['dread', 'A Ranger of the wild marches…|No wind blows beneath these vaults'],
+    ['rage', 'Your arrows pierce the dark!|LET US SEE WHEN YOUR QUIVER RUNS DRY!'],
+    ['dread', 'Every hunter eventually walks|into a snare of their own making'],
+    ['dread', 'Keep your distance while you can|The walls close in below'],
   ],
   wizard: [
-    ['mock', 'A Wizard. Lovely robe|Is that a dress? It is a dress'],
-    ['rage', 'Your fireballs scorch my carpet!|MY GOOD CARPET!'],
-    ['cheer', 'Such big brain energy!|Your hat is getting pointier!'],
-    ['unhinged', 'Wizard, quick question|Can you turn Tim back into a man?'],
+    ['dread', 'A scholar of the high arcana…|Knowledge will not bargain with ruin'],
+    ['rage', 'Your tempests tear at my halls!|THE VOID WILL DRINK YOUR MANA DRY!'],
+    ['dread', 'You weave fire and frost, Wizard|Wait until you meet what forged them'],
+    ['dread', 'Every spell leaves an echo|And the dark is listening'],
   ],
   necromancer: [
-    ['cheer', 'A fellow lover of bones!|Raise them! Raise them all!'],
-    ['rage', 'Those were MY skeletons!|Give them back! THIEF!'],
-    ['sulk', 'You have so many skeleton friends|I only have the one goat'],
-    ['mock', 'Commanding the dead, are we?|They mock you behind your back'],
+    ['dread', 'A fellow sovereign of bone…|Yet even your dead remember their true master'],
+    ['rage', 'Those legions belong to the abyss!|YOU BORROW WHAT IS MINE!'],
+    ['dread', 'Command the fallen while your will holds|When it slips, they will feast'],
+    ['dread', 'You walk among graves, Necromancer|Soon you will choose one'],
   ],
   barbarian: [
-    ['mock', 'A Barbarian. Shocking|Did you learn to read yet?'],
-    ['cheer', 'Big arms! Big axe! Big yell!|Smash, beautiful brute, SMASH!'],
-    ['rage', 'Put your shirt on!|THIS IS A DUNGEON, NOT A BEACH!'],
-    ['unhinged', 'Barbarian, do you like soup?|You seem like you would like soup'],
+    ['dread', 'Blood and iron of the northern wastes…|Fury burns hot, then leaves only ash'],
+    ['rage', 'Your warcries shake the pillars!|LET THE MOUNTAIN FALL UPON YOU!'],
+    ['dread', 'Rage carried you this far, warrior|It will carry you straight into the jaws'],
+    ['dread', 'Every scar is a promise|The deep will collect the rest'],
   ],
   dragoon: [
-    ['mock', 'A Dragoon. You jump a lot|Gravity is laughing at you'],
-    ['rage', 'Stop leaping on my head!|I am not a trampoline!'],
-    ['cheer', 'Look at you soar, Dragoon!|Higher! Then down! Down to me!'],
     ['dread', 'Every leap ends in a fall|the last one ends here'],
   ],
   totem_master: [
-    ['mock', 'A Totem Master|You stack logs for a living?'],
-    ['unhinged', 'Can I have a totem?|A little one. For Tim'],
-    ['cheer', 'Plant those totems, champ!|A forest of doom! Lovely!'],
-    ['rage', 'Your totems are UGLY!|I will chop them into kindling!'],
+    ['dread', 'Old spirits of wood and stone|have no dominion in this pit'],
   ],
   death_knight: [
-    ['cheer', 'A Death Knight! My favorite!|You are basically family!'],
-    ['sulk', 'You were supposed to work for me|You never even applied'],
-    ['rage', 'Traitor! TRAITOR!|That cold power was MINE!'],
-    ['dread', 'Death already knows you|it is only waiting for the paperwork'],
+    ['dread', 'Death already knows you|it is only waiting for the end'],
   ],
   arcane_sorcerer: [
-    ['mock', 'An Astronomer|A wizard who looks up instead'],
-    ['rage', 'Stop dropping suns on me!|That was my good ceiling!'],
-    ['cheer', 'Such pretty stars!|Draw me as a constellation!'],
-    ['unhinged', 'I looked into your black hole|Now I live there. Rent is free'],
+    ['dread', 'The stars you call upon|went cold an age ago'],
   ],
   carrion_witch: [
-    ['cheer', 'A Carrion Witch! How dreadful!|I mean that as a compliment!'],
-    ['mock', 'You smell of carrion, witch|And that is a step up'],
-    ['unhinged', 'Do you have a broom?|Can Tim ride it? He wants to fly'],
+    ['dread', 'The Witch of the black mire…|Your curses taste of old Rot'],
+    ['rage', 'Your murder crows feast on my legions!|I WILL CLIP THEIR WINGS IN FLAME!'],
+    ['dread', 'Blood and hexes bind your path|The mire below is deeper than yours'],
     ['dread', 'The crows know your name|they will be the last to say it'],
   ],
   bard: [
-    ['mock', 'A Bard. Wonderful|Please do not play Wonderwall again'],
-    ['rage', 'STOP SINGING!|My ears are BLEEDING! Literally!'],
-    ['cheer', 'Play me a song, little Bard!|Something with screaming!'],
-    ['sulk', 'Write a ballad about me|Nobody ever writes ballads about me'],
+    ['dread', 'A chronicler of fallen houses…|Sing well, for none else will remember'],
+    ['rage', 'Silence those resonant chords!|THE DEEP DEMANDS STILLNESS!'],
+    ['dread', 'Every ballad ends in a dirge|when sung beneath the earth'],
+    ['dread', 'Your verses steel the living|Let us hear how they sound in the dark'],
   ],
   slime_lord: [
-    ['mock', 'A Slime Lord. Ew|You are dripping on my carpet'],
-    ['cheer', 'So jiggly! So mighty!|Wobble, my gooey champion!'],
-    ['rage', 'Stop oozing in my dungeon!|I JUST MOPPED!'],
-    ['unhinged', 'Can I poke you?|Just once. With a stick'],
+    ['dread', 'From the mire you rose|and to the mire you shall return'],
   ],
   boomerang_knight: [
-    ['mock', 'A Boomerang Knight|Your weapon returns. Unlike your dignity'],
-    ['rage', 'Your stupid boomerang!|It hit me twice! TWICE!'],
-    ['cheer', 'Throw it again! Again!|It always comes back! Like you!'],
-    ['sulk', 'Even your weapon comes back|Nobody ever comes back to me'],
+    ['dread', 'What is cast into the dark|does not always return'],
   ],
   lancer: [
-    ['mock', 'A Lancer. Pointy|Compensating for something?'],
-    ['rage', 'Stop poking my minions!|Poke! Poke! I will poke YOU!'],
-    ['cheer', 'What reach! What thrust!|Skewer them all, my Lancer!'],
+    ['dread', 'A Lancer of the vanguard…|Your spear-wall stands alone now'],
+    ['rage', 'Your phalanx drives through my ranks!|THE CRUSH OF STONE WILL BEND YOUR SHAFT!'],
+    ['dread', 'Discipline and steel|tested against eternal night'],
     ['dread', 'A long spear keeps death away|but not forever'],
   ],
   dragon_knight: [
-    ['mock', 'A Dragon Knight|Where is the dragon? Oh. Just a hat'],
-    ['rage', 'I ate a dragon once!|I WILL EAT YOURS!'],
-    ['cheer', 'Breathe fire, Dragon Knight!|You remind me of my youth!'],
-    ['unhinged', 'Do your dragons like goats?|Asking for Tim. Tim is nervous'],
+    ['dread', 'Even the ancient wyrms|sleep beneath these stones'],
   ],
   gunner: [
-    ['mock', 'A Gunner. How modern|Did your gun come with a manual?'],
-    ['rage', 'Stop shooting holes in my walls!|Do you know what stone COSTS?!'],
-    ['cheer', 'Bang! Bang! Bang!|My trigger-happy little champion!'],
-    ['sulk', 'You never even look at me|You just look down that barrel'],
+    ['dread', 'Black powder and cold iron…|Smoke and thunder in the catacombs'],
+    ['rage', 'Your artillery shatters the vaults!|LET THE RUINS BURY YOUR GUNS!'],
+    ['dread', 'Count your cartridges, Gunner|The horde is numberless'],
+    ['dread', 'Fire and lead clear the hall|until the dark closes behind the flash'],
   ],
 };
 
 /** Fixed lines for milestone levels, [mood, text]. */
 export const MILESTONES = {
-  2: ['mock', 'Your first level up!|How precious. I will frame it'],
-  5: ['cheer', 'Level 5 already!|Look at my little hero, all grown up!'],
+  2: ['dread', 'First blood is drawn…|Your descent has truly begun'],
+  5: ['dread', 'Level 5…|You survive the shallow graves'],
   10: ['dread', 'Level 10…|you have my attention now'],
-  13: ['unhinged', 'Level 13. Unlucky!|For you. Lucky for me. And Tim'],
-  25: ['rage', 'A QUARTER OF THE WAY?!|Who allowed this?!'],
-  42: ['unhinged', 'Level 42|The answer to everything. And goats'],
+  13: ['dread', 'Level 13…|The thirteenth seal gives way'],
+  25: ['rage', 'A QUARTER OF THE ASCENT?!|THE GUARDIANS WILL DOUBLE THEIR WATCH!'],
+  42: ['dread', 'Level 42…|The old vows fade behind you'],
   50: ['dread', 'Halfway, {name}…|halfway down the throat of the world'],
-  66: ['unhinged', 'Level 66|One more six and I get a prize'],
-  69: ['mock', 'Level 69|Nice. Now grow up'],
-  75: ['rage', 'SEVENTY-FIVE?!|I am throwing my throne out the window!'],
-  90: ['sulk', 'Level 90 and you never visit|Ten more levels. Then you have to'],
+  66: ['dread', 'Level 66…|The iron gates groan beneath your step'],
+  75: ['rage', 'LEVEL SEVENTY-FIVE?!|THE DEEP LEGIONS MARCH TO MEET YOU!'],
+  90: ['dread', 'Level 90…|Ten steps remain before the final reckoning'],
   99: ['dread', 'One more|and then there is only me'],
-  100: ['rage', 'LEVEL 100?!|Nothing left to stop you! EXCEPT ME!'],
+  100: ['rage', 'LEVEL 100!|THE PINNACLE OF MORTAL MIGHT — COME AND BE JUDGED!'],
 };
 
 const CLASS_CHANCE = 0.08;
@@ -2164,9 +2142,10 @@ export function pickTaunt(c, st, rnd = Math.random) {
     const i = draw('class.' + c.classId, cls.length, (k) => cls[k][0] !== st.last && cls[k][0] !== next);
     if (i >= 0) return out(cls[i][0], cls[i][1]);
   }
-  // a new mood, weighted by pool size so every line is about as likely as any other
-  const moods = Object.keys(TAUNTS).filter((m) => m !== st.last && m !== next);
-  let r = rnd() * moods.reduce((s, m) => s + TAUNTS[m].length, 0), mood = moods[0];
+  // Focus on serious dark-fantasy dread lines rather than fourth-wall slapstick moods
+  const seriousMoods = ['dread'];
+  const moods = seriousMoods.filter((m) => TAUNTS[m] && TAUNTS[m].length);
+  let r = rnd() * moods.reduce((s, m) => s + TAUNTS[m].length, 0), mood = moods[0] || 'dread';
   for (const m of moods) { r -= TAUNTS[m].length; if (r < 0) { mood = m; break; } }
   return out(mood, TAUNTS[mood][draw(mood, TAUNTS[mood].length, () => true)]);
 }

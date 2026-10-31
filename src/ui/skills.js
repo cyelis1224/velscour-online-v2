@@ -181,8 +181,15 @@ export function renderTree(body) {
   const mb = el('button', 'btn small', 'Macros');
   mb.title = 'Cast several skills with one key (ui/macros.js)';
   mb.onclick = () => G.ui.macros.open();
+  const tbBtn = el('button', 'btn small', 'Talents (T)');
+  tbBtn.title = 'Open Passive Talent Tree (T)';
+  tbBtn.onclick = () => {
+    sfx('ui');
+    UI.closePanel('tree');
+    import('./talents.js').then(({ toggleTalents }) => toggleTalents());
+  };
   const btns = el('span', 'row');
-  btns.append(mb, rb);
+  btns.append(tbBtn, mb, rb);
   head.appendChild(btns);
   body.appendChild(head);
   const tabs = el('div', 'tabs');

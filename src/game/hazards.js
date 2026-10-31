@@ -659,7 +659,18 @@ export class Leap {
       explode(this.world, s, s.x, s.y, this.r, this.dmg, this.el, { ...this.o, knock: this.o.knock || 0.6 }, this.fx === 'meteor' || this.fx === 'dragon' ? 'meteor' : this.fx === 'holy' ? 'holy' : 'eruption');
       sfx('thud');
       addDecal(s.x, s.y, 'rgba(10,6,4,0.6)', this.r * 0.5, 'scorch', 0.7);
-      if (this.nova) this.world.addHazard(new NovaWave({ world: this.world, src: s, x: s.x, y: s.y, r: this.r * 1.6, dmg: this.dmg.map((v) => v * 0.5), el: this.el, fx: this.fx }));
+      if (this.nova) this.world.addHazard(new NovaWave({ world: this.world, src: s, x: s.x, y: s.y, r: this.r * 1.6, dmg: this.dmg.map((v) => v * 0.5), el: this.el, fx: this.fx, o: this.o }));
+      if (this.quake) {
+        const qDmg = this.dmg.map((v) => v * (0.4 * this.quake));
+        this.world.addHazard(new NovaWave({ world: this.world, src: s, x: s.x, y: s.y, r: this.r * (1.45 + 0.2 * this.quake), dmg: qDmg, el: this.el, fx: 'shock', o: { ...this.o, stun: true } }));
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * TAU + rand(-0.2, 0.2);
+          this.world.addHazard(new Fissure({ world: this.world, src: s, x: s.x, y: s.y, ang: a, len: 2.8 + this.quake * 0.6, w: 0.75, fx: 'earth', el: this.el, dmg: qDmg, o: this.o }));
+        }
+      }
+      if (this.crater) {
+        this.world.addHazard(new Area({ world: this.world, src: s, x: s.x, y: s.y, r: this.r * 1.15, dur: 4, tick: 0.45, dmg: this.dmg.map((v) => v * 0.28), el: 'fire', fx: 'fire', o: { ...this.o, burn: true } }));
+      }
       return false;
     }
     return true;

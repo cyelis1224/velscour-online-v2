@@ -77,8 +77,8 @@ export function effLevel(player, sk) {
 /** Raw (pre player-multiplier) damage per hit for a skill at level L. */
 export function skillBaseDamage(sk, L) {
   const row = sk.row;
-  const lv = 1 + 0.17 * (L - 1) + 0.004 * (L - 1) * (L - 1);
-  let d = (6 + row * 3.2) * lv * (1 + row * 0.4) * (sk.m.dmg ?? 1) * (KIND_DMG[sk.kind] ?? 1);
+  const lv = 1 + 0.12 * (L - 1) + 0.0025 * (L - 1) * (L - 1);
+  let d = (7 + row * 3.5) * lv * (1 + row * 0.2) * (sk.m.dmg ?? 1) * (KIND_DMG[sk.kind] ?? 1);
   if (sk.kind === 'proj' && (sk.m.n || 1) > 1) d /= Math.pow(sk.m.n, 0.35);
   if (sk.kind === 'rain' || sk.kind === 'strike') d /= Math.pow((sk.m.n || 1) / 6, 0.25) || 1;
   if (sk.m.free) d *= 0.85;

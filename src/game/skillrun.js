@@ -54,6 +54,45 @@ export function castSkill(p, sk, L, tx, ty, opts = {}) {
   const aug = p.augFor ? p.augFor(sk) : null, M = p.mastery ? p.mastery(sk) : 1;
   const vis = masteryVis(M) * (aug && aug.colossus ? 1 + 0.35 * aug.colossus : 1);
   if (aug && aug.multiply) sk = withMore(sk, multN(aug.multiply));
+  const T = (p.st && p.st.talents) || {};
+  // Passive Talent Tree active-skill count & modifier augments (data/talents.js)
+  let tMore = 0;
+  if (sk.classId === 'paladin') {
+    if (T.pal_hammer_vortex && sk.tree === 0 && sk.kind === 'orbit') tMore += T.pal_hammer_vortex;
+    if (T.pal_crusader_key && sk.tree === 2 && sk.kind === 'melee') tMore += 1;
+  } else if (sk.classId === 'ranger') {
+    if (T.rng_arrow_split && sk.tree === 0 && sk.kind === 'proj') tMore += T.rng_arrow_split;
+    if (T.rng_beastlord_key && sk.tree === 1 && sk.kind === 'summon') tMore += 1;
+    if (T.rng_trap_cluster && sk.tree === 2 && sk.kind === 'trap') tMore += T.rng_trap_cluster;
+  } else if (sk.classId === 'wizard') {
+    if (T.wiz_fire_hydra && sk.tree === 0 && (sk.kind === 'summon' || sk.kind === 'proj')) tMore += 1;
+    if (T.wiz_cold_shatter && sk.tree === 1 && sk.kind === 'proj') tMore += T.wiz_cold_shatter;
+    if (T.wiz_light_chain && sk.tree === 2 && (sk.kind === 'proj' || sk.kind === 'chain')) tMore += T.wiz_light_chain;
+  } else if (sk.classId === 'necromancer') {
+    if (T.nec_bone_shatter && sk.tree === 0 && sk.kind === 'proj') tMore += T.nec_bone_shatter;
+    if (T.nec_overlord_key && (sk.tree === 1 || sk.tree === 3) && sk.kind === 'summon') tMore += 1;
+  } else if (sk.classId === 'barbarian') {
+    if (T.barb_ancients_key && sk.tree === 1 && sk.kind === 'summon') tMore += 1;
+    if (T.barb_titan_key && sk.tree === 2 && sk.kind === 'fissure') tMore += 2;
+  } else if (sk.classId === 'carrion_witch') {
+    if (T.witch_plague_leech && sk.tree === 0 && (sk.kind === 'cyclone' || sk.kind === 'proj')) tMore += T.witch_plague_leech;
+    if (T.witch_crow_bleed && sk.tree === 1 && sk.kind === 'proj') tMore += T.witch_crow_bleed;
+    if (T.witch_queen_key && sk.tree === 1 && sk.kind === 'summon') tMore += 2;
+    if (T.witch_nevermore_key && sk.tree === 1 && sk.kind === 'cyclone') tMore += 2;
+  } else if (sk.classId === 'bard') {
+    if (T.bard_chorus_fort && sk.tree === 0 && sk.kind === 'summon') tMore += 1;
+    if (T.bard_sonic_echo && sk.tree === 1 && sk.kind === 'proj') tMore += T.bard_sonic_echo;
+    if (T.bard_trick_volley && sk.tree === 2 && sk.kind === 'proj') tMore += T.bard_trick_volley + 1;
+    if (T.bard_trick_clone && sk.tree === 2 && sk.kind === 'summon') tMore += 1;
+  } else if (sk.classId === 'lancer') {
+    if (T.lnc_shield_orbit && sk.tree === 1 && sk.kind === 'orbit') tMore += T.lnc_shield_orbit;
+  } else if (sk.classId === 'gunner') {
+    if (T.gun_bullet_salvo && sk.tree === 0 && sk.kind === 'proj') tMore += T.gun_bullet_salvo;
+    if (T.gun_bomb_cluster && sk.tree === 1 && sk.kind === 'proj') tMore += T.gun_bomb_cluster;
+    if (T.gun_artillery_key && sk.tree === 1 && sk.kind === 'trap') tMore += 2;
+  }
+  if (tMore > 0) sk = withMore(sk, tMore);
+
   const w = p.world, m = sk.m, st = p.st;
   const astro = sk.classId === ASTRONOMER;
   const el = astro && sk.el === 'arcane' ? 'astral' : sk.el, E = elem(el); // the Astronomer's arcane flies as blue starlight
@@ -65,6 +104,19 @@ export function castSkill(p, sk, L, tx, ty, opts = {}) {
   o.sk = sk.id; o.vis = vis;
   if (sk.id === 'barbarian.0.0') o.rageCast = p.bashCastSerial;
   if (aug) o.aug = aug;
+  // Talent status / on-hit augments
+  if (T.witch_murder_crows && sk.classId === 'carrion_witch' && sk.tree === 1) o.leech = true;
+  if (T.witch_crow_bleed && sk.classId === 'carrion_witch' && sk.tree === 1) o.bleed = true;
+  if (T.witch_plague_leech && sk.classId === 'carrion_witch' && sk.tree === 0) { o.leech = true; o.slow = true; }
+  if (T.barb_whirl_leech && sk.classId === 'barbarian' && sk.kind === 'whirl') o.leech = true;
+  if (T.barb_slam_sunder && sk.classId === 'barbarian' && sk.tree === 2) o.curse = [...(o.curse || []), 'amp'];
+  if (T.pal_blood_martyr && sk.classId === 'paladin' && sk.tree === 2) { o.leech = true; o.bleed = true; }
+  if (T.rng_sniper_crit && sk.classId === 'ranger' && sk.tree === 0) o.curse = [...(o.curse || []), 'mark'];
+  if (T.rng_poison_thorn && sk.classId === 'ranger' && sk.tree === 1) { o.poison = true; o.slow = true; }
+  if (T.nec_blood_leech && sk.classId === 'necromancer' && sk.tree === 0) o.leech = true;
+  if (T.lnc_charge_quake && sk.classId === 'lancer' && sk.kind === 'dash') o.leech = true;
+  if (T.wiz_winter_key && sk.classId === 'wizard' && sk.tree === 1) o.freeze = true;
+  if (T.wiz_solar_key && sk.classId === 'wizard' && sk.tree === 0) o.burn = true;
   const bard = sk.classId === 'bard' && m.note ? noteTier(L) : -1; // the Bard's notes: staff colour/particle tier
   if (bard >= 0) { o.bardT = bard; if (m.free) fx = 'n_' + bardNoteFor(p, sk); } // the basic note shrinks to fit the bar
   if (!opts.echo) { masteryCastFx(p, sk, M, tx, ty); classCastFx(p, sk, L, tx, ty); if (bard >= 0) bardCastFx(p, sk, L, tx, ty); }
@@ -264,23 +316,37 @@ export function castSkill(p, sk, L, tx, ty, opts = {}) {
     }
     case 'whirl': {
       const barbarian = sk.classId === 'barbarian';
+      const whirlPullMul = T.barb_whirl_leech ? 1 + 0.25 * T.barb_whirl_leech : 1;
       w.addHazard(new Whirl({ world: w, src: p, tx, ty, dur: m.dur || 2,
-        r: 1.35 * (m.r ?? 1) * area, dmg, el, fx, o,
+        r: 1.35 * (m.r ?? 1) * area * (T.barb_whirl_leech ? 1 + 0.1 * T.barb_whirl_leech : 1), dmg, el, fx, o,
         speed: barbarian ? Math.max(5.4, p.speed * 1.15) : 4.2,
-        rage: barbarian, pull: barbarian ? (m.suck || 0) + (L >= 6 ? 0.55 : 0) : 0,
+        rage: barbarian, pull: barbarian ? ((m.suck || 0) + (L >= 6 ? 0.55 : 0) + (T.barb_whirl_leech ? 0.35 : 0)) * whirlPullMul : 0,
         lightning: barbarian && (m.lightning || L >= 12),
-        tornadoes: barbarian ? (m.tornado || 0) + (L >= 16 ? 2 : 0) : 0 }));
+        tornadoes: barbarian ? (m.tornado || 0) + (L >= 16 ? 2 : 0) + (T.barb_bloodstorm_key ? 2 : 0) : 0 }));
       break;
     }
     case 'leap': {
       const [x, y] = clampTarget(w, p, tx, ty, 6.5 * (m.range ?? 1));
-      const lp = w.addHazard(new Leap({ world: w, src: p, tx: x, ty: y, r: 1.6 * (m.r ?? 1) * area, dmg, el, fx, o, nova: m.nova }));
+      const leapQuake = sk.classId === 'barbarian' ? (T.barb_leap_aoe || 0) : 0;
+      const leapCrater = sk.classId === 'barbarian' && (T.barb_skybreaker_key || T.barb_slam_crater);
+      if (sk.classId === 'barbarian' && T.barb_skybreaker_key) {
+        p.rage = Math.min(100, (p.rage || 0) + 25);
+        p.char.rage = p.rage;
+      }
+      const lp = w.addHazard(new Leap({
+        world: w, src: p, tx: x, ty: y,
+        r: 1.6 * (m.r ?? 1) * area * (1 + 0.18 * leapQuake),
+        dmg, el, fx, o: leapQuake ? { ...o, stun: true } : o,
+        nova: m.nova || leapQuake > 0,
+        quake: leapQuake,
+        crater: leapCrater,
+      }));
       if (sk.classId === 'dragoon') lanceLeap(lp, sk.name); // energy lance + a trail per leap skill
       sfx('swing');
       break;
     }
     case 'dash':
-      w.addHazard(new Dash({ world: w, src: p, ang, len: Math.min(5 * (m.range ?? 1), Math.max(2, dist(p.x, p.y, tx, ty) + 0.5)), dmg, el, fx, o, n: m.n || 1, exp: m.exp }));
+      w.addHazard(new Dash({ world: w, src: p, ang, len: Math.min(5 * (m.range ?? 1), Math.max(2, dist(p.x, p.y, tx, ty) + 0.5)), dmg, el, fx, o, n: m.n || 1, exp: m.exp || (T.lnc_charge_quake > 0) || (T.pal_shield_ricochet > 0) || (T.barb_leap_aoe > 0) }));
       if (m.lance) energyLance(p, ang, 2.2 + Math.min(20, L) * 0.05, el, 0.45 * (m.n || 1) + 0.2, L, m.prism).ride = true; // couched lance rides the charge
       sfx('swing');
       break;
@@ -393,10 +459,55 @@ export function castSkill(p, sk, L, tx, ty, opts = {}) {
     default:
       break;
   }
-  // gem / legendary on-cast procs
+  // gem / legendary / talent on-cast procs
   if (!opts.echo) {
     if (st.novaOnCast && chance(st.novaOnCast / 100)) w.addHazard(new NovaWave({ world: w, src: p, x: p.x, y: p.y, r: 2.4 * area, dmg: dmg.map((v) => v * 0.5), el, fx: 'nova', o: {} }));
     if (st.orbitOnCast && chance(st.orbitOnCast / 100)) w.addHazard(new Orbit({ world: w, src: p, n: 1, radius: 1.4, dur: 5, fx: 'orb', el, dmg: dmg.map((v) => v * 0.4), o: {} }));
+    // Talent Tree active skill post-cast procs
+    if (T.barb_shout_nova && sk.classId === 'barbarian' && sk.tree === 1) {
+      w.addHazard(new NovaWave({ world: w, src: p, x: p.x, y: p.y, r: 2.8 * area, dmg: dmg.map((v) => v * (0.45 * T.barb_shout_nova)), el: 'phys', fx: 'sonic', o: { ...o, stun: !!T.barb_voice_key } }));
+    }
+    if (T.barb_shout_frenzy && sk.classId === 'barbarian' && sk.tree === 1) {
+      p.heal(p.maxHp * 0.05 * T.barb_shout_frenzy);
+      p.rage = Math.min(100, (p.rage || 0) + 8 * T.barb_shout_frenzy);
+      p.char.rage = p.rage;
+    }
+    if ((T.barb_slam_crater && sk.classId === 'barbarian' && sk.tree === 2) ||
+        (T.wiz_fire_meteor && sk.classId === 'wizard' && sk.tree === 0 && ['proj', 'aoe'].includes(sk.kind)) ||
+        (T.gun_bomb_napalm && sk.classId === 'gunner' && sk.tree === 1)) {
+      const [cx, cy] = ['nova', 'melee'].includes(sk.kind) ? [p.x, p.y] : clampTarget(w, p, tx, ty, 9);
+      w.addHazard(new Area({ world: w, src: p, x: cx, y: cy, r: 1.6 * area, dur: 4, tick: 0.5, dmg: dmg.map((v) => v * 0.25), el: 'fire', fx: 'fire', o: { burn: true } }));
+    }
+    if ((T.witch_hex_doom && sk.classId === 'carrion_witch' && sk.tree === 2 && sk.kind === 'curse') ||
+        (T.nec_curse_blast && sk.classId === 'necromancer' && sk.tree === 2 && sk.kind === 'curse')) {
+      const [cx, cy] = m.at === 'self' ? [p.x, p.y] : clampTarget(w, p, tx, ty, 9);
+      const rk = T.witch_hex_doom || T.nec_curse_blast || 1;
+      explode(w, p, cx, cy, 2.1 * area, dmg.map((v) => v * (0.45 * rk)), 'shadow', o, 'void');
+    }
+    if (T.pal_zeal_waves && sk.classId === 'paladin' && sk.tree === 2 && sk.kind === 'melee') {
+      for (let i = 0; i < T.pal_zeal_waves; i++) {
+        const a = ang + (T.pal_zeal_waves > 1 ? (i / (T.pal_zeal_waves - 1) - 0.5) * 0.35 : 0);
+        w.addHazard(new Projectile({ world: w, src: p, x: p.x, y: p.y, ang: a, speed: 11, range: 7, fx: 'blade', el: 'holy', dmg: dmg.map((v) => v * 0.45), o, pierce: 99 }));
+      }
+    }
+    if (T.pal_strike_nova && sk.classId === 'paladin' && sk.tree === 0 && ['melee', 'strike'].includes(sk.kind)) {
+      const [cx, cy] = sk.kind === 'melee' ? [p.x + Math.cos(ang) * 1.2, p.y + Math.sin(ang) * 1.2] : clampTarget(w, p, tx, ty, 9);
+      strikeFx(cx, cy, 'lightning', elem('holy'));
+      aoe(w, p, cx, cy, 1.4 * area, roll(dmg) * (0.3 * T.pal_strike_nova), 'holy', o);
+    }
+    if (T.lnc_lance_bolt && sk.classId === 'lancer' && sk.tree === 0 && ['melee', 'beam'].includes(sk.kind)) {
+      for (let i = 0; i < T.lnc_lance_bolt; i++) {
+        const a = ang + (T.lnc_lance_bolt > 1 ? (i / (T.lnc_lance_bolt - 1) - 0.5) * 0.25 : 0);
+        w.addHazard(new Projectile({ world: w, src: p, x: p.x, y: p.y, ang: a, speed: 13, range: 8, fx: 'spear', el: 'light', dmg: dmg.map((v) => v * 0.4), o, pierce: 99 }));
+      }
+    }
+    if ((T.wiz_cold_armor && sk.classId === 'wizard' && sk.tree === 1 && ['buff', 'summon'].includes(sk.kind)) ||
+        (T.wiz_light_teleport && sk.classId === 'wizard' && sk.tree === 2 && ['blink', 'buff'].includes(sk.kind)) ||
+        (T.bard_song_pulse && sk.classId === 'bard' && sk.tree === 0 && ['buff', 'curse'].includes(sk.kind)) ||
+        (T.lnc_banner_aura && sk.classId === 'lancer' && sk.tree === 2 && ['summon', 'heal'].includes(sk.kind)) ||
+        (T.gun_turret_tesla && sk.classId === 'gunner' && sk.tree === 2 && sk.kind === 'summon')) {
+      w.addHazard(new NovaWave({ world: w, src: p, x: p.x, y: p.y, r: 2.5 * area, dmg: dmg.map((v) => v * 0.55), el, fx: el === 'cold' ? 'frost' : el === 'light' ? 'lightning' : 'nova', o, heal: !!(T.bard_song_pulse || T.lnc_banner_aura) }));
+    }
   }
   return true;
 }

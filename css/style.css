@@ -3325,6 +3325,145 @@ body.touch .reliquary-panel .codex-cell {
   color: var(--text-dim);
 }
 
+/* Passive Talent Tree (T) */
+.talent-branches {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 10px 0;
+}
+
+@media (max-width: 720px) {
+  .talent-branches {
+    grid-template-columns: 1fr;
+  }
+}
+
+.talent-branch {
+  background: rgba(14, 9, 6, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.talent-branch-head {
+  text-align: center;
+  font-family: var(--font-head);
+  font-size: 15px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--gold-dim);
+}
+
+.talent-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 74px;
+  padding-left: 28px;
+}
+
+.talent-tier-lbl {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.talent-or-badge {
+  font: 700 10px var(--font-head);
+  color: #ffb86c;
+  background: #261408;
+  border: 1px solid #6b4423;
+  border-radius: 10px;
+  padding: 2px 5px;
+  letter-spacing: 0.5px;
+}
+
+.talent-node {
+  width: 68px;
+  height: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 3px;
+  background: #0d0805;
+}
+
+.talent-node canvas {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.talent-node-name {
+  font-size: 9.5px;
+  line-height: 1.05;
+  text-align: center;
+  color: #e8dcc8;
+  margin-top: 2px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.talent-choice {
+  border-style: double;
+  border-width: 2px;
+}
+
+.talent-keystone {
+  border-color: #8a6421;
+}
+
+.talent-node.choice-locked {
+  border-color: #4a1c1c !important;
+  opacity: 0.48;
+}
+
+.talent-node.choice-locked canvas {
+  filter: grayscale(1) brightness(0.3);
+}
+
+.talent-lock-tag,
+.talent-choice-tag {
+  position: absolute;
+  left: -4px;
+  top: -7px;
+  font: 700 8.5px var(--font-head);
+  padding: 1px 4px;
+  border-radius: 4px;
+  letter-spacing: 0.4px;
+}
+
+.talent-lock-tag {
+  background: #4a1010;
+  border: 1px solid #ff6060;
+  color: #ffb0b0;
+}
+
+.talent-choice-tag {
+  background: #1c1228;
+  border: 1px solid #8a64c8;
+  color: #e0c8ff;
+}
+
+.talent-detail {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .assign-row {
   display: flex;
   flex-wrap: wrap;
@@ -3755,11 +3894,11 @@ body.touch .reliquary-panel .codex-cell {
 
 .class-grid {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 116px));
+  grid-template-columns: repeat(9, minmax(0, 108px));
   justify-content: center;
   gap: 6px;
   padding: 6px 8px;
-  width: min(98vw, 960px);
+  width: min(98vw, 1040px);
 }
 
 .class-card {
@@ -5144,7 +5283,7 @@ body.touch.portrait .screen {
 }
 
 body.touch.portrait .class-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 body.touch.portrait .class-card {
@@ -5265,7 +5404,7 @@ body.touch .skill-detail {
 
 @media (max-width: 900px) {
   .class-grid {
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-columns: repeat(9, minmax(0, 1fr));
   }
 
   .plaque {
@@ -5281,7 +5420,7 @@ body.touch .skill-detail {
 
 @media (max-width: 600px) {
   .class-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .class-card {

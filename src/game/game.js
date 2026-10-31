@@ -84,6 +84,7 @@ import { Stash } from '../ui/stash.js';
 import { startTownLife } from './townlife.js';
 import { toggleInventory } from '../ui/inventory.js';
 import { toggleTree, toggleBook } from '../ui/skills.js';
+import { toggleTalents } from '../ui/talents.js';
 import { toggleQuest } from '../ui/quest.js';
 import { setupVelscour } from './velscour.js';
 import { loadVelscourThrone } from '../gfx/velscourthrone.js';
@@ -111,31 +112,28 @@ const PICK_WAIT = 8; // seconds auto-play gives the player to choose a portal do
 const STEP_SURFACE = { sunken: 'water', plague: 'water', sewers: 'water', serpent: 'water', library: 'wood', gilded: 'wood', sea_of_sand:'sand', dark_forest:'wood', skyship:'wood' };   // footstep sounds; default stone
 
 const VELSCOUR_TAUNT_STARTS = [
-  'WHY ARE YOU TRYING TO CONTACT VELSCOUR', 'WHAT MADE YOU THINK VELSCOUR WANTS TO HEAR FROM YOU',
-  'DID YOU REALLY EXPECT VELSCOUR TO ANSWER', 'WHO TOLD YOU VELSCOUR TAKES MESSAGES',
-  'IS THIS HOW YOU PLAN TO CHALLENGE VELSCOUR', 'DO YOU HAVE A DEATH WISH OR JUST POOR MANNERS',
-  'WHY SUMMON A DEMON LORD WHEN YOU CAN BOTHER ANYONE ELSE', 'DID THE GRAVEYARD RECOMMEND THIS CONTACT METHOD',
-  'ARE YOU LOST OR JUST COMMITTED TO MAKING THINGS WORSE', 'WHAT PART OF DOOM DID YOU MISTAKE FOR CUSTOMER SERVICE',
-  'DID YOU BRING A MESSAGE OR JUST YOUR LAST WORDS', 'WHY IS YOUR FIRST IDEA ALWAYS THE MOST CURSED ONE',
-  'DO YOU THINK HELL HAS A RECEPTION DESK', 'HOW MANY BAD DECISIONS FIT IN ONE SHORT MESSAGE',
-  'ARE YOU TRYING TO NEGOTIATE WITH THE END OF YOU', 'DID YOUR COMMON SENSE DIE BEFORE YOU GOT HERE',
-  'WHAT COULD POSSIBLY GO WRONG THIS TIME', 'WHY ASK THE ABYSS TO NOTICE YOU',
-  'IS THIS BRAVERY OR A VERY SPECIFIC KIND OF STUPID', 'DID YOU THINK THE DEMON LORD WAS BETWEEN APPOINTMENTS',
+  'YOUR VOICE ECHOES THROUGH THE ASHEN HALLS',
+  'THE ABYSS HEARS YOUR DEFIANCE',
+  'YOU DARE WHISPER INTO THE DARKNESS',
+  'YOUR WORDS CARVE NOTHING INTO THE STONE',
+  'EVEN NOW YOU CALL UPON THE THRONE BELOW',
+  'THE SEALED DEPTHS TREMBLE AT YOUR INSOLENCE',
+  'DO YOU BELIEVE PRAYER OR THREAT WILL SAVE YOU',
+  'THE IRON CROWN HAS NO MERCY FOR MORTALS',
+  'YOUR CHALLENGE RINGS HOLLOW IN THE VOID',
+  'MANY HAVE SPOKEN THAT NAME BEFORE FALLING',
 ];
 const VELSCOUR_TAUNT_ENDS = [
-  'He is busy polishing the thing that will end your adventure.', 'The abyss has a strict no refunds policy.',
-  'Your courage is adorable. Your odds are not.', 'Hell called; it said to stop making it awkward.',
-  'Please leave a message after the screaming.', 'The last visitor left as a cautionary stain.',
-  'He read your aura and marked it spam.', 'Your odds are somewhere beneath the floor.',
-  'This conversation may be recorded for the inquest.', 'Even the skeletons are embarrassed for you.',
-  'The waiting room is just a pit with better lighting.', 'He is currently unavailable for mortal nonsense.',
-  'Your bravery has been forwarded to the nearest grave.', 'The reply window is sealed until the heat death of hope.',
-  'A single black candle is being lit in your honor.', 'The demons drew lots. Nobody wanted to answer.',
-  'You have reached the bottom of the bad idea barrel.', 'Please hold. Eternity is estimated at eternity.',
-  'Your message will be delivered by a very nervous imp.', 'There is no safe word in the terms of service.',
-  'Somewhere, a lich just sighed at your decision.', 'The abyss knows your name and still declined.',
-  'This is why the dead keep their phones on silent.', 'Try again when your survival instinct returns.',
-  'Your next of kin may appreciate the initiative.',
+  'Only silence and cold iron await your descent.',
+  'The dark remembers every oath broken in its halls.',
+  'Walk deeper, and see what answers in blood.',
+  'Your blade will dull long before the pit ends.',
+  'The throne below has outlasted greater champions than you.',
+  'Ash and bone are the only replies the abyss grants.',
+  'Every step downward seals your covenant with ruin.',
+  'The shadows gather where your lantern fades.',
+  'No herald returns from the final gate.',
+  'Save your breath for the guardians below.',
 ];
 const VELSCOUR_TAUNTS = VELSCOUR_TAUNT_STARTS.flatMap((start) => VELSCOUR_TAUNT_ENDS.map((end) => `${start}? ${end}`));
 
@@ -2273,6 +2271,7 @@ export const game = {
     switch (act) {
       case 'inventory': case 'character': toggleInventory(); break;
       case 'skills': toggleTree(); break;
+      case 'talents': toggleTalents(); break;
       case 'book': toggleBook(); break;
       case 'quest': toggleQuest(); break;
       case 'menu': pauseMenu(); break;
@@ -2287,7 +2286,8 @@ export const game = {
     const ui = UI;
     if (!ui.modal) {
       if (input.consume('KeyI')) toggleInventory();
-      if (input.consume('KeyK') || input.consume('KeyT')) toggleTree();
+      if (input.consume('KeyK')) toggleTree();
+      if (input.consume('KeyT')) toggleTalents();
       if (input.consume('KeyB')) toggleBook();
       if (input.consume('KeyQ')) toggleQuest();
       if (input.consume('KeyP') && (input.alt || input.down('AltLeft') || input.down('AltRight'))) Auto.toggle();

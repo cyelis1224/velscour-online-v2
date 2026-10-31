@@ -77,6 +77,7 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
       let res = (tgt.res && tgt.res[el === 'astral' ? 'arcane' : el]) || 0;
       if (el === 'arcane' || el === 'astral') res *= 0.5;
       dmg *= 1 - clamp(res, -1, 0.9);
+      if (tgt.dmgReduce) dmg *= 1 - clamp(tgt.dmgReduce, 0, 0.75);
       if (el === 'holy' && (tgt.undead || tgt.demon)) dmg *= 1.5;
       const C = tgt.curses;
       if (C.amp && C.amp.t > 0) dmg *= 1 + C.amp.amt / 100;
@@ -159,8 +160,12 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
     if (st.manaSteal > 0) src.mana = Math.min(src.maxMana, src.mana + share * src.maxMana * st.manaSteal / 100);
     if (tgt.curses.leech && tgt.curses.leech.t > 0) src.heal(share * src.maxHp * tgt.curses.leech.amt / 100 * 0.3, true);
     src.onHit && src.onHit(tgt, dmg, el, o);
-  } else if (src && src.summon && src.leech && src.owner) {
-    leechHeal(src.owner, tgt, dmg, src.leech * 0.2);
+  } else if (src && src.summon && (src.leech || src.selfLeech) && src.owner) {
+    if (src.leech) leechHeal(src.owner, tgt, dmg, src.leech * 0.25);
+    if (src.selfLeech && !src.dead) {
+      const share = Math.min(1, dmg / Math.max(1, tgt.maxHp)) * LEECH_K;
+      src.hp = Math.min(src.maxHp, src.hp + share * src.maxHp * src.selfLeech);
+    }
   }
   // ring augments ride on skill hits (o.aug) and on the hits of a skill's minions; the skill earns mastery for kills
   if (byHero && !o.proc) {
@@ -295,6 +300,16 @@ export function kill(tgt, src, info = {}) {
         aoe(world, p, tgt.x, tgt.y, 1.6, tgt.maxHp * 0.35, 'blood', { dot: true, crit: false });
       }
       if (leg.vamp) p.heal(p.maxHp * 0.02, true);
+      const T = p.st.talents || {};
+      if ((T.witch_plague_burst || T.nec_plague_key) && tgt.status && tgt.status.poison && tgt.status.poison.t > 0) {
+        const pbRank = T.witch_plague_burst || 2;
+        explosionFx(tgt.x, tgt.y, 1.35, 'poison', 'void', { sound: false });
+        aoe(world, p, tgt.x, tgt.y, 1.65, tgt.maxHp * (0.12 * pbRank), 'poison', { dot: true, crit: false, poison: true });
+      }
+      if (T.wiz_solar_key && tgt.status && tgt.status.burn && tgt.status.burn.t > 0) {
+        explosionFx(tgt.x, tgt.y, 1.35, 'fire', 'explosion', { sound: false });
+        aoe(world, p, tgt.x, tgt.y, 1.6, tgt.maxHp * 0.22, 'fire', { dot: true, crit: false, burn: true });
+      }
       if (p.st.procs && p.st.procs.length && !info.proc) relicProc(p, 'kill', tgt, 0);
       if (p.chart && tgt.team === 'enemy') astroOnKill(p, tgt); // the fallen may become a star on the Astronomer's chart
       if (p.sig && !info.sig) sigKill(p, tgt, src); // the class signature (game/signature.js); its own kills never feed it

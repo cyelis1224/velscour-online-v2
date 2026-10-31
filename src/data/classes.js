@@ -1,103 +1,112 @@
 import { TREE4_NAMES } from './skilltrees4.js';
-// The sixteen playable classes.
+
+// The 9 active playable classes on the Character Select screen (the 7 legacy classes remain in CLASSES with disabled: true).
+export const ACTIVE_CLASS_IDS = [
+  'paladin', 'ranger', 'wizard', 'necromancer',
+  'barbarian', 'carrion_witch', 'bard', 'lancer', 'gunner',
+];
+export const DISABLED_CLASS_IDS = [
+  'dragoon', 'totem_master', 'death_knight', 'arcane_sorcerer',
+  'slime_lord', 'boomerang_knight', 'dragon_knight',
+];
+
 // primary: attribute that adds +1% damage to all of the class' skills per point.
 export const CLASSES = {
   paladin: {
-    name: 'Paladin', primary: 'str', base: { str: 24, dex: 14, vit: 24, int: 16 }, life: 70, mana: 30, lifeLvl: 8, manaLvl: 2,
+    name: 'Paladin', primary: 'str', base: { str: 24, dex: 14, vit: 24, int: 16 }, life: 95, mana: 40, lifeLvl: 18, manaLvl: 3,
     weapon: 'mace', offhand: 'shield', element: 'holy', color: '#ffd860',
     trees: ['Holy Wrath', 'Bulwark', 'Crusade'],
-    desc: 'A holy warrior clad in blessed steel. Hammers of light, righteous auras and an unbreakable shield wall.',
+    desc: 'A templar sworn in blood and consecrated steel. Wields sanctified maces, warhammers, and an unyielding bulwark of light.',
   },
   ranger: {
-    name: 'Ranger', primary: 'dex', base: { str: 16, dex: 28, vit: 18, int: 14 }, life: 55, mana: 30, lifeLvl: 6, manaLvl: 2.5,
+    name: 'Ranger', primary: 'dex', base: { str: 16, dex: 28, vit: 18, int: 14 }, life: 78, mana: 40, lifeLvl: 14, manaLvl: 3.5,
     weapon: 'bow', offhand: 'quiver', element: 'phys', color: '#7ccf5a',
     trees: ['Marksmanship', 'The Wilds', 'Traps & Tricks'],
-    desc: 'A deadly archer of the wildwood. Volleys of arrows, beast companions and cunning traps.',
+    desc: 'A relentless stalker of the borderlands. Commands longbows, war beasts, and lethal battlefield snares.',
   },
   wizard: {
-    name: 'Wizard', primary: 'int', base: { str: 12, dex: 16, vit: 16, int: 32 }, life: 45, mana: 60, lifeLvl: 5, manaLvl: 4,
+    name: 'Wizard', primary: 'int', base: { str: 12, dex: 16, vit: 16, int: 32 }, life: 68, mana: 75, lifeLvl: 12, manaLvl: 6,
     weapon: 'staff', offhand: 'tome', element: 'fire', color: '#ff8a30',
     trees: ['Fire', 'Frost', 'Storm'],
-    desc: 'Master of the classic elements. Meteors, blizzards and chain lightning at your fingertips.',
+    desc: 'A scholar of the primordial elements. Channels searing flame, glacial rime, and arcing tempests through runed staves and tomes.',
   },
   necromancer: {
-    name: 'Necromancer', primary: 'int', base: { str: 14, dex: 16, vit: 18, int: 28 }, life: 48, mana: 55, lifeLvl: 5, manaLvl: 4,
+    name: 'Necromancer', primary: 'int', base: { str: 14, dex: 16, vit: 18, int: 28 }, life: 72, mana: 70, lifeLvl: 13, manaLvl: 5.5,
     weapon: 'wand', offhand: 'orb', element: 'shadow', color: '#a070ff',
     trees: ['Bone & Blood', 'Summoning', 'Curses & Plague', 'Skeletal Legion'],
-    desc: 'Commander of the dead. Raise skeletal armies, hurl bone spears and detonate corpses.',
+    desc: 'An ash-bound binder of the restless dead. Commands skeletal legions, serrated bone magic, and withering blood curses.',
   },
   barbarian: {
-    name: 'Barbarian', primary: 'str', base: { str: 30, dex: 18, vit: 26, int: 8 }, life: 80, mana: 20, lifeLvl: 9, manaLvl: 1.5,
+    name: 'Barbarian', primary: 'str', base: { str: 30, dex: 18, vit: 26, int: 8 }, life: 110, mana: 25, lifeLvl: 22, manaLvl: 2,
     weapon: 'axe', element: 'phys', color: '#d8853a',
     trees: ['Rage', 'Warcries', 'Earthshaker'],
-    desc: 'A savage berserker from the frozen north. Whirlwinds of steel, earth-splitting slams and battle cries.',
+    desc: 'A hardened warlord of the northern wastes. Cleaves through ranks with dual-wielded steel, earth-shattering leaps, and warcries.',
   },
   dragoon: {
-    name: 'Dragoon', primary: 'str', base: { str: 24, dex: 22, vit: 22, int: 12 }, life: 65, mana: 30, lifeLvl: 7, manaLvl: 2,
+    name: 'Dragoon', disabled: true, primary: 'str', base: { str: 24, dex: 22, vit: 22, int: 12 }, life: 88, mana: 35, lifeLvl: 16, manaLvl: 3,
     weapon: 'spear', offhand: 'shield', element: 'fire', color: '#6aa8ff',
     trees: ['Lancework', 'Sky Dive', 'Wyrmblood', 'Spearstorm'],
     desc: 'A lance-wielding knight who leaps from the heavens. Dragon dives, lance flurries and wyrm breath.',
   },
   totem_master: {
-    name: 'Totem Master', primary: 'int', base: { str: 18, dex: 16, vit: 22, int: 24 }, life: 60, mana: 45, lifeLvl: 7, manaLvl: 3,
+    name: 'Totem Master', disabled: true, primary: 'int', base: { str: 18, dex: 16, vit: 22, int: 24 }, life: 82, mana: 55, lifeLvl: 15, manaLvl: 4,
     weapon: 'staff', offhand: 'idol', element: 'light', color: '#5ac8a0',
     trees: ['Totems', 'Ancestors', 'Earth & Storm'],
     desc: 'A shaman who plants spirit totems that burn, shock and heal while ancestors fight at their side.',
   },
   death_knight: {
-    name: 'Death Knight', primary: 'str', base: { str: 26, dex: 14, vit: 26, int: 14 }, life: 75, mana: 30, lifeLvl: 8, manaLvl: 2,
+    name: 'Death Knight', disabled: true, primary: 'str', base: { str: 26, dex: 14, vit: 26, int: 14 }, life: 98, mana: 35, lifeLvl: 18, manaLvl: 3,
     weapon: 'sword', offhand: 'skull', element: 'cold', color: '#7ad0ff',
     trees: ['Frost', 'Unholy', 'Blood'],
     desc: 'A fallen champion bound by runic frost. Obliterating strikes, plague and life-stealing blood magic.',
   },
   arcane_sorcerer: {
-    // the id stays arcane_sorcerer (saves, sprites and gear packs use it); he is the Astronomer now
-    name: 'Astronomer', primary: 'int', base: { str: 12, dex: 16, vit: 16, int: 34 }, life: 44, mana: 65, lifeLvl: 5, manaLvl: 4.5,
+    name: 'Astronomer', disabled: true, primary: 'int', base: { str: 12, dex: 16, vit: 16, int: 34 }, life: 68, mana: 80, lifeLvl: 12, manaLvl: 6,
     weapon: 'wand', offhand: 'orb', element: 'arcane', color: '#4aa8ff',
     trees: ['Starfire', 'Celestial Bodies', 'Gravity'],
-    desc: 'A stargazer who wields the heavens. Swarms of star missiles, meteors, falling suns and black holes; every spell charts a star, and finished constellations grant zodiac boons.',
+    desc: 'A stargazer who wields the heavens. Swarms of star missiles, meteors, falling suns and black holes.',
   },
   carrion_witch: {
-    name: 'Carrion Witch', primary: 'int', base: { str: 12, dex: 18, vit: 18, int: 30 }, life: 48, mana: 55, lifeLvl: 5, manaLvl: 4,
+    name: 'Witch', primary: 'int', base: { str: 12, dex: 18, vit: 18, int: 30 }, life: 72, mana: 70, lifeLvl: 13, manaLvl: 5.5,
     weapon: 'staff', offhand: 'lantern', element: 'poison', color: '#9ac84a',
     trees: ['Plague', 'Murder of Crows', 'Hexes'],
-    desc: 'A swamp hag who commands locusts and crows, and hexes her foes into rotting puppets.',
+    desc: 'A mire-born occultist of the black fens. Unleashes virulent plagues, ravenous murder crows, and soul-binding hexes.',
   },
   bard: {
-    name: 'Bard', primary: 'dex', base: { str: 16, dex: 26, vit: 20, int: 18 }, life: 55, mana: 40, lifeLvl: 6, manaLvl: 3,
+    name: 'Bard', primary: 'dex', base: { str: 16, dex: 26, vit: 20, int: 18 }, life: 78, mana: 52, lifeLvl: 14, manaLvl: 4,
     weapon: 'lute', offhand: 'drum', element: 'arcane', color: '#ff6a8a',
     trees: ['Songs', 'Sonic Arts', 'Trickery'],
-    desc: 'A roguish minstrel whose songs empower allies, whose chords shatter bone, and whose knives never miss.',
+    desc: 'A battle-skald and blade-dancer. Weaves war-chants that bolster allies, resonant chords that fracture armor, and lethal daggers.',
   },
   slime_lord: {
-    name: 'Slime Lord', primary: 'vit', base: { str: 18, dex: 14, vit: 32, int: 16 }, life: 85, mana: 35, lifeLvl: 9, manaLvl: 2.5,
+    name: 'Slime Lord', disabled: true, primary: 'vit', base: { str: 18, dex: 14, vit: 32, int: 16 }, life: 105, mana: 45, lifeLvl: 20, manaLvl: 3.5,
     weapon: 'mace', offhand: 'jar', element: 'acid', color: '#4aa8ff',
     trees: ['Ooze', 'Spawn', 'Mutation'],
     desc: 'A crowned king of living ooze. Acid floods, endless slimeling broods and grotesque mutations.',
   },
   boomerang_knight: {
-    name: 'Boomerang Knight', primary: 'dex', base: { str: 20, dex: 28, vit: 20, int: 12 }, life: 60, mana: 30, lifeLvl: 7, manaLvl: 2,
+    name: 'Boomerang Knight', disabled: true, primary: 'dex', base: { str: 20, dex: 28, vit: 20, int: 12 }, life: 82, mana: 40, lifeLvl: 15, manaLvl: 3,
     weapon: 'boomerang', offhand: 'rang', element: 'phys', color: '#3ac8a8',
     trees: ['Throwing', 'Bladesmanship', 'Gale Knight'],
     desc: 'A dashing knight whose blades always come back. Ricochets, swirling sword storms and gale cyclones.',
   },
   lancer: {
-    name: 'Lancer', primary: 'str', base: { str: 26, dex: 18, vit: 30, int: 8 }, life: 88, mana: 28, lifeLvl: 9, manaLvl: 1.6,
+    name: 'Lancer', primary: 'str', base: { str: 26, dex: 18, vit: 30, int: 8 }, life: 105, mana: 36, lifeLvl: 20, manaLvl: 2.5,
     weapon: 'spear', offhand: 'shield', element: 'light', color: '#c0c0d0',
     trees: ['Energy Lance', 'Bulwark', 'Knight Order'],
-    desc: 'An unbreakable knight-captain. Huge elemental energy lances, up to ten tower shields circling him, and an order of knights at his back.',
+    desc: 'An ironclad vanguard commander. Drives storm-forged war lances through enemy lines behind a phalanx of tower shields.',
   },
   dragon_knight: {
-    name: 'Dragon Knight', primary: 'str', base: { str: 26, dex: 18, vit: 24, int: 12 }, life: 72, mana: 30, lifeLvl: 8, manaLvl: 2,
+    name: 'Dragon Knight', disabled: true, primary: 'str', base: { str: 26, dex: 18, vit: 24, int: 12 }, life: 92, mana: 40, lifeLvl: 17, manaLvl: 3,
     weapon: 'sword', offhand: 'shield', element: 'fire', color: '#ff5a2a',
     trees: ['Flame', 'Scale', 'Draconic'],
     desc: 'Blood of the wyrm runs hot. Fire breath, dragon-scale armor and the power to become a dragon.',
   },
   gunner: {
-    name: 'Gunner', primary: 'dex', base: { str: 16, dex: 30, vit: 18, int: 16 }, life: 55, mana: 35, lifeLvl: 6, manaLvl: 2.5,
+    name: 'Gunner', primary: 'dex', base: { str: 16, dex: 30, vit: 18, int: 16 }, life: 78, mana: 45, lifeLvl: 14, manaLvl: 3.5,
     weapon: 'pistol', offhand: 'bomb', element: 'fire', color: '#d0a060',
     trees: ['Firearms', 'Explosives', 'Engineering'],
-    desc: 'A powder-stained engineer. Bullet hell, rocket barrages, turrets, drones and a death laser.',
+    desc: 'A black-powder marksman and siege artificer. Commands flintlock repeaters, black-iron ordnance, and automated field turrets.',
   },
 };
 for (const [c, name] of Object.entries(TREE4_NAMES)) if (CLASSES[c].trees.length === 3) CLASSES[c].trees.push(name);
@@ -114,17 +123,29 @@ for (const [c, name] of Object.entries(TREE4_NAMES)) if (CLASSES[c].trees.length
 // Gunner 2.1x; level 300 takes half that gap (the square root of the ratio), every other class holds its level-160 value.
 // Measured again (three runs): the Gunner 0.99x and the Witch 1.3x, the Dragoon 0.61x and the Boomerang Knight 0.49x, so
 // those two took a second half-step.
-export const DMG_TUNE_AT = [5, 45, 160, 300];
+export const DMG_TUNE_AT = [1, 25, 60, 100];
 export const DMG_TUNE = {
-  paladin: [1.31, 1.27, 0.95, 0.95], ranger: [0.74, 0.42, 0.53, 0.53], wizard: [0.99, 0.6, 0.54, 0.54], necromancer: [1.15, 1.23, 2.3, 2.3],
-  barbarian: [1.63, 3.5, 2.38, 2.38], dragoon: [0.98, 3.23, 3.2, 1.33], totem_master: [0.95, 0.85, 1.48, 1.48], death_knight: [0.96, 1.28, 1.66, 1.66],
-  arcane_sorcerer: [0.77, 0.34, 0.25, 0.25], carrion_witch: [1.13, 0.91, 1.36, 2.12], bard: [0.69, 1.11, 1.28, 1.28], slime_lord: [1.23, 0.69, 0.53, 0.53],
-  boomerang_knight: [1.07, 0.74, 0.42, 0.17], lancer: [1.32, 2.02, 1.48, 1.48], dragon_knight: [1.35, 1.47, 1.83, 1.83], gunner: [1.03, 0.68, 0.79, 1.14],
+  paladin: [1.05, 1.05, 1.05, 1.05],
+  ranger: [0.96, 0.96, 0.96, 0.96],
+  wizard: [0.98, 0.98, 0.98, 0.98],
+  necromancer: [1.0, 1.0, 1.0, 1.0],
+  barbarian: [1.1, 1.12, 1.12, 1.12],
+  dragoon: [1.05, 1.05, 1.05, 1.05],
+  totem_master: [1.0, 1.0, 1.0, 1.0],
+  death_knight: [1.05, 1.05, 1.05, 1.05],
+  arcane_sorcerer: [0.95, 0.95, 0.95, 0.95],
+  carrion_witch: [1.0, 1.02, 1.04, 1.05],
+  bard: [0.98, 1.0, 1.02, 1.02],
+  slime_lord: [1.0, 1.0, 1.0, 1.0],
+  boomerang_knight: [1.0, 1.0, 1.0, 1.0],
+  lancer: [1.08, 1.1, 1.1, 1.1],
+  dragon_knight: [1.05, 1.05, 1.05, 1.05],
+  gunner: [0.96, 0.98, 0.98, 0.98],
 };
 
 export const ATTRS = {
   str: { name: 'Strength', short: 'STR', desc: '+1% physical damage, +1 armor' },
   dex: { name: 'Dexterity', short: 'DEX', desc: '+0.3% attack speed, +0.1% crit chance (past the 75% cap: +0.2% crit damage)' },
-  vit: { name: 'Vitality', short: 'VIT', desc: '+3 life, +0.05 life regen' },
+  vit: { name: 'Vitality', short: 'VIT', desc: '+6 life, +0.08 life regen' },
   int: { name: 'Intellect', short: 'INT', desc: '+2 mana, +1% elemental damage' },
 };

@@ -130,7 +130,7 @@ export function newCharData(classId, name) {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     version: 1, name, classId, level: 1, xp: 0,
     attrs: { ...C.base }, statPoints: 0, skillPoints: 1,
-    skills: {}, granted: {}, bar: Array(BAR_SIZE).fill(null),
+    skills: {}, talents: {}, granted: {}, bar: Array(BAR_SIZE).fill(null),
     equip: { weapon: null, offhand: null, head: null, body: null, hands: null, legs: null, feet: null, ring1: null, ring2: null, ring3: null, ring4: null },
     vanity: { head: null, body: null }, hideHelm: false,
     macros: newMacros(), // game/macros.js
@@ -166,6 +166,7 @@ export function migrate(c) {
   c.keys = Math.max(0, c.keys | 0);
   c.unbound = Object.assign({ wins: 0, best: 0 }, c.unbound);
   c.granted = c.granted || {};
+  c.talents = c.talents || {};
   c.tips = c.tips || {};
   if (c.classId === 'barbarian') c.rage = Math.max(0, Math.min(100, Number(c.rage) || 0));
   c.homunculus = c.homunculus || { talks: 0, chapter: 0, told: [], recap: [] }; // the blacksmith's axe story (game/homunculus.js)

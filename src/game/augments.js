@@ -14,8 +14,8 @@ import { Projectile, lineTargets } from './hazards.js';
 export const MAX_MASTERY = 1000;
 /** XP a skill needs to go from mastery level L to L+1. */
 export const masteryNeed = (L) => Math.round(30 * Math.pow(L, 1.5) + 10 * L);
-/** Damage multiplier at mastery level M: about x1.6 at 50, x2.4 at 100, x5 at 250, x11 at 500, x29 at 1000. */
-export const masteryMul = (M) => 1 + 0.012 * (M - 1) + Math.pow(M / 250, 2);
+/** Damage multiplier at mastery level M: bounded up to +50% at 1000 so skill mastery stays PvP-fair. */
+export const masteryMul = (M) => 1 + 0.5 * Math.min(1, Math.max(0, M - 1) / 999);
 /** Size of a skill's effects at mastery level M: up to +80% at 1000. */
 export const masteryVis = (M) => 1 + Math.min(1, (M - 1) / 999) * 0.8;
 /** Visual tier: 0 below 25, then 1 (25), 2 (100), 3 (250), 4 (500), 5 (750), 6 (1000). */
