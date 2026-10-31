@@ -1073,6 +1073,7 @@ export function settingsDialog() {
       <label>Hero backups</label><button class="btn small" data-backups>View</button>
       <label>Pause while menus open (Single Player)</label><input type="checkbox" data-k="pauseMenus" ${st.pauseMenus !== false ? 'checked' : ''}>
       <label title="Off: a Sky Battle cut scene you have already watched once plays at 20x">Don't skip cutscenes</label><input type="checkbox" data-k="noSkipCine" ${st.noSkipCine ? 'checked' : ''}>
+      <label title="Summons, totems and turrets on your skill bar are cast again the moment one is missing (timed ones only with an enemy near). Auto-play does its own summoning">Auto-cast summons</label><input type="checkbox" data-k="autoSummon" ${st.autoSummon !== false ? 'checked' : ''}>
     </div>
   </div>
   <div class="settings-tab-pane" data-pane="audio">
