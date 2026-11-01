@@ -10,7 +10,7 @@ const { openGame, report } = require('./harness');
   await page.click('text=Heroes'); await page.click('.class-card[data-id="paladin"]'); await page.click('text=Begin');
   await page.waitForTimeout(800);
   const stats = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { BIOMES } = await import('/src/data/biomes.js');
     const { loadBiomeArt } = await import('/src/core/assets.js');
     const out = { levels: 0, arches: 0, doors: 0, arms: 0, props: 0, unreachable: 0, bad: [] };
@@ -42,7 +42,7 @@ const { openGame, report } = require('./harness');
   for (const b of biomes) {
     // a level with a door
     const found = await page.evaluate(async (id) => {
-      const { G, game } = window.VELSCOUR; G.godMode = true;
+      const { G, game } = window.DAGYR; G.godMode = true;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { loadBiomeArt } = await import('/src/core/assets.js');
       await loadBiomeArt(BIOME_BY_ID[id]);
@@ -63,7 +63,7 @@ const { openGame, report } = require('./harness');
     await page.waitForTimeout(3200);
     await shot(`pack_${b}_door_closed`);
     const opened = await page.evaluate(async () => {
-      const { G } = window.VELSCOUR; const d = G.world.map.doors[0];
+      const { G } = window.DAGYR; const d = G.world.map.doors[0];
       G.player.x = d.x + 0.4; G.player.y = d.y + 0.4;
       await new Promise((r) => setTimeout(r, 400));
       const p = G.world.map.doors.filter((o) => o.open).length;
@@ -76,7 +76,7 @@ const { openGame, report } = require('./harness');
     await shot(`pack_${b}_door_open`);
     // an arch
     await page.evaluate(() => {
-      const { G } = window.VELSCOUR; const a = G.world.map.walls.find((w) => w.kind === 'arch');
+      const { G } = window.DAGYR; const a = G.world.map.walls.find((w) => w.kind === 'arch');
       if (!a) return;
       const n = a.axis === 'x' ? [0, 1] : [1, 0];
       G.player.x = a.x + n[0] * 2.2; G.player.y = a.y + n[1] * 2.2;

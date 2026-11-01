@@ -27,7 +27,7 @@ const TAILS = {
 const LOGOS = [
   { src: 'assets/ui/credits-blastorama.webp', alt: 'Blastorama Gaming Presents' },
   { src: 'assets/ui/credits-jamie.webp', alt: 'Jamie Herrington' },
-  { src: 'assets/ui/logo.webp', alt: 'Velscour' },
+  { src: 'assets/ui/logo.webp', alt: 'Dagyr Online' },
 ];
 const FADE_IN = 0.9, HOLD = 6, FADE_OUT = 0.9, LOGO_PHASE = FADE_IN + HOLD + FADE_OUT;
 // Sixty named spectacle cards cycle without repeats. Fifteen drawing grammars each have four palettes,
@@ -55,7 +55,7 @@ const hsl = (h, s = 100, l = 60, a = 1) => `hsla(${h},${s}%,${l}%,${a})`;
 
 export function creditsScreen(back) {
   const s = el('div', 'screen credits-screen');
-  s.innerHTML = `<canvas class="credits-canvas" aria-hidden="true"></canvas><div class="credits-title"><img class="credits-logo" alt=""><canvas class="credits-logo-fire" aria-hidden="true"></canvas></div><div class="credits-event" aria-live="polite"></div><div class="credits-speech" aria-live="polite"></div><button class="btn credits-back">Return to Velscour</button>`;
+  s.innerHTML = `<canvas class="credits-canvas" aria-hidden="true"></canvas><div class="credits-title"><img class="credits-logo" alt=""><canvas class="credits-logo-fire" aria-hidden="true"></canvas></div><div class="credits-event" aria-live="polite"></div><div class="credits-speech" aria-live="polite"></div><button class="btn credits-back">Return to Dagyr Online</button>`;
   const cv = s.querySelector('.credits-canvas'), ctx = cv.getContext('2d', { alpha: false });
   const fireCv = s.querySelector('.credits-logo-fire'), fireCtx = fireCv.getContext('2d');
   const logoEl = s.querySelector('.credits-logo'), speech = s.querySelector('.credits-speech'), eventLabel = s.querySelector('.credits-event');

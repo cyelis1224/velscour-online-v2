@@ -23,7 +23,7 @@ const { openGame, report } = require('./harness');
   if (fit.nOver) fail(fit.nOver + ' lines need more than three bubble lines: ' + fit.over.join(' / '));
   // auto-play: walk to the forge, chat, then trade
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { homunculusReady } = await import('/src/gfx/homunculus.js');
     await homunculusReady();
     await (await import('/src/gfx/varrowaxe.js')).varrowAxeReady();
@@ -34,7 +34,7 @@ const { openGame, report } = require('./harness');
     window.__h = { Auto, statuses: new Set(), heroLines: new Set(), hLines: new Set(), poses: new Set(), axe: 0, t: 0, chatT: 0, moved: 0, last: null, town: G.world };
   });
   const run = (until) => page.evaluate((until) => {
-    const { G, game } = window.VELSCOUR, S = window.__h, d = G.world.townLife, v = d && d.homunculus, p = G.player;
+    const { G, game } = window.DAGYR, S = window.__h, d = G.world.townLife, v = d && d.homunculus, p = G.player;
     for (let i = 0; i < 30 * 200 && G.world === S.town && !S.statuses.has('Travelling…'); i++) {
       game.update(1 / 30); S.t += 1 / 30;
       if (S.Auto.status) S.statuses.add(S.Auto.status.replace(/ — .*/, ''));
@@ -63,7 +63,7 @@ const { openGame, report } = require('./harness');
   if (!r.left) fail('auto-play never went back down');
   // later chapters: the axe speaks (chapter 4, "The Voice"); he hails townsfolk; frost and glow on the rack
   const axe = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const H = await import('/src/game/homunculus.js');
     G.char.homunculus = { talks: 8, chapter: 4, told: [[0, 1], [0, 1], [0, 1], [0, 1], [2]], recap: [] };
     game.enterTown();
@@ -80,7 +80,7 @@ const { openGame, report } = require('./harness');
   await shot('homunculus_axe');
   if (!axe.axeT) fail('the axe never spoke in a chapter 4 telling');
   const folk = await page.evaluate(() => {
-    const { G, game } = window.VELSCOUR, d = G.world.townLife, v = d.homunculus;
+    const { G, game } = window.DAGYR, d = G.world.townLife, v = d.homunculus;
     let hails = 0, prev = '';
     for (let i = 0; i < 30 * 120; i++) {
       game.update(1 / 30);
@@ -92,7 +92,7 @@ const { openGame, report } = require('./harness');
   if (!folk.hails) fail('Homunculus never hailed a townsperson in two minutes');
   // his anvil stands by his door in every town
   const anvils = await page.evaluate(() => {
-    const { G, game } = window.VELSCOUR, seed0 = G.char.townSeed, out = [];
+    const { G, game } = window.DAGYR, seed0 = G.char.townSeed, out = [];
     for (let s = 1; s <= 20; s++) {
       G.char.townSeed = s * 7717; game.enterTown();
       const d = G.world.townLife, v = d.homunculus, a = d.anvil;
@@ -105,11 +105,11 @@ const { openGame, report } = require('./harness');
   if (anvils.some((r) => r < 0)) fail('no anvil by the forge in ' + anvils.filter((r) => r < 0).length + ' of 20 towns');
   // the 30 poses in a row
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const D = await import('/src/data/homunculus.js');
     const d = G.world.townLife, v = d.homunculus, C = d.t.center;
     for (const a of d.agents) { a.busy = true; d.hide(a); }
-    v.update = () => {}; v.talkT = 0;
+    v.update = () => { }; v.talkT = 0;
     const names = Object.keys(D.POSES);
     v.x = C.x; v.y = C.y; v.pose = names[0];
     window.__poseNames = names;
@@ -117,7 +117,7 @@ const { openGame, report } = require('./harness');
     for (let i = 0; i < 10; i++) game.update(1 / 30);
   });
   for (const i of [0, 7, 14, 21, 29]) {
-    await page.evaluate((i) => { const { G } = window.VELSCOUR, v = G.world.townLife.homunculus; v.pose = window.__poseNames[i]; v.talkText = v.pose; v.talkT = 9; v.talkAge = 1; }, i);
+    await page.evaluate((i) => { const { G } = window.DAGYR, v = G.world.townLife.homunculus; v.pose = window.__poseNames[i]; v.talkText = v.pose; v.talkT = 9; v.talkAge = 1; }, i);
     await page.waitForTimeout(150);
     await shot('homunculus_pose_' + i);
   }

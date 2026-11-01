@@ -1,4 +1,4 @@
-// Sound for VELSCOUR DEFENSE: Velscour's samples (assets/audio/sfx), its music and ambience beds, and the harpsichord
+// Sound for DAGYR DEFENSE: Dagyr's samples (assets/audio/sfx), its music and ambience beds, and the harpsichord
 // (assets/audio/inst/harpsichord) for the Bard's Crescendo, the one moment music plays in battle. Its own AudioContext.
 import { assetURL, ART } from './assets.js';
 import { D } from '../state.js';
@@ -25,12 +25,14 @@ export function applyVolumes() {
 function buf(path) {
   if (bufs.has(path)) return bufs.get(path);
   if (!ac || loading.has(path)) return null;
-  loading.set(path, fetch(assetURL(path)).then((r) => r.arrayBuffer()).then((b) => ac.decodeAudioData(b)).then((d) => bufs.set(path, d)).catch(() => {}));
+  loading.set(path, fetch(assetURL(path)).then((r) => r.arrayBuffer()).then((b) => ac.decodeAudioData(b)).then((d) => bufs.set(path, d)).catch(() => { }));
   return null;
 }
-const VARIANTS = { bow_attack: 2, fireball: 3, sword_attack: 3, sword_impact_hit: 3, sword_blocked: 3, sword_parry: 3, spell_impact: 3, ice_throw: 2, ice_freeze: 2,
+const VARIANTS = {
+  bow_attack: 2, fireball: 3, sword_attack: 3, sword_impact_hit: 3, sword_blocked: 3, sword_parry: 3, spell_impact: 3, ice_throw: 2, ice_freeze: 2,
   ice_barrage: 2, wave_attack: 2, waterspray: 2, firespray: 2, firebuff: 2, rock_meteor_swarm: 2, rock_meteor_throw: 2, rock_wall: 2, torch_attack_strike: 2,
-  chest_open: 2, door_open: 2, torch_impact: 2, stone_walk: 5, chest_close: 2 };
+  chest_open: 2, door_open: 2, torch_impact: 2, stone_walk: 5, chest_close: 2
+};
 /** Play a sample by its base name (variants _1.._n picked at random). Throttled per name. */
 export function sfx(name, vol = 1) {
   if (!ac || !name) return;
@@ -69,7 +71,7 @@ function play(kind, path, vol) {
   d.cur = path;
   if (!path) { d.a.pause(); return; }
   d.a.src = assetURL(path); if (d.g) d.g.gain.value = vol;
-  d.a.play().catch(() => {});
+  d.a.play().catch(() => { });
 }
 
 // the harpsichord (assets/audio/inst/harpsichord/held, keys 36-96): only the Bard's Crescendo plays it, the one time
@@ -95,7 +97,7 @@ function note(midi, at, dur, vel) {
 let jingleI = Math.floor(Math.random() * 400);
 const melodyKeys = (j) => [...j.mel.map((n) => n[2]), ...j.bass];
 const nextMelody = () => ART.jingles?.[jingleI % ART.jingles.length];
-/** One of the Bard's melodies from VELSCOUR: two bars on the harpsichord, a bass note under every chord. */
+/** One of the Bard's melodies from DAGYR: two bars on the harpsichord, a bass note under every chord. */
 export function playJingle() {
   if (!ac || !ART.jingles) return;
   const j = nextMelody(); jingleI++;

@@ -85,6 +85,39 @@ export const TouchUI = {
     this.layout();
     this.refresh();
   },
+  /**
+   * Portrait: pin the Hearthstone button to the skill tray's top-left and centre the gauge box (Rage, ...) in the
+   * band between it and the ATK button. Fixed (viewport) coordinates, so the HUD's own layout pass (hud.js
+   * layoutMobile) can re-apply them without knowing where the tray is.
+   */
+  placePortraitExtras() {
+    const a = this.portraitAnchors;
+    if (!a || innerHeight <= innerWidth) return;
+    const hb = $('#hearth-btn'), gb = $('#gauge-box');
+    // 'fixed' resolves against a transformed/filtered ancestor (the HUD bar) when there is one, not the
+    // viewport: measure where (0,0) lands and offset by it so the coordinates are true screen positions
+    const origin = (e) => {
+      Object.assign(e.style, { position: 'fixed', left: '0px', top: '0px', right: 'auto', bottom: 'auto', transform: 'none' });
+      const r = e.getBoundingClientRect();
+      return [r.left, r.top];
+    };
+    if (hb) {
+      const [ox, oy] = origin(hb);
+      Object.assign(hb.style, { left: (a.hx - ox) + 'px', top: (a.hy - oy) + 'px', width: a.hs + 'px', height: a.hs + 'px', zIndex: '7' });
+    }
+    if (gb) {
+      gb.classList.add('portrait-band');
+      const [ox, oy] = origin(gb);
+      Object.assign(gb.style, { left: (a.gx - ox) + 'px', width: a.gw + 'px', top: (a.gy - oy) + 'px', transform: 'translateY(-50%)', zIndex: '7' });
+    }
+  },
+  clearPortraitExtras() {
+    const gb = $('#gauge-box');
+    if (gb && gb.classList.contains('portrait-band')) {
+      gb.classList.remove('portrait-band');
+      for (const k of ['position', 'left', 'width', 'top', 'bottom', 'transform', 'zIndex']) gb.style[k] = '';
+    }
+  },
   layout() {
     if (!this.btns || !this.btns.length) return;
     const W = innerWidth, H = innerHeight;
@@ -119,8 +152,8 @@ export const TouchUI = {
         t.b.classList.remove('hidden');
         if (i === 0) {
           const size = mainSize;
-          // Position ATK button above skill slots 5 & 6 on the right side of the tray
-          const x = x0 + trayW - size - 4;
+          // ATK sits above the right end of the tray, nudged right toward the screen edge
+          const x = Math.min(W - size - 6, x0 + trayW - size + 18);
           const y = trayTop - size - 12;
           Object.assign(t.b.style, { width: size + 'px', height: size + 'px', left: x + 'px', top: y + 'px' });
         } else {
@@ -129,10 +162,18 @@ export const TouchUI = {
         }
         t.b.classList.toggle('portrait-tile', i > 0);
       });
-      // macros: a row over the tray's left end, up to the attack button
-      const ms = 36, atkLeft = x0 + trayW - mainSize - 8;
-      this.macroSpots = (n) => { const x = x0 + n * (ms + 6); return x + ms > atkLeft ? null : [x, trayTop - ms - 10, ms]; };
+      // the Hearthstone at the tray's top-left, the gauges (Rage...) centred between it and ATK
+      const hs = 46, atkX = Math.min(W - mainSize - 6, x0 + trayW - mainSize + 18);
+      const hx = 10, hy = trayTop - hs - 12; // 10px in from the screen's left edge
+      const gx = hx + hs + 12, gw = Math.max(80, atkX - 12 - gx);
+      this.portraitAnchors = { hx, hy, hs, gx, gw, gy: hy + hs / 2 };
+      this.placePortraitExtras();
+      // macros: a row over the hearth/gauge band, up to the attack button
+      const ms = 36, atkLeft = atkX - 8, macroY = hy - ms - 8;
+      this.macroSpots = (n) => { const x = x0 + n * (ms + 6); return x + ms > atkLeft ? null : [x, macroY, ms]; };
     } else {
+      this.portraitAnchors = null;
+      this.clearPortraitExtras();
       Object.assign($('#log').style, { left: '', right: '', top: '', bottom: '', height: '', maxHeight: '' });
       this.btns.forEach((t, i) => {
         if (i === 0) { t.bar = 0; t.k.textContent = 'ATK'; t.b.classList.remove('hidden'); put(t.b, 0, 0, main); return; }

@@ -20,12 +20,14 @@ const T = MOBILE ? 'm_' : '';
   const shot = (name) => page.screenshot({ path: `${OUT_DIR}/seethrough_${T}${name}.png` });
   // ------------------------------------------------------------ 1. defaults + dialog
   const d = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const { settingsDialog } = await import('/src/ui/screens.js');
     settingsDialog();
     const box = (k) => document.querySelector(`.settings-grid [data-k="${k}"]`);
-    const r = { outlines: G.settings.outlines, lifeBars: G.settings.lifeBars, wallLines: G.settings.wallLines,
-      boxes: ['outlines', 'lifeBars', 'wallLines'].map((k) => (box(k) ? box(k).checked : 'missing')) };
+    const r = {
+      outlines: G.settings.outlines, lifeBars: G.settings.lifeBars, wallLines: G.settings.wallLines,
+      boxes: ['outlines', 'lifeBars', 'wallLines'].map((k) => (box(k) ? box(k).checked : 'missing'))
+    };
     return r;
   });
   await page.waitForTimeout(200);
@@ -36,7 +38,7 @@ const T = MOBILE ? 'm_' : '';
 
   // ------------------------------------------------------------ 2. stage the crowd under a white cover
   const st = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('arcane_sorcerer', 'Seer');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
     G.char.depth = 6; const w0 = G.world; game.enterDungeon();
@@ -66,10 +68,10 @@ const T = MOBILE ? 'm_' : '';
     if (!spot) return { err: 'no open spot' };
     p.x = spot[0]; p.y = spot[1]; map.reveal(p.x, p.y, 16);
     G.settings.zoom = 1.2; camera.computeZoom(); camera.follow(p.x + 1, p.y, 0, true);
-    const mk = (rank, dx, dy) => { const m = makeMonster(w, 'skeleton', w.biome, 40, rank, p.x + dx, p.y + dy); m.maxHp = m.hp = 1e7; m.awake = false; m.speed = 0; m.spawnT = 5; m.update = () => {}; w.add(m); return m; };
+    const mk = (rank, dx, dy) => { const m = makeMonster(w, 'skeleton', w.biome, 40, rank, p.x + dx, p.y + dy); m.maxHp = m.hp = 1e7; m.awake = false; m.speed = 0; m.spawnT = 5; m.update = () => { }; w.add(m); return m; };
     window.__crowd = { normal: mk('normal', 2.6, -1.6), champion: mk('champion', 3.4, 0.2), unique: mk('unique', 1.4, 2.2), boss: mk('boss', 4.4, 2.6) };
     const key = Object.keys(SUMMONS).find((k) => SUMMONS[k].look && Array.isArray(SUMMONS[k].look.art));
-    const pet = buildSummon(p, SUMMONS[key], key, p.x - 1.2, p.y + 1.4, 1, 100, 0); pet.spawnT = 5; pet.update = () => {};
+    const pet = buildSummon(p, SUMMONS[key], key, p.x - 1.2, p.y + 1.4, 1, 100, 0); pet.spawnT = 5; pet.update = () => { };
     window.__crowd.pet = w.add(pet) || pet;
     // the cover: a white sheet over the whole scene, drawn where the spells are (the world's top hazards)
     window.__cover = { update() { return true; }, draw(ctx) { if (window.__coverOn) { ctx.fillStyle = '#ffffff'; ctx.fillRect(-1e5, -1e5, 2e5, 2e5); } } };
@@ -97,10 +99,10 @@ const T = MOBILE ? 'm_' : '';
   if (st.err) { fail(st.err); await browser.close(); return report(errors); }
   console.log(`  .. ${st.biome} at ${st.spot.map((v) => v.toFixed(1))}, pet ${st.pet}`);
 
-  const set = (o) => page.evaluate((o) => Object.assign(window.VELSCOUR.G.settings, o), o);
+  const set = (o) => page.evaluate((o) => Object.assign(window.DAGYR.G.settings, o), o);
   // each creature's showing pixels round its sprite (the top rows left out: champion names sit there)
   const shows = () => page.evaluate(async () => {
-    const { G } = window.VELSCOUR, out = {};
+    const { G } = window.DAGYR, out = {};
     for (const [k, m] of Object.entries({ ...window.__crowd, hero: G.player })) {
       if (!m.sbox) { out[k] = -1; continue; }
       const [x0, y0, x1, y1] = m.sbox;
@@ -120,7 +122,7 @@ const T = MOBILE ? 'm_' : '';
 
   // life bars: the strip over each head, with the setting on and off (outlines on both times)
   const bars = (lifeBars) => page.evaluate(async (lifeBars) => {
-    const { G } = window.VELSCOUR, { camera } = await import('/src/core/view.js'), out = {};
+    const { G } = window.DAGYR, { camera } = await import('/src/core/view.js'), out = {};
     G.settings.lifeBars = true; await window.__frames();
     const strips = {};
     for (const k of ['normal', 'champion', 'unique', 'boss']) {
@@ -146,7 +148,7 @@ const T = MOBILE ? 'm_' : '';
   // ------------------------------------------------------------ 3. a nearer body cuts a farther outline
   await set({ outlines: true, lifeBars: false });
   const occ = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR, c = window.__crowd, front = c.normal, sx = front.x, sy = front.y;
+    const { G } = window.DAGYR, c = window.__crowd, front = c.normal, sx = front.x, sy = front.y;
     front.x = c.champion.x + 0.35; front.y = c.champion.y + 0.35; // just in front (larger x + y), the same screen column
     await window.__frames();
     const r = front.sbox, inner = [r[0] + 3, r[1] + 3, r[2] - 3, r[3] - 3];
@@ -176,7 +178,7 @@ const T = MOBILE ? 'm_' : '';
 
   // ------------------------------------------------------------ 4. wall-base outlines
   const walls = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR, c = G.canvas, all = [0, 0, c.width / G.dpr, c.height / G.dpr];
+    const { G } = window.DAGYR, c = G.canvas, all = [0, 0, c.width / G.dpr, c.height / G.dpr];
     G.settings.wallLines = false; await window.__frames(); const a = window.__grab(all);
     G.settings.wallLines = true; await window.__frames(); const b = window.__grab(all);
     // none over a creature: the crowd's bodies (inner boxes) are the same with and without
@@ -198,7 +200,7 @@ const T = MOBILE ? 'm_' : '';
   const step = async (n) => { await page.evaluate((k) => { window.__step = k; }, n); await page.waitForFunction(() => window.__step === 0); };
   for (const [name, frames, dx, dy] of [['Supernova', 14, 3, 0], ['Big Bang', 92, 3.5, 0.5], ['Starstorm', 30, 3, 0.4]]) {
     const okc = await page.evaluate(async ([name, dx, dy]) => {
-      const { G } = window.VELSCOUR, p = G.player, w = G.world;
+      const { G } = window.DAGYR, p = G.player, w = G.world;
       const { CLASS_SKILLS } = await import('/src/data/skills.js');
       const sk = CLASS_SKILLS.arcane_sorcerer.find((s) => s.name === name);
       if (!sk) return false;
@@ -219,7 +221,7 @@ const T = MOBILE ? 'm_' : '';
   }
   // a monster behind a wall: its outline shows over the wall
   const wall = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR, p = G.player, map = G.world.map, m = window.__crowd.champion;
+    const { G } = window.DAGYR, p = G.player, map = G.world.map, m = window.__crowd.champion;
     let spot = null;
     for (let r = 2; r < 14 && !spot; r++) for (let dy = -r; dy <= r && !spot; dy++) for (let dx = -r; dx <= r && !spot; dx++) {
       const x = Math.floor(p.x) + dx, y = Math.floor(p.y) + dy;

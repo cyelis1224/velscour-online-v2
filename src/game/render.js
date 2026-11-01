@@ -48,63 +48,63 @@ export function dropBakes() {
 // Vendors keep their existing painted replacement sprites.
 // Cache original PNG sheets and recolored variants separately. Recolored
 // sheets are Canvas elements, not HTMLImageElements (no .complete/.naturalWidth).
-const townSheets=new Map();
-const townPaletteSheets=new Map();
+const townSheets = new Map();
+const townPaletteSheets = new Map();
 function townSheet(id) {
-  if(!id)return null;
-  let img=townSheets.get(id);
-  if(!img){
-    img=new Image();
-    townSheets.set(id,img);
-    img.src=`assets/sprites/people/${id}.webp`;
+  if (!id) return null;
+  let img = townSheets.get(id);
+  if (!img) {
+    img = new Image();
+    townSheets.set(id, img);
+    img.src = `assets/sprites/people/${id}.webp`;
   }
   return img;
 }
 /** Let the townsfolk sheets go (a town visit decodes ~20-30 of them, 2 MB each) in levels without townsfolk. */
 export function releaseTownSheets() { townSheets.clear(); townPaletteSheets.clear(); advPortraits.clear(); }
 export function preloadTownSheets(ids) {
-  const unique=[...new Set(ids.filter(Boolean))];
-  return Promise.all(unique.map(id=>{
-    const img=townSheet(id);
-    if(img.complete)return Promise.resolve(img.naturalWidth>0);
-    return new Promise(resolve=>{
-      img.addEventListener('load',()=>resolve(true),{once:true});
-      img.addEventListener('error',()=>resolve(false),{once:true});
+  const unique = [...new Set(ids.filter(Boolean))];
+  return Promise.all(unique.map(id => {
+    const img = townSheet(id);
+    if (img.complete) return Promise.resolve(img.naturalWidth > 0);
+    return new Promise(resolve => {
+      img.addEventListener('load', () => resolve(true), { once: true });
+      img.addEventListener('error', () => resolve(false), { once: true });
     });
   }));
 }
-function townPaletteSheet(id,img,palette) {
-  if(!img?.complete||!img.naturalWidth||!palette)return img;
-  const key=`${id}:${palette.hue||0}:${palette.sat??1}:${palette.light||0}`;
-  if(townPaletteSheets.has(key))return townPaletteSheets.get(key);
-  const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
-  const q=c.getContext('2d',{willReadFrequently:true});q.drawImage(img,0,0);
-  const pixels=q.getImageData(0,0,c.width,c.height),d=pixels.data,hueShift=(palette.hue||0)/360,hairShift=hueShift*.38,satScale=palette.sat??1,light=palette.light||0;
-  const rgbToHsv=(r,g,b)=>{r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b),delta=max-min;let h=0;if(delta){if(max===r)h=((g-b)/delta)%6;else if(max===g)h=(b-r)/delta+2;else h=(r-g)/delta+4;h/=6;if(h<0)h++;}return [h,max?delta/max:0,max];};
-  const hsvToRgb=(h,s,v)=>{const k=n=>(n+h*6)%6,f=n=>v-v*s*Math.max(0,Math.min(k(n),4-k(n),1));return [f(5),f(3),f(1)];};
-  for(let y=0;y<c.height;y++){const localY=y%TOWN_FRAME_H;for(let x=0;x<c.width;x++){const i=(y*c.width+x)*4;if(d[i+3]<8)continue;let [h,s,v]=rgbToHsv(d[i],d[i+1],d[i+2]);const skin=h>=.012&&h<=.12&&v>.32;if(localY>38&&s>.16&&!skin)h=(h+hueShift+1)%1;else if(localY>8&&localY<66&&s>.14&&v<.46)h=(h+hairShift+1)%1;s=Math.max(0,Math.min(1,s*satScale));v=Math.max(0,Math.min(1,v+light));const rgb=hsvToRgb(h,s,v);d[i]=Math.round(rgb[0]*255);d[i+1]=Math.round(rgb[1]*255);d[i+2]=Math.round(rgb[2]*255);}}
-  q.putImageData(pixels,0,0);townPaletteSheets.set(key,c);
-  if(townPaletteSheets.size>48)townPaletteSheets.delete(townPaletteSheets.keys().next().value);
+function townPaletteSheet(id, img, palette) {
+  if (!img?.complete || !img.naturalWidth || !palette) return img;
+  const key = `${id}:${palette.hue || 0}:${palette.sat ?? 1}:${palette.light || 0}`;
+  if (townPaletteSheets.has(key)) return townPaletteSheets.get(key);
+  const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const q = c.getContext('2d', { willReadFrequently: true }); q.drawImage(img, 0, 0);
+  const pixels = q.getImageData(0, 0, c.width, c.height), d = pixels.data, hueShift = (palette.hue || 0) / 360, hairShift = hueShift * .38, satScale = palette.sat ?? 1, light = palette.light || 0;
+  const rgbToHsv = (r, g, b) => { r /= 255; g /= 255; b /= 255; const max = Math.max(r, g, b), min = Math.min(r, g, b), delta = max - min; let h = 0; if (delta) { if (max === r) h = ((g - b) / delta) % 6; else if (max === g) h = (b - r) / delta + 2; else h = (r - g) / delta + 4; h /= 6; if (h < 0) h++; } return [h, max ? delta / max : 0, max]; };
+  const hsvToRgb = (h, s, v) => { const k = n => (n + h * 6) % 6, f = n => v - v * s * Math.max(0, Math.min(k(n), 4 - k(n), 1)); return [f(5), f(3), f(1)]; };
+  for (let y = 0; y < c.height; y++) { const localY = y % TOWN_FRAME_H; for (let x = 0; x < c.width; x++) { const i = (y * c.width + x) * 4; if (d[i + 3] < 8) continue; let [h, s, v] = rgbToHsv(d[i], d[i + 1], d[i + 2]); const skin = h >= .012 && h <= .12 && v > .32; if (localY > 38 && s > .16 && !skin) h = (h + hueShift + 1) % 1; else if (localY > 8 && localY < 66 && s > .14 && v < .46) h = (h + hairShift + 1) % 1; s = Math.max(0, Math.min(1, s * satScale)); v = Math.max(0, Math.min(1, v + light)); const rgb = hsvToRgb(h, s, v); d[i] = Math.round(rgb[0] * 255); d[i + 1] = Math.round(rgb[1] * 255); d[i + 2] = Math.round(rgb[2] * 255); } }
+  q.putImageData(pixels, 0, 0); townPaletteSheets.set(key, c);
+  if (townPaletteSheets.size > 48) townPaletteSheets.delete(townPaletteSheets.keys().next().value);
   return c;
 }
 /** A decoded PNG or a palette-adjusted Canvas both satisfy the frame contract. */
-export function townFrameReady(sheet,count=10) {
-  const width=sheet?.naturalWidth||sheet?.width||0,height=sheet?.naturalHeight||sheet?.height||0;
-  return width>=TOWN_FRAME_W*count && height>=TOWN_FRAME_H;
+export function townFrameReady(sheet, count = 10) {
+  const width = sheet?.naturalWidth || sheet?.width || 0, height = sheet?.naturalHeight || sheet?.height || 0;
+  return width >= TOWN_FRAME_W * count && height >= TOWN_FRAME_H;
 }
-const advPortraits=new Map();
-function advPortrait(id){let img=advPortraits.get(id);if(!img){img=new Image();img.src=`assets/sprites/select/${id}.webp`;advPortraits.set(id,img);}return img.complete&&img.naturalWidth?img:null;}
-export function townSprite(id,palette=null) {
-  const img=townSheet(id);
-  return img?.complete&&img.naturalWidth ? townPaletteSheet(id,img,palette) : null;
+const advPortraits = new Map();
+function advPortrait(id) { let img = advPortraits.get(id); if (!img) { img = new Image(); img.src = `assets/sprites/select/${id}.webp`; advPortraits.set(id, img); } return img.complete && img.naturalWidth ? img : null; }
+export function townSprite(id, palette = null) {
+  const img = townSheet(id);
+  return img?.complete && img.naturalWidth ? townPaletteSheet(id, img, palette) : null;
 }
 /** One painted pose of a person or animal at screen (sx, sy), feet there (a fallen body in the dungeon's remains). */
-export function drawFolkPose(ctx,spriteId,pose,sx,sy,flip=false,alpha=1) {
-  const sheet=townSprite(spriteId),f=townFrameOf(spriteId,pose);
-  if(!sheet||f<0)return false;
-  const H=66.7,W=H*TOWN_FRAME_W/TOWN_FRAME_H,foot=H*(TOWN_FRAME_H-TOWN_BASELINE)/TOWN_FRAME_H;
-  ctx.save();ctx.translate(Math.round(sx),Math.round(sy));if(flip)ctx.scale(-1,1);if(alpha<1)ctx.globalAlpha=alpha;
-  ctx.drawImage(sheet,f*TOWN_FRAME_W,0,TOWN_FRAME_W,TOWN_FRAME_H,-W/2,-H+foot,W,H);ctx.restore();
+export function drawFolkPose(ctx, spriteId, pose, sx, sy, flip = false, alpha = 1) {
+  const sheet = townSprite(spriteId), f = townFrameOf(spriteId, pose);
+  if (!sheet || f < 0) return false;
+  const H = 66.7, W = H * TOWN_FRAME_W / TOWN_FRAME_H, foot = H * (TOWN_FRAME_H - TOWN_BASELINE) / TOWN_FRAME_H;
+  ctx.save(); ctx.translate(Math.round(sx), Math.round(sy)); if (flip) ctx.scale(-1, 1); if (alpha < 1) ctx.globalAlpha = alpha;
+  ctx.drawImage(sheet, f * TOWN_FRAME_W, 0, TOWN_FRAME_W, TOWN_FRAME_H, -W / 2, -H + foot, W, H); ctx.restore();
   return true;
 }
 const MATERIALS = [
@@ -373,21 +373,21 @@ function drawChest(ctx, c) {
  * isometric glyph/stone marker over the separate sculpted shrine prop.
  */
 function drawScenarioGlyph(ctx, p) {
-  const x=isoX(p.x,p.y),y=isoY(p.x,p.y),t=G.time,col=p.color||'#80c8ff';
-  const shrine=p.type==='shrine',radius=shrine?21:14;
+  const x = isoX(p.x, p.y), y = isoY(p.x, p.y), t = G.time, col = p.color || '#80c8ff';
+  const shrine = p.type === 'shrine', radius = shrine ? 21 : 14;
   ctx.save();
-  ctx.globalAlpha=.52+Math.sin(t*3+p.x)*.16;
-  ctx.strokeStyle=col;ctx.lineWidth=shrine?2:1.5;
-  ctx.beginPath();ctx.ellipse(x,y+1,radius,radius*.46,0,0,TAU);ctx.stroke();
-  ctx.beginPath();ctx.ellipse(x,y+1,radius*.69,radius*.28,0,-t*.4,4.4-t*.4);ctx.stroke();
-  ctx.globalAlpha=.66;
-  ctx.fillStyle=col;
-  const z=shrine?68:36,tipY=y-z+Math.sin(t*2+p.y)*2;
-  ctx.beginPath();ctx.moveTo(x,tipY-9);ctx.lineTo(x+7,tipY);
-  ctx.lineTo(x,tipY+11);ctx.lineTo(x-7,tipY);ctx.closePath();ctx.fill();
-  ctx.globalAlpha=.85;ctx.fillStyle='#f7f1d6';
-  ctx.beginPath();ctx.moveTo(x,tipY-6);ctx.lineTo(x+2,tipY);
-  ctx.lineTo(x,tipY+5);ctx.lineTo(x-2,tipY);ctx.closePath();ctx.fill();
+  ctx.globalAlpha = .52 + Math.sin(t * 3 + p.x) * .16;
+  ctx.strokeStyle = col; ctx.lineWidth = shrine ? 2 : 1.5;
+  ctx.beginPath(); ctx.ellipse(x, y + 1, radius, radius * .46, 0, 0, TAU); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(x, y + 1, radius * .69, radius * .28, 0, -t * .4, 4.4 - t * .4); ctx.stroke();
+  ctx.globalAlpha = .66;
+  ctx.fillStyle = col;
+  const z = shrine ? 68 : 36, tipY = y - z + Math.sin(t * 2 + p.y) * 2;
+  ctx.beginPath(); ctx.moveTo(x, tipY - 9); ctx.lineTo(x + 7, tipY);
+  ctx.lineTo(x, tipY + 11); ctx.lineTo(x - 7, tipY); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = .85; ctx.fillStyle = '#f7f1d6';
+  ctx.beginPath(); ctx.moveTo(x, tipY - 6); ctx.lineTo(x + 2, tipY);
+  ctx.lineTo(x, tipY + 5); ctx.lineTo(x - 2, tipY); ctx.closePath(); ctx.fill();
   ctx.restore();
 }
 function drawPortal(ctx, p) {
@@ -434,7 +434,7 @@ function drawCorpse(ctx, c) {
 }
 
 function drawNpc(ctx, n) {
-  if (n.altar) { // the Altar of Heresy (docs/ENDGAME.md): a dark obelisk, lit in Velscour's red once the Endgame is open, a skull glow while a Heresy is on
+  if (n.altar) { // the Altar of Heresy (docs/ENDGAME.md): a dark obelisk, lit in Dagyr's red once the Endgame is open, a skull glow while a Heresy is on
     const x = isoX(n.x, n.y), y = isoY(n.x, n.y), open = endgameUnlocked(), lit = open && heresyRankOf() > 0;
     if (lit) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.3 + Math.sin(G.time * 2.5) * 0.12; ctx.drawImage(glowSprite('#ff3020'), x - 48, y - 70, 96, 80); ctx.restore(); }
     obelisk(ctx, x, y, open ? '#ff3020' : '#606070', open, 44);
@@ -455,25 +455,25 @@ function drawNpc(ctx, n) {
   if (n.hidden) { n.sbox = null; return; }
   // Vendors retain their existing hand-painted artwork, names and shops.
   // Only visitors/civilians use the animated townsfolk collection; visiting adventurers use their class portrait.
-  const spriteId=n.vendor||n.adv?null:(n.townsfolkSpriteId||n.spriteId||n.townsfolkId);
-  const sheet=spriteId?townSprite(spriteId,n.palette||null):null;
+  const spriteId = n.vendor || n.adv ? null : (n.townsfolkSpriteId || n.spriteId || n.townsfolkId);
+  const sheet = spriteId ? townSprite(spriteId, n.palette || null) : null;
   // Painted art for vendors and scenario civilians (n.art); never hue-shifted class sprites (they came out green).
-  const hom=n.vendor&&n.vendor.id==='upgrade'?homunculusPose(n.pose||'confident'):null; // Homunculus the Proud's 30 poses
-  const vendorArt=hom?hom.img:n.vendor
-    ? replacementImage('npc_'+n.vendor.id) || classSprite(n.vendor.sprite,180)
+  const hom = n.vendor && n.vendor.id === 'upgrade' ? homunculusPose(n.pose || 'confident') : null; // Homunculus the Proud's 30 poses
+  const vendorArt = hom ? hom.img : n.vendor
+    ? replacementImage('npc_' + n.vendor.id) || classSprite(n.vendor.sprite, 180)
     : n.adv ? advPortrait(n.adv)
-    : !spriteId && (n.art && replacementImage(n.art) || classSprite(n.sprite||'paladin',180));
+      : !spriteId && (n.art && replacementImage(n.art) || classSprite(n.sprite || 'paladin', 180));
   // a people cell is 256 x 200 with the feet on row 194; adults are 172 px tall in it, animals their own size
-  const H=66.7, W=H*TOWN_FRAME_W/TOWN_FRAME_H, foot=H*(TOWN_FRAME_H-TOWN_BASELINE)/TOWN_FRAME_H;
-  const vh=hom?hom.h:n.adv?54:58, vw=vendorArt?vh*vendorArt.width/vendorArt.height:0;
+  const H = 66.7, W = H * TOWN_FRAME_W / TOWN_FRAME_H, foot = H * (TOWN_FRAME_H - TOWN_BASELINE) / TOWN_FRAME_H;
+  const vh = hom ? hom.h : n.adv ? 54 : 58, vw = vendorArt ? vh * vendorArt.width / vendorArt.height : 0;
   const x = isoX(n.x, n.y), y = isoY(n.x, n.y);
-  const m=townMotion(n.animT||0,!!n.walking,n.emotionT>0?n.emotion:null,!!n.running,n.animal?n.species:null);
-  const frame=townFrame(n), lying=isLying(n);
-  const ready=!!sheet&&townFrameReady(sheet,n.frameCount||10);
-  const tall=(n.idleH||(n.child?150:172))*H/TOWN_FRAME_H, sw=n.animal?Math.max(5,tall*0.42):13;
-  const alpha=n.alpha??1;
+  const m = townMotion(n.animT || 0, !!n.walking, n.emotionT > 0 ? n.emotion : null, !!n.running, n.animal ? n.species : null);
+  const frame = townFrame(n), lying = isLying(n);
+  const ready = !!sheet && townFrameReady(sheet, n.frameCount || 10);
+  const tall = (n.idleH || (n.child ? 150 : 172)) * H / TOWN_FRAME_H, sw = n.animal ? Math.max(5, tall * 0.42) : 13;
+  const alpha = n.alpha ?? 1;
   // shadow: wider when lying down
-  ctx.fillStyle = `rgba(0,0,0,${0.36*alpha})`;
+  ctx.fillStyle = `rgba(0,0,0,${0.36 * alpha})`;
   ctx.beginPath(); ctx.ellipse(x + m.dx, y, lying ? (n.animal ? sw * 1.4 : 22) : sw - m.bob * 0.6, (lying ? 7 : 6) * (n.animal ? Math.min(1, sw / 10) : 1) - m.bob * 0.25, 0, 0, TAU); ctx.fill();
   if (n.aura > 0) {
     // Homunculus's "holy" light (game/homunculus.js): really the axe's
@@ -484,8 +484,8 @@ function drawNpc(ctx, n) {
   ctx.save();
   ctx.translate(Math.round(x + m.dx), Math.round(y - m.bob));
   // a scripted motion (the Sky Battle's knights: hops, spins, faints, leaps between ships)
-  const q=n.motion?n.motion():null;
-  if(q){ctx.translate(q.dx||0,-(q.dy||0));if(q.flip)ctx.scale(-1,1);if(q.rot)ctx.rotate(q.rot);if(q.sx||q.sy)ctx.scale(q.sx||1,q.sy||1);}
+  const q = n.motion ? n.motion() : null;
+  if (q) { ctx.translate(q.dx || 0, -(q.dy || 0)); if (q.flip) ctx.scale(-1, 1); if (q.rot) ctx.rotate(q.rot); if (q.sx || q.sy) ctx.scale(q.sx || 1, q.sy || 1); }
   // squash and stretch about the feet, a lean into the walk, and the emotion's tilt; the facing mirrors it all
   if (n.flip) ctx.scale(-1, 1);
   ctx.rotate(m.rot + (n.walking ? m.lean : 0));
@@ -518,14 +518,14 @@ function drawNpc(ctx, n) {
   // an emotion bubble over the head (not while a speech bubble is up)
   if (n.icon && n.iconT > 0 && !(n.talkT > 0)) n.iconRect = drawEmote(ctx, n.icon, x + 10, spriteY + 2, n.iconAge || 0, n.iconT, G.time + (n.idleSeed || 0));
   else n.iconRect = null;
-  if(n.bounty&&n.bounty.state!=='paid'){
+  if (n.bounty && n.bounty.state !== 'paid') {
     // a wanderer's bounty (game/wanderers.js): a bobbing gold "!" to take it, a silver "?" while it runs
-    const offer=n.bounty.state==='offer',by=spriteY-16+Math.sin(G.time*4)*3;
-    ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=0.7;ctx.drawImage(glowSprite(offer?'#ffd040':'#c0d0ff'),x-16,by-22,32,32);ctx.restore();
-    ctx.save();ctx.font='900 22px Cinzel, Georgia, serif';ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='#1a1006';ctx.fillStyle=offer?'#ffd040':'#d8e0ff';
-    ctx.strokeText(offer?'!':'?',x,by);ctx.fillText(offer?'!':'?',x,by);ctx.restore();
+    const offer = n.bounty.state === 'offer', by = spriteY - 16 + Math.sin(G.time * 4) * 3;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.7; ctx.drawImage(glowSprite(offer ? '#ffd040' : '#c0d0ff'), x - 16, by - 22, 32, 32); ctx.restore();
+    ctx.save(); ctx.font = '900 22px Cinzel, Georgia, serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#1a1006'; ctx.fillStyle = offer ? '#ffd040' : '#d8e0ff';
+    ctx.strokeText(offer ? '!' : '?', x, by); ctx.fillText(offer ? '!' : '?', x, by); ctx.restore();
   }
-  drawTownSpeech(ctx,n,x,spriteY);
+  drawTownSpeech(ctx, n, x, spriteY);
 }
 
 // Floors (tiles, grit, seam flecks) never change after generation, so they are baked into screen-aligned chunks of
@@ -759,8 +759,8 @@ export function renderWorld(ctx, world) {
       // render BEFORE the Lancer; the near-side shields render AFTER him.
       // They also sort naturally between wall/door and creature slices.
       for (let i = 0; i < h.pos.length; i++) {
-        const [x,y,a]=h.pos[i];
-        enqueue(orbitShieldDepth(x,y,a),11,h,i);
+        const [x, y, a] = h.pos[i];
+        enqueue(orbitShieldDepth(x, y, a), 11, h, i);
       }
     }
     else if (typeof h.depth === 'number') enqueue(h.depth, 1, h);
@@ -821,21 +821,21 @@ export function renderWorld(ctx, world) {
     if (!r) continue;
     const x = isoX(s.x, s.y) + r.ox * wk, y = isoY(s.x, s.y) + r.oy * wk;
     if (x - 1 > vr.x1 || x + r.w * wk + 1 < vr.x0 ||
-        y - 1 > vr.y1 || y + r.h * wk + 1 < vr.y0) continue;
+      y - 1 > vr.y1 || y + r.h * wk + 1 < vr.y0) continue;
     enqueue(s.depth, 2, s);
   }
   // A wall-holder shares the same depth pass as its wall, so it fades with
   // an occluding front wall and doesn't float above the player or doors.
   for (const t of world.torches) {
-    const px=isoX(t.mountX??t.x,t.mountY??t.y);
-    const py=isoY(t.mountX??t.x,t.mountY??t.y);
-    if(px<vr.x0-120||px>vr.x1+120||py<vr.y0-120||py>vr.y1+90)continue;
-    enqueue(t.depth??(t.x+t.y),12,t);
+    const px = isoX(t.mountX ?? t.x, t.mountY ?? t.y);
+    const py = isoY(t.mountX ?? t.x, t.mountY ?? t.y);
+    if (px < vr.x0 - 120 || px > vr.x1 + 120 || py < vr.y0 - 120 || py > vr.y1 + 90) continue;
+    enqueue(t.depth ?? (t.x + t.y), 12, t);
   }
   for (const item of world.wallHangings) {
-    const px=isoX(item.mountX,item.mountY), py=isoY(item.mountX,item.mountY);
-    if(px<vr.x0-100||px>vr.x1+100||py<vr.y0-110||py>vr.y1+70)continue;
-    enqueue(item.depth??(item.mountX+item.mountY),13,item);
+    const px = isoX(item.mountX, item.mountY), py = isoY(item.mountX, item.mountY);
+    if (px < vr.x0 - 100 || px > vr.x1 + 100 || py < vr.y0 - 110 || py > vr.y1 + 70) continue;
+    enqueue(item.depth ?? (item.mountX + item.mountY), 13, item);
   }
   // a quick reject by tile position first (the Castle has 2,600 props, the Wilds 1,100): the view widened by the
   // farthest any prop reaches from its foot and by the ground's heights, as a box of tiles (not on the tower's spiral)
@@ -854,7 +854,7 @@ export function renderWorld(ctx, world) {
       const x0 = px + (pr.flip ? -s.ox - s.w : s.ox) * k;
       const y0 = py + s.oy * k;
       if (x0 > vr.x1 + 8 || x0 + s.w * k < vr.x0 - 8 ||
-          y0 > vr.y1 + 8 || y0 + s.h * k < vr.y0 - 8) continue;
+        y0 > vr.y1 + 8 || y0 + s.h * k < vr.y0 - 8) continue;
     } else if (pr.caveProp) {   // the caves' baked rock (game/caverns.js): columns stand tall, stalactites hang high
       const y1 = py - (pr.z || 0) + 12;
       if (px < vr.x0 - 100 || px > vr.x1 + 100 || y1 < vr.y0 || y1 - 340 > vr.y1) continue;
@@ -875,8 +875,8 @@ export function renderWorld(ctx, world) {
     }
   }
   for (const b of world.buildings) {
-    const [x,y,w,h] = buildingRect(b);
-    if (x > vr.x1+24 || x+w < vr.x0-24 || y > vr.y1+24 || y+h < vr.y0-24) continue;
+    const [x, y, w, h] = buildingRect(b);
+    if (x > vr.x1 + 24 || x + w < vr.x0 - 24 || y > vr.y1 + 24 || y + h < vr.y0 - 24) continue;
     enqueue(b.depth, 5, b);
     if (tall) occludeStatic(b, [x, y, x + w, y + h], b.cx, b.cy);
   }
@@ -886,17 +886,17 @@ export function renderWorld(ctx, world) {
     if (px < vr.x0 - 80 || px > vr.x1 + 80 || py < vr.y0 - 40 || py > vr.y1 + 160) { c.sbox = null; continue; }
     enqueue(c.x + c.y + (c.fly ? 0.2 : 0), 6, c);
   }
-  const closeEnough = (x,y,marginX=90,marginY=130) => {
-    const px=isoX(x,y),py=isoY(x,y);
-    return px >= vr.x0-marginX && px <= vr.x1+marginX && py >= vr.y0-marginY && py <= vr.y1+marginY;
+  const closeEnough = (x, y, marginX = 90, marginY = 130) => {
+    const px = isoX(x, y), py = isoY(x, y);
+    return px >= vr.x0 - marginX && px <= vr.x1 + marginX && py >= vr.y0 - marginY && py <= vr.y1 + marginY;
   };
   for (const n of world.npcs) {
-    if (!closeEnough(n.x,n.y)) { n.sbox=null; continue; }
+    if (!closeEnough(n.x, n.y)) { n.sbox = null; continue; }
     enqueue(n.x + n.y, 7, n);
   }
-  for (const l of world.loot) if (closeEnough(l.x,l.y,50,75)) { enqueue(l.x + l.y - 0.2, 8, l); if (tall) occludeStatic(l, null, l.x, l.y, true); }
-  for (const c of world.chests) if (closeEnough(c.x,c.y,70,80)) { enqueue(c.x + c.y, 9, c); if (tall) occludeStatic(c, null); }
-  for (const po of world.portals) if (closeEnough(po.x,po.y,95,150)) { enqueue(po.x + po.y, 10, po); if (tall) occludeStatic(po, null); }
+  for (const l of world.loot) if (closeEnough(l.x, l.y, 50, 75)) { enqueue(l.x + l.y - 0.2, 8, l); if (tall) occludeStatic(l, null, l.x, l.y, true); }
+  for (const c of world.chests) if (closeEnough(c.x, c.y, 70, 80)) { enqueue(c.x + c.y, 9, c); if (tall) occludeStatic(c, null); }
+  for (const po of world.portals) if (closeEnough(po.x, po.y, 95, 150)) { enqueue(po.x + po.y, 10, po); if (tall) occludeStatic(po, null); }
   if (map.hgt) {
     // a height map sorts by the tile stood on (gfx/terrain.js standKey), so a column rising in front of someone can
     // be drawn again over them; offsets in the keys (fliers, loot) are kept
@@ -948,18 +948,18 @@ export function renderWorld(ctx, world) {
         break;
       }
       case 6: {
-        const oldZ=o.z||0;
-        const hz=map.hgt&&!map.smoothField?hopZ(o,map):0; // hopping up or dropping down a step of the terrain (a smooth field has none)
-        if(hz)o.z=oldZ+hz;
-        const hc=world.cave?world.cave.horizon(o):null; // behind higher ground in the caves: hidden below its edge
-        if(hc===-Infinity){ // drawn under an empty clip all the same: its rim and bar still show on the see-through layer
-          ctx.save();ctx.beginPath();ctx.rect(0,0,0,0);ctx.clip();o.draw(ctx);ctx.restore();
-          if(hz)o.z=oldZ;o.sbox=null;break;
+        const oldZ = o.z || 0;
+        const hz = map.hgt && !map.smoothField ? hopZ(o, map) : 0; // hopping up or dropping down a step of the terrain (a smooth field has none)
+        if (hz) o.z = oldZ + hz;
+        const hc = world.cave ? world.cave.horizon(o) : null; // behind higher ground in the caves: hidden below its edge
+        if (hc === -Infinity) { // drawn under an empty clip all the same: its rim and bar still show on the see-through layer
+          ctx.save(); ctx.beginPath(); ctx.rect(0, 0, 0, 0); ctx.clip(); o.draw(ctx); ctx.restore();
+          if (hz) o.z = oldZ; o.sbox = null; break;
         }
-        if(hc!==null){ctx.save();ctx.beginPath();ctx.rect(vr.x0-200,vr.y0-900,vr.x1-vr.x0+400,hc-(vr.y0-900));ctx.clip();}
+        if (hc !== null) { ctx.save(); ctx.beginPath(); ctx.rect(vr.x0 - 200, vr.y0 - 900, vr.x1 - vr.x0 + 400, hc - (vr.y0 - 900)); ctx.clip(); }
         o.draw(ctx);
-        if(hc!==null)ctx.restore();
-        if(hz)o.z=oldZ;
+        if (hc !== null) ctx.restore();
+        if (hz) o.z = oldZ;
         const img = o.spriteImage();
         const [w, h] = o.spriteDims(img);
         const [sx, sy] = camera.tileToScreen(o.x, o.y, oldZ + hz + (o.fly ? 16 : 0));
@@ -973,11 +973,11 @@ export function renderWorld(ctx, world) {
       case 8: o.draw(ctx); break;
       case 9: drawChest(ctx, o); break;
       case 10: drawPortal(ctx, o); break;
-      case 11: o.drawShield(ctx,it.index); break;
-      case 12: drawWallTorch(ctx,o,world.biome,G.time,
-        cutaway(wallTorchRect(o),it.d)); break;
-      case 13: drawWallHanging(ctx,o,world.biome,
-        cutaway(wallHangingRect(o,world.biome),it.d)); break;
+      case 11: o.drawShield(ctx, it.index); break;
+      case 12: drawWallTorch(ctx, o, world.biome, G.time,
+        cutaway(wallTorchRect(o), it.d)); break;
+      case 13: drawWallHanging(ctx, o, world.biome,
+        cutaway(wallHangingRect(o, world.biome), it.d)); break;
       case 14: {
         // a column redrawn over what stands behind it (on the Castle clipped to those things: whole, its faces would
         // spill over neighbours in front that aren't redrawn)
@@ -1126,11 +1126,11 @@ function drawLighting(ctx, world) {
     lc.drawImage(spr, cx - rr, cy - rr, rr * 2, rr * 2);
     return true;
   };
-  if (p) add(p.x,p.y,b.light*(1+(p.st.lightPct||0)),1,20);
+  if (p) add(p.x, p.y, b.light * (1 + (p.st.lightPct || 0)), 1, 20);
   // the Castle: lights inside a building stay under its roof, showing as the roof fades off round the hero
   const bld = world.map.c3bld, W_ = world.map.w, ra = world._roofs?.a;
   const roofed = (l) => { if (!bld) return 0; const k = bld[Math.floor(l.y) * W_ + Math.floor(l.x)]; return k > 0 ? (ra?.[k] ?? 1) : 0; };
-  let visibleLights=0;
+  let visibleLights = 0;
   for (const l of lights) {
     const r = roofed(l);
     if (r >= 0.99) continue;

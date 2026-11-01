@@ -5,7 +5,7 @@ import { shownDmg, heroDmgLevel } from '../data/depth.js';
 import { sfx } from '../core/audio.js';
 import { A, potionIcon } from '../core/assets.js';
 import { UI, $, droppable } from './ui.js';
-import { skillIconURL, smiteIcon, madnessIcon } from './icons.js';
+import { skillIconURL, smiteIcon, ultimateIcon, madnessIcon, hearthIcon } from './icons.js';
 import { CLASSES } from '../data/classes.js';
 import { SKILLS, effLevel, manaCost, rageCost, cooldown, CLASS_SKILLS } from '../data/skills.js';
 import { xpToNext } from '../game/player.js';
@@ -15,11 +15,12 @@ import { elem } from '../gfx/vfx.js';
 import { updateAutomapPartyRoster } from './partyroster.js';
 import { pickTaunt } from '../data/taunts.js';
 
-const TAUNT_KEY = 'velscour_taunts_v1'; // Velscour's level-up deck: the last mood and the lines already shown
+const TAUNT_KEY = 'Dagyr_taunts_v1'; // Dagyr's level-up deck: the last mood and the lines already shown
 import { Meter } from '../game/dpsmeter.js';
 import { heroDamage } from '../game/autoplay.js';
 import { madnessReady, madnessOn, unleashMadness } from '../game/mayhem.js';
-import { smiteReady, smiteArmed, toggleSmite } from '../game/smite.js';
+import { smiteReady, smiteArmed, toggleSmite, getUltimate } from '../game/smite.js';
+import { hearthOf, hearthReady, hearthChanneling, hearthSecondsLeft, useHearth } from '../game/hearth.js';
 import { greedOf, hoardOf, hoardCap, greedMods, setGreed, GREED_MAX } from '../game/greed.js';
 import { STANCES, Auto } from '../game/autoplay.js';
 import { sealedCount, openNextSeal } from './sealed.js';
@@ -67,10 +68,14 @@ export const HUD = {
     const madIcon = $('#madness-btn .special-icon');
     if (madIcon) madIcon.getContext('2d').drawImage(madnessIcon(64), 0, 0);
     const smiteIconEl = $('#smite-btn .special-icon');
-    if (smiteIconEl) smiteIconEl.getContext('2d').drawImage(smiteIcon(64), 0, 0);
+    const initCls = G.char ? G.char.classId : 'paladin';
+    if (smiteIconEl) smiteIconEl.getContext('2d').drawImage(ultimateIcon(initCls, 64), 0, 0);
+    const hearthIconEl = $('#hearth-btn .special-icon');
+    if (hearthIconEl) hearthIconEl.getContext('2d').drawImage(hearthIcon(64), 0, 0);
 
     $('#madness-btn').addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); unleashMadness(); });
     $('#smite-btn').addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); toggleSmite(); });
+    $('#hearth-btn').addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); useHearth(); });
     $('#sealed-btn').addEventListener('click', (e) => { e.stopPropagation(); sfx('ui'); openNextSeal(); });
     const toggleXpDetails = (e) => { e.stopPropagation(); $('#xp-text')?.classList.toggle('show-full'); };
     $('#xp-track')?.addEventListener('pointerdown', toggleXpDetails);
@@ -84,10 +89,12 @@ export const HUD = {
       <div><b>Cautious</b>: kites anything that closes in, fights from the edge of its reach, drinks early, runs for town sooner, out-levels each depth before its guardian.</div>
       <div><b>Balanced</b>: the default: kites crowds and when hurt.</div>
       <div><b>Reckless</b>: stands in the thick of it, barely kites, drinks late, dives for the guardian under-levelled.</div>`);
-    UI.tip($('#greed'), () => { const g = greedOf(), M = greedMods(g, hoardOf()); return `<b style="color:#ffc040">The Greed lever: ${g} / ${GREED_MAX}</b>
+    UI.tip($('#greed'), () => {
+      const g = greedOf(), M = greedMods(g, hoardOf()); return `<b style="color:#ffc040">The Greed lever: ${g} / ${GREED_MAX}</b>
       <div>Each notch: +7% champion packs, +12% pack size, +8% monster traits, monsters +10% life and +6% damage. Pays +25% drops, +30% gold, +20% magic find.</div>
       <div>Every depth cleared with the lever up adds its level to the <b>Hoard</b>: +2% drops and gold a stack while greedy (drops up to 50 stacks). Its cap grows with your deepest depth (now ${hoardCap()}); stacks over 50 add gold only. A death loses the Hoard and drops the lever.</div>
-      <div class="dim">Takes hold from the next depth. Now: ×${M.loot.toFixed(2)} drops, ×${M.gold.toFixed(2)} gold, +${M.mf}% magic find.</div>`; });
+      <div class="dim">Takes hold from the next depth. Now: ×${M.loot.toFixed(2)} drops, ×${M.gold.toFixed(2)} gold, +${M.mf}% magic find.</div>`;
+    });
     // tap / click the target window to blow it up (about 2.25x, capped to the screen); again to shrink it back
     $('#target-box').addEventListener('click', (e) => { e.stopPropagation(); this.tbBig = !this.tbBig; this.last.tbCls = null; this.updateTarget(); });
     const wrap = $('#hud-slots');
@@ -138,7 +145,7 @@ export const HUD = {
     window.addEventListener('resize', () => this.layoutMobile());
     this.layoutMobile();
     $('#minimap').addEventListener('click', () => { G.showAutomap = !G.showAutomap; });
-    $('#velscour-skull').addEventListener('click', () => { sfx('ui'); G.game.openVelscourContact(); });
+    $('#Dagyr-skull').addEventListener('click', () => { sfx('ui'); G.game.openDagyrContact(); });
     const spark = $('#hs-spark');
     spark.width = 150 * G.dpr; spark.height = 18 * G.dpr;
     UI.tip($('#hero-stats'), () => `<b style="color:#ffe2a0">Battle Ledger</b>
@@ -266,13 +273,14 @@ export const HUD = {
       }
 
       // Keep gauge-box (Rage, Madness, Smite meters) floating cleanly above the potions
+      // (portrait: the touch layout centres it above the skill tray instead, see TouchUI.placePortraitExtras)
       const gaugeBox = $('#gauge-box');
-      if (gaugeBox) {
+      if (gaugeBox && !(portrait && G.touchUI?.portraitAnchors)) {
         gaugeBox.style.top = 'auto';
         gaugeBox.style.bottom = `${bar.height - potionY + 6}px`;
       }
 
-      // Position #special-actions (Madness & Smite buttons): In portrait, Madness flanks HP orb on left, Smite flanks MP orb on right
+      // Position #special-actions (Smite & Madness buttons): In portrait, Smite flanks HP orb on left, Madness flanks MP orb on right
       const madnessBtn = $('#madness-btn');
       const smiteBtn = $('#smite-btn');
       const spec = $('#special-actions');
@@ -281,7 +289,7 @@ export const HUD = {
         const hudBarBottom = window.innerHeight - bar.bottom;
         const btnBottom = hudBarBottom + (bar.height - frameY - frameH) + (frameH - btnSize) / 2;
         if (madnessBtn) {
-          const mLeft = Math.max(4, lifeFrameX - btnSize - 6);
+          const mLeft = Math.min(bar.width - btnSize - 4, manaFrameX + frameW + 6); // right of the MP orb
           Object.assign(madnessBtn.style, {
             position: 'absolute',
             left: `${mLeft}px`,
@@ -293,8 +301,10 @@ export const HUD = {
             zIndex: '6',
           });
         }
+        // the Hearthstone sits at the skill tray's top-left (placed by the touch layout, which knows the tray)
+        G.touchUI?.placePortraitExtras?.();
         if (smiteBtn) {
-          const sLeft = Math.min(bar.width - btnSize - 4, manaFrameX + frameW + 6);
+          const sLeft = Math.max(4, lifeFrameX - btnSize - 6); // left of the HP orb
           Object.assign(smiteBtn.style, {
             position: 'absolute',
             left: `${sLeft}px`,
@@ -309,10 +319,11 @@ export const HUD = {
       } else {
         if (madnessBtn) madnessBtn.removeAttribute('style');
         if (smiteBtn) smiteBtn.removeAttribute('style');
+        $('#hearth-btn')?.removeAttribute('style');
         if (spec) {
           const hudBarRect = bar;
           const lifeScreenLeft = hudBarRect.left + lifeFrameX;
-          const specW = 112;
+          const specW = 172; // three 50px buttons + gaps (Hearth, Madness, Smite)
           if (lifeScreenLeft > specW + 10) {
             const leftPos = Math.max(8, lifeScreenLeft - specW - 8);
             spec.style.left = `${leftPos}px`;
@@ -378,6 +389,7 @@ export const HUD = {
       if (madnessBtn) madnessBtn.removeAttribute('style');
       const smiteBtn = $('#smite-btn');
       if (smiteBtn) smiteBtn.removeAttribute('style');
+      $('#hearth-btn')?.removeAttribute('style');
 
       this.slots.forEach((s) => {
         const potion = typeof s.map === 'string';
@@ -413,7 +425,8 @@ export const HUD = {
       }
     }
     const sp = $('#sp-badge'), stb = $('#stat-badge');
-    sp.textContent = c.skillPoints; sp.classList.toggle('hidden', !c.skillPoints);
+    const totalSkillOrTalentPts = (c.skillPoints || 0) + (c.talentPoints || 0);
+    sp.textContent = totalSkillOrTalentPts; sp.classList.toggle('hidden', !totalSkillOrTalentPts);
     stb.textContent = c.statPoints; stb.classList.toggle('hidden', !c.statPoints);
     if (G.touchUI) G.touchUI.refresh();
   },
@@ -464,15 +477,37 @@ export const HUD = {
       if (madTxt) madTxt.textContent = on ? `MADNESS ${Math.ceil(c.madT)}s` : ready ? 'Madness — ready' : `Madness ${Math.floor((c.madness || 0) * 100)}%`;
     });
 
-    // SMITE (game/smite.js)
+    // Class Ultimate (game/smite.js)
+    const ult = getUltimate(c.classId);
+    if (this._lastUltClass !== c.classId) {
+      this._lastUltClass = c.classId;
+      const smiteIconEl = $('#smite-btn .special-icon');
+      if (smiteIconEl) {
+        const x = smiteIconEl.getContext('2d');
+        x.clearRect(0, 0, 64, 64);
+        x.drawImage(ultimateIcon(c.classId, 64), 0, 0);
+      }
+      const btn = $('#smite-btn');
+      if (btn) {
+        btn.setAttribute('aria-label', ult.name);
+        btn.title = `${ult.name} (F): arm it, then ${G.touch ? 'tap' : 'click'} where to strike · ${ult.desc}`;
+      }
+    }
+
     const sReady = smiteReady(), sArmed = smiteArmed();
     const smitePct = clamp(c.smite || 0, 0, 1);
     const smiteK = Math.round(smitePct * 1000) / 10;
     set('smite', smiteK, (v) => {
       const ringFill = $('#smite-btn .ring-fill');
-      if (ringFill) ringFill.style.strokeDashoffset = (144.5 * (1 - v / 100)).toFixed(1);
+      if (ringFill) {
+        ringFill.style.strokeDashoffset = (144.5 * (1 - v / 100)).toFixed(1);
+        ringFill.style.stroke = ult.color;
+      }
       const fill = $('#smite-fill');
-      if (fill) fill.style.width = v + '%';
+      if (fill) {
+        fill.style.width = v + '%';
+        fill.style.backgroundColor = ult.color;
+      }
     });
     set('smitest', sArmed ? 'armed' : sReady ? 'full' : '', (v) => {
       const btn = $('#smite-btn');
@@ -492,9 +527,29 @@ export const HUD = {
       const st = $('#smite-btn .special-status');
       if (st) st.textContent = v;
       const smiteTxt = $('#smite-text');
-      if (smiteTxt) smiteTxt.textContent = sArmed ? (G.touch ? 'Smite — tap the ground' : 'Smite — click the ground') : sReady ? 'Smite — ready' : `Smite ${Math.floor((c.smite || 0) * 100)}%`;
+      if (smiteTxt) smiteTxt.textContent = sArmed ? (G.touch ? `${ult.name} — tap the ground` : `${ult.name} — click the ground`) : sReady ? `${ult.name} — ready` : `${ult.name} ${Math.floor((c.smite || 0) * 100)}%`;
     });
     if (G.canvas) G.canvas.classList.toggle('aiming', sArmed);
+
+    // HEARTHSTONE (game/hearth.js): always shown; fills over 10 minutes in the dungeon
+    const hPct = clamp(hearthOf(c), 0, 1), hReady = hearthReady(), hChan = hearthChanneling();
+    set('hearth', Math.round(hPct * 1000) / 10, (v) => {
+      const ringFill = $('#hearth-btn .ring-fill');
+      if (ringFill) ringFill.style.strokeDashoffset = (144.5 * (1 - v / 100)).toFixed(1);
+    });
+    set('hearthst', hChan ? 'casting' : hReady ? 'full' : hPct >= 1 ? 'idle' : '', (v) => {
+      const btn = $('#hearth-btn');
+      if (!btn) return;
+      btn.classList.toggle('ready', v === 'full');
+      btn.classList.toggle('casting', v === 'casting');
+      btn.classList.toggle('idle', v === 'idle'); // full, but in town: nowhere to return from
+      btn.classList.toggle('charging', !v);
+    });
+    const hLeft = hearthSecondsLeft(c);
+    set('hearthtx', hChan ? '...' : hPct >= 1 ? 'READY' : `${Math.floor(hLeft / 60)}:${String(hLeft % 60).padStart(2, '0')}`, (v) => {
+      const st = $('#hearth-btn .special-status');
+      if (st) st.textContent = v;
+    });
     // sealed treasures waiting in the bag (ui/sealed.js)
     const nSeal = sealedCount(c);
     set('sealed', nSeal, (v) => { $('#sealed-btn').classList.toggle('hidden', !v); $('#sealed-text').textContent = `${v} SEALED`; });
@@ -577,13 +632,13 @@ export const HUD = {
     const breach = !!w?.breach;
     const sand = (w?.biome?.id === 'sea_of_sand' || forest || breach) && w.overworldScenario?.hud ? w.overworldScenario.hud : null;
     set('sandHud', sand ? `${sand.title}|${sand.beat}|${sand.total}|${sand.progress}|${sand.timer}` : '', (v) => {
-      const panel=$('#sand-objective');
-      panel.classList.toggle('hidden',!sand);
-      if(sand){
-        $('#sand-title').textContent=sand.title;
-        $('#sand-beat').textContent=forest?`Glades ${sand.beat}/${sand.total}`:breach?`Shrines ${sand.beat}/${sand.total}`:`Area ${sand.beat}/${sand.total}`;
-        $('#sand-progress').textContent=sand.progress;
-        $('#sand-timer').textContent=sand.timer?`Time ${sand.timer}`:'';
+      const panel = $('#sand-objective');
+      panel.classList.toggle('hidden', !sand);
+      if (sand) {
+        $('#sand-title').textContent = sand.title;
+        $('#sand-beat').textContent = forest ? `Glades ${sand.beat}/${sand.total}` : breach ? `Shrines ${sand.beat}/${sand.total}` : `Area ${sand.beat}/${sand.total}`;
+        $('#sand-progress').textContent = sand.progress;
+        $('#sand-timer').textContent = sand.timer ? `Time ${sand.timer}` : '';
       }
     });
     // buffs
@@ -637,6 +692,8 @@ export const HUD = {
         const room = Math.floor(lr.bottom - $('#hud-top-left').getBoundingClientRect().bottom - 6);
         const v = Math.max(0, room) + 'px';
         if (lg.style.maxHeight !== v) lg.style.maxHeight = v;
+        // the desktop chat docks in the log's exact spot: give it the same headroom
+        document.documentElement.style.setProperty('--log-room', v);
       }
     }
     this.updateStats(dt);
@@ -719,7 +776,7 @@ export const HUD = {
     drawFiltered(g, 'brightness(1.35) contrast(1.1)', img, bx, by, bw, bh, (S - dw) / 2, S - pad - dh, dw, dh); // dungeon art is dark; lift it so it reads small
   },
 
-  /** The level-up banner: a dark vignette, the title and new level bleeding in from blur, then Velscour's two lines. */
+  /** The level-up banner: a dark vignette, the title and new level bleeding in from blur, then Dagyr's two lines. */
   levelUp(level, sound) {
     const box = $('#levelup'), num = $('#lu-num');
     num.textContent = level;

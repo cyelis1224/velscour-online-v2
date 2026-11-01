@@ -6,7 +6,7 @@ const mobile = process.argv.includes('mobile');
 (async () => {
   const { browser, page, errors } = await openGame(mobile ? { width: 844, height: 390, mobile: true } : {});
   const r = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('paladin', 'Peacock');
     const { rollItem, shownEquip } = await import('/src/data/items.js');
     const { addToBag } = await import('/src/game/player.js');
@@ -45,7 +45,7 @@ const mobile = process.argv.includes('mobile');
   await page.waitForTimeout(500);
   await page.screenshot({ path: `tools/tests/out/vanity${mobile ? '_mobile' : ''}.png` });
   const r2 = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const { takeOffLook } = await import('/src/ui/inventory.js');
     const { shownEquip } = await import('/src/data/items.js');
     const c = G.char, body = c.vanity.body;

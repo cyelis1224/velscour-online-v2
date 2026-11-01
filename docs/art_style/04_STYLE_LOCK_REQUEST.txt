@@ -1,6 +1,6 @@
 === STYLE LOCK REQUEST (paste after the style-lock sheet is approved) ===
 
-Now write the VELSCOUR STYLE LOCK documents, so that any future chat (or another artist) can reproduce exactly this
+Now write the DAGYR STYLE LOCK documents, so that any future chat (or another artist) can reproduce exactly this
 art style, these poses and these sizes. Base them on the master prompt, the attached art bible and the style-lock
 sheet you just painted. Be exhaustive and concrete: numbers, hex colours, pixel counts and do/don't pairs, never
 vague adjectives. Produce them as downloadable files:

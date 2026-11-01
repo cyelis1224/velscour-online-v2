@@ -79,18 +79,18 @@ function wallMounts(map, rng, biome, torchRate, hangRate, count) {
  * The light/particles are offset towards the cup, not the mounting plate.
  */
 export function torchAtWallSegment(s) {
-  const cupRight=s.dir==='f'?!s.front:s.front;
-  const screenOffset=cupRight?18:-18;
+  const cupRight = s.dir === 'f' ? !s.front : s.front;
+  const screenOffset = cupRight ? 18 : -18;
   return {
-    x:s.mx+screenOffset/64, y:s.my-screenOffset/64,
-    mountX:s.mx, mountY:s.my, dir:s.dir, front:!!s.front,
-    depth:s.depth+(s.front?0.57:-0.34), flameZ:60,
+    x: s.mx + screenOffset / 64, y: s.my - screenOffset / 64,
+    mountX: s.mx, mountY: s.my, dir: s.dir, front: !!s.front,
+    depth: s.depth + (s.front ? 0.57 : -0.34), flameZ: 60,
   };
 }
 
 /** Every fifth depth (but the throne at FINAL_DEPTH) ends in a BOSS ROOM with a raid boss (game/raid.js). */
 import { isRaidDepth, FINAL_DEPTH, density } from '../data/depth.js';
-import { throneSprite, THRONE_ART } from '../gfx/velscourthrone.js';
+import { throneSprite, THRONE_ART } from '../gfx/dagyrthrone.js';
 export { isRaidDepth };
 
 // the boss room: an arena east of the maze, reached by a corridor from its far end
@@ -104,8 +104,10 @@ function generateCastleKeepLayout(depth, biome, tileset, seed, layout) {
     for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++)
       if (xx > 0 && yy > 0 && xx < W - 1 && yy < H - 1) map.t[yy * W + xx] = 1;
   };
-  const rooms = layout.rooms.map((r, idx) => ({ ...r, idx, type: 'room',
-    mx: r.x + r.w / 2, my: r.y + r.h / 2 }));
+  const rooms = layout.rooms.map((r, idx) => ({
+    ...r, idx, type: 'room',
+    mx: r.x + r.w / 2, my: r.y + r.h / 2
+  }));
   for (const r of rooms) carve(r.x, r.y, r.w, r.h);
   for (const [x, y, w, h] of layout.corridors) carve(x, y, w, h);
   const nearestRoom = (point) => rooms.reduce((best, r) => {
@@ -118,8 +120,8 @@ function generateCastleKeepLayout(depth, biome, tileset, seed, layout) {
   for (const r of rooms) if (r !== startRoom && Math.min(r.w, r.h) >= 5) Object.assign(r, nextTheme(false));
   const exitRoom = guardianRoom;
   if (!map.walkable(layout.start[0], layout.start[1]) ||
-      !map.walkable(layout.guardian[0], layout.guardian[1]) ||
-      !map.walkable(layout.exit[0], layout.exit[1]))
+    !map.walkable(layout.guardian[0], layout.guardian[1]) ||
+    !map.walkable(layout.exit[0], layout.exit[1]))
     throw new Error(`Castle Keep layout has a marker outside its floor: ${layout.id}`);
 
   finishMap(map, tileset, rng, null, rooms);
@@ -391,7 +393,7 @@ export function generateDungeon(depth, biome, tileset, seed, opts = {}) {
   const { torches, wallHangings } = wallMounts(map, rng, biome, (s) => inArena(s) ? 0.45 : 0.16, 0.2, wallHangingCount(biome));
 
   return {
-      map, rooms, spawns, props, chests, torches, wallHangings, looks,
+    map, rooms, spawns, props, chests, torches, wallHangings, looks,
     start: [startRoom.mx, startRoom.my],
     exit: arena ? [arena.x + arena.w - 2.5, arena.cy] : exitRoom.keep || exitPos(map, exitRoom, startRoom),
     bossRoom: arena || exitRoom,
@@ -468,6 +470,11 @@ function placeObstacles(map, rooms, tileset, rng, startRoom) {
     return false;
   };
   const voidAround = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => !map.tile(x + dx, y + dy)).length;
+  // hallway-like floor: the run of floor through the tile is 3 or less across one axis (a 2-3 wide corridor, a
+  // cave passage, a tiny junction room). Nothing is placed there, walk-over clutter included, so the routes
+  // between rooms stay clear.
+  const run = (x, y, dx, dy) => { let n = 1; for (let k = 1; k <= 3 && map.tile(x + dx * k, y + dy * k); k++) n++; for (let k = 1; k <= 3 && map.tile(x - dx * k, y - dy * k); k++) n++; return n; };
+  const hallway = (x, y) => run(x, y, 1, 0) <= 3 || run(x, y, 0, 1) <= 3;
   // a level shows a dozen or so of the pack's props, so rooms look furnished rather than random
   const pool = shuffleWith(scat.slice(), rng).slice(0, rng.int(10, 16));
   for (const r0 of rooms) {
@@ -481,7 +488,7 @@ function placeObstacles(map, rooms, tileset, rng, startRoom) {
     };
     // ...and the room centre, where loot chests go
     const ok = (x, y) => inRoom(x, y) && !(r.keep && Math.hypot(x + 0.5 - r.keep[0], y + 0.5 - r.keep[1]) < 2) && map.walkableTile(x, y) && !nearDoor(x, y) && !used.has(y * W + x)
-      && (Math.abs(x - Math.floor(r.mx)) > 1 || Math.abs(y - Math.floor(r.my)) > 1);
+      && !hallway(x, y) && (Math.abs(x - Math.floor(r.mx)) > 1 || Math.abs(y - Math.floor(r.my)) > 1);
     const cells = [];
     for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (ok(x, y)) cells.push([x, y]);
     if (!cells.length) continue;
@@ -538,20 +545,22 @@ function placeObstacles(map, rooms, tileset, rng, startRoom) {
       if (e.block && !tryBlock(x, y)) continue;
       used.add(y * W + x);
       const j = e.block ? 0.08 : 0.25; // walk-over clutter can sit anywhere in its tile
-      const fence=/_barricade_|_fence_|_boundary_|railing|palisade/.test(e.name);
+      const fence = /_barricade_|_fence_|_boundary_|railing|palisade/.test(e.name);
       // A mirrored rail can never become the other projected tile axis.
       // Barricades are now complete 1-tile X/Y isometric edge segments.
-      const axis = voidAround(x,y) && !map.tile(x,y-1) ? 'x'
-        : voidAround(x,y) && !map.tile(x-1,y) ? 'y'
-        : rng.chance(.5)?'x':'y';
-      const style=tileset.pack.includes('ice')?'crystal':
-        tileset.pack.includes('heaven')?'heavenly':
-        tileset.pack.includes('hell')?'hell':
-        tileset.pack.includes('astral')?'astral':'stone';
-      const spr=fence?isoBarrier(style,axis):e;
-      props.push({kind:'scatter',x:x+.5+(fence?0:rng.range(-j,j)),
-        y:y+.5+(fence?0:rng.range(-j,j)),spr,k:tileset.k,
-        flip:fence?false:rng.chance(.5),light:LIT[e.name]});
+      const axis = voidAround(x, y) && !map.tile(x, y - 1) ? 'x'
+        : voidAround(x, y) && !map.tile(x - 1, y) ? 'y'
+          : rng.chance(.5) ? 'x' : 'y';
+      const style = tileset.pack.includes('ice') ? 'crystal' :
+        tileset.pack.includes('heaven') ? 'heavenly' :
+          tileset.pack.includes('hell') ? 'hell' :
+            tileset.pack.includes('astral') ? 'astral' : 'stone';
+      const spr = fence ? isoBarrier(style, axis) : e;
+      props.push({
+        kind: 'scatter', x: x + .5 + (fence ? 0 : rng.range(-j, j)),
+        y: y + .5 + (fence ? 0 : rng.range(-j, j)), spr, k: tileset.k,
+        flip: fence ? false : rng.chance(.5), light: LIT[e.name]
+      });
       i++;
     }
   }
@@ -607,7 +616,8 @@ function furnishRoom(r, theme, { scat, rng, put, ok, cells, edge, cx, cy, outer 
 }
 
 // light radius (tiles) of the props that burn
-const LIT = { grave_lantern: 2.2,
+const LIT = {
+  grave_lantern: 2.2,
   yellow_cage_lantern: 2.4, dripping_candle_cluster: 2, tall_iron_candelabrum: 2.6, green_fire_brazier: 3.4, green_flame_torch: 3.2, torch_stand: 3.2, incense_brazier: 3, iron_candelabrum: 2.6, vigil_candles: 2, votive_candles: 2,
   wall_brazier: 3.1, keep_candelabrum: 2.8, iron_chandelier: 2.6,
   gold_brazier: 3.6, blue_flame_brazier: 3.8, temple_censer: 2.8, burial_lantern: 2.6, sun_torch: 3.2, royal_censer: 3.0,
@@ -621,10 +631,11 @@ const LIT = { grave_lantern: 2.2,
   starfall_brazier: 3.5, voidflame_brazier: 3.7, aether_lantern: 2.5,
   stellar_conduit: 3.8, nebula_shrine: 4.1, astral_fountain: 3.2,
   convergence_dais: 3.6, singularity_heart: 4.5, portal_anchor: 3.7,
-  campfire: 3.4, lantern_stake: 2.4, glowing_crystal: 2.6 };
+  campfire: 3.4, lantern_stake: 2.4, glowing_crystal: 2.6
+};
 
 function shuffleWith(a, rng) {
-  for (let i = a.length - 1; i > 0; i--) { const j = rng.int(0, i); [a[i], a[j]] = [a[j], a[i]]; }
+  for (let i = a.length - 1; i > 0; i--) { const j = rng.int(0, i);[a[i], a[j]] = [a[j], a[i]]; }
   return a;
 }
 
@@ -763,16 +774,16 @@ function generateThrone(biome, tileset, seed) {
     { x: 10, y: 45, arch: 'imp', n: 6, rank: 'normal' },
     { x: 33, y: 45, arch: 'gargoyle', n: 4, rank: 'normal' },
     { x: 22, y: 38, arch: 'abomination', n: 2, rank: 'unique' },
-    { x: 22, y: 14, arch: 'velscour', n: 1, rank: 'boss' },
+    { x: 22, y: 14, arch: 'Dagyr', n: 1, rank: 'boss' },
   ];
-  // The throne remains Velscour's scripted boss arena, but its corridors
+  // The throne remains Dagyr's scripted boss arena, but its corridors
   // now also draw gauntlet guards from the FULL biome roster. This allows
   // all 50 registered throne-native look variants (and the existing global
   // bestiary) to be encountered across differently seeded final levels.
-  const throneGuards=(biome.roster||[]).filter(a=>a!=='velscour');
-  if(throneGuards.length){
-    for(const [x,y] of [[22,61],[10,48],[32,48],[12,38],[22,34]]){
-      spawns.push({x,y,arch:rng.pick(throneGuards),n:rng.int(1,3),rank:'normal'});
+  const throneGuards = (biome.roster || []).filter(a => a !== 'Dagyr' && a !== 'dagyr' && a !== 'velscour');
+  if (throneGuards.length) {
+    for (const [x, y] of [[22, 61], [10, 48], [32, 48], [12, 38], [22, 34]]) {
+      spawns.push({ x, y, arch: rng.pick(throneGuards), n: rng.int(1, 3), rank: 'normal' });
     }
   }
   const { torches, wallHangings } = wallMounts(map, rng, biome, () => 0.25, 0.12, 50);
@@ -781,8 +792,8 @@ function generateThrone(biome, tileset, seed) {
   for (const [x, y] of [[12, 10], [32, 10], [12, 24], [32, 24]]) {
     if (ob && map.walkableTile(x, y)) { map.block[y * W + x] = 1; props.push({ kind: 'scatter', x: x + 0.5, y: y + 0.5, spr: ob, k: tileset.k }); }
   }
-  // his throne (gfx/velscourthrone.js): the Castle's throne dais in his colours on a 2 x 2 footing, its front corner at
-  // (23, 12); he sits on it until the fight begins (game/velscour.js SEAT)
+  // his throne (gfx/Dagyrthrone.js): the Castle's throne dais in his colours on a 2 x 2 footing, its front corner at
+  // (23, 12); he sits on it until the fight begins (game/dagyr.js SEAT)
   for (let y = 10; y <= 11; y++) for (let x = 21; x <= 22; x++) map.block[y * W + x] = 1;
   props.push({ kind: 'scatter', x: 23, y: 12, spr: throneSprite(), k: 1 / THRONE_ART.over, throne: true });
   return {

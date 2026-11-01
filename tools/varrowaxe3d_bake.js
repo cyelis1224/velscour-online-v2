@@ -1,13 +1,13 @@
 // Bake Varrow's great axe (tools/varrowaxe3d.html, model in tools/varrowaxe3d.js) into the sheet the game draws:
 // assets/sprites/npc/varrow_axe.webp + .json (32 turns, their rune layer, the rack; src/gfx/varrowaxe.js).
-// Needs the repo served (python -m http.server 8123) and jsDelivr (three.js, for this tool only).
+// Needs the repo served (python -m http.server 8124) and jsDelivr (three.js, for this tool only).
 //   node tools/varrowaxe3d_bake.js            # bake
 //   node tools/varrowaxe3d_bake.js preview    # a turntable contact sheet -> tools/tests/out/varrowaxe3d_turntable.png
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE_URL || 'http://localhost:8123';
+const BASE = process.env.BASE_URL || 'http://localhost:8124';
 const ROOT = path.resolve(__dirname, '..');
 const data = (u) => Buffer.from(u.split(',')[1], 'base64');
 (async () => {

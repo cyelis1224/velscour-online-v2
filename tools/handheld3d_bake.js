@@ -1,13 +1,13 @@
 // Sheets of random Paladins holding the three.js maces and shields (tools/handheld3d.html, tools/handheld3d.js): per
 // fitting attempt a sheet of 8 heroes, a 6x close-up of the hands and a 12x one of the weapon fist, in art-review/handheld/.
-// Needs the repo served (python -m http.server 8123) and jsDelivr (three.js, for this tool only).
+// Needs the repo served (python -m http.server 8124) and jsDelivr (three.js, for this tool only).
 //   node tools/handheld3d_bake.js [attempts: 1,2,... | all (default: the last)] [seed]
 //   node tools/handheld3d_bake.js classes [class,... | all] [seed]   (every class's kit, tools/handheld3d_kits.js)
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE_URL || 'http://localhost:8123';
+const BASE = process.env.BASE_URL || 'http://localhost:8124';
 const OUT = process.env.OUT_DIR || path.join(__dirname, '..', 'art-review', 'handheld');
 const data = (u) => Buffer.from(u.split(',')[1], 'base64');
 (async () => {

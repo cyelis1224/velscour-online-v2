@@ -1,4 +1,4 @@
-package com.velscour.game;
+package com.Dagyr.game;
 
 import android.annotation.SuppressLint;
 import android.app.Dialog;
@@ -20,6 +20,8 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebChromeClient;
+import com.getcapacitor.ProcessedRoute;
+import com.getcapacitor.RouteProcessor;
 
 public class MainActivity extends BridgeActivity {
     private Dialog authDialog = null;
@@ -27,6 +29,16 @@ public class MainActivity extends BridgeActivity {
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        LiveUpdatePlugin.initStartup(this);
+        registerPlugin(LiveUpdatePlugin.class);
+        final MainActivity self = this;
+        bridgeBuilder.setRouteProcessor(new RouteProcessor() {
+            @Override
+            public ProcessedRoute process(String basePath, String path) {
+                return LiveUpdatePlugin.processRoute(self, basePath, path);
+            }
+        });
+
         super.onCreate(savedInstanceState);
         hideSystemUI();
 

@@ -11,7 +11,7 @@ const BAR = ['bard.0.0', 'bard.1.0', 'bard.2.0', 'bard.2.1', 'bard.1.11', 'bard.
   const out = [];
   for (let r = 0; r < runs; r++) {
     out.push(await page.evaluate(async ({ secs, BAR }) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       await game.newChar('bard', 'Dummy' + Math.random());
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
       const { CLASS_SKILLS } = await import('/src/data/skills.js');

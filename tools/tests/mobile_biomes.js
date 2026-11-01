@@ -10,7 +10,7 @@ const selected = ['catacombs', 'ice_temple', 'desert_temple', 'hell',
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 844, height: 390, mobile: true });
   try {
-    await page.evaluate(() => window.VELSCOUR.game.newChar('wizard', 'Mobile QA'));
+    await page.evaluate(() => window.DAGYR.game.newChar('wizard', 'Mobile QA'));
     const ids = await page.evaluate(async () => {
       const { BIOMES } = await import('/src/data/biomes.js');
       return BIOMES.map(b => b.id);
@@ -19,7 +19,7 @@ const selected = ['catacombs', 'ice_temple', 'desert_temple', 'hell',
     for (const id of targets) {
       try {
         await page.evaluate(async (id) => {
-          const { G, game } = window.VELSCOUR;
+          const { G, game } = window.DAGYR;
           const { BIOME_BY_ID } = await import('/src/data/biomes.js');
           const { loadBiomeArt } = await import('/src/core/assets.js');
           const { loadSeaOfSandPack } = await import('/src/gfx/seaofsand.js');
@@ -32,7 +32,7 @@ const selected = ['catacombs', 'ice_temple', 'desert_temple', 'hell',
         }, id);
         await page.waitForTimeout(300);
         const stats = await page.evaluate(() => new Promise(resolve => {
-          const { game, G } = window.VELSCOUR;
+          const { game, G } = window.DAGYR;
           const render = game.render, update = game.update;
           const times = [], updates = [], start = performance.now();
           game.render = function (...args) {
@@ -52,9 +52,11 @@ const selected = ['catacombs', 'ice_temple', 'desert_temple', 'hell',
               const s = [...samples].sort((a, b) => a - b);
               return s[Math.min(s.length - 1, Math.floor(p * s.length))];
             };
-            resolve({ fps: times.length / ((performance.now() - start) / 1000),
+            resolve({
+              fps: times.length / ((performance.now() - start) / 1000),
               renderP50: percentile(times, .5), renderP95: percentile(times, .95),
-              updateP95: percentile(updates, .95), dpr: G.dpr, resScale: G.resScale || 1 });
+              updateP95: percentile(updates, .95), dpr: G.dpr, resScale: G.resScale || 1
+            });
           }, 2000);
         }));
         console.log(id.padEnd(16), `fps=${stats.fps.toFixed(1)} render p95=${stats.renderP95.toFixed(1)}ms update p95=${stats.updateP95.toFixed(1)}ms dpr=${stats.dpr.toFixed(2)} res=${stats.resScale.toFixed(2)}`);

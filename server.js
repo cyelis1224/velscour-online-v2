@@ -1,11 +1,244 @@
-// VELSCOUR Online - Multiplayer HTTP & WebSocket Server
+// DAGYR ONLINE - Multiplayer HTTP & WebSocket Server
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
+const crypto = require('crypto');
 const { WebSocketServer, WebSocket } = require('ws');
+const { buildUpdateManifest } = require('./tools/manifest');
 
-const PORT = parseInt(process.env.PORT, 10) || 8123;
+const PORT = parseInt(process.env.PORT, 10) || 8124;
 const ROOT = __dirname;
+const DATA_DIR = process.env.DAGYR_DATA_DIR ? path.resolve(process.env.DAGYR_DATA_DIR) : path.join(ROOT, 'data');
+const CHARS_DIR = path.join(DATA_DIR, 'characters');
+const ACCOUNTS_FILE = path.join(DATA_DIR, 'accounts.json');
+const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+
+// ------------------------------------------------------------------ Online Account & Character Storage
+function ensureDataDirs() {
+  try {
+    fs.mkdirSync(CHARS_DIR, { recursive: true });
+  } catch (e) { }
+}
+ensureDataDirs();
+
+function writeJsonAtomic(filePath, data) {
+  ensureDataDirs();
+  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf8');
+  fs.renameSync(tmpPath, filePath);
+}
+
+function readJsonSafe(filePath, fallback) {
+  try {
+    if (!fs.existsSync(filePath)) return fallback;
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (e) {
+    return fallback;
+  }
+}
+
+const accountsById = new Map();
+const accountsByEmail = new Map();
+const sessionsByToken = new Map();
+// Global character name registry: nameLower -> { charId, accountId, name }
+const onlineCharNames = new Map();
+
+function loadAccountCharacters(accountId) {
+  const file = path.join(CHARS_DIR, `${accountId}.json`);
+  const data = readJsonSafe(file, { characters: [] });
+  return Array.isArray(data.characters) ? data.characters : [];
+}
+
+function saveAccountCharacters(accountId, characters) {
+  const file = path.join(CHARS_DIR, `${accountId}.json`);
+  writeJsonAtomic(file, { characters });
+}
+
+function saveAccountsToDisk() {
+  const obj = {};
+  for (const [id, acc] of accountsById.entries()) {
+    obj[id] = acc;
+  }
+  writeJsonAtomic(ACCOUNTS_FILE, obj);
+}
+
+function saveSessionsToDisk() {
+  const obj = {};
+  const now = Date.now();
+  for (const [tok, sess] of sessionsByToken.entries()) {
+    if (sess.expiresAt && sess.expiresAt < now) {
+      sessionsByToken.delete(tok);
+      continue;
+    }
+    obj[tok] = sess;
+  }
+  writeJsonAtomic(SESSIONS_FILE, obj);
+}
+
+function initOnlineStore() {
+  ensureDataDirs();
+  const rawAccounts = readJsonSafe(ACCOUNTS_FILE, {});
+  for (const [id, acc] of Object.entries(rawAccounts)) {
+    if (acc && acc.id && acc.emailLower) {
+      accountsById.set(acc.id, acc);
+      accountsByEmail.set(acc.emailLower, acc);
+    }
+  }
+  const rawSessions = readJsonSafe(SESSIONS_FILE, {});
+  const now = Date.now();
+  for (const [tok, sess] of Object.entries(rawSessions)) {
+    if (sess && sess.token && sess.accountId && (!sess.expiresAt || sess.expiresAt > now)) {
+      sessionsByToken.set(tok, sess);
+    }
+  }
+  try {
+    if (fs.existsSync(CHARS_DIR)) {
+      const files = fs.readdirSync(CHARS_DIR);
+      for (const f of files) {
+        if (!f.endsWith('.json')) continue;
+        const accountId = f.slice(0, -5);
+        const chars = loadAccountCharacters(accountId);
+        for (const c of chars) {
+          if (c && c.id && c.name) {
+            const key = String(c.name).trim().toLowerCase();
+            if (key) {
+              onlineCharNames.set(key, { charId: c.id, accountId, name: String(c.name).trim() });
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[Dagyr Online] Error indexing character names:', e);
+  }
+}
+initOnlineStore();
+
+function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+  const hash = crypto.scryptSync(String(password), salt, 64).toString('hex');
+  return { salt, hash };
+}
+
+function verifyPassword(password, salt, expectedHash) {
+  try {
+    const hashBuf = crypto.scryptSync(String(password), String(salt), 64);
+    const expBuf = Buffer.from(String(expectedHash), 'hex');
+    if (hashBuf.length !== expBuf.length) return false;
+    return crypto.timingSafeEqual(hashBuf, expBuf);
+  } catch (e) {
+    return false;
+  }
+}
+
+function createSession(account) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const now = Date.now();
+  const session = {
+    token,
+    accountId: account.id,
+    email: account.email,
+    createdAt: now,
+    expiresAt: now + 1000 * 60 * 60 * 24 * 90, // 90 days
+  };
+  sessionsByToken.set(token, session);
+  saveSessionsToDisk();
+  return session;
+}
+
+function getAuthAccount(req, parsedUrl, body = null) {
+  let token = '';
+  const authHeader = String(req.headers['authorization'] || '');
+  if (authHeader.toLowerCase().startsWith('bearer ')) {
+    token = authHeader.slice(7).trim();
+  }
+  if (!token && parsedUrl && parsedUrl.searchParams.get('token')) {
+    token = parsedUrl.searchParams.get('token').trim();
+  }
+  if (!token && body && typeof body.token === 'string') {
+    token = body.token.trim();
+  }
+  if (!token) return null;
+  const sess = sessionsByToken.get(token);
+  if (!sess) return null;
+  if (sess.expiresAt && sess.expiresAt < Date.now()) {
+    sessionsByToken.delete(token);
+    return null;
+  }
+  const acc = accountsById.get(sess.accountId);
+  if (!acc) return null;
+  return { account: acc, token };
+}
+
+function validateEmail(email) {
+  const str = String(email || '').trim();
+  if (!str || str.length > 120) return { valid: false, error: 'Please enter a valid email address.' };
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  if (!re.test(str)) return { valid: false, error: 'Please enter a valid email address.' };
+  return { valid: true, email: str, emailLower: str.toLowerCase() };
+}
+
+function validateCharName(rawName) {
+  const name = String(rawName || '').trim().replace(/\s+/g, ' ');
+  if (name.length < 2) {
+    return { valid: false, name, error: 'Character name must be at least 2 characters.' };
+  }
+  if (name.length > 18) {
+    return { valid: false, name, error: 'Character name must be 18 characters or fewer.' };
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9 _'-]*$/.test(name)) {
+    return { valid: false, name, error: 'Name may only contain letters, numbers, spaces, hyphens, or apostrophes.' };
+  }
+  return { valid: true, name, nameLower: name.toLowerCase(), error: null };
+}
+
+function isCharNameAvailable(rawName, excludeCharId = null) {
+  const v = validateCharName(rawName);
+  if (!v.valid) return { available: false, name: v.name, error: v.error };
+  const existing = onlineCharNames.get(v.nameLower);
+  if (existing && existing.charId !== excludeCharId) {
+    return { available: false, name: v.name, error: 'That character name is already taken.' };
+  }
+  return { available: true, name: v.name, nameLower: v.nameLower, error: null };
+}
+
+function sendJson(res, statusCode, payload) {
+  const body = JSON.stringify(payload);
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+  });
+  res.end(body);
+}
+
+function readJsonBody(req, maxBytes = 2 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    let total = 0;
+    const chunks = [];
+    req.on('data', chunk => {
+      total += chunk.length;
+      if (total > maxBytes) {
+        reject(new Error('Payload too large'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      try {
+        const raw = Buffer.concat(chunks).toString('utf8');
+        if (!raw.trim()) return resolve({});
+        resolve(JSON.parse(raw));
+      } catch (e) {
+        reject(new Error('Invalid JSON payload'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -32,11 +265,26 @@ function getPackageInfo() {
   try {
     return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   } catch (e) {
-    return { version: '1.2.4' };
+    return { version: '0.1.0' };
   }
 }
 
 const serverStartTime = Date.now();
+const manifestFileCache = new Map();
+let cachedManifest = null;
+let cachedManifestTime = 0;
+
+function getLiveUpdateManifest(force = false) {
+  const now = Date.now();
+  const pkg = getPackageInfo();
+  const ver = pkg.version || '0.1.0';
+  if (!force && cachedManifest && cachedManifest.version === ver && (now - cachedManifestTime) < 2000) {
+    return cachedManifest;
+  }
+  cachedManifest = buildUpdateManifest(ROOT, { version: ver, cache: manifestFileCache });
+  cachedManifestTime = now;
+  return cachedManifest;
+}
 
 function findBinary(dir, filterFn) {
   try {
@@ -85,7 +333,7 @@ function getBuildArtifacts() {
     android: findBinary(path.join(ROOT, 'android/app/build/outputs/apk/debug'), f => f.endsWith('.apk')),
     windows: findBinary(path.join(ROOT, 'dist/desktop'), f => f.endsWith('.exe')),
     linux: findBinary(path.join(ROOT, 'dist/desktop'), f => f.endsWith('.AppImage')),
-    // electron-builder zip names: Velscour-<v>-arm64-mac.zip (Apple Silicon), Velscour-<v>-mac.zip (Intel)
+    // electron-builder zip names: Dagyr-<v>-arm64-mac.zip (Apple Silicon), Dagyr-<v>-mac.zip (Intel)
     mac: findBinary(path.join(ROOT, 'dist/desktop'), f => f.endsWith('-arm64-mac.zip')),
     macIntel: findBinary(path.join(ROOT, 'dist/desktop'), f => f.endsWith('-mac.zip') && !f.endsWith('-arm64-mac.zip')),
   };
@@ -148,7 +396,7 @@ function renderDownloadPage(artifacts) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Download VELSCOUR - Dark Fantasy Action RPG</title>
+  <title>Download DAGYR ONLINE - Dark Fantasy Action RPG</title>
   <link rel="icon" type="image/x-icon" href="/assets/ui/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -321,7 +569,7 @@ function renderDownloadPage(artifacts) {
 </head>
 <body>
   <div class="header">
-    <a href="/"><img class="logo" src="/assets/ui/logo.webp" alt="VELSCOUR"></a>
+    <a href="/"><img class="logo" src="/assets/ui/logo.webp" alt="DAGYR ONLINE"></a>
     <div class="tagline">A world built upon something that should have stayed dead.</div>
     <div class="version-badge">Version ${pkg.version || '1.0.0'} · Official Game Clients</div>
   </div>
@@ -382,7 +630,7 @@ function renderDownloadPage(artifacts) {
       </svg>
       <div class="card-title">macOS</div>
       <div class="card-meta">${mac ? formatBytes(mac.size) : 'Unavailable'} · macOS 11+</div>
-      <div class="card-desc">Unzip and drag Velscour.app to Applications. Unsigned: if macOS says it is damaged, run <code>xattr -cr /Applications/Velscour.app</code> in Terminal, then right-click → Open.</div>
+      <div class="card-desc">Unzip and drag Dagyr Online.app to Applications. Unsigned: if macOS says it is damaged, run <code>xattr -cr "/Applications/Dagyr Online.app"</code> in Terminal, then right-click → Open.</div>
       <a class="btn ${mac ? '' : 'disabled'}" href="/download/mac">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Apple Silicon (M1+)
@@ -413,29 +661,345 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // 0. CORS Preflight for API requests
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400',
+    });
+    res.end();
+    return;
+  }
+
+  // 0b. API: Online Account Authentication & Server-Side Character Management
+  if (pathname === '/api/auth/register' && req.method === 'POST') {
+    readJsonBody(req).then(body => {
+      const emailCheck = validateEmail(body.email);
+      if (!emailCheck.valid) {
+        return sendJson(res, 400, { ok: false, error: emailCheck.error });
+      }
+      const password = String(body.password || '');
+      if (password.length < 6) {
+        return sendJson(res, 400, { ok: false, error: 'Password must be at least 6 characters.' });
+      }
+      if (accountsByEmail.has(emailCheck.emailLower)) {
+        return sendJson(res, 409, { ok: false, error: 'An account with that email address already exists.' });
+      }
+      const { salt, hash } = hashPassword(password);
+      const now = Date.now();
+      const account = {
+        id: 'acc_' + now.toString(36) + '_' + crypto.randomBytes(4).toString('hex'),
+        email: emailCheck.email,
+        emailLower: emailCheck.emailLower,
+        passwordHash: hash,
+        salt,
+        createdAt: now,
+        lastLoginAt: now,
+      };
+      accountsById.set(account.id, account);
+      accountsByEmail.set(account.emailLower, account);
+      saveAccountsToDisk();
+      saveAccountCharacters(account.id, []);
+      const session = createSession(account);
+      sendJson(res, 200, {
+        ok: true,
+        token: session.token,
+        account: { id: account.id, email: account.email, createdAt: account.createdAt },
+        characters: [],
+      });
+    }).catch(err => {
+      sendJson(res, 400, { ok: false, error: err.message || 'Invalid request' });
+    });
+    return;
+  }
+
+  if (pathname === '/api/auth/login' && req.method === 'POST') {
+    readJsonBody(req).then(body => {
+      const emailCheck = validateEmail(body.email);
+      if (!emailCheck.valid) {
+        return sendJson(res, 400, { ok: false, error: 'Please enter a valid email address.' });
+      }
+      const password = String(body.password || '');
+      const account = accountsByEmail.get(emailCheck.emailLower);
+      if (!account || !verifyPassword(password, account.salt, account.passwordHash)) {
+        return sendJson(res, 401, { ok: false, error: 'Invalid email or password.' });
+      }
+      account.lastLoginAt = Date.now();
+      saveAccountsToDisk();
+      const session = createSession(account);
+      const characters = loadAccountCharacters(account.id);
+      sendJson(res, 200, {
+        ok: true,
+        token: session.token,
+        account: { id: account.id, email: account.email, createdAt: account.createdAt },
+        characters,
+      });
+    }).catch(err => {
+      sendJson(res, 400, { ok: false, error: err.message || 'Invalid request' });
+    });
+    return;
+  }
+
+  if (pathname === '/api/auth/logout' && req.method === 'POST') {
+    readJsonBody(req).then(body => {
+      const auth = getAuthAccount(req, parsedUrl, body);
+      if (auth && auth.token) {
+        sessionsByToken.delete(auth.token);
+        saveSessionsToDisk();
+      }
+      sendJson(res, 200, { ok: true });
+    }).catch(() => {
+      sendJson(res, 200, { ok: true });
+    });
+    return;
+  }
+
+  if (pathname === '/api/admin/shutdown' && req.method === 'POST') {
+    const clientIp = req.socket.remoteAddress || '';
+    const isLocal = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === '::ffff:127.0.0.1';
+    readJsonBody(req).then(body => {
+      if (!isLocal && body.secret !== (process.env.ADMIN_SECRET || 'dagyr_secret_update')) {
+        return sendJson(res, 403, { ok: false, error: 'Forbidden. Admin access only.' });
+      }
+      if (body.cancel) {
+        const cancelled = cancelServerShutdown();
+        return sendJson(res, 200, { ok: true, cancelled });
+      }
+      const minutes = typeof body.minutes === 'number' ? body.minutes : 3;
+      const reason = body.reason || 'Server update';
+      startServerShutdown(minutes, reason);
+      return sendJson(res, 200, {
+        ok: true,
+        shutdown: true,
+        minutes,
+        targetTime: shutdownState.targetTime,
+        message: `Shutdown initiated: restarting in ${minutes} minutes.`,
+      });
+    }).catch(err => {
+      sendJson(res, 400, { ok: false, error: err.message || 'Invalid request' });
+    });
+    return;
+  }
+
+  if ((pathname === '/api/auth/session' || pathname === '/api/online/characters') && req.method === 'GET') {
+    const auth = getAuthAccount(req, parsedUrl);
+    if (!auth) {
+      return sendJson(res, 401, { ok: false, error: 'Session expired or not logged in.' });
+    }
+    const characters = loadAccountCharacters(auth.account.id);
+    return sendJson(res, 200, {
+      ok: true,
+      account: { id: auth.account.id, email: auth.account.email, createdAt: auth.account.createdAt },
+      characters,
+    });
+  }
+
+  if (pathname === '/api/online/check-name' && req.method === 'GET') {
+    const rawName = parsedUrl.searchParams.get('name') || '';
+    const excludeId = parsedUrl.searchParams.get('excludeId') || null;
+    const check = isCharNameAvailable(rawName, excludeId);
+    return sendJson(res, 200, {
+      ok: true,
+      name: check.name,
+      available: check.available,
+      error: check.error,
+    });
+  }
+
+  if (pathname === '/api/online/characters' && req.method === 'POST') {
+    readJsonBody(req).then(body => {
+      const auth = getAuthAccount(req, parsedUrl, body);
+      if (!auth) {
+        return sendJson(res, 401, { ok: false, error: 'Please sign in to create an online character.' });
+      }
+      const charData = body.character && typeof body.character === 'object' ? body.character : body;
+      const rawName = charData.name || body.name || '';
+      const nameCheck = isCharNameAvailable(rawName);
+      if (!nameCheck.available) {
+        const status = nameCheck.error && nameCheck.error.includes('already taken') ? 409 : 400;
+        return sendJson(res, status, { ok: false, error: nameCheck.error || 'Character name is unavailable.' });
+      }
+      const classId = String(charData.classId || body.classId || 'paladin');
+      const now = Date.now();
+      const charId = (charData.id && typeof charData.id === 'string')
+        ? charData.id
+        : ('chr_' + now.toString(36) + '_' + crypto.randomBytes(4).toString('hex'));
+
+      const characters = loadAccountCharacters(auth.account.id);
+      const newChar = {
+        ...charData,
+        id: charId,
+        name: nameCheck.name,
+        classId,
+        isOnline: true,
+        accountId: auth.account.id,
+        createdAt: charData.createdAt || now,
+        lastPlayed: now,
+      };
+      characters.push(newChar);
+      saveAccountCharacters(auth.account.id, characters);
+      onlineCharNames.set(nameCheck.nameLower, {
+        charId: newChar.id,
+        accountId: auth.account.id,
+        name: newChar.name,
+      });
+      return sendJson(res, 200, {
+        ok: true,
+        character: newChar,
+        characters,
+      });
+    }).catch(err => {
+      sendJson(res, 400, { ok: false, error: err.message || 'Invalid request' });
+    });
+    return;
+  }
+
+  if (
+    (pathname === '/api/online/characters/save' && (req.method === 'POST' || req.method === 'PUT')) ||
+    (pathname.startsWith('/api/online/characters/') && (req.method === 'PUT' || req.method === 'POST'))
+  ) {
+    readJsonBody(req).then(body => {
+      const auth = getAuthAccount(req, parsedUrl, body);
+      if (!auth) {
+        return sendJson(res, 401, { ok: false, error: 'Session expired or not logged in.' });
+      }
+      const charData = body.character && typeof body.character === 'object' ? body.character : body;
+      const urlCharId = pathname !== '/api/online/characters/save'
+        ? pathname.slice('/api/online/characters/'.length)
+        : null;
+      const charId = String(urlCharId || charData.id || '');
+      if (!charId) {
+        return sendJson(res, 400, { ok: false, error: 'Missing character ID.' });
+      }
+      const characters = loadAccountCharacters(auth.account.id);
+      const idx = characters.findIndex(c => c && c.id === charId);
+      if (idx === -1) {
+        return sendJson(res, 404, { ok: false, error: 'Character not found on this account.' });
+      }
+      const existing = characters[idx];
+      const safeLevel = Math.max(existing.level || 1, charData.level || 1);
+      const safeXp = safeLevel > (existing.level || 1)
+        ? (charData.xp || 0)
+        : (safeLevel === (existing.level || 1) ? Math.max(existing.xp || 0, charData.xp || 0) : existing.xp || 0);
+      const safeDeepest = Math.max(existing.deepest || 1, charData.deepest || 1);
+      const safeDepth = Math.max(existing.depth || 1, charData.depth || 1);
+
+      const levelDeficit = safeLevel - (charData.level || 1);
+      const statBonus = levelDeficit > 0 ? (levelDeficit * 5) : 0;
+      const skillBonus = levelDeficit > 0 ? levelDeficit : 0;
+      const talentBonus = levelDeficit > 0 ? Math.floor(levelDeficit / 5) : 0;
+
+      const safeStatPoints = levelDeficit > 0
+        ? Math.max(existing.statPoints || 0, (charData.statPoints || 0) + statBonus)
+        : (charData.statPoints != null ? charData.statPoints : (existing.statPoints || 0));
+      const safeSkillPoints = levelDeficit > 0
+        ? Math.max(existing.skillPoints || 0, (charData.skillPoints || 0) + skillBonus)
+        : (charData.skillPoints != null ? charData.skillPoints : (existing.skillPoints || 0));
+      const safeTalentPoints = levelDeficit > 0
+        ? Math.max(existing.talentPoints || 0, (charData.talentPoints || 0) + talentBonus)
+        : (charData.talentPoints != null ? charData.talentPoints : (existing.talentPoints || 0));
+
+      const safeMarks = charData.marks || existing.marks || { pts: 0, xp: 0, spent: { life: 0, crit: 0, mf: 0, rift: 0 } };
+
+      const updated = {
+        ...existing,
+        ...charData,
+        level: safeLevel,
+        xp: safeXp,
+        depth: safeDepth,
+        deepest: safeDeepest,
+        statPoints: safeStatPoints,
+        skillPoints: safeSkillPoints,
+        talentPoints: safeTalentPoints,
+        marks: safeMarks,
+        cleared: { ...(existing.cleared || {}), ...(charData.cleared || {}) },
+        id: existing.id,
+        name: existing.name, // Preserve registered unique name
+        classId: existing.classId || charData.classId,
+        isOnline: true,
+        accountId: auth.account.id,
+        createdAt: existing.createdAt || Date.now(),
+        lastPlayed: Date.now(),
+      };
+      characters[idx] = updated;
+      saveAccountCharacters(auth.account.id, characters);
+      return sendJson(res, 200, {
+        ok: true,
+        character: updated,
+      });
+    }).catch(err => {
+      sendJson(res, 400, { ok: false, error: err.message || 'Invalid request' });
+    });
+    return;
+  }
+
+  if (pathname.startsWith('/api/online/characters/') && req.method === 'DELETE') {
+    const auth = getAuthAccount(req, parsedUrl);
+    if (!auth) {
+      return sendJson(res, 401, { ok: false, error: 'Session expired or not logged in.' });
+    }
+    const charId = pathname.slice('/api/online/characters/'.length);
+    const characters = loadAccountCharacters(auth.account.id);
+    const idx = characters.findIndex(c => c && c.id === charId);
+    if (idx === -1) {
+      return sendJson(res, 404, { ok: false, error: 'Character not found.' });
+    }
+    const [removed] = characters.splice(idx, 1);
+    saveAccountCharacters(auth.account.id, characters);
+    if (removed && removed.name) {
+      const key = String(removed.name).trim().toLowerCase();
+      const reg = onlineCharNames.get(key);
+      if (reg && reg.charId === removed.id) {
+        onlineCharNames.delete(key);
+      }
+    }
+    return sendJson(res, 200, {
+      ok: true,
+      deletedId: charId,
+      characters,
+    });
+  }
+
   // 1. API: Version & Update metadata
   if (pathname === '/api/version') {
     const pkg = getPackageInfo();
     const artifacts = getBuildArtifacts();
+    const manifest = getLiveUpdateManifest();
     const mtimes = [
       artifacts.android?.mtime || 0,
       artifacts.windows?.mtime || 0,
       artifacts.linux?.mtime || 0,
       artifacts.mac?.mtime || 0,
       artifacts.macIntel?.mtime || 0,
+      manifest.buildTime || 0,
     ];
     const latestBuild = Math.max(...mtimes, serverStartTime);
     const resData = {
-      name: 'Velscour',
-      version: pkg.version || '1.0.0',
+      name: 'Dagyr Online',
+      version: pkg.version || '0.1.0',
+      manifestHash: manifest.manifestHash,
+      manifestUrl: '/api/update-manifest',
+      totalFiles: manifest.totalFiles,
+      totalSize: manifest.totalSize,
+      inGameUpdateSupported: true,
       serverTime: Date.now(),
       buildTime: latestBuild,
       changelog: [
+        "Bespoke Class Ultimates Animations: Multi-phase visual animations for all 9 class ultimates (Paladin Divine Smite, Barbarian Cataclysm, Lancer Gungnir's Fall, Ranger Storm of Shafts, Gunner Siege Artillery, Bard Grand Crescendo, Wizard Supernova, Necromancer Grave Eruption, Carrion Witch Feast of Crows) featuring rotating ground sigils, celestial spears, subterranean magma fissures, falling arrow storms, artillery shells, musical staff spirals, cosmic singularities, and bone pikes",
+        "Class Ultimates Major Update: Unique kill-charged 1-shot Ultimate power move for all 9 classes scaled off primary attributes with custom vector icons, distinct VFX, and SFX",
+        "Universal Gothic Fantasy Scrollbars: slim, stylistic scrollbars matching dark parchment and bronze aesthetics across the lobby, inventory, shops, stash, character screens, and chat",
+        "Lancer Orbiting Shield Visual Clarity: eliminated particle clutter and blinding additive fire bloom across all 7 Bulwark orbiting shield abilities (Tower Shield, Storm Bulwark, Burning Aegis, Frost Rampart, Holy Citadel, Shield Storm, Bastion of Ten), ring augments, and stances so shields, monsters, and combat remain crystal clear",
+        "Weapon & Off-hand Archetype Stat Requirements: Strength required for blunt weapons, spears, swords, axes, and shields; Dexterity required for bows, crossbows, pistols, instruments, and quivers; Intellect required for staves, wands, scythes, orbs, and tomes",
+        "Bard Music Sheet Equipping: one-click 'Lock & Equip' from inventory, sheet editor, or drag-and-drop straight into Tab slots with 'Unlock to Edit' support",
+        "Acoustic Plucked Lute Audio: redesigned Bard instrument sampler and procedural notes with warm acoustic string body resonance, plectrum attack transient, and harmonic damping",
+        "In-Game Differential Android OTA Updater: checks per-file SHA-256 hashes and downloads only modified/new game files directly in-game without downloading or reinstalling the full APK",
         "Level Cap 3000 & Uncapped Infernal Marks: hero progression extended to level 3000 across Endless Torment depths up to D6600, with uncapped Infernal Marks (Vitality life multiplier, Precision crit chance & crit damage, Fortune extra drops, Haste rift time)",
         "Skill Macros (R E Y U O & Touch M1-M5): 5 customizable skill macro slots per hero with 'Keep up' automatic buff recast when enemies are nearby and full online party synchronization",
         "Thorns Scaling & Weapon Base Display: endgame thorns scale with hero fortitude and attacker level; normalized weapon damage numbers and added Weapon Base to the Character Sheet",
         "Compact Big-Number Notation & Gold Scaling: added Qa through Dc and scientific notation suffixes along with high-depth logarithmic gold scaling",
-        "Velscour Unbound & Sealed Treasure Updates: Unbound prioritizes uncollected Heirlooms + 3 Abyssal items + 20 Infernal Marks; ring augments display calculated hit damage; sealed items blocked from socketing/upgrading/enchanting until unsealed",
+        "Dagyr Unbound & Sealed Treasure Updates: Unbound prioritizes uncollected Heirlooms + 3 Abyssal items + 20 Infernal Marks; ring augments display calculated hit damage; sealed items blocked from socketing/upgrading/enchanting until unsealed",
         "Mobile portrait mode redesign with upward-expanding bottom-docked chat, flank special action buttons, repositioned ATK button, enlarged 108px minimap, and Android fullSensor dynamic rotation",
         "Organized Settings dialog into 5 clean category tabs (General, Audio, Graphics, HUD & UI, Auto-Play) with instant responsive navigation across desktop and mobile",
         "Multiplayer Bard Music Synchronization: live melodic note playback, rhythm audio, cadences, staff notation, and custom sheet titles replicated to all party members",
@@ -450,14 +1014,14 @@ const server = http.createServer((req, res) => {
         "Major expansion: Held 3D weapons & off-hands for all classes with 50 unique designs per weapon and elemental particle glows",
         "10 Castle Overworld variants with custom layouts, stones, moats, and story dialogue",
         "10 Sea of Sand Dune variants and massive 3D pyramids with deep burial chamber raid encounters",
-        "Integrated VELSCOUR DEFENSE tower defense card campaign behind the town Riftgate",
+        "Integrated DAGYR DEFENSE tower defense card campaign behind the town Riftgate",
         "Synchronized multiplayer world generation for Castle and Dune variants to ensure 100% party determinism",
         "Host-authoritative wave triggers and spawn timers preventing multiplayer encounter desynchronization",
         "Mobile pathfinding and typed array mask optimizations for smooth 60 FPS performance",
         "3D bone gibs and gore physics overhaul",
         "Vendored Three.js and custom canvas filter fallback for Safari/iOS compatibility",
         "Fixed multiplayer dungeon progression: exit portal now reliably unseals for all party members when the floor champion/guardian is slain, including remote and late-joining players",
-        "Fine-tuned UI styling: experience bar placement, Velscour contact skull positioning, and inventory alignment",
+        "Fine-tuned UI styling: experience bar placement, Dagyr contact skull positioning, and inventory alignment",
         "Restored missing inventory stats grid, attribute allocation rows, and item rarity styles",
         "Fixed HP and MP numerical text display on life and mana orbs in compact mobile views (portrait & landscape)",
         "Fixed sealed item opening panel styling, responsiveness, and reel animations on mobile & touch displays",
@@ -478,7 +1042,7 @@ const server = http.createServer((req, res) => {
         "Resolved multiplayer monster authority symmetry and split-monster replication",
         "Enforced version synchronization for Online Multiplayer mode with direct one-click update prompts",
         "Lobby auto-reconnect on foreground resume, WebSocket keepalive heartbeat, and 90-second host room grace period",
-        "Endgame expansion: Heresies of the Hollow, Abyssal Rifts, Velscour Unbound, and Infernal Marks",
+        "Endgame expansion: Heresies of the Hollow, Abyssal Rifts, Dagyr Unbound, and Infernal Marks",
         "Global Abyssal Rift leaderboard and honour board integration",
         "Interactive mobile pinch-to-zoom gesture support with smooth camera zoom scaling",
         "NPC-style walking bounce animation with organic squash, stretch, stride sway, and idle breathing",
@@ -489,36 +1053,36 @@ const server = http.createServer((req, res) => {
       downloads: {
         android: {
           available: !!artifacts.android,
-          url: `/download/android?v=${pkg.version || '1.2.4'}`,
-          filename: `Velscour-${pkg.version || '1.2.4'}.apk`,
+          url: `/download/android?v=${pkg.version || ''}`,
+          filename: `DagyrOnline-${pkg.version || ''}.apk`,
           size: artifacts.android ? artifacts.android.size : 0,
           sizeFormatted: artifacts.android ? formatBytes(artifacts.android.size) : null
         },
         windows: {
           available: !!artifacts.windows,
           url: '/download/windows',
-          filename: 'Velscour.exe',
+          filename: 'DagyrOnline.exe',
           size: artifacts.windows ? artifacts.windows.size : 0,
           sizeFormatted: artifacts.windows ? formatBytes(artifacts.windows.size) : null
         },
         linux: {
           available: !!artifacts.linux,
           url: '/download/linux',
-          filename: 'Velscour.AppImage',
+          filename: 'DagyrOnline.AppImage',
           size: artifacts.linux ? artifacts.linux.size : 0,
           sizeFormatted: artifacts.linux ? formatBytes(artifacts.linux.size) : null
         },
         mac: {
           available: !!artifacts.mac,
           url: '/download/mac',
-          filename: 'Velscour-mac-arm64.zip',
+          filename: 'DagyrOnline-mac-arm64.zip',
           size: artifacts.mac ? artifacts.mac.size : 0,
           sizeFormatted: artifacts.mac ? formatBytes(artifacts.mac.size) : null
         },
         macIntel: {
           available: !!artifacts.macIntel,
           url: '/download/mac-intel',
-          filename: 'Velscour-mac-x64.zip',
+          filename: 'DagyrOnline-mac-x64.zip',
           size: artifacts.macIntel ? artifacts.macIntel.size : 0,
           sizeFormatted: artifacts.macIntel ? formatBytes(artifacts.macIntel.size) : null
         }
@@ -533,6 +1097,31 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // 1b. API: Differential Update File Manifest (SHA-256 hashes & sizes for in-game OTA updater)
+  if (pathname === '/api/update-manifest' || pathname === '/update-manifest.json') {
+    const force = parsedUrl.searchParams.has('force');
+    const manifest = getLiveUpdateManifest(force);
+    const jsonBuf = Buffer.from(JSON.stringify(manifest), 'utf8');
+    const acceptEncoding = String(req.headers['accept-encoding'] || '');
+    const headers = {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    };
+    if (acceptEncoding.includes('gzip')) {
+      const gz = zlib.gzipSync(jsonBuf);
+      headers['Content-Encoding'] = 'gzip';
+      headers['Content-Length'] = gz.length;
+      res.writeHead(200, headers);
+      res.end(gz);
+    } else {
+      headers['Content-Length'] = jsonBuf.length;
+      res.writeHead(200, headers);
+      res.end(jsonBuf);
+    }
+    return;
+  }
+
   // 2. Direct binary download routes
   if (pathname === '/download/android' || pathname === '/download/apk' || pathname.endsWith('.apk')) {
     const pkg = getPackageInfo();
@@ -542,7 +1131,7 @@ const server = http.createServer((req, res) => {
       res.end('Android APK not found on server.');
       return;
     }
-    const dlName = `Velscour-${pkg.version || '1.2.4'}.apk`;
+    const dlName = `DagyrOnline-${pkg.version || ''}.apk`;
     streamFile(req, res, artifacts.android.path, dlName, 'application/vnd.android.package-archive');
     return;
   }
@@ -554,7 +1143,7 @@ const server = http.createServer((req, res) => {
       res.end('Windows executable not found on server.');
       return;
     }
-    streamFile(req, res, artifacts.windows.path, 'Velscour.exe', 'application/octet-stream');
+    streamFile(req, res, artifacts.windows.path, 'DagyrOnline.exe', 'application/octet-stream');
     return;
   }
 
@@ -565,7 +1154,7 @@ const server = http.createServer((req, res) => {
       res.end('Linux AppImage not found on server.');
       return;
     }
-    streamFile(req, res, artifacts.linux.path, 'Velscour.AppImage', 'application/x-executable');
+    streamFile(req, res, artifacts.linux.path, 'DagyrOnline.AppImage', 'application/x-executable');
     return;
   }
 
@@ -577,7 +1166,7 @@ const server = http.createServer((req, res) => {
       res.end('macOS build not found on server.');
       return;
     }
-    streamFile(req, res, art.path, intel ? 'Velscour-mac-x64.zip' : 'Velscour-mac-arm64.zip', 'application/zip');
+    streamFile(req, res, art.path, intel ? 'DagyrOnline-mac-x64.zip' : 'DagyrOnline-mac-arm64.zip', 'application/zip');
     return;
   }
 
@@ -598,7 +1187,7 @@ const server = http.createServer((req, res) => {
   if (pathname === '/' || pathname === '') pathname = '/index.html';
 
   const safePath = path.normalize(path.join(ROOT, pathname));
-  if (!safePath.startsWith(ROOT)) {
+  if (!safePath.startsWith(ROOT) || safePath.startsWith(DATA_DIR)) {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('403 Forbidden');
     return;
@@ -651,7 +1240,7 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 let clientIdSeq = 1;
 const clients = new Map(); // ws -> clientData
 const rooms = new Map();   // roomName -> roomData
-const DEFAULT_CHANNEL = 'Velscour En-1';
+const DEFAULT_CHANNEL = 'Dagyr Online En-1';
 const ROOM_GRACE_PERIOD_MS = 90000; // 90s grace period before tearing down an empty room on unexpected disconnect
 
 function broadcastToChannel(channel, msg, excludeWs = null) {
@@ -670,6 +1259,160 @@ function broadcastToRoom(roomName, msg, excludeWs = null) {
       ws.send(json);
     }
   }
+}
+
+function broadcastToAll(msg, excludeWs = null) {
+  const json = typeof msg === 'string' ? msg : JSON.stringify(msg);
+  for (const [ws] of clients) {
+    if (ws !== excludeWs && ws.readyState === WebSocket.OPEN) {
+      try { ws.send(json); } catch (e) { }
+    }
+  }
+}
+
+// ------------------------------------------------------------------ Server Shutdown Manager
+let shutdownState = {
+  inProgress: false,
+  targetTime: 0,
+  timer: null,
+  interval: null,
+  reason: 'Server update',
+};
+
+function startServerShutdown(minutes = 3, reason = 'Server update') {
+  if (shutdownState.inProgress) {
+    cancelServerShutdown();
+  }
+  const totalSeconds = Math.max(0, Math.round(minutes * 60));
+  const targetTime = Date.now() + totalSeconds * 1000;
+  shutdownState.inProgress = true;
+  shutdownState.targetTime = targetTime;
+  shutdownState.reason = reason;
+
+  console.log(`\n================================================================`);
+  console.log(`[SERVER SHUTDOWN INITIATED] Restarting in ${minutes} minute(s) (${totalSeconds}s)`);
+  console.log(`Reason: ${reason}`);
+  console.log(`================================================================\n`);
+
+  if (totalSeconds === 0) {
+    executeFinalShutdown();
+    return;
+  }
+
+  const broadcastWarning = () => {
+    const msLeft = Math.max(0, shutdownState.targetTime - Date.now());
+    const secLeft = Math.ceil(msLeft / 1000);
+    const minLeft = Math.ceil(secLeft / 60);
+
+    const warnMsg = {
+      type: 'server_shutdown_warning',
+      secondsLeft: secLeft,
+      minutesLeft: minLeft,
+      reason: shutdownState.reason,
+      message: `[SERVER RESTART] The server is restarting for an update in ${secLeft >= 60 ? `${minLeft} minute(s)` : `${secLeft} second(s)`}! Please get to a safe place and Save & Exit to avoid data loss.`,
+    };
+
+    // Chat broadcast to all active players
+    broadcastToAll({
+      type: 'chat',
+      kind: 'system',
+      from: 'DAGYR SYSTEM',
+      text: warnMsg.message,
+      color: '#ff4444',
+      time: Date.now(),
+    });
+
+    // Dedicated packet for HUD banner and auto-save trigger
+    broadcastToAll(warnMsg);
+  };
+
+  // Immediate first broadcast
+  broadcastWarning();
+
+  // Periodic reminder interval:
+  // Every 30 seconds when > 60s left, then at 45s, 30s, 15s, 10s, 5s..1s
+  let lastAnnounceSec = totalSeconds;
+  shutdownState.interval = setInterval(() => {
+    if (!shutdownState.inProgress) return;
+    const secLeft = Math.ceil(Math.max(0, shutdownState.targetTime - Date.now()) / 1000);
+
+    if (secLeft <= 0) {
+      clearInterval(shutdownState.interval);
+      shutdownState.interval = null;
+      executeFinalShutdown();
+      return;
+    }
+
+    let shouldBroadcast = false;
+    if (secLeft > 60 && lastAnnounceSec - secLeft >= 30) {
+      shouldBroadcast = true;
+    } else if (secLeft <= 60 && secLeft > 10 && lastAnnounceSec - secLeft >= 15) {
+      shouldBroadcast = true;
+    } else if (secLeft <= 10 && secLeft !== lastAnnounceSec) {
+      shouldBroadcast = true;
+    }
+
+    if (shouldBroadcast) {
+      lastAnnounceSec = secLeft;
+      broadcastWarning();
+    }
+  }, 1000);
+}
+
+function cancelServerShutdown() {
+  if (!shutdownState.inProgress) return false;
+  if (shutdownState.interval) clearInterval(shutdownState.interval);
+  if (shutdownState.timer) clearTimeout(shutdownState.timer);
+  shutdownState.inProgress = false;
+  shutdownState.targetTime = 0;
+  shutdownState.interval = null;
+  shutdownState.timer = null;
+
+  broadcastToAll({
+    type: 'server_shutdown_cancelled',
+    message: '[SERVER] Scheduled restart has been cancelled. You may continue playing normally.',
+  });
+  broadcastToAll({
+    type: 'chat',
+    kind: 'system',
+    from: 'DAGYR SYSTEM',
+    text: 'Scheduled restart has been cancelled. You may continue playing normally.',
+    color: '#60ff80',
+    time: Date.now(),
+  });
+  console.log('[SERVER SHUTDOWN CANCELLED]');
+  return true;
+}
+
+function executeFinalShutdown() {
+  console.log('\n[SERVER SHUTTING DOWN NOW] Flushing all data to disk...');
+  broadcastToAll({
+    type: 'server_shutdown_now',
+    message: 'Server is restarting now for an update. Character progression has been safely recorded. Please reconnect in a minute!',
+  });
+
+  // Flush accounts and sessions
+  try { saveAccountsToDisk(); } catch (e) { console.error('Error saving accounts:', e); }
+  try { saveSessionsToDisk(); } catch (e) { console.error('Error saving sessions:', e); }
+
+  // Give clients 1.5 seconds to finish any final in-flight HTTP saves and gracefully close
+  setTimeout(() => {
+    for (const [ws] of clients) {
+      try {
+        ws.close(1001, 'Server Restarting');
+      } catch (e) { }
+    }
+    clients.clear();
+    rooms.clear();
+
+    server.close(() => {
+      console.log('[DAGYR ONLINE] Server stopped cleanly. Ready for update.');
+      process.exit(0);
+    });
+
+    // Fallback force exit after 4s
+    setTimeout(() => process.exit(0), 4000);
+  }, 1500);
 }
 
 function getChannelPlayers(channel) {
@@ -727,6 +1470,7 @@ function broadcastLobbyUpdate() {
     rooms: roomList,
   });
   broadcastToChannel(DEFAULT_CHANNEL, updateMsg);
+  broadcastFriendsPresenceUpdate();
 }
 
 function handleWhisper(ws, clientData, text) {
@@ -824,6 +1568,245 @@ function handlePlayersList(ws, clientData) {
   }));
 }
 
+// ------------------------------------------------------------------ Friends List Manager
+function resolveFriendPresence(friendName) {
+  const nameTrimmed = String(friendName || '').trim();
+  const nameLower = nameTrimmed.toLowerCase();
+
+  // 1. Check if currently online on any connected client
+  for (const [ws, c] of clients) {
+    if (c.name && c.name.toLowerCase() === nameLower && ws.readyState === WebSocket.OPEN) {
+      return {
+        name: c.name,
+        level: c.level || 1,
+        classId: c.classId || 'paladin',
+        online: true,
+        status: c.room ? 'room' : 'lobby',
+        roomName: c.room || null,
+      };
+    }
+  }
+
+  // 2. Check registered online characters database
+  const reg = onlineCharNames.get(nameLower);
+  if (reg && reg.accountId) {
+    const chars = loadAccountCharacters(reg.accountId);
+    const found = chars.find(ch => ch && ch.id === reg.charId);
+    if (found) {
+      return {
+        name: found.name || reg.name,
+        level: found.level || 1,
+        classId: found.classId || 'paladin',
+        online: false,
+        status: 'offline',
+        roomName: null,
+      };
+    }
+  }
+
+  // 3. Fallback
+  return {
+    name: nameTrimmed,
+    level: 1,
+    classId: 'paladin',
+    online: false,
+    status: 'offline',
+    roomName: null,
+  };
+}
+
+function sendFriendsList(ws, clientData) {
+  let accountId = clientData.accountId;
+  if (!accountId && clientData.name) {
+    const info = onlineCharNames.get(clientData.name.trim().toLowerCase());
+    if (info) accountId = info.accountId;
+  }
+  const acc = accountId ? accountsById.get(accountId) : null;
+  const friendNames = (acc && Array.isArray(acc.friends)) ? acc.friends : [];
+  const list = friendNames.map(fName => resolveFriendPresence(fName));
+
+  // Sort: online friends first, then level descending, then name
+  list.sort((a, b) => {
+    if (a.online !== b.online) return a.online ? -1 : 1;
+    if (b.level !== a.level) return b.level - a.level;
+    return a.name.localeCompare(b.name);
+  });
+
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'friends_list',
+      friends: list,
+    }));
+  }
+  return list;
+}
+
+function broadcastFriendsPresenceUpdate() {
+  for (const [ws, c] of clients) {
+    if (ws.readyState === WebSocket.OPEN) {
+      sendFriendsList(ws, c);
+    }
+  }
+}
+
+function handleAddFriend(ws, clientData, rawTargetName) {
+  const targetName = String(rawTargetName || '').trim();
+  if (!targetName) {
+    ws.send(JSON.stringify({ type: 'friend_error', message: 'Please specify a character name to add.' }));
+    return;
+  }
+  if (clientData.name && targetName.toLowerCase() === clientData.name.toLowerCase()) {
+    ws.send(JSON.stringify({ type: 'friend_error', message: 'You cannot add yourself to your friends list.' }));
+    return;
+  }
+  let accountId = clientData.accountId;
+  if (!accountId && clientData.name) {
+    const info = onlineCharNames.get(clientData.name.trim().toLowerCase());
+    if (info) accountId = info.accountId;
+  }
+  if (!accountId) {
+    ws.send(JSON.stringify({ type: 'friend_error', message: 'Online account required to manage friends.' }));
+    return;
+  }
+  const acc = accountsById.get(accountId);
+  if (!acc) {
+    ws.send(JSON.stringify({ type: 'friend_error', message: 'Account not found.' }));
+    return;
+  }
+  acc.friends = Array.isArray(acc.friends) ? acc.friends : [];
+
+  let actualName = targetName;
+  let exists = false;
+  for (const [, c] of clients) {
+    if (c.name && c.name.toLowerCase() === targetName.toLowerCase()) {
+      actualName = c.name;
+      exists = true;
+      break;
+    }
+  }
+  if (!exists) {
+    const reg = onlineCharNames.get(targetName.toLowerCase());
+    if (reg) {
+      actualName = reg.name;
+      exists = true;
+    }
+  }
+  if (!exists) {
+    ws.send(JSON.stringify({ type: 'friend_error', message: `Character "${targetName}" does not exist.` }));
+    return;
+  }
+
+  if (acc.friends.some(f => f.toLowerCase() === actualName.toLowerCase())) {
+    ws.send(JSON.stringify({ type: 'friend_error', message: `${actualName} is already on your friends list.` }));
+    return;
+  }
+
+  acc.friends.push(actualName);
+  saveAccountsToDisk();
+  sendFriendsList(ws, clientData);
+  ws.send(JSON.stringify({
+    type: 'chat',
+    kind: 'system',
+    text: `Added ${actualName} to your friends list.`,
+    color: '#34d399',
+    time: Date.now(),
+  }));
+}
+
+function handleRemoveFriend(ws, clientData, rawTargetName) {
+  const targetName = String(rawTargetName || '').trim();
+  if (!targetName) {
+    ws.send(JSON.stringify({ type: 'friend_error', message: 'Please specify a character name to remove.' }));
+    return;
+  }
+  let accountId = clientData.accountId;
+  if (!accountId && clientData.name) {
+    const info = onlineCharNames.get(clientData.name.trim().toLowerCase());
+    if (info) accountId = info.accountId;
+  }
+  if (!accountId) return;
+  const acc = accountsById.get(accountId);
+  if (!acc || !Array.isArray(acc.friends)) return;
+
+  const initialLen = acc.friends.length;
+  acc.friends = acc.friends.filter(f => f.toLowerCase() !== targetName.toLowerCase());
+  if (acc.friends.length !== initialLen) {
+    saveAccountsToDisk();
+    sendFriendsList(ws, clientData);
+    ws.send(JSON.stringify({
+      type: 'chat',
+      kind: 'system',
+      text: `Removed ${targetName} from your friends list.`,
+      color: '#ffd34a',
+      time: Date.now(),
+    }));
+  } else {
+    ws.send(JSON.stringify({
+      type: 'friend_error',
+      message: `${targetName} is not on your friends list.`,
+    }));
+  }
+}
+
+function handleFriendCommand(ws, clientData, text) {
+  const parts = text.trim().split(/\s+/);
+  const sub = (parts[1] || '').toLowerCase();
+  const nameArg = parts.slice(2).join(' ').trim();
+
+  if (sub === 'add' || sub === 'a') {
+    handleAddFriend(ws, clientData, nameArg);
+    return;
+  }
+  if (sub === 'remove' || sub === 'rm' || sub === 'del' || sub === 'delete') {
+    handleRemoveFriend(ws, clientData, nameArg);
+    return;
+  }
+  if (sub === 'list' || sub === 'l' || !sub) {
+    const list = sendFriendsList(ws, clientData);
+    if (!list || list.length === 0) {
+      ws.send(JSON.stringify({
+        type: 'chat',
+        kind: 'system',
+        text: 'Your friends list is empty. Add friends using /f add <name> or the Friends button.',
+        color: '#ffd34a',
+        time: Date.now(),
+      }));
+    } else {
+      const onlineCount = list.filter(f => f.online).length;
+      ws.send(JSON.stringify({
+        type: 'chat',
+        kind: 'system',
+        text: `Friends List (${onlineCount}/${list.length} Online):`,
+        color: '#ffd34a',
+        time: Date.now(),
+      }));
+      for (const f of list) {
+        const clsName = (f.classId || 'Hero').charAt(0).toUpperCase() + (f.classId || 'Hero').slice(1);
+        let loc = 'Offline';
+        if (f.online) {
+          loc = f.status === 'room' ? `Game: "${f.roomName}"` : 'Lobby';
+        }
+        ws.send(JSON.stringify({
+          type: 'chat',
+          kind: 'system',
+          text: `• ${f.name} (Lv ${f.level} ${clsName}) — ${loc}`,
+          color: f.online ? '#34d399' : '#8a7660',
+          time: Date.now(),
+        }));
+      }
+    }
+    return;
+  }
+
+  ws.send(JSON.stringify({
+    type: 'chat',
+    kind: 'system',
+    text: 'Usage: /f add <name>, /f remove <name>, or /f list',
+    color: '#ff6060',
+    time: Date.now(),
+  }));
+}
+
 wss.on('connection', (ws) => {
   if (ws._socket && ws._socket.setNoDelay) {
     ws._socket.setNoDelay(true);
@@ -844,6 +1827,21 @@ wss.on('connection', (ws) => {
   };
   clients.set(ws, clientData);
 
+  if (shutdownState.inProgress) {
+    const msLeft = Math.max(0, shutdownState.targetTime - Date.now());
+    const secLeft = Math.ceil(msLeft / 1000);
+    const minLeft = Math.ceil(secLeft / 60);
+    try {
+      ws.send(JSON.stringify({
+        type: 'server_shutdown_warning',
+        secondsLeft: secLeft,
+        minutesLeft: minLeft,
+        reason: shutdownState.reason,
+        message: `[SERVER RESTART] The server is restarting for an update in ${secLeft >= 60 ? `${minLeft} minute(s)` : `${secLeft} second(s)`}! Please get to a safe place and Save & Exit to avoid data loss.`,
+      }));
+    } catch (e) { }
+  }
+
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch (e) { return; }
@@ -859,7 +1857,7 @@ wss.on('connection', (ws) => {
         if (msg.reconnectId) {
           clientData.id = msg.reconnectId;
         }
-        const serverVer = getPackageInfo().version || '1.2.4';
+        const serverVer = getPackageInfo().version || '';
         if (msg.clientVersion && compareVersions(serverVer, msg.clientVersion) > 0) {
           ws.send(JSON.stringify({
             type: 'version_outdated',
@@ -871,13 +1869,80 @@ wss.on('connection', (ws) => {
           break;
         }
 
-        clientData.name = (msg.name || 'Hero').slice(0, 24);
+        const incomingName = (msg.name || 'Hero').slice(0, 24);
+        const incomingNameLower = incomingName.trim().toLowerCase();
+        const incomingCharId = msg.charId ? String(msg.charId) : null;
+
+        // If this character is already online on another connection/device, kick the previous session offline
+        for (const [otherWs, otherClient] of Array.from(clients.entries())) {
+          if (otherWs === ws) continue;
+          const sameCharId = !!(incomingCharId && otherClient.charId && otherClient.charId === incomingCharId);
+          const sameName = !!(incomingNameLower && otherClient.name && otherClient.name.trim().toLowerCase() === incomingNameLower);
+          if (!sameCharId && !sameName) continue;
+
+          otherClient.kicked = true;
+          if (otherClient.room) {
+            const oldRoomName = otherClient.room;
+            const oldRoom = rooms.get(oldRoomName);
+            otherClient.room = null;
+            if (oldRoom) {
+              const leaving = oldRoom.players.filter(p => p.id === otherClient.id || (p.name && p.name.trim().toLowerCase() === incomingNameLower));
+              for (const lp of leaving) {
+                if (lp.disconnectTimer) clearTimeout(lp.disconnectTimer);
+              }
+              // Only remove from the room if the new session isn't reconnecting right into that same room
+              if (msg.reconnectRoom !== oldRoomName) {
+                oldRoom.players = oldRoom.players.filter(p => p.id !== otherClient.id && (!p.name || p.name.trim().toLowerCase() !== incomingNameLower));
+                broadcastToRoom(oldRoomName, {
+                  type: 'player_left_room',
+                  playerId: otherClient.id,
+                  playerName: otherClient.name,
+                }, otherWs);
+                if (oldRoom.players.length === 0) {
+                  if (oldRoom.cleanupTimer) clearTimeout(oldRoom.cleanupTimer);
+                  rooms.delete(oldRoomName);
+                } else if (oldRoom.hostId === otherClient.id) {
+                  const nextHost = oldRoom.players.find(p => !p.disconnected) || oldRoom.players[0];
+                  if (nextHost) {
+                    oldRoom.hostId = nextHost.id;
+                    oldRoom.hostName = nextHost.name;
+                    broadcastToRoom(oldRoomName, {
+                      type: 'host_migrated',
+                      hostId: oldRoom.hostId,
+                      hostName: oldRoom.hostName,
+                    }, otherWs);
+                  }
+                }
+              }
+            }
+          }
+
+          clients.delete(otherWs);
+          if (otherWs.readyState === WebSocket.OPEN) {
+            try {
+              otherWs.send(JSON.stringify({
+                type: 'session_kicked',
+                charName: incomingName,
+                message: `${incomingName} was logged into from another device. Your previous session has been disconnected.`,
+              }));
+            } catch (e) { }
+            try {
+              otherWs.close(4001, 'Logged in from another device');
+            } catch (e) { }
+          }
+        }
+
+        const charReg = onlineCharNames.get(incomingNameLower);
+        clientData.accountId = (charReg && charReg.accountId) || msg.accountId || null;
+        clientData.charId = incomingCharId;
+        clientData.name = incomingName;
         clientData.classId = msg.classId || 'paladin';
         clientData.level = parseInt(msg.level, 10) || 1;
         clientData.title = msg.title || (clientData.level >= 50 ? 'Matriarch' : clientData.level >= 20 ? 'Slayer' : 'Hero');
         clientData.gear = msg.gear || null;
         clientData.channel = DEFAULT_CHANNEL;
         clientData.disconnected = false;
+        clientData.kicked = false;
 
         // Check if reconnecting to an existing room still in its grace period
         let reconnectedRoom = null;
@@ -912,7 +1977,7 @@ wss.on('connection', (ws) => {
           channel: DEFAULT_CHANNEL,
           players: getChannelPlayers(DEFAULT_CHANNEL),
           rooms: getRoomList(),
-          serverVersion: getPackageInfo().version || '1.2.4',
+          serverVersion: getPackageInfo().version || '',
         }));
 
         if (reconnectedRoom) {
@@ -960,12 +2025,13 @@ wss.on('connection', (ws) => {
         }));
         ws.send(JSON.stringify({
           type: 'chat',
-          text: `Welcome to VELSCOUR Online. Type /help for chat commands.`,
+          text: `Welcome to DAGYR ONLINE. Type /help for chat commands.`,
           color: '#ffd34a',
           kind: 'system',
         }));
 
         broadcastLobbyUpdate();
+        sendFriendsList(ws, clientData);
         break;
       }
 
@@ -984,14 +2050,24 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        if (text.startsWith('/f ') || text.startsWith('/friend ') || text === '/f' || text === '/friend') {
+          handleFriendCommand(ws, clientData, text);
+          break;
+        }
+
         if (text === '/help') {
           ws.send(JSON.stringify({
             type: 'chat',
             kind: 'system',
-            text: `Commands: /w <name> <msg> (Whisper), /r <msg> (Reply), /p <msg> (Party), /l <msg> (Lobby), /me <action> (Emote), /players (List players)`,
+            text: `Commands: /w <name> <msg> (Whisper), /r <msg> (Reply), /f <add|remove|list> (Friends), /p <msg> (Party), /l <msg> (Lobby), /players (List players)`,
             color: '#ffd34a',
             time: Date.now(),
           }));
+          break;
+        }
+
+        if (text.startsWith('/f ') || text.startsWith('/friend ') || text === '/f' || text === '/friend') {
+          handleFriendCommand(ws, clientData, text);
           break;
         }
 
@@ -1272,10 +2348,103 @@ wss.on('connection', (ws) => {
         break;
       }
 
+      // ------------------------------------------------ Friends Management
+      case 'friend_list': {
+        sendFriendsList(ws, clientData);
+        break;
+      }
+
+      case 'friend_add': {
+        handleAddFriend(ws, clientData, msg.name);
+        break;
+      }
+
+      case 'friend_remove': {
+        handleRemoveFriend(ws, clientData, msg.name);
+        break;
+      }
+
+      // ------------------------------------------------ Character Save (WebSocket Fallback)
+      case 'save_character': {
+        const charData = msg.character;
+        if (!charData || !charData.id) break;
+        let accountId = clientData.accountId;
+        if (!accountId && clientData.name) {
+          const charInfo = onlineCharNames.get(clientData.name.trim().toLowerCase());
+          if (charInfo) accountId = charInfo.accountId;
+        }
+        if (!accountId && charData.accountId) {
+          accountId = charData.accountId;
+        }
+        if (!accountId) break;
+        const characters = loadAccountCharacters(accountId);
+        const idx = characters.findIndex(c => c && c.id === charData.id);
+        if (idx >= 0) {
+          const existing = characters[idx];
+          const safeLevel = Math.max(existing.level || 1, charData.level || 1);
+          const safeXp = safeLevel > (existing.level || 1)
+            ? (charData.xp || 0)
+            : (safeLevel === (existing.level || 1) ? Math.max(existing.xp || 0, charData.xp || 0) : existing.xp || 0);
+          const safeDeepest = Math.max(existing.deepest || 1, charData.deepest || 1);
+          const safeDepth = Math.max(existing.depth || 1, charData.depth || 1);
+
+          const levelDeficit = safeLevel - (charData.level || 1);
+          const statBonus = levelDeficit > 0 ? (levelDeficit * 5) : 0;
+          const skillBonus = levelDeficit > 0 ? levelDeficit : 0;
+          const talentBonus = levelDeficit > 0 ? Math.floor(levelDeficit / 5) : 0;
+
+          const safeStatPoints = levelDeficit > 0
+            ? Math.max(existing.statPoints || 0, (charData.statPoints || 0) + statBonus)
+            : (charData.statPoints != null ? charData.statPoints : (existing.statPoints || 0));
+          const safeSkillPoints = levelDeficit > 0
+            ? Math.max(existing.skillPoints || 0, (charData.skillPoints || 0) + skillBonus)
+            : (charData.skillPoints != null ? charData.skillPoints : (existing.skillPoints || 0));
+          const safeTalentPoints = levelDeficit > 0
+            ? Math.max(existing.talentPoints || 0, (charData.talentPoints || 0) + talentBonus)
+            : (charData.talentPoints != null ? charData.talentPoints : (existing.talentPoints || 0));
+
+          const safeMarks = charData.marks || existing.marks || { pts: 0, xp: 0, spent: { life: 0, crit: 0, mf: 0, rift: 0 } };
+
+          const updated = {
+            ...existing,
+            ...charData,
+            level: safeLevel,
+            xp: safeXp,
+            depth: safeDepth,
+            deepest: safeDeepest,
+            statPoints: safeStatPoints,
+            skillPoints: safeSkillPoints,
+            talentPoints: safeTalentPoints,
+            marks: safeMarks,
+            cleared: { ...(existing.cleared || {}), ...(charData.cleared || {}) },
+            id: existing.id,
+            name: existing.name,
+            classId: existing.classId || charData.classId,
+            isOnline: true,
+            accountId: accountId,
+            lastPlayed: Date.now(),
+          };
+          characters[idx] = updated;
+          saveAccountCharacters(accountId, characters);
+          clientData.level = safeLevel;
+          broadcastLobbyUpdate();
+          ws.send(JSON.stringify({
+            type: 'character_saved',
+            ok: true,
+            charId: charData.id,
+            level: safeLevel,
+          }));
+        }
+        break;
+      }
+
       // ------------------------------------------------ In-Game State Relay
       case 'game_player_state': {
         if (msg.gear) clientData.gear = msg.gear;
-        if (typeof msg.level === 'number') clientData.level = msg.level;
+        if (typeof msg.level === 'number' && msg.level !== clientData.level) {
+          clientData.level = msg.level;
+          broadcastLobbyUpdate(); // a level-up mid-game shows in the lobby's player and room lists right away
+        }
         if (!clientData.room) break;
         msg.id = clientData.id;
         broadcastToRoom(clientData.room, msg, ws);
@@ -1463,6 +2632,11 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        if (text.startsWith('/f ') || text.startsWith('/friend ') || text === '/f' || text === '/friend') {
+          handleFriendCommand(ws, clientData, text);
+          break;
+        }
+
         if (text === '/players' || text === '/who') {
           handlePlayersList(ws, clientData);
           break;
@@ -1556,6 +2730,10 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
+    if (clientData.kicked) {
+      clients.delete(ws);
+      return;
+    }
     if (clientData.room) {
       const room = rooms.get(clientData.room);
       if (room) {
@@ -1618,7 +2796,7 @@ wss.on('connection', (ws) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`VELSCOUR Online server running on http://localhost:${PORT}`);
+  console.log(`DAGYR ONLINE server running on http://localhost:${PORT}`);
   console.log(`WebSocket server listening on ws://localhost:${PORT}/ws`);
 });
 

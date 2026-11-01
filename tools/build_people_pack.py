@@ -1,4 +1,4 @@
-"""Cut the user's People and Animals sheets (VELSCOUR_People_and_Animals.zip) into runtime atlases.
+"""Cut the user's People and Animals sheets (DAGYR_People_and_Animals.zip) into runtime atlases.
 
 Every sheet is a grid of labelled emotion poses: five columns, two rows (ten poses) or, for the Greener sheets, four
 rows (twenty). The labels are text lines under each pose; they are found as text-line components and erased (the
@@ -6,7 +6,7 @@ two-line DEAD label sometimes touches the body, then only the label's own rows a
 with its feet (or, lying down, its middle) on one baseline, scaled by ONE factor per character taken from the idle
 pose, so a raised arm never shrinks the figure. Animals get a per-species height so a cat stays cat-sized.
 
-    python tools/build_people_pack.py <VELSCOUR_People_and_Animals.zip | extracted folder>
+    python tools/build_people_pack.py <DAGYR_People_and_Animals.zip | extracted folder>
 
 Writes assets/sprites/people/<id>.webp (cells FRAME_W x FRAME_H), manifest.json and art-review/people-cuts.jpg.
 The 100 MB zip stays outside the repo.
@@ -149,7 +149,7 @@ def plant(a, pm, scale, lying):
 def main():
     if len(sys.argv) < 2: sys.exit(__doc__)
     OUT.mkdir(parents=True, exist_ok=True)
-    manifest = {'name': 'Velscour People and Animals', 'frameSize': [FRAME_W, FRAME_H], 'baseline': BASE_Y,
+    manifest = {'name': 'Dagyr People and Animals', 'frameSize': [FRAME_W, FRAME_H], 'baseline': BASE_Y,
                 'standardFrames': STD, 'extraFrames': EXTRA, 'sheets': []}
     review = []
     for folder, stem, img in sources(sys.argv[1]):

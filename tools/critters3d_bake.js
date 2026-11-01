@@ -1,12 +1,12 @@
 // Bake the gilded critters (tools/critters3d.html: three.js models of the wisp, starmoth, scarab and prismatic wisp)
 // into assets/sprites/critters/critters.webp + critters.json, which src/game/critters.js draws. Needs the repo served
-// (BASE_URL, default http://localhost:8123) and jsDelivr (three.js, for this tool only). On Windows a GPU helps:
+// (BASE_URL, default http://localhost:8124) and jsDelivr (three.js, for this tool only). On Windows a GPU helps:
 // CHROMIUM_ARGS="--use-angle=d3d11 --enable-gpu --ignore-gpu-blocklist".
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE_URL || 'http://localhost:8123';
+const BASE = process.env.BASE_URL || 'http://localhost:8124';
 const ROOT = path.resolve(__dirname, '..');
 (async () => {
   const browser = await chromium.launch({ args: (process.env.CHROMIUM_ARGS || '').split(' ').filter(Boolean) });

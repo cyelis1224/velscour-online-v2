@@ -10,7 +10,7 @@ const { openGame, report } = require('./harness');
     await page.click('text=Begin');
     await page.waitForTimeout(500);
     const result = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { CASTLE_KEEP_LAYOUTS } = await import('/src/data/castlekeeplayouts.js');
       const { loadBiomeArt } = await import('/src/core/assets.js');

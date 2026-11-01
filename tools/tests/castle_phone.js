@@ -30,7 +30,7 @@ async function browserMiB(bcdp) {
   try {
     const ids = await page.evaluate(async (arg) => {
       const { CASTLE_VARIANTS } = await import('/src/data/castles.js');
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       await game.newChar('paladin', 'Castle Phone');
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll();
       await (await import('/src/gfx/castle.js')).loadCastlePack();
@@ -47,7 +47,7 @@ async function browserMiB(bcdp) {
       const download = pages.reduce((s, p) => s + fs.statSync(path.join(root, dir, p)).size, 0) / 1e6;
       // load (and decode) the bake, then build the level, as game.loadLevelArt + buildDungeon do
       const r = await page.evaluate(async (id) => {
-        const { G, game } = window.VELSCOUR, art = await import('/src/gfx/castle3dart.js');
+        const { G, game } = window.DAGYR, art = await import('/src/gfx/castle3dart.js');
         art.releaseCastle3D();
         let t = performance.now();
         const st = await art.loadCastle3D(id), loadMs = performance.now() - t;
@@ -56,16 +56,18 @@ async function browserMiB(bcdp) {
         t = performance.now(); game.buildDungeon(12, BIOME_BY_ID.castle); const buildMs = performance.now() - t;
         G.castleVariant = undefined;
         const { camera } = await import('/src/core/view.js'), msg = G.ui.msgEl?.getBoundingClientRect?.() || document.querySelector('#center-msg')?.getBoundingClientRect();
-        return { loadMs: Math.round(loadMs), buildMs: Math.round(buildMs), mpx: +(st.imgs.reduce((s, im) => s + im.naturalWidth * im.naturalHeight, 0) / 1e6).toFixed(1),
+        return {
+          loadMs: Math.round(loadMs), buildMs: Math.round(buildMs), mpx: +(st.imgs.reduce((s, im) => s + im.naturalWidth * im.naturalHeight, 0) / 1e6).toFixed(1),
           devPerBaked: +(camera.zoom * G.dpr / st.S).toFixed(2), dpr: +G.dpr.toFixed(2), name: G.world.map.castleVariant,
-          card: msg ? [Math.round(msg.left), Math.round(msg.right), innerWidth] : null };
+          card: msg ? [Math.round(msg.left), Math.round(msg.right), innerWidth] : null
+        };
       }, id);
       await page.waitForTimeout(700); await shot(tag(id, 'arrive'));
       await cdp.send('HeapProfiler.collectGarbage');
       const mem = await browserMiB(bcdp);
       // the herald by the road says the first of the story's lines
       const herald = await page.evaluate(async () => {
-        const { G } = window.VELSCOUR, w = G.world, h = w.npcs.find((n) => n.storyLines);
+        const { G } = window.DAGYR, w = G.world, h = w.npcs.find((n) => n.storyLines);
         if (!h) return null;
         G.player.x = h.x + 1.5; G.player.y = h.y + 1.5;
         for (let k = 0; k < 12; k++) w.update(0.05);
@@ -75,7 +77,7 @@ async function browserMiB(bcdp) {
       // the joystick (CDP touches on the left of the screen) walks the hero north from the causeway, over the
       // drawbridge (it comes down as the hero nears it) and through the gate tunnel into the ward
       const g = await page.evaluate(() => {
-        const { G } = window.VELSCOUR, w = G.world, m = w.map, D = m.drawbridge;
+        const { G } = window.DAGYR, w = G.world, m = w.map, D = m.drawbridge;
         w.creatures = w.creatures.filter((c) => c === G.player || c.team === 'player'); w.npcs.length = 0; w.rebuildGrid();
         G.player.x = (D.x0 + D.x1) / 2; G.player.y = D.y1 + 12;
         return { inside: D.hinge - 6, y0: G.player.y };
@@ -86,7 +88,7 @@ async function browserMiB(bcdp) {
       for (let k = 1; k <= 6; k++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: sx + 2 * d / Math.sqrt(5) * k / 6, y: sy - d / Math.sqrt(5) * k / 6 }] }); await page.waitForTimeout(30); }
       let walk = null; const t0 = Date.now();
       while (Date.now() - t0 < 30000) {
-        walk = await page.evaluate(() => { const { G } = window.VELSCOUR, D = G.world.map.drawbridge; return { y: +G.player.y.toFixed(1), x: +G.player.x.toFixed(1), down: D.down }; });
+        walk = await page.evaluate(() => { const { G } = window.DAGYR, D = G.world.map.drawbridge; return { y: +G.player.y.toFixed(1), x: +G.player.x.toFixed(1), down: D.down }; });
         if (walk.y < g.inside) break;
         await page.waitForTimeout(250);
       }
@@ -95,14 +97,16 @@ async function browserMiB(bcdp) {
       await shot(tag(id, 'gate'));
       // frame cost while auto-play walks the castle
       const f = await page.evaluate(() => new Promise(async (res) => {
-        const { G, game } = window.VELSCOUR, { Auto } = await import('/src/game/autoplay.js');
+        const { G, game } = window.DAGYR, { Auto } = await import('/src/game/autoplay.js');
         Auto.toggle(true);
         const u = game.update, rd = game.render, s = { u: 0, r: 0, n: 0, worst: 0 };
         game.update = function (dt) { const t = performance.now(); u.call(this, dt); s.u += performance.now() - t; };
         game.render = function () { const t = performance.now(); rd.call(this); const e = performance.now() - t; s.r += e; s.worst = Math.max(s.worst, e); s.n++; };
         const t0 = performance.now();
-        setTimeout(() => { game.update = u; game.render = rd; Auto.toggle(false);
-          res({ fps: +(s.n / ((performance.now() - t0) / 1000)).toFixed(1), update: +(s.u / s.n).toFixed(1), render: +(s.r / s.n).toFixed(1), worst: Math.round(s.worst), resScale: +(G.resScale || 1).toFixed(2) }); }, 8000);
+        setTimeout(() => {
+          game.update = u; game.render = rd; Auto.toggle(false);
+          res({ fps: +(s.n / ((performance.now() - t0) / 1000)).toFixed(1), update: +(s.u / s.n).toFixed(1), render: +(s.r / s.n).toFixed(1), worst: Math.round(s.worst), resScale: +(G.resScale || 1).toFixed(2) });
+        }, 8000);
       }));
       await shot(tag(id, 'walk'));
       const row = { id, download: +download.toFixed(1), ...r, memMiB: mem, herald: herald ? herald.length : -1, walk, ...f };

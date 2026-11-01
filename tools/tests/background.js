@@ -38,7 +38,7 @@ function cdp(url, onEvent) {
 }
 
 (async () => {
-  const prof = fs.mkdtempSync(path.join(os.tmpdir(), 'velscour-bg-'));
+  const prof = fs.mkdtempSync(path.join(os.tmpdir(), 'Dagyr-bg-'));
   const proc = spawn(exe, ['--remote-debugging-port=0', `--user-data-dir=${prof}`, '--no-first-run', '--no-default-browser-check',
     '--window-position=-32000,-32000', '--window-size=1280,720', '--enable-features=IntensiveWakeUpThrottling:grace_period_seconds/10',
     'about:blank'], { stdio: 'ignore' });
@@ -59,7 +59,7 @@ function cdp(url, onEvent) {
     br = cdp(ver.webSocketDebuggerUrl);
     await pg.ready; await br.ready;
     await pg.send('Runtime.enable');
-    await pg.send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.VELSCOUR_TEST_MENU = true;' });
+    await pg.send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.DAGYR_TEST_MENU = true;' });
     const ev = async (fn, arg) => {
       const r = await pg.send('Runtime.evaluate', { expression: `(${fn})(${JSON.stringify(arg)})`, returnByValue: true, awaitPromise: true });
       if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
@@ -67,7 +67,7 @@ function cdp(url, onEvent) {
     };
     await pg.send('Page.navigate', { url: BASE_URL + '/index.html' });
     for (let i = 0; ; i++) {
-      if (await ev(() => !!(window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'))).catch(() => false)) break;
+      if (await ev(() => !!(window.DAGYR && document.querySelector('#loading').classList.contains('hidden'))).catch(() => false)) break;
       if (i > 120) throw new Error('the game did not finish loading');
       await sleep(500);
     }
@@ -78,7 +78,7 @@ function cdp(url, onEvent) {
     }
     if (await ev(() => document.visibilityState) !== 'hidden') throw new Error('could not hide the window (off-screen or minimised)');
     await ev(async (cls) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       await game.newChar(cls, 'Sleepwalker');
       G.settings.fpsCap = 30;   // the cap skips frames by the game clock, which the hidden-page ticker also moves
       const { Auto } = await import('/src/game/autoplay.js');
@@ -93,10 +93,12 @@ function cdp(url, onEvent) {
       game.buildDungeon = function (...a) { window.bgProbe.dungeons++; return build.apply(this, a); };
     }, cls);
     const sample = () => ev(() => {
-      const { G } = window.VELSCOUR, c = G.char, w = G.world, b = window.bgProbe;
-      return { vis: document.visibilityState, now: performance.now(), gt: G.time, where: w ? (w.kind === 'town' ? 'town' : `D${w.depth}`) : '-',
+      const { G } = window.DAGYR, c = G.char, w = G.world, b = window.bgProbe;
+      return {
+        vis: document.visibilityState, now: performance.now(), gt: G.time, where: w ? (w.kind === 'town' ? 'town' : `D${w.depth}`) : '-',
         depth: c.depth, lvl: c.level, kills: c.kills || 0, deaths: c.deaths || 0, gold: c.gold, wakes: b.wakes, frames: b.frames, dungeons: b.dungeons, draws: b.draws,
-        status: (document.getElementById('auto-status')?.textContent || '').replace('AUTO · ', '') };
+        status: (document.getElementById('auto-status')?.textContent || '').replace('AUTO · ', '')
+      };
     });
     const s0 = await sample();
     let prev = s0, last = s0, visible = 0;
@@ -132,7 +134,7 @@ function cdp(url, onEvent) {
     errors.push(String(e.stack || e));
   } finally {
     if (errors.length) { console.log(errors.slice(0, 30).join('\n')); process.exitCode = 1; } else console.log('NO ERRORS');
-    await br?.send('Browser.close').catch(() => {});
+    await br?.send('Browser.close').catch(() => { });
     pg?.close(); br?.close();
     await Promise.race([new Promise((r) => proc.once('exit', r)), sleep(3000)]);
     try { proc.kill(); } catch (e) { /* gone */ }

@@ -1,5 +1,5 @@
 // Passive Talent Trees (opened with T).
-// Uses the hero's shared skillPoints pool. Each of the 9 active classes has 3 branches matching its 3 skill trees.
+// Uses the hero's dedicated talentPoints pool (+1 Talent Point awarded every 5 hero levels). Each of the 9 active classes has 3 branches matching its 3 skill trees.
 // Within each branch:
 //   Row 0 (Tier 1, Lv 1):  Foundation passive (5 ranks)
 //   Row 1 (Tier 2, Lv 10): Mutually Exclusive Branch Augment Choice A vs Choice B (3 ranks, requires 3 ranks in Row 0)
@@ -1462,7 +1462,7 @@ export function isTalentPrereqMet(c, node) {
 /** Return true if hero c can currently invest a point into `node`. */
 export function canLearnTalent(c, node) {
   if (!c || !node) return false;
-  if ((c.skillPoints || 0) <= 0) return false;
+  if ((c.talentPoints || 0) <= 0) return false;
   if ((c.level || 1) < node.reqLevel) return false;
   const cur = getTalents(c)[node.id] || 0;
   if (cur >= node.maxRank) return false;
@@ -1471,23 +1471,23 @@ export function canLearnTalent(c, node) {
   return true;
 }
 
-/** Spend 1 skillPoint to learn 1 rank of `nodeId`. Returns true if learned. */
+/** Spend 1 talentPoint to learn 1 rank of `nodeId`. Returns true if learned. */
 export function learnTalent(c, nodeId) {
   const node = TALENTS[nodeId];
   if (!canLearnTalent(c, node)) return false;
   const t = getTalents(c);
   t[node.id] = (t[node.id] || 0) + 1;
-  c.skillPoints--;
+  c.talentPoints = Math.max(0, (c.talentPoints || 0) - 1);
   return true;
 }
 
-/** Refund all spent talent points back into `c.skillPoints`. */
+/** Refund all spent talent points back into `c.talentPoints`. */
 export function respecTalents(c) {
   if (!c) return 0;
   const spent = talentPointsSpent(c);
   if (spent <= 0) return 0;
   c.talents = {};
-  c.skillPoints = (c.skillPoints || 0) + spent;
+  c.talentPoints = (c.talentPoints || 0) + spent;
   return spent;
 }
 

@@ -10,7 +10,7 @@
 ## Scope and current status
 
 The `feature/worldwide-biome-art-and-spawns` branch extends **all 32 combat
-biomes** in VELSCOUR: **31 indoor dungeons** (including HELL, HEAVENLY,
+biomes** in DAGYR: **31 indoor dungeons** (including HELL, HEAVENLY,
 ASTRAL PLANE, Ice Temple, Desert Temple, and the Depth 500 throne) plus the
 **Forsaken Wilds overworld**. **Herrington Hollow town** is a separate **noncombat**
 environment. No monsters or enemy spawn logic are added to Herrington Hollow.
@@ -44,7 +44,7 @@ architectural wall/door geometry, scatter and global monster catalog remain.
 
 ### Visual style and limitations
 
-All content uses VELSCOUR's **160×80 native diamond**, 2:1 projected axes,
+All content uses DAGYR's **160×80 native diamond**, 2:1 projected axes,
 native sprite pixels and original pivot conventions. Existing source art is
 used as the material/character foundation, with newly drawn decorative
 floors, relics, ornaments, body armor, wings/horns, weapons and per-biome
@@ -203,7 +203,7 @@ cannot certify artwork quality, rendering or actual collisions.
 From a local clone with an HTTP server at repo root:
 
 ```bash
-python3 -m http.server 8123
+python3 -m http.server 8124
 node tools/tests/data_check.mjs
 node tools/tests/worldwide_biomes.js        # seven sample biome previews
 node tools/tests/worldwide_biomes.js --all  # all 31 dungeon packs
@@ -224,7 +224,7 @@ bounds, geometry masks, wall/door use, fresh wilds floors/props, rare
 cross-biome and old/global spawn presence, and forced-overworld plus
 Depth 500 priority.
 
-If any screenshots or mobile tests reveal the existing VELSCOUR art
+If any screenshots or mobile tests reveal the existing DAGYR art
 cannot be matched sufficiently by runtime-generated shapes, replace
 individual drawings with native hand-painted pixel sprite sheets while
 keeping this pack metadata, name IDs and exact isometric pivots.

@@ -1,13 +1,13 @@
 // Bake the Sky Battle art (tools/skyship_bake.html, docs/SKY_BATTLE.md): the heroes' ironclad as per-tile pieces, the
 // galleon, boats and engine props as sprite frames, and the anchors -> assets/source/skyship/out/ (PNG pages + index);
 // then `python tools/skyship.py pack` writes assets/tiles/skyship/. Needs the repo served (BASE_URL, default
-// http://localhost:8123) and jsDelivr (three.js, for this tool only). On Windows a GPU helps:
+// http://localhost:8124) and jsDelivr (three.js, for this tool only). On Windows a GPU helps:
 // CHROMIUM_ARGS="--use-angle=d3d11 --enable-gpu --ignore-gpu-blocklist".
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE_URL || 'http://localhost:8123';
+const BASE = process.env.BASE_URL || 'http://localhost:8124';
 const ROOT = path.resolve(__dirname, '..');
 const png = (u) => Buffer.from(u.split(',')[1], 'base64');
 (async () => {

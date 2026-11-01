@@ -1,5 +1,5 @@
 // The Death Knight's Runeblade as a familiar (src/game/sigs/deathknight.js) and his frost skulls (src/gfx/dkskull.js):
-//  1. the frost skulls: the Velscour contact skull recoloured, eye dots removed; Death Coil flies it ('dkskull')
+//  1. the frost skulls: the Dagyr contact skull recoloured, eye dots removed; Death Coil flies it ('dkskull')
 //  2. all 15 idle patterns: the sword moves, stays near him (the 3 far ones dance 2-3 tiles out), never NaN; depth order
 //  3. a swing for every kind of skill, every Death Knight skill maps to one, each finishes
 //  4. its five skills hurt a pack (and never charge the runes)
@@ -28,7 +28,7 @@ const SOAK = process.argv[2] !== undefined && !isNaN(+process.argv[2]) ? +proces
   }, { rows: rows.map((r) => r.map((s) => s.toString('base64'))), w, h, labels });
   try {
     const setup = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       await game.newChar('death_knight', 'Rime');
       document.querySelectorAll('.screen').forEach((s) => s.remove());
       G.ui.modalCount = 0;
@@ -60,7 +60,7 @@ const SOAK = process.argv[2] !== undefined && !isNaN(+process.argv[2]) ? +proces
       g.fillStyle = '#26242e'; g.fillRect(0, 0, 560, 150);
       let drawn = K.drawDkSkull(g, 0, 0, 1);
       for (let i = 0; i < 40 && !drawn; i++) { await new Promise((r) => setTimeout(r, 50)); drawn = K.drawDkSkull(g, -50, -50, 10); }
-      const src = await new Promise((r) => { const i = new Image(); i.onload = () => r(i); i.src = 'assets/ui/velscour_contact_skull.png'; });
+      const src = await new Promise((r) => { const i = new Image(); i.onload = () => r(i); i.src = 'assets/ui/Dagyr_contact_skull.png'; });
       g.drawImage(src, 10, 10, 128, 128);
       const pals = ['#e8f4ff', '#bfeaff'];
       pals.forEach((b, i) => { K.drawDkSkull(g, 210 + i * 95, 52, 72, b); K.drawDkSkull(g, 190 + i * 95, 125, 14, b); K.drawDkSkull(g, 225 + i * 95, 122, 22, b); });
@@ -79,7 +79,7 @@ const SOAK = process.argv[2] !== undefined && !isNaN(+process.argv[2]) ? +proces
 
     // the particles his casts and hits throw use it, and Death Coil flies it
     const coil = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR, p = G.player, w = G.world;
+      const { G, game } = window.DAGYR, p = G.player, w = G.world;
       const { CLASS_SKILLS } = await import('/src/data/skills.js');
       const { makeMonster } = await import('/src/game/monster.js');
       const m = makeMonster(w, (w.biome.roster || ['skeleton'])[0], w.biome, 6, 'normal', p.x + 4, p.y - 1); m.maxHp = m.hp = 1e8; m.speed = 0; m.awake = true; w.add(m); w.rebuildGrid();
@@ -91,11 +91,11 @@ const SOAK = process.argv[2] !== undefined && !isNaN(+process.argv[2]) ? +proces
       return { fx: pr && pr.fx };
     });
     ok(coil.fx === 'dkskull', 'Death Coil flies the frost skull: ' + coil.fx);
-    await page.waitForTimeout(60); await page.evaluate(() => window.VELSCOUR.game.render());
+    await page.waitForTimeout(60); await page.evaluate(() => window.DAGYR.game.render());
     fs.writeFileSync(path.join(OUT_DIR, 'dk_deathcoil.png'), await page.screenshot({ clip }));
 
     const clear = () => page.evaluate(async () => {
-      const { G } = window.VELSCOUR, w = G.world;
+      const { G } = window.DAGYR, w = G.world;
       const { effects, texts, particles } = await import('/src/gfx/vfx.js');
       for (const c of w.creatures) if (c.team === 'enemy') c.dead = true;
       w.creatures = w.creatures.filter((c) => c.team !== 'enemy');
@@ -105,12 +105,12 @@ const SOAK = process.argv[2] !== undefined && !isNaN(+process.argv[2]) ? +proces
       const p = G.player; p.sig.s.runes = ['frost', 'unholy', 'blood']; p.sig.s.wait = 99;
       if (p.sig.s.fam) { p.sig.s.fam.gcd = 99; p.sig.s.fam.act = null; }
     });
-    const stepShot = async (n) => { await page.evaluate((n) => { const { G, game } = window.VELSCOUR; for (let i = 0; i < n; i++) G.world.update(1 / 30); game.render(); }, n); return page.screenshot({ clip }); };
+    const stepShot = async (n) => { await page.evaluate((n) => { const { G, game } = window.DAGYR; for (let i = 0; i < n; i++) G.world.update(1 / 30); game.render(); }, n); return page.screenshot({ clip }); };
 
     // 2. the idle patterns
     await clear();
     const P = await page.evaluate(async () => {
-      const { G } = window.VELSCOUR, p = G.player, s = p.sig.s;
+      const { G } = window.DAGYR, p = G.player, s = p.sig.s;
       const D = await import('/src/game/sigs/deathknight.js'), M = D.default, out = {};
       for (const id of Object.keys(D.PATTERNS)) {
         M.pattern(p, s, id); s.fam.gcd = 99;
@@ -137,7 +137,7 @@ const SOAK = process.argv[2] !== undefined && !isNaN(+process.argv[2]) ? +proces
     ok(ids.some((k) => P[k].back > 10), 'some patterns pass behind him');
     const rows = [];
     for (const id of ids) {
-      await page.evaluate(async (id) => { const { G } = window.VELSCOUR, p = G.player; const M = (await import('/src/game/sigs/deathknight.js')).default; M.pattern(p, p.sig.s, id); p.sig.s.fam.gcd = 99; }, id);
+      await page.evaluate(async (id) => { const { G } = window.DAGYR, p = G.player; const M = (await import('/src/game/sigs/deathknight.js')).default; M.pattern(p, p.sig.s, id); p.sig.s.fam.gcd = 99; }, id);
       const r = []; await stepShot(20); for (let i = 0; i < 4; i++) r.push(await stepShot(9)); rows.push(r);
     }
     save('dk_patterns', await strip(rows, CW, CH, ids));
@@ -156,13 +156,13 @@ const SOAK = process.argv[2] !== undefined && !isNaN(+process.argv[2]) ? +proces
     for (const nm of S.names) {
       await clear();
       const done = await page.evaluate(async (nm) => {
-        const { G } = window.VELSCOUR, p = G.player, s = p.sig.s; const M = (await import('/src/game/sigs/deathknight.js')).default;
+        const { G } = window.DAGYR, p = G.player, s = p.sig.s; const M = (await import('/src/game/sigs/deathknight.js')).default;
         M.pattern(p, s, 'shoulder'); s.fam.gcd = 99; for (let i = 0; i < 20; i++) G.world.update(1 / 30);
         M.swingNow(p, s, nm, 0.5, 3);
         return s.fam.act && s.fam.act.name;
       }, nm);
       const r = []; for (let i = 0; i < 4; i++) r.push(await stepShot(i ? 5 : 3)); srows.push(r);
-      const end = await page.evaluate(() => { const { G } = window.VELSCOUR, s = G.player.sig.s; for (let i = 0; i < 40; i++) G.world.update(1 / 30); return !s.fam.act && Number.isFinite(s.fam.x + s.fam.a); });
+      const end = await page.evaluate(() => { const { G } = window.DAGYR, s = G.player.sig.s; for (let i = 0; i < 40; i++) G.world.update(1 / 30); return !s.fam.act && Number.isFinite(s.fam.x + s.fam.a); });
       if (done !== nm || !end) ok(false, `swing ${nm} started ${done}, finished ${end}`);
     }
     ok(true, `${S.names.length} swings: ${S.names.join(', ')}`);
@@ -171,7 +171,7 @@ const SOAK = process.argv[2] !== undefined && !isNaN(+process.argv[2]) ? +proces
     // 4. the sword's own skills against a pack
     const prow = [], pnames = [];
     const pack = () => page.evaluate(async () => {
-      const { G } = window.VELSCOUR, p = G.player, w = G.world;
+      const { G } = window.DAGYR, p = G.player, w = G.world;
       const { makeMonster } = await import('/src/game/monster.js');
       const roster = w.biome.roster || ['skeleton'];
       for (let k = 0; k < 6; k++) {
@@ -185,14 +185,14 @@ const SOAK = process.argv[2] !== undefined && !isNaN(+process.argv[2]) ? +proces
     for (const id of pet) {
       await clear(); await pack();
       const r0 = await page.evaluate(async (id) => {
-        const { G } = window.VELSCOUR, p = G.player, s = p.sig.s, M = (await import('/src/game/sigs/deathknight.js')).default;
+        const { G } = window.DAGYR, p = G.player, s = p.sig.s, M = (await import('/src/game/sigs/deathknight.js')).default;
         M.pattern(p, s, 'shoulder'); for (let i = 0; i < 15; i++) G.world.update(1 / 30);
         s.runes = ['frost']; s.gap = 99;
         return M.pet(p, s, id);
       }, id);
       const r = []; for (let i = 0; i < 4; i++) r.push(await stepShot(i ? 9 : 5)); prow.push(r); pnames.push(id);
       const res = await page.evaluate(() => {
-        const { G } = window.VELSCOUR, p = G.player, s = p.sig.s;
+        const { G } = window.DAGYR, p = G.player, s = p.sig.s;
         for (let i = 0; i < 50; i++) G.world.update(1 / 30);
         const lost = G.world.creatures.filter((c) => c.team === 'enemy').reduce((a, c) => a + (c.maxHp - c.hp), 0);
         return { lost, runes: s.runes.length };
@@ -206,7 +206,7 @@ const SOAK = process.argv[2] !== undefined && !isNaN(+process.argv[2]) ? +proces
     for (const name of ['Dancing Rune Weapon', 'Dark Runeweapon']) {
       await clear(); await pack();
       const got = await page.evaluate(async (name) => {
-        const { G } = window.VELSCOUR, p = G.player, w = G.world;
+        const { G } = window.DAGYR, p = G.player, w = G.world;
         const { CLASS_SKILLS } = await import('/src/data/skills.js');
         const sk = CLASS_SKILLS.death_knight.find((s) => s.name === name);
         if (!sk) return 'no skill';
@@ -219,7 +219,7 @@ const SOAK = process.argv[2] !== undefined && !isNaN(+process.argv[2]) ? +proces
       }, name);
       const r = []; for (let i = 0; i < 4; i++) r.push(await stepShot(i ? 5 : 2)); rwRows.push(r); rwNames.push(name.split(' ').slice(-2).join(' '));
       const res = await page.evaluate(async () => {
-        const { G, game } = window.VELSCOUR, p = G.player, w = G.world;
+        const { G, game } = window.DAGYR, p = G.player, w = G.world;
         const { RUNEBLADE_LEN } = await import('/src/gfx/runeblade3d.js');
         const m = w.creatures.find((c) => c.summonKey === 'runeweapon' && c.owner === p && !c.dead);
         if (!m) return null;
@@ -238,7 +238,7 @@ const SOAK = process.argv[2] !== undefined && !isNaN(+process.argv[2]) ? +proces
     for (const name of BLADES) {
       await clear(); await pack();
       const r = await page.evaluate(async (name) => {
-        const { G } = window.VELSCOUR, p = G.player, w = G.world;
+        const { G } = window.DAGYR, p = G.player, w = G.world;
         const sk = (await import('/src/data/skills.js')).CLASS_SKILLS.death_knight.find((s) => s.name === name);
         p.castLock = 0; p.cooldowns = {}; p.mana = 99999; p.channel = null; w.rebuildGrid();
         const f = w.nearestHostile('player', p.x, p.y, 12, false);
@@ -263,7 +263,7 @@ const SOAK = process.argv[2] !== undefined && !isNaN(+process.argv[2]) ? +proces
     // 5. soak: casting at a live pack
     await clear();
     const soak = await page.evaluate(async (secs) => {
-      const { G } = window.VELSCOUR, p = G.player, w = G.world;
+      const { G } = window.DAGYR, p = G.player, w = G.world;
       const { CLASS_SKILLS } = await import('/src/data/skills.js');
       const { makeMonster } = await import('/src/game/monster.js');
       const skills = CLASS_SKILLS.death_knight;

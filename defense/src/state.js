@@ -1,8 +1,8 @@
-// VELSCOUR DEFENSE state: its own save (localStorage 'velscour_defense_v1'), never the main game's
-// velscour_saves_v1 / velscour_settings_v1. D is the page singleton (window.VDEF = { D } in the console).
+// DAGYR DEFENSE state: its own save (localStorage 'Dagyr_defense_v1'), never the main game's
+// Dagyr_saves_v1 / Dagyr_settings_v1. D is the page singleton (window.VDEF = { D } in the console).
 import { STARTERS } from './data/heroes.js';
 
-export const SAVE_KEY = 'velscour_defense_v1';
+export const SAVE_KEY = 'Dagyr_defense_v1';
 export const D = { save: null, screen: null, battle: null, time: 0, touch: false, W: 0, H: 0, dpr: 1 };
 
 export function freshSave() {

@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const BASE_URL = 'http://localhost:8123';
+const BASE_URL = 'http://localhost:8124';
 const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
 
 (async () => {
@@ -24,15 +24,15 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     p2.on('pageerror', err => console.log('[P2 pageerror]', err));
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
     }
 
     console.log('Navigating players to game...');
     await p1.goto(BASE_URL + '/index.html');
     await p2.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Inject hero saves
     await p1.evaluate(async () => {
@@ -72,7 +72,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
     // Wait for P1 to be in game
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
+    await p1.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
     console.log('P1 entered town as host.');
 
     // P2 finds room and joins
@@ -85,12 +85,12 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
+    await p2.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
     console.log('P2 entered town as guest.');
 
     // Verify remote player exists
     await p2.waitForFunction(() => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       return G.remotePlayers && G.remotePlayers.size > 0;
     });
     console.log('P2 registered P1 as remote player.');
@@ -110,13 +110,13 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // Wait for P2 to receive and spawn raven
     await p2.waitForFunction((id) => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       if (!G.world || !G.world.creatures) return false;
       return G.world.creatures.some(c => c.summonId === id && c.isRemoteSummon && !c.dead);
     }, ravenInfo.id, { timeout: 5000 });
 
     const p2Raven = await p2.evaluate((id) => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       const c = G.world.creatures.find(c => c.summonId === id);
       return {
         id: c.summonId,
@@ -164,7 +164,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // Wait for all 4 summons to appear on P2
     for (const s of multiSummons) {
       await p2.waitForFunction((id) => {
-        const G = window.VELSCOUR.G;
+        const G = window.DAGYR.G;
         return G.world.creatures.some(c => c.summonId === id && c.isRemoteSummon && !c.dead);
       }, s.id, { timeout: 5000 });
       console.log(`P2 verified summon ${s.key} (${s.id})`);
@@ -172,7 +172,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // Check P2 drawing without errors
     const drawCheck = await p2.evaluate(() => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       const remoteSummons = G.world.creatures.filter(c => c.isRemoteSummon && !c.dead);
       // Dummy canvas context to test draw()
       const canvas = document.createElement('canvas');
@@ -188,14 +188,14 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // TEST 3: Despawn/Kill summons on P1 and verify cleanup on P2
     console.log('\n--- TEST 3: Despawn/Kill summons on P1 ---');
     await p1.evaluate((ravenId) => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       const r = G.world.creatures.find(c => c.summonId === ravenId);
       if (r) r.dead = true;
     }, ravenInfo.id);
 
     // Wait for P2 to clean up the dead raven
     await p2.waitForFunction((ravenId) => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       const c = G.world.creatures.find(c => c.summonId === ravenId);
       return !c || c.dead;
     }, ravenInfo.id, { timeout: 5000 });

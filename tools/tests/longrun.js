@@ -30,9 +30,9 @@ const cls = process.argv[2] || 'wizard', minutes = +(process.argv[3] || 30), eve
     w.clearInterval = (id) => { w.__lr.iv.delete(id); ci(id); };
   });
   await page.evaluate(async (cls) => {
-    await window.VELSCOUR.game.newChar(cls, 'Longrun');
+    await window.DAGYR.game.newChar(cls, 'Longrun');
     const { Auto } = await import('/src/game/autoplay.js');
-    window.VELSCOUR.G.autoOpenSeals = true;
+    window.DAGYR.G.autoOpenSeals = true;
     Auto.toggle(true);
   }, cls);
   await page.waitForTimeout(800);
@@ -46,7 +46,7 @@ const cls = process.argv[2] || 'wizard', minutes = +(process.argv[3] || 30), eve
   const rows = [];
   for (let min = 1; min <= minutes; min++) {
     const res = await page.evaluate(async (every) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       let sim = 0, k = 0;
       const t0 = performance.now();
       while (sim < 60) {
@@ -80,7 +80,8 @@ const cls = process.argv[2] || 'wizard', minutes = +(process.argv[3] || 30), eve
       walk(G, 'G', 0);
       big.sort((a, b) => b[1] - a[1]);
       const w = G.world;
-      return { sim: Math.round(sim), real: Math.round(performance.now() - t0), where: w ? (w.kind === 'town' ? 'town' : `${(w.biome && w.biome.id) || w.biome || ''}:D${w.depth}`) : '-', lvl: G.char.level,
+      return {
+        sim: Math.round(sim), real: Math.round(performance.now() - t0), where: w ? (w.kind === 'town' ? 'town' : `${(w.biome && w.biome.id) || w.biome || ''}:D${w.depth}`) : '-', lvl: G.char.level,
         upd: med(0), rnd: med(1), dom: document.getElementsByTagName('*').length, canv: window.__lr.canv, off: window.__lr.off, iv: window.__lr.iv.size,
         res: G.resScale || 1, live: (() => {
           // live canvas memory by the code that made it
@@ -88,7 +89,8 @@ const cls = process.argv[2] || 'wizard', minutes = +(process.argv[3] || 30), eve
           for (const r of window.__lr.refs) { const c = r[0].deref(); if (!c) continue; keep.push(r); const e = m.get(r[1]) || [0, 0]; e[0]++; e[1] += c.width * c.height * 4; m.set(r[1], e); }
           window.__lr.refs = keep;
           return [...m].sort((a, b) => b[1][1] - a[1][1]).slice(0, 10).map(([k, [n, b]]) => `${(b / 1048576).toFixed(1)}MB/${n} ${k}`).join('\n       ');
-        })(), by: [...window.__lr.by].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, n]) => n + ' ' + k).join('\n       '), big: big.slice(0, 12).map(([p, n]) => `${p}=${n}`).join(' ') };
+        })(), by: [...window.__lr.by].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, n]) => n + ' ' + k).join('\n       '), big: big.slice(0, 12).map(([p, n]) => `${p}=${n}`).join(' ')
+      };
     }, every);
     await cdp.send('HeapProfiler.collectGarbage');
     const heap = (await cdp.send('Runtime.getHeapUsage')).usedSize / 1048576;

@@ -1,7 +1,7 @@
 # Lancer War Banner kit
 
 Everything needed to draw the Lancer's war banner (his class signature, "Rally the Order") as real animated sprites in
-the VELSCOUR style. Today the game draws the banner with simple shapes; these sprites replace that.
+the DAGYR style. Today the game draws the banner with simple shapes; these sprites replace that.
 
 ## What's in the zip
 
@@ -9,7 +9,7 @@ the VELSCOUR style. Today the game draws the banner with simple shapes; these sp
 |---|---|
 | `PROMPT.txt` | The message to paste into ChatGPT with this zip attached, plus the follow-up messages. |
 | `SPEC.md` | Exactly what to draw: frames, sizes, anchor points, timing, and how the game uses each piece. |
-| `STYLE.md` | The VELSCOUR pixel-art rules and palette, cut down to what a banner needs. |
+| `STYLE.md` | The DAGYR pixel-art rules and palette, cut down to what a banner needs. |
 | `templates/banner_sheet1_cloth_template.png` | Sheet 1: 12 cloth frames (CALM 1-6, RALLIED 1-6). |
 | `templates/banner_sheet2_parts_template.png` | Sheet 2: the pole, RALLY 1-4, ROLL 1-3. |
 | `examples/*_layout_example.png` | The same sheets filled with a flat mock-up: where things go and how they move. **Not** the style. |
@@ -38,6 +38,6 @@ the VELSCOUR style. Today the game draws the banner with simple shapes; these sp
 
 ## Bringing it into the game
 
-Give both PNGs to Claude Code in the VELSCOUR repo and ask it to import the Lancer banner sprites. It will cut the
+Give both PNGs to Claude Code in the DAGYR repo and ask it to import the Lancer banner sprites. It will cut the
 frames by the cell boxes in `SPEC.md`, check the 3 x 3 blocks, and switch `src/game/sigs/lancer.js` from the drawn
 shapes to the sprites. The kit is rebuilt with `python tools/chatgpt_banner_kit.py`.

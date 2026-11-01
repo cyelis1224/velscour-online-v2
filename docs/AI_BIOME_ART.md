@@ -125,7 +125,7 @@ Run the visual and pixel regression from the repository root after starting a
 local HTTP server:
 
 ```bash
-python3 -m http.server 8123
+python3 -m http.server 8124
 node tools/tests/ai_biome_floors.js
 node tools/tests/ai_biome_floors.js --all  # each indoor biome with a character
 node tools/tests/approved_biome_art.js
@@ -142,7 +142,7 @@ rectangular AI source to verify the diamond-edge protection.
 - **HELL:** “Infernal Dominion; black-iron fortress, bone cathedral fragments, blood flagstone, chains, soul cages, demon statues, sacrificial altars, lava vents, sulfur, and soulfire.”
 - **ASTRAL PLANE:** “Celestial Expanse; shattered floating masonry, star charts, prismatic aether, amethyst colonnades, collapsed stargates, orbiting fragments, and world-shard relics.”
 - **HEAVENLY:** “Empyrean Citadel; suspended pearl-marble nave, cloudstone, opal and lapis inlays, broken angel statues, sun altars, halo mechanisms, luminous fountains, and sacred relics.”
-- **Heavenly monsters:** “Sixty distinct foot-anchored VELSCOUR enemies across seraph, cherub, ophanim, warden, herald, templar, beast, griffin, luminary, judgement, oracle, and throne families; grim sacred silhouettes, broken halos, pearl armor, sun-metal, no palette-only duplicates.”
+- **Heavenly monsters:** “Sixty distinct foot-anchored DAGYR enemies across seraph, cherub, ophanim, warden, herald, templar, beast, griffin, luminary, judgement, oracle, and throne families; grim sacred silhouettes, broken halos, pearl armor, sun-metal, no palette-only duplicates.”
 
 All image generation used the built-in image generator. The original prompt also
 requested transparent backgrounds, separated grid cells, crisp low-resolution

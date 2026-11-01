@@ -1,6 +1,6 @@
 // Bake the bone gibs (tools/bones3d.html, models in tools/bones3d.js) into the data sheet the game paints:
 // assets/sprites/bones.webp + .json (every bone's 16 tumbling turns and its rest poses; src/gfx/bonegibs.js).
-// Needs the repo served (python -m http.server 8123), jsDelivr (three.js, for this tool only) and python with Pillow
+// Needs the repo served (python -m http.server 8124), jsDelivr (three.js, for this tool only) and python with Pillow
 // for the lossless WebP (the fields must keep their exact values).
 //   node tools/bones3d_bake.js [S]     # S: sheet px per world px (default 2)
 const fs = require('fs');
@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE_URL || 'http://localhost:8123';
+const BASE = process.env.BASE_URL || 'http://localhost:8124';
 const ROOT = path.resolve(__dirname, '..');
 (async () => {
   const browser = await chromium.launch({ args: (process.env.CHROMIUM_ARGS || '').split(' ').filter(Boolean) });

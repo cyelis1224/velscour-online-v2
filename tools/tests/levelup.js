@@ -1,4 +1,4 @@
-// Velscour's level-up lines (src/data/taunts.js on the banner in src/ui/hud.js): real level-ups never repeat a mood
+// Dagyr's level-up lines (src/data/taunts.js on the banner in src/ui/hud.js): real level-ups never repeat a mood
 // back to back and fill in the hero, the deck survives in localStorage, and the longest line of every mood fits the
 // banner (desktop 1280x720 and phone 844x390, worst-case hero name). Screenshots: levelup_<mood>[_mobile].
 //   node tools/tests/levelup.js
@@ -9,22 +9,22 @@ const fail = (msg) => { console.log('FAIL', msg); process.exitCode = 1; };
 async function run(mobile) {
   const { browser, page, errors, shot } = await openGame(mobile ? { width: 844, height: 390, mobile: true } : {});
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
-    localStorage.removeItem('velscour_taunts_v1');
+    const { G, game } = window.DAGYR;
+    localStorage.removeItem('Dagyr_taunts_v1');
     await game.newChar('bard', 'Wwwwwwwwwwwwwwwwww');
     G.godMode = true;
   });
   await page.waitForTimeout(1200);
   // real level-ups (skipping the banner's wait), checking mood and text each time
   const seen = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR, out = [];
+    const { G } = window.DAGYR, out = [];
     for (let i = 0; i < 30; i++) {
       if (G.ui.hud.lu) G.ui.hud.lu.end = 0;
       G.player.levelUp();
       const box = document.querySelector('#levelup');
       out.push({ mood: box.dataset.mood, l1: document.querySelector('#lu-l1').textContent, l2: document.querySelector('#lu-l2').textContent, level: G.char.level });
     }
-    return { out, deck: JSON.parse(localStorage.getItem('velscour_taunts_v1') || 'null') };
+    return { out, deck: JSON.parse(localStorage.getItem('Dagyr_taunts_v1') || 'null') };
   });
   seen.out.forEach((t, i) => {
     if (!t.mood || !t.l1 || !t.l2 || /[{}|]/.test(t.l1 + t.l2)) fail('bad banner text ' + JSON.stringify(t));
@@ -36,7 +36,7 @@ async function run(mobile) {
   const moods = await page.evaluate(async () => Object.keys((await import('/src/data/taunts.js')).TAUNTS));
   for (const mood of moods) {
     const fit = await page.evaluate(async (mood) => {
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       const { TAUNTS } = await import('/src/data/taunts.js');
       const len = (s) => s.replaceAll('{name}', G.char.name).replaceAll('{class}', 'Boomerang Knight').length;
       const pick = TAUNTS[mood].reduce((a, b) => (Math.max(...b.split('|').map(len)) > Math.max(...a.split('|').map(len)) ? b : a));

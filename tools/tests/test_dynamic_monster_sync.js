@@ -23,15 +23,15 @@ async function run() {
 
   console.log(`Setting up simulated multiplayer room: ${roomCode}`);
 
-  await pageHost.goto('http://localhost:8123/?test=1');
-  await pageGuest.goto('http://localhost:8123/?test=1');
+  await pageHost.goto('http://localhost:8124/?test=1');
+  await pageGuest.goto('http://localhost:8124/?test=1');
 
   await pageHost.waitForTimeout(2000);
   await pageGuest.waitForTimeout(2000);
 
   // Initialize simulated room state on both pages
   await pageHost.evaluate(async (rCode) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { net } = await import('./src/net/network.js');
     G.room = { code: rCode, hostId: 'host_1', players: [{ id: 'host_1', name: 'HostHero' }, { id: 'guest_2', name: 'GuestHero' }] };
     net.currentRoom = G.room;
@@ -40,7 +40,7 @@ async function run() {
   }, roomCode);
 
   await pageGuest.evaluate(async (rCode) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { net } = await import('./src/net/network.js');
     G.room = { code: rCode, hostId: 'host_1', players: [{ id: 'host_1', name: 'HostHero' }, { id: 'guest_2', name: 'GuestHero' }] };
     net.currentRoom = G.room;
@@ -52,8 +52,8 @@ async function run() {
   await pageGuest.waitForTimeout(1000);
 
   // 1. Verify Dungeon Authority checks
-  const hostIsAuth = await pageHost.evaluate(() => window.VELSCOUR.game.isDungeonAuthority(5));
-  const guestIsAuth = await pageGuest.evaluate(() => window.VELSCOUR.game.isDungeonAuthority(5));
+  const hostIsAuth = await pageHost.evaluate(() => window.DAGYR.game.isDungeonAuthority(5));
+  const guestIsAuth = await pageGuest.evaluate(() => window.DAGYR.game.isDungeonAuthority(5));
   console.log('Host is authority:', hostIsAuth, '| Guest is authority:', guestIsAuth);
 
   if (!hostIsAuth || guestIsAuth) {
@@ -64,7 +64,7 @@ async function run() {
   console.log('Testing Ambush synchronization...');
   // Host triggers ambush
   const ambushResult = await pageHost.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const { ambush } = await import('./src/game/mayhem.js');
     const made = ambush(G.world, 'burrow', 3);
     const mobs = G.world.creatures.filter(c => c.team === 'enemy' && c.ambusher);
@@ -96,7 +96,7 @@ async function run() {
 
   // Verify Guest has exact matching ambush mobs
   const guestMobs = await pageGuest.evaluate(() => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const mobs = G.world.creatures.filter(c => c.team === 'enemy' && c.ambusher);
     return mobs.map(m => ({ netId: m.netId, x: m.x, y: m.y, hp: m.hp, arch: m.arch }));
   });
@@ -116,7 +116,7 @@ async function run() {
   console.log('Testing Raid Boss Wards synchronization...');
   // Host triggers Raid Boss intermission
   const raidWards = await pageHost.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const { makeRaidBoss } = await import('./src/game/raid.js');
     const boss = makeRaidBoss(G.world, { cx: 20, cy: 20, x: 10, y: 10, w: 20, h: 20, gate: { x: -40, y0: -40, y1: -39 } }, 5, 8);
     G.world.add(boss);
@@ -133,7 +133,7 @@ async function run() {
 
   // Send wards to guest
   await pageGuest.evaluate((wards) => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     // Set up boss and raid reference on guest
     G.world.boss = { x: 20, y: 20, maxHp: 1000, hp: 1000, team: 'enemy' };
     G.world.raid = { wards: [], minions: [] };
@@ -155,7 +155,7 @@ async function run() {
   await pageGuest.waitForTimeout(500);
 
   const guestWards = await pageGuest.evaluate(() => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     return G.world.raid.wards.map(w => ({ netId: w.netId, x: w.x, y: w.y, hp: w.hp, isWard: w.isWard }));
   });
   console.log('Guest received raid wards:', guestWards);
@@ -185,7 +185,7 @@ async function run() {
   }, targetWardNetId);
 
   const hostWardAfterHit = await pageHost.evaluate((netId) => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const w = G.world.creatures.find(c => c.netId === netId);
     return w ? w.hp : null;
   }, targetWardNetId);

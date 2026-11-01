@@ -709,11 +709,11 @@ export function updateVfx(dt, world) {
     p.vz -= p.g * dt; p.z += p.vz * dt; p.rot += p.vr * dt;
     if (p.type === 'blood') {
       if (p.z <= 0) {
-        if (world && world.map.isFloor(p.x, p.y) && Math.random() < 0.55) addDecal(p.x, p.y, p.color, rand(0.12, 0.3) * p.size / 2);
+        if (world && world.map && world.map.isFloor(p.x, p.y) && Math.random() < 0.55) addDecal(p.x, p.y, p.color, rand(0.12, 0.3) * p.size / 2);
         kill(p); // gone from the next update's compaction (a splice here was O(n) per landing drop)
       }
     } else if (p.type === 'gib') {
-      if (world && !world.map.isFloor(p.x, p.y)) { p.vx *= -0.5; p.vy *= -0.5; p.x += p.vx * dt * 2; p.y += p.vy * dt * 2; }
+      if (world && world.map && !world.map.isFloor(p.x, p.y)) { p.vx *= -0.5; p.vy *= -0.5; p.x += p.vx * dt * 2; p.y += p.vy * dt * 2; }
       if (p.z <= 0) {
         p.z = 0;
         if (p.vz < -40 && p.bounces < 2) {

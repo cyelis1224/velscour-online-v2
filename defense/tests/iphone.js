@@ -1,4 +1,4 @@
-// VELSCOUR DEFENSE on an iPhone-sized screen, portrait (390x844) and landscape (844x390), touch: every menu, a briefing,
+// DAGYR DEFENSE on an iPhone-sized screen, portrait (390x844) and landscape (844x390), touch: every menu, a briefing,
 // the hero sheet, a gear card, trophies, the Modes, a battle (pinch zoom), a result, a 3D pack and the card inspector.
 // Each view is checked for anything wider or taller than the screen that can't be scrolled to; shots in tests/out/.
 // Serve the repo root first (python -m http.server 8317), then:
@@ -34,8 +34,10 @@ const overflow = () => {
   let problems = 0;
   for (const [name, vp] of Object.entries(ORIENT)) {
     if (want.length && !want.includes(name)) continue;
-    const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
-      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1' });
+    const ctx = await browser.newContext({
+      viewport: vp, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
+    });
     const page = await ctx.newPage(), errors = [];
     page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message));
     page.on('console', (m) => { if (m.type() === 'error') errors.push('[console] ' + m.text()); });
@@ -46,7 +48,7 @@ const overflow = () => {
       console.log(bad.length ? 'FIT ' : 'ok  ', name, n, bad.length ? '\n       ' + bad.join('\n       ') : '');
       problems += bad.length ? 1 : 0;
     };
-    await page.addInitScript(() => { try { localStorage.removeItem('velscour_defense_v1'); } catch { /* */ } });
+    await page.addInitScript(() => { try { localStorage.removeItem('Dagyr_defense_v1'); } catch { /* */ } });
     await page.goto(BASE + '/defense/index.html');
     await page.waitForFunction(() => window.VDEF && !document.getElementById('loading'), null, { timeout: 30000 });
     // a Commander some weeks in: stage 60, gold and shards, a few packs of cards

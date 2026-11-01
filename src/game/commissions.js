@@ -19,43 +19,55 @@ import { noteLineDone } from './reliquary.js';
 import { GroundItem } from './loot.js';
 
 export const LINES = [
-  { id: 'bells', name: 'The Hollow Bells', giver: 'Brother Anselm', min: 0, pitch: 'The chapel bells went silent the night the portal opened. Bring their voices home.', chapters: [
-    { kind: 'relic', biome: 'cathedral', n: 3, obj: 'Silent Bell', text: 'ring the three silent bells' },
-    { kind: 'elite', n: 5, text: 'silence the bell-thieves: slay 5 champions, uniques or guardians' },
-    { kind: 'relic', biome: 'necropolis', n: 3, obj: 'Bell Rope', text: 'cut down the three bell ropes hung from the tombs' },
-    { kind: 'relic', biome: 'library', n: 1, obj: "Bellmaker's Ledger", text: "recover the bellmaker's ledger" },
-  ] },
-  { id: 'skythieves', name: "Sky-Thieves' Ledger", giver: 'Quartermaster Ilse', min: 15, pitch: 'Pirates lifted my ledger and half my stock. Bring me the captain\'s book and I\'ll make it worth your while.', chapters: [
-    { kind: 'clear', biome: 'sea_of_sand', text: 'recover the stolen crates: complete a Sea of Sand route' },
-    { kind: 'clear', biome: 'serpentine_tower', text: 'take the ledger from the pirate captain on the Tower roof' },
-    { kind: 'clear', biome: 'skyship', text: "end the pirates' raid on the heroes' airship" },
-  ] },
-  { id: 'hoard', name: "The Lapidary's Lost Hoard", giver: 'Zafir the Lapidary', min: 40, pitch: 'My grandmother\'s hoard was scattered across the deep places. I will pay in stones for every piece.', chapters: [
-    { kind: 'relic', biome: 'crystal', n: 3, obj: 'Raw Geode', text: 'pry three raw geodes from the walls' },
-    { kind: 'relic', biome: 'gilded', n: 2, obj: 'Gem Coffer', text: 'open two of her gem coffers' },
-    { kind: 'elite', n: 8, text: 'the thieves who split the hoard: slay 8 champions, uniques or guardians' },
-    { kind: 'clear', biome: 'depths_edge', text: 'find her sunken chest at the foot of the falls: clear the Caverns' },
-    { kind: 'relic', biome: 'forge', n: 3, obj: 'Cutting Wheel', text: 'bring back her three cutting wheels' },
-  ] },
-  { id: 'choir', name: 'The Drowned Choir', giver: 'Widow Marrow', min: 80, pitch: 'They sang as the water rose. I would hear the hymn once more before I go.', chapters: [
-    { kind: 'relic', biome: 'sunken', n: 3, obj: 'Hymnal Page', text: 'gather three pages of the drowned hymnal' },
-    { kind: 'relic', biome: 'serpent', n: 3, obj: 'Drowned Psalter', text: 'free three psalters from the serpent shrines' },
-    { kind: 'elite', n: 10, text: 'quiet the drowned: slay 10 champions, uniques or guardians' },
-    { kind: 'relic', biome: 'abyss', n: 1, obj: 'The Last Hymn', text: 'find the last verse at the bottom of the rift' },
-  ] },
-  { id: 'oldguard', name: 'The Old Guard', giver: 'Captain Roderick Vane', min: 150, pitch: 'My regiment fell holding the keep. Their colours are still down there. So is my pride.', chapters: [
-    { kind: 'relic', biome: 'castle_keep', n: 3, obj: 'Regimental Banner', text: 'raise three regimental banners in the keep' },
-    { kind: 'clear', biome: 'castle', text: 'retake the Castle' },
-    { kind: 'elite', n: 12, text: 'avenge the regiment: slay 12 champions, uniques or guardians' },
-    { kind: 'relic', biome: 'shattered', n: 3, obj: 'Fallen Shield', text: 'recover three fallen shields from the citadel' },
-  ] },
-  { id: 'seventh', name: 'The Seventh Seal', giver: 'Scholar Thessaly', min: 250, pitch: 'Velscour was bound by seven seals. Six broke. Help me understand why the seventh still holds.', chapters: [
-    { kind: 'relic', biome: 'library', n: 3, obj: 'Forbidden Folio', text: 'steal three forbidden folios' },
-    { kind: 'relic', biome: 'void', n: 3, obj: 'Seal Fragment', text: 'gather three seal fragments from the void' },
-    { kind: 'relic', biome: 'obsidian', n: 3, obj: 'Seal Fragment', text: 'gather three seal fragments from the obsidian vault' },
-    { kind: 'raid', n: 1, text: 'defeat the lord of a BOSS ROOM and take its sigil' },
-    { kind: 'relic', biome: 'ashen', n: 1, obj: 'The Seventh Seal', text: 'find the seventh seal in the ashen wastes' },
-  ] },
+  {
+    id: 'bells', name: 'The Hollow Bells', giver: 'Brother Anselm', min: 0, pitch: 'The chapel bells went silent the night the portal opened. Bring their voices home.', chapters: [
+      { kind: 'relic', biome: 'cathedral', n: 3, obj: 'Silent Bell', text: 'ring the three silent bells' },
+      { kind: 'elite', n: 5, text: 'silence the bell-thieves: slay 5 champions, uniques or guardians' },
+      { kind: 'relic', biome: 'necropolis', n: 3, obj: 'Bell Rope', text: 'cut down the three bell ropes hung from the tombs' },
+      { kind: 'relic', biome: 'library', n: 1, obj: "Bellmaker's Ledger", text: "recover the bellmaker's ledger" },
+    ]
+  },
+  {
+    id: 'skythieves', name: "Sky-Thieves' Ledger", giver: 'Quartermaster Ilse', min: 15, pitch: 'Pirates lifted my ledger and half my stock. Bring me the captain\'s book and I\'ll make it worth your while.', chapters: [
+      { kind: 'clear', biome: 'sea_of_sand', text: 'recover the stolen crates: complete a Sea of Sand route' },
+      { kind: 'clear', biome: 'serpentine_tower', text: 'take the ledger from the pirate captain on the Tower roof' },
+      { kind: 'clear', biome: 'skyship', text: "end the pirates' raid on the heroes' airship" },
+    ]
+  },
+  {
+    id: 'hoard', name: "The Lapidary's Lost Hoard", giver: 'Zafir the Lapidary', min: 40, pitch: 'My grandmother\'s hoard was scattered across the deep places. I will pay in stones for every piece.', chapters: [
+      { kind: 'relic', biome: 'crystal', n: 3, obj: 'Raw Geode', text: 'pry three raw geodes from the walls' },
+      { kind: 'relic', biome: 'gilded', n: 2, obj: 'Gem Coffer', text: 'open two of her gem coffers' },
+      { kind: 'elite', n: 8, text: 'the thieves who split the hoard: slay 8 champions, uniques or guardians' },
+      { kind: 'clear', biome: 'depths_edge', text: 'find her sunken chest at the foot of the falls: clear the Caverns' },
+      { kind: 'relic', biome: 'forge', n: 3, obj: 'Cutting Wheel', text: 'bring back her three cutting wheels' },
+    ]
+  },
+  {
+    id: 'choir', name: 'The Drowned Choir', giver: 'Widow Marrow', min: 80, pitch: 'They sang as the water rose. I would hear the hymn once more before I go.', chapters: [
+      { kind: 'relic', biome: 'sunken', n: 3, obj: 'Hymnal Page', text: 'gather three pages of the drowned hymnal' },
+      { kind: 'relic', biome: 'serpent', n: 3, obj: 'Drowned Psalter', text: 'free three psalters from the serpent shrines' },
+      { kind: 'elite', n: 10, text: 'quiet the drowned: slay 10 champions, uniques or guardians' },
+      { kind: 'relic', biome: 'abyss', n: 1, obj: 'The Last Hymn', text: 'find the last verse at the bottom of the rift' },
+    ]
+  },
+  {
+    id: 'oldguard', name: 'The Old Guard', giver: 'Captain Roderick Vane', min: 150, pitch: 'My regiment fell holding the keep. Their colours are still down there. So is my pride.', chapters: [
+      { kind: 'relic', biome: 'castle_keep', n: 3, obj: 'Regimental Banner', text: 'raise three regimental banners in the keep' },
+      { kind: 'clear', biome: 'castle', text: 'retake the Castle' },
+      { kind: 'elite', n: 12, text: 'avenge the regiment: slay 12 champions, uniques or guardians' },
+      { kind: 'relic', biome: 'shattered', n: 3, obj: 'Fallen Shield', text: 'recover three fallen shields from the citadel' },
+    ]
+  },
+  {
+    id: 'seventh', name: 'The Seventh Seal', giver: 'Scholar Thessaly', min: 250, pitch: 'Dagyr was bound by seven seals. Six broke. Help me understand why the seventh still holds.', chapters: [
+      { kind: 'relic', biome: 'library', n: 3, obj: 'Forbidden Folio', text: 'steal three forbidden folios' },
+      { kind: 'relic', biome: 'void', n: 3, obj: 'Seal Fragment', text: 'gather three seal fragments from the void' },
+      { kind: 'relic', biome: 'obsidian', n: 3, obj: 'Seal Fragment', text: 'gather three seal fragments from the obsidian vault' },
+      { kind: 'raid', n: 1, text: 'defeat the lord of a BOSS ROOM and take its sigil' },
+      { kind: 'relic', biome: 'ashen', n: 1, obj: 'The Seventh Seal', text: 'find the seventh seal in the ashen wastes' },
+    ]
+  },
 ];
 export const LINE_BY_ID = Object.fromEntries(LINES.map((l) => [l.id, l]));
 export const MAX_OPEN = 3;

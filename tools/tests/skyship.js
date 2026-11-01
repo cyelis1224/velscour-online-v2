@@ -22,7 +22,7 @@ const ALL = ['clear', 'storm', 'night', 'fog', 'sunset', 'gale', 'blizzard', 'as
   const STORIES = await page.evaluate(async () => (await import('/src/data/skystories.js')).SKY_STORIES.map((q) => q.id));
   const ids = arg === 'all' ? ALL : arg === 'stories' ? STORIES : arg === 'everything' ? [...ALL, ...STORIES] : arg.split(',');
   await page.evaluate(async (auto) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('paladin', 'Skyla');
     G.godMode = true;
     G.settings.noSkipCine = true;   // every battle at 1x (the end checks the 20x replay)
@@ -31,7 +31,7 @@ const ALL = ['clear', 'storm', 'night', 'fog', 'sunset', 'gale', 'blizzard', 'as
   /** Run the game `sec` simulated seconds (30 updates a second), clearing landed boarders unless auto-play fights;
    * stops early when `until` (a phase name) is reached. Returns the run's state. */
   const run = (sec, until = null, clear = !auto) => page.evaluate(async ([sec, until, clear]) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { kill } = await import('/src/game/combat.js');
     const { Cine } = await import('/src/game/cinema.js');
     const { camera } = await import('/src/core/view.js');
@@ -54,16 +54,18 @@ const ALL = ['clear', 'storm', 'night', 'fog', 'sunset', 'gale', 'blizzard', 'as
     }
     game.render();
     const r = G.world.skyRun, S = G.world.sky, exit = G.world.portals.find((q) => q.type === 'exit');
-    return { phase: r.phase, wave: r.wave, cine: !!G.cine, boats: S.boats.length, galleon: !!S.galleon, hooks: S.hooks.length, foes: G.world.creatures.filter((m) => m.sky && !m.dead).length,
-      exit: exit.active, chest: !!r.chest, completed: r.completed, line: G.cine && window.__cineLine, talk: r.talk };
+    return {
+      phase: r.phase, wave: r.wave, cine: !!G.cine, boats: S.boats.length, galleon: !!S.galleon, hooks: S.hooks.length, foes: G.world.creatures.filter((m) => m.sky && !m.dead).length,
+      exit: exit.active, chest: !!r.chest, completed: r.completed, line: G.cine && window.__cineLine, talk: r.talk
+    };
   }, [sec, until, clear]);
-  const look = (x, y, zoom = 1) => page.evaluate(async ([x, y, zoom]) => { const { camera, isoX, isoY } = await import('/src/core/view.js'); camera.x = isoX(x, y); camera.y = isoY(x, y) - 24; camera.zoom = zoom; window.VELSCOUR.game.render(); }, [x, y, zoom]);
+  const look = (x, y, zoom = 1) => page.evaluate(async ([x, y, zoom]) => { const { camera, isoX, isoY } = await import('/src/core/view.js'); camera.x = isoX(x, y); camera.y = isoY(x, y) - 24; camera.zoom = zoom; window.DAGYR.game.render(); }, [x, y, zoom]);
   const expect = (ok, what) => { if (!ok) { fails.push(what); console.log('  FAIL', what); } };
 
   for (const id of ids) {
     console.log(`--- ${id}`);
     await page.evaluate(async ([id, auto]) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       G.char.skyVariant = id; G.char.depth = auto ? 1 : 12;   // auto-play fights it for real: a fresh hero at depth 1
       await game.teleportToBiome(BIOME_BY_ID.skyship);
@@ -94,7 +96,7 @@ const ALL = ['clear', 'storm', 'night', 'fog', 'sunset', 'gale', 'blizzard', 'as
     s = await run(40, 'final');
     expect(s.phase === 'final', `${id}: the captains board (${s.phase})`);
     s = await run(1, null, false); await shot(`sky_${id}_final`);
-    const gauntlet = await page.evaluate(() => !!window.VELSCOUR.G.world.sky.v.gauntlet);
+    const gauntlet = await page.evaluate(() => !!window.DAGYR.G.world.sky.v.gauntlet);
     if (gauntlet) {   // the master's champions over the rail, then the master himself
       s = await run(auto ? 600 : 60, 'gauntlet'); s = await run(1.5, null, false); await shot(`sky_${id}_gauntlet`);
       s = await run(auto ? 900 : 200, 'master'); s = await run(2, null, false); await shot(`sky_${id}_master`);
@@ -112,7 +114,7 @@ const ALL = ['clear', 'storm', 'night', 'fog', 'sunset', 'gale', 'blizzard', 'as
   }
   // seen scenes fast-forward: the arrival again takes a fraction of the time, unless "Don't skip cutscenes"
   const intro = (noSkip) => page.evaluate(async ([id, noSkip]) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     G.settings.noSkipCine = noSkip; G.char.skyVariant = id;
     await game.teleportToBiome(BIOME_BY_ID.skyship);

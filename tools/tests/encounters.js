@@ -7,7 +7,7 @@ const { openGame, report } = require('./harness');
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 760 });
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('paladin', 'Encounter Bot');
     document.querySelectorAll('.screen').forEach((s) => s.remove());
     G.ui.modalCount = 0; G.godMode = true;
@@ -16,7 +16,7 @@ const { openGame, report } = require('./harness');
   const which = process.argv[2] ? process.argv[2].split(',') : all;
   for (const kind of which) {
     const r = await page.evaluate(async (kind) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { hit } = await import('/src/game/combat.js');
       G.encounterForce = [kind]; G.ratsForce = true;
@@ -43,7 +43,7 @@ const { openGame, report } = require('./harness');
     await page.waitForTimeout(300);
     await shot('encounter_' + kind);
     const out = await page.evaluate(async (kind) => {
-      const { G, game } = window.VELSCOUR, W = G.world, e = W.encounters[0], P = G.player;
+      const { G, game } = window.DAGYR, W = G.world, e = W.encounters[0], P = G.player;
       const { hit } = await import('/src/game/combat.js');
       const dt = 1 / 30, loot0 = W.loot.length;
       const chests0 = W.chests.length;

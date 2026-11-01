@@ -7,7 +7,7 @@ const CLS = process.argv[2] || 'paladin';
 (async () => {
   const { browser, page, errors, shot } = await openGame();
   const info = await page.evaluate(async (cls) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar(cls, 'Art');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
     const { classArt } = await import('/src/core/classart.js');
@@ -37,7 +37,7 @@ const CLS = process.argv[2] || 'paladin';
 
   // into a dungeon
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     G.godMode = true;
     game.buildDungeon(1, BIOME_BY_ID.catacombs);
@@ -47,7 +47,7 @@ const CLS = process.argv[2] || 'paladin';
 
   // ability effects: cast a spread of skills (all points learned)
   const fx = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR; const p = G.player;
+    const { G } = window.DAGYR; const p = G.player;
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
     const { skillFxPath } = await import('/src/gfx/artfx.js');
     const { artStrip } = await import('/src/core/classart.js');
@@ -56,11 +56,11 @@ const CLS = process.argv[2] || 'paladin';
     await new Promise((r) => setTimeout(r, 1500)); // effect strips load
     return CLASS_SKILLS[p.classId].map((s) => s.id);
   });
-  await page.evaluate(async () => { const { G } = window.VELSCOUR; const { camera } = await import('/src/core/view.js'); G.settings.zoom = 1; camera.computeZoom(); });
+  await page.evaluate(async () => { const { G } = window.DAGYR; const { camera } = await import('/src/core/view.js'); G.settings.zoom = 1; camera.computeZoom(); });
   const picks = [0, 5, 6, 13, 15, 16, 20, 24, 29, 33, 41, 47, 50, 57];
   for (const i of picks) {
     const name = await page.evaluate((id) => {
-      const { G } = window.VELSCOUR; const p = G.player;
+      const { G } = window.DAGYR; const p = G.player;
       const { SKILLS } = window.__sk || {};
       return import('/src/data/skills.js').then(({ SKILLS }) => {
         const sk = SKILLS[id];

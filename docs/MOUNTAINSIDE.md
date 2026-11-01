@@ -1,8 +1,8 @@
 # Mountainside (beta): the first height-mapped overworld
 
 A 50 x 50 climb from the foot of a mountain (the bottom-left edge of the screen) to its summit (the top-right).
-It is **not** in any biome rotation: reach it through Velscour's skull button beside the minimap by sending the
-message `mountain` (any case), or pick it first on the HAIL VELSCOUR! list ("Mountainside · Overworld (Beta)").
+It is **not** in any biome rotation: reach it through Dagyr's skull button beside the minimap by sending the
+message `mountain` (any case), or pick it first on the HAIL DAGYR! list ("Mountainside · Overworld (Beta)").
 Test: `node tools/tests/mountain.js [shots|noshots] [auto|noauto]`.
 
 ## Height

@@ -2,7 +2,7 @@
 // wall and gate counts; no tree on a walkable tile), a bot that plays all twelve glade trials and the Heart to the
 // end, frame cost in the woods, and screenshots: entry, trail, labyrinth gate and corridors, the Heart, every glade
 // trial live, canopy fade over the hero, and the phone layout.
-//   node tools/tests/dark_forest.js [shots|noshots] [auto|noauto]      (start the server first: python3 -m http.server 8123)
+//   node tools/tests/dark_forest.js [shots|noshots] [auto|noauto]      (start the server first: python3 -m http.server 8124)
 const { openGame, report } = require('./harness');
 const SHOTS = process.argv[2] !== 'noshots';
 
@@ -10,7 +10,7 @@ const SHOTS = process.argv[2] !== 'noshots';
   const { browser, page, errors, shot } = await openGame({ width: 1366, height: 860 });
   try {
     const gen = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { generateDarkForest } = await import('/src/world/darkforest.js');
       const biome = BIOME_BY_ID.dark_forest;
@@ -50,7 +50,7 @@ const SHOTS = process.argv[2] !== 'noshots';
 
     // ------------------------------------------------ the bot plays every trial
     const play = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { createDarkForestTrial } = await import('/src/game/darkforest.js');
       const { generateDarkForest } = await import('/src/world/darkforest.js');
@@ -88,7 +88,7 @@ const SHOTS = process.argv[2] !== 'noshots';
         for (const m of W.creatures) if (m.team === 'enemy') m.dead = true;
         W.portals = W.portals.filter((p) => p.type !== 'shrine');
         const glade = type === 'heart' ? { index: 'heart', center: g.heart.center, shrine: g.heart.shrine, sites: g.heart.sites, hideouts: [] } : { ...g.glades[0], type };
-        const S = createDarkForestTrial(W, g, biome, glade, type, () => {});
+        const S = createDarkForestTrial(W, g, biome, glade, type, () => { });
         P.x = glade.shrine[0] + 0.5; P.y = glade.shrine[1] + 1;
         if (!W.map.walkable(P.x, P.y)) [P.x, P.y] = W.map.randomNear(glade.shrine[0], glade.shrine[1], 2);
         S.start();
@@ -109,7 +109,7 @@ const SHOTS = process.argv[2] !== 'noshots';
 
     // ------------------------------------------------ frame cost and screenshots in a live forest
     const live = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { generateDarkForest } = await import('/src/world/darkforest.js');
       const biome = BIOME_BY_ID.dark_forest;
@@ -133,7 +133,7 @@ const SHOTS = process.argv[2] !== 'noshots';
         await page.waitForTimeout(900);
         await shot('dark_forest_' + name);
       };
-      const tp = (expr) => `(() => { const {G} = window.VELSCOUR, g = window.__df, P = G.player, p = ${expr}; const q = G.world.map.walkable(p[0], p[1]) ? p : G.world.map.randomNear(p[0], p[1], 3); P.x = q[0]; P.y = q[1]; })()`;
+      const tp = (expr) => `(() => { const {G} = window.DAGYR, g = window.__df, P = G.player, p = ${expr}; const q = G.world.map.walkable(p[0], p[1]) ? p : G.world.map.randomNear(p[0], p[1], 3); P.x = q[0]; P.y = q[1]; })()`;
       await go('entry', tp('g.start'));
       await go('heart_gate', tp('[g.heart.gate[0], g.heart.gate[1] + 1.5]'));
       await go('heart', tp('[g.heart.center[0] + 1, g.heart.center[1] + 3.5]'));
@@ -141,13 +141,13 @@ const SHOTS = process.argv[2] !== 'noshots';
       await go('labyrinth_corridor', tp('[g.labyrinths[1].rect[0] + 2.5, g.labyrinths[1].rect[1] + 2.5]'));
       await go('landmark', tp('g.landmarks[0].at'));
       // the hero just behind a big tree: its canopy and trunk fade
-      await go('canopy_fade', `(() => { const {G} = window.VELSCOUR, W = G.world, P = G.player;
+      await go('canopy_fade', `(() => { const {G} = window.DAGYR, W = G.world, P = G.player;
         const t = W.map.treeCells.cells.flat().find((p) => !p.elder && Math.hypot(p.x - W.overworldScenario.trials[0].glade.center[0], p.y - W.overworldScenario.trials[0].glade.center[1]) < 12 && W.map.walkable(p.x - 1, p.y - 1));
         if (t) { P.x = t.x - 1; P.y = t.y - 1; } })()`);
       // every glade, with its trial running
-      const n = await page.evaluate(() => window.VELSCOUR.G.world.overworldScenario.trials.length);
+      const n = await page.evaluate(() => window.DAGYR.G.world.overworldScenario.trials.length);
       for (let i = 0; i < n; i++) {
-        await go('glade_' + i, `(() => { const {G} = window.VELSCOUR, run = G.world.overworldScenario, S = run.trials[${i}];
+        await go('glade_' + i, `(() => { const {G} = window.DAGYR, run = G.world.overworldScenario, S = run.trials[${i}];
           for (const o of run.trials) if (o.active) o.fail('next shot');
           const P = G.player; P.x = S.glade.center[0] + 1.5; P.y = S.glade.center[1] + 2.5; S.start(); run.update(0.5); })()`);
       }
@@ -158,7 +158,7 @@ const SHOTS = process.argv[2] !== 'noshots';
     if (process.argv[3] !== 'noauto') {
       await page.setViewportSize({ width: 1366, height: 860 });
       await page.evaluate(async () => {
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         const { BIOME_BY_ID } = await import('/src/data/biomes.js');
         const { Auto } = await import('/src/game/autoplay.js');
         G.char.darkForestRuns = {}; G.char.depth = 4; G.godMode = true;
@@ -169,7 +169,7 @@ const SHOTS = process.argv[2] !== 'noshots';
       let res;
       for (let min = 1; min <= 30; min++) {
         res = await page.evaluate(async () => {
-          const { G, game } = window.VELSCOUR, { Auto } = await import('/src/game/autoplay.js');
+          const { G, game } = window.DAGYR, { Auto } = await import('/src/game/autoplay.js');
           const t0 = performance.now(), w0 = G.world; let sim = 0;
           while (sim < 60 && G.world === w0) {
             for (let i = 0; i < 15 && G.world === w0; i++) { G.dt = 1 / 30; G.time += G.dt; G.frame++; game.update(1 / 30); sim += 1 / 30; }

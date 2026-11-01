@@ -1,5 +1,5 @@
 /* ==========================================================================
-   VELSCOUR MODERN GAME CHAT SYSTEM
+   DAGYR MODERN GAME CHAT SYSTEM
    Diablo II / Dark Gothic ARPG Aesthetic
    ========================================================================== */
 
@@ -67,6 +67,70 @@
   min-height: 32px !important;
   max-height: 32px !important;
   background: rgba(14, 11, 9, 0.8);
+}
+
+/* --------------------------------------------------------------------------
+   Desktop: docked exactly where the scrolling pickup log (#log) sits.
+   No drag/resize/minimize — a pushpin keeps it open; otherwise it fades.
+   -------------------------------------------------------------------------- */
+body:not(.touch) .game-chat.gc-desktop {
+  left: 12px !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: calc(var(--hud-w) * var(--hud-k) + 10px) !important;
+  width: min(420px, 60vw) !important;
+  height: 220px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: var(--log-room, 220px) !important;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.35s ease, visibility 0s linear 0s, background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+body:not(.touch) .game-chat.gc-desktop .gc-drag-handle,
+body:not(.touch) .game-chat.gc-desktop .gc-resize-handle {
+  display: none !important;
+}
+
+body:not(.touch) .game-chat.gc-desktop .gc-header,
+body:not(.touch) .game-chat.gc-desktop .gc-header:active {
+  cursor: default;
+}
+
+/* Closed, not hovered: translucent for 5 s */
+body:not(.touch) .game-chat.gc-desktop.gc-fading:not(:hover) {
+  opacity: 0.45;
+}
+
+/* After the 5 s idle: gone, the pickup log takes the spot back */
+body:not(.touch) .game-chat.gc-desktop.gc-faded {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.8s ease, visibility 0s linear 0.8s;
+}
+
+/* While the chat is showing, hide the scrolling pickup text underneath it */
+body.gc-chat-visible:not(.touch) #log {
+  visibility: hidden;
+}
+
+.gc-pin-btn svg {
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+  opacity: 0.65;
+}
+
+.gc-pin-btn.pinned {
+  color: #ffd860;
+  border-color: rgba(212, 163, 89, 0.7);
+  background: rgba(90, 60, 30, 0.55);
+}
+
+.gc-pin-btn.pinned svg {
+  transform: rotate(0deg);
+  opacity: 1;
 }
 
 /* --------------------------------------------------------------------------
@@ -157,8 +221,15 @@
 }
 
 @keyframes gcPulse {
-  0% { transform: scale(1); filter: brightness(1); }
-  100% { transform: scale(1.15); filter: brightness(1.3); }
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+
+  100% {
+    transform: scale(1.15);
+    filter: brightness(1.3);
+  }
 }
 
 /* Blank draggable spacer in the header */
@@ -244,8 +315,15 @@
 }
 
 @keyframes filterFadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .gc-filter-header {
@@ -367,15 +445,18 @@
 
 .gc-body::-webkit-scrollbar-track {
   background: rgba(15, 11, 8, 0.5);
+  border-radius: 3px;
 }
 
 .gc-body::-webkit-scrollbar-thumb {
   background: #6a5334;
+  border: 1px solid rgba(142, 92, 46, 0.45);
   border-radius: 3px;
 }
 
 .gc-body::-webkit-scrollbar-thumb:hover {
   background: #9a7848;
+  border-color: #caa050;
 }
 
 .gc-messages {
@@ -412,11 +493,30 @@
   text-transform: uppercase;
 }
 
-.tag-party { color: #5ad0ff; background: rgba(90, 208, 255, 0.12); }
-.tag-whisper { color: #d870ff; background: rgba(216, 112, 255, 0.15); }
-.tag-whisper-to { color: #b886ff; background: rgba(184, 134, 255, 0.15); }
-.tag-system { color: #ffd34a; background: rgba(255, 211, 74, 0.12); }
-.tag-lobby { color: #e9b360; background: rgba(233, 179, 96, 0.12); }
+.tag-party {
+  color: #5ad0ff;
+  background: rgba(90, 208, 255, 0.12);
+}
+
+.tag-whisper {
+  color: #d870ff;
+  background: rgba(216, 112, 255, 0.15);
+}
+
+.tag-whisper-to {
+  color: #b886ff;
+  background: rgba(184, 134, 255, 0.15);
+}
+
+.tag-system {
+  color: #ffd34a;
+  background: rgba(255, 211, 74, 0.12);
+}
+
+.tag-lobby {
+  color: #e9b360;
+  background: rgba(233, 179, 96, 0.12);
+}
 
 .gc-sender {
   font-weight: 700;
@@ -430,10 +530,21 @@
   filter: brightness(1.2);
 }
 
-.gc-sender.sender-party { color: #7ab8ff; }
-.gc-sender.sender-whisper { color: #e48fff; }
-.gc-sender.sender-self { color: #ffd860; }
-.gc-sender.sender-lobby { color: #f0c070; }
+.gc-sender.sender-party {
+  color: #7ab8ff;
+}
+
+.gc-sender.sender-whisper {
+  color: #e48fff;
+}
+
+.gc-sender.sender-self {
+  color: #ffd860;
+}
+
+.gc-sender.sender-lobby {
+  color: #f0c070;
+}
 
 .gc-text {
   flex: 1;
@@ -507,8 +618,15 @@
   border-color: #ffd34a;
 }
 
-.gc-channel-btn.ch-whisper { color: #d870ff; border-color: rgba(216, 112, 255, 0.4); }
-.gc-channel-btn.ch-lobby { color: #ffd34a; border-color: rgba(255, 211, 74, 0.4); }
+.gc-channel-btn.ch-whisper {
+  color: #d870ff;
+  border-color: rgba(216, 112, 255, 0.4);
+}
+
+.gc-channel-btn.ch-lobby {
+  color: #ffd34a;
+  border-color: rgba(255, 211, 74, 0.4);
+}
 
 .gc-input {
   flex: 1;
@@ -618,7 +736,7 @@
   justify-content: center;
   cursor: pointer;
   z-index: 6;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.7);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
   transition: transform 0.15s, background 0.15s;
 }
 
@@ -633,9 +751,11 @@
     max-width: calc(100vw - 16px);
     max-height: calc(100vh - 80px);
   }
+
   .gc-body {
     min-height: 60px;
   }
+
   .gc-msg {
     font-size: 12.5px;
   }
@@ -701,4 +821,3 @@ body.touch.portrait .gc-tool-btn {
   padding: 2px 5px;
   font-size: 11px;
 }
-

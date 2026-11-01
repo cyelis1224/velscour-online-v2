@@ -66,7 +66,7 @@ were **not** removed or bypassed.
 Run at the project root:
 
 ```sh
-python3 -m http.server 8123
+python3 -m http.server 8124
 node tools/tests/data_check.mjs
 node tools/tests/autoplay_focus.js
 node tools/tests/autoplay.js barbarian 15 mobile

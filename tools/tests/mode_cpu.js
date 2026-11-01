@@ -5,8 +5,8 @@
 // that cost the most inside update (inclusive and self time).
 // Usage: node tools/tests/mode_cpu.js [modes,comma] [secs] [throttle] [depth]
 //   modes: town, a biome id (catacombs, castle, sea_of_sand, dark_forest, mountainside, skyship, serpentine_tower,
-//   depths_edge, overworld...), breach, rift, raid (a depth 30 BOSS ROOM), velscour (his throne fight), unbound
-//   (Velscour Unbound); 'dungeons': every dungeon biome; default: a sample of every kind of map
+//   depths_edge, overworld...), breach, rift, raid (a depth 30 BOSS ROOM), Dagyr (his throne fight), unbound
+//   (Dagyr Unbound); 'dungeons': every dungeon biome; default: a sample of every kind of map
 //   PHONE=portrait: an upright phone (390x844) instead of 844x390
 const { openGame, report } = require('./harness');
 const DEF = 'town,catacombs,overworld,castle,sea_of_sand,dark_forest,mountainside,skyship,serpentine_tower,depths_edge,breach,rift';
@@ -21,7 +21,7 @@ const secs = +(process.argv[3] || 6), rate = +(process.argv[4] || 4), depth = +(
     modes = modes.flatMap((m) => (m === 'dungeons' ? ids : [m]));
   }
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('wizard', 'Cpu');
     document.querySelectorAll('.screen').forEach((s) => s.remove());
     G.ui.modalCount = 0; G.godMode = true;
@@ -32,7 +32,7 @@ const secs = +(process.argv[3] || 6), rate = +(process.argv[4] || 4), depth = +(
   const summary = [];
   for (const mode of modes) {
     const ok = await page.evaluate(async ([mode, depth]) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { Auto } = await import('/src/game/autoplay.js');
       if (Auto.on) Auto.toggle(false);
@@ -46,7 +46,7 @@ const secs = +(process.argv[3] || 6), rate = +(process.argv[4] || 4), depth = +(
         endgame().unlocked = Date.now(); saveEndgame();
         game.enterRift(1); await until(() => G.world.rift && loaded());
       } else if (mode === 'raid') { game.enterTown(); await until(loaded); G.char.depth = 30; await game.teleportToBiome(BIOME_BY_ID.cathedral); }
-      else if (mode === 'velscour') { game.enterTown(); await until(loaded); await game.finalBoss(); }
+      else if (mode === 'Dagyr') { game.enterTown(); await until(loaded); await game.finalBoss(); }
       else if (mode === 'unbound') {
         const E = await import('/src/game/endgame.js'); E.unlockEndgame();
         game.enterTown(); await until(loaded); Object.assign(G.char, { keys: 3, depth: 510, deepest: 509 }); G.char.unbound ||= { wins: 0, best: 0 };
@@ -63,7 +63,7 @@ const secs = +(process.argv[3] || 6), rate = +(process.argv[4] || 4), depth = +(
     await cdp.send('Emulation.setCPUThrottlingRate', { rate });
     await cdp.send('Profiler.start');
     const r = await page.evaluate((secs) => new Promise((res) => {
-      const { G, game } = window.VELSCOUR, u = game.update, rd = game.render, s = { u: 0, r: 0, n: 0, nu: 0, worstU: 0 };
+      const { G, game } = window.DAGYR, u = game.update, rd = game.render, s = { u: 0, r: 0, n: 0, nu: 0, worstU: 0 };
       game.update = function (dt) { const t = performance.now(); u.call(this, dt); const d = performance.now() - t; s.u += d; s.nu++; s.worstU = Math.max(s.worstU, d); };
       game.render = function () { const t = performance.now(); rd.call(this); s.r += performance.now() - t; s.n++; };
       const t0 = performance.now();

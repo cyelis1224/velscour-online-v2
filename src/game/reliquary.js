@@ -6,7 +6,7 @@ import { G } from '../state.js';
 import { GEMS, SIGILS, itemName, itemColor } from '../data/items.js';
 import { codexKey, CODEX_TOTAL, HEIRLOOMS, GLYPHWORDS, PIECE_BY_ID } from '../data/relics.js';
 
-const KEY = 'velscour_reliquary_v1';
+const KEY = 'Dagyr_reliquary_v1';
 export const VAULT_TABS = 6, VAULT_SIZE = 96;
 export const MILESTONES = [
   { pct: 25, text: 'Vault III opens' },

@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const BASE_URL = 'http://localhost:8123';
+const BASE_URL = 'http://localhost:8124';
 const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
 
 (async () => {
@@ -26,7 +26,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     p2.on('pageerror', err => console.log('[P2 pageerror]', err));
 
     for (const p of [p1, p2, p3]) {
-      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
     }
 
     console.log('Navigating players to game...');
@@ -34,9 +34,9 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.goto(BASE_URL + '/index.html');
     await p3.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
-    await p3.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p3.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Inject saves: P1 is Ranger, P2 is Death Knight (runeknight), P3 is observer
     await p1.evaluate(async () => {
@@ -92,7 +92,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
     // Wait for P1 to be in town
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
+    await p1.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
     console.log('P1 entered town as host.');
 
     // P2 joins room
@@ -104,18 +104,18 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
+    await p2.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
     console.log('P2 entered town as guest.');
 
     // Verify remote player linked on both clients
-    await p1.waitForFunction(() => window.VELSCOUR.G.remotePlayers && window.VELSCOUR.G.remotePlayers.size > 0);
-    await p2.waitForFunction(() => window.VELSCOUR.G.remotePlayers && window.VELSCOUR.G.remotePlayers.size > 0);
+    await p1.waitForFunction(() => window.DAGYR.G.remotePlayers && window.DAGYR.G.remotePlayers.size > 0);
+    await p2.waitForFunction(() => window.DAGYR.G.remotePlayers && window.DAGYR.G.remotePlayers.size > 0);
     console.log('Both players see each other in town.');
 
     // --- VERIFY SIGNATURES IN TOWN ---
     console.log('\n--- VERIFYING SIGNATURES IN TOWN ---');
     const p1SigState = await p1.evaluate(() => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       const rp = Array.from(G.remotePlayers.values())[0];
       return {
         localClass: G.player.classId,
@@ -130,7 +130,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     console.log('P1 view of signatures in town:', p1SigState);
 
     const p2SigState = await p2.evaluate(() => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       const rp = Array.from(G.remotePlayers.values())[0];
       return {
         localClass: G.player.classId,
@@ -163,7 +163,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // Check Town Portal label in town
     const townPortalLabel = await p1.evaluate(() => {
-      const portal = window.VELSCOUR.G.world.portals.find(p => !p.breach);
+      const portal = window.DAGYR.G.world.portals.find(p => !p.breach);
       return portal ? portal.label : null;
     });
     console.log('Town portal label at start:', townPortalLabel);
@@ -185,31 +185,31 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     console.log('\n--- ENTERING DUNGEON DEPTH 1 ---');
     // Move both players to the town portal
     await p1.evaluate(() => {
-      const portal = window.VELSCOUR.G.world.portals.find(p => !p.breach);
-      window.VELSCOUR.G.player.x = portal.x;
-      window.VELSCOUR.G.player.y = portal.y;
+      const portal = window.DAGYR.G.world.portals.find(p => !p.breach);
+      window.DAGYR.G.player.x = portal.x;
+      window.DAGYR.G.player.y = portal.y;
     });
     await p2.evaluate(() => {
-      const portal = window.VELSCOUR.G.world.portals.find(p => !p.breach);
-      window.VELSCOUR.G.player.x = portal.x;
-      window.VELSCOUR.G.player.y = portal.y;
+      const portal = window.DAGYR.G.world.portals.find(p => !p.breach);
+      window.DAGYR.G.player.x = portal.x;
+      window.DAGYR.G.player.y = portal.y;
     });
     await p1.waitForTimeout(500);
 
     // P1 enters dungeon, P2 enters dungeon
     await p1.evaluate(() => {
-      window.VELSCOUR.G.game.enterDungeon();
+      window.DAGYR.G.game.enterDungeon();
     });
     await p2.waitForTimeout(600);
     await p2.evaluate(() => {
-      window.VELSCOUR.G.game.enterDungeon();
+      window.DAGYR.G.game.enterDungeon();
     });
 
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'dungeon' && document.querySelector('#loading').classList.contains('hidden'), { timeout: 15000 });
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'dungeon' && document.querySelector('#loading').classList.contains('hidden'), { timeout: 15000 });
+    await p1.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'dungeon' && document.querySelector('#loading').classList.contains('hidden'), { timeout: 15000 });
+    await p2.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'dungeon' && document.querySelector('#loading').classList.contains('hidden'), { timeout: 15000 });
 
-    const p1DungeonDepth = await p1.evaluate(() => window.VELSCOUR.G.world.depth);
-    const p2DungeonDepth = await p2.evaluate(() => window.VELSCOUR.G.world.depth);
+    const p1DungeonDepth = await p1.evaluate(() => window.DAGYR.G.world.depth);
+    const p2DungeonDepth = await p2.evaluate(() => window.DAGYR.G.world.depth);
     console.log(`Both players entered dungeon: P1 depth=${p1DungeonDepth}, P2 depth=${p2DungeonDepth}`);
     if (p1DungeonDepth !== 1 || p2DungeonDepth !== 1) {
       throw new Error(`Expected depth 1, got P1=${p1DungeonDepth}, P2=${p2DungeonDepth}`);
@@ -219,7 +219,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     console.log('\n--- ADVANCING TO DEPTH 2 VIA PORTAL CHOICE ---');
     await p1.evaluate(() => {
       // simulate reaching exit portal
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       G.game.portalChoice(G.world);
     });
 
@@ -234,7 +234,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // P2 also selects to descend with the party
     await p2.waitForTimeout(600);
     await p2.evaluate(() => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       G.game.portalChoice(G.world);
     });
     await p2.waitForTimeout(400);
@@ -243,12 +243,12 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       if (descendBtn) descendBtn.click();
     });
 
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.depth === 2 && document.querySelector('#loading').classList.contains('hidden'), { timeout: 15000 });
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.world?.depth === 2 && document.querySelector('#loading').classList.contains('hidden'), { timeout: 15000 });
+    await p1.waitForFunction(() => window.DAGYR?.G?.world?.depth === 2 && document.querySelector('#loading').classList.contains('hidden'), { timeout: 15000 });
+    await p2.waitForFunction(() => window.DAGYR?.G?.world?.depth === 2 && document.querySelector('#loading').classList.contains('hidden'), { timeout: 15000 });
 
-    const p1Depth2 = await p1.evaluate(() => window.VELSCOUR.G.world.depth);
-    const p2Depth2 = await p2.evaluate(() => window.VELSCOUR.G.world.depth);
-    const p1RoomDepth2 = await p1.evaluate(() => window.VELSCOUR.G.room.depth);
+    const p1Depth2 = await p1.evaluate(() => window.DAGYR.G.world.depth);
+    const p2Depth2 = await p2.evaluate(() => window.DAGYR.G.world.depth);
+    const p1RoomDepth2 = await p1.evaluate(() => window.DAGYR.G.room.depth);
     console.log(`Players at Depth 2: P1 world.depth=${p1Depth2}, room.depth=${p1RoomDepth2}; P2 world.depth=${p2Depth2}`);
 
     if (p1Depth2 !== 2 || p2Depth2 !== 2 || p1RoomDepth2 !== 2) {
@@ -265,7 +265,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // --- ADVANCE TO DEPTH 3 VIA PORTAL CHOICE ---
     console.log('\n--- ADVANCING TO DEPTH 3 VIA PORTAL CHOICE ---');
     await p1.evaluate(() => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       G.game.portalChoice(G.world);
     });
 
@@ -278,7 +278,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     await p2.waitForTimeout(600);
     await p2.evaluate(() => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       G.game.portalChoice(G.world);
     });
     await p2.waitForTimeout(400);
@@ -287,12 +287,12 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       if (descendBtn) descendBtn.click();
     });
 
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.depth === 3 && document.querySelector('#loading').classList.contains('hidden'), { timeout: 15000 });
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.world?.depth === 3 && document.querySelector('#loading').classList.contains('hidden'), { timeout: 15000 });
+    await p1.waitForFunction(() => window.DAGYR?.G?.world?.depth === 3 && document.querySelector('#loading').classList.contains('hidden'), { timeout: 15000 });
+    await p2.waitForFunction(() => window.DAGYR?.G?.world?.depth === 3 && document.querySelector('#loading').classList.contains('hidden'), { timeout: 15000 });
 
-    const p1Depth3 = await p1.evaluate(() => window.VELSCOUR.G.world.depth);
-    const p2Depth3 = await p2.evaluate(() => window.VELSCOUR.G.world.depth);
-    const p1RoomDepth3 = await p1.evaluate(() => window.VELSCOUR.G.room.depth);
+    const p1Depth3 = await p1.evaluate(() => window.DAGYR.G.world.depth);
+    const p2Depth3 = await p2.evaluate(() => window.DAGYR.G.world.depth);
+    const p1RoomDepth3 = await p1.evaluate(() => window.DAGYR.G.room.depth);
     console.log(`Players at Depth 3: P1 world.depth=${p1Depth3}, room.depth=${p1RoomDepth3}; P2 world.depth=${p2Depth3}`);
 
     if (p1Depth3 !== 3 || p2Depth3 !== 3 || p1RoomDepth3 !== 3) {
@@ -309,7 +309,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // --- RETURN TO TOWN FROM DEPTH 3 ---
     console.log('\n--- RETURNING TO TOWN FROM DEPTH 3 ---');
     await p1.evaluate(() => {
-      window.VELSCOUR.G.game.useTownPortal();
+      window.DAGYR.G.game.useTownPortal();
     });
     await p1.waitForTimeout(300);
     await p1.evaluate(() => {
@@ -318,7 +318,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     });
 
     await p2.evaluate(() => {
-      window.VELSCOUR.G.game.useTownPortal();
+      window.DAGYR.G.game.useTownPortal();
     });
     await p2.waitForTimeout(300);
     await p2.evaluate(() => {
@@ -326,17 +326,17 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       if (returnBtn) returnBtn.click();
     });
 
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'town', { timeout: 10000 });
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'town', { timeout: 10000 });
+    await p1.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'town', { timeout: 10000 });
+    await p2.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'town', { timeout: 10000 });
     console.log('Both players returned to town.');
 
     // Check Town Portal label on both clients
     const p1TownPortalLabel = await p1.evaluate(() => {
-      const portal = window.VELSCOUR.G.world.portals.find(p => !p.breach);
+      const portal = window.DAGYR.G.world.portals.find(p => !p.breach);
       return portal ? portal.label : null;
     });
     const p2TownPortalLabel = await p2.evaluate(() => {
-      const portal = window.VELSCOUR.G.world.portals.find(p => !p.breach);
+      const portal = window.DAGYR.G.world.portals.find(p => !p.breach);
       return portal ? portal.label : null;
     });
 

@@ -20,7 +20,7 @@ const { openGame, report } = require('./harness');
   if (info.hues) errors.push('townsfolk must not be recoloured at runtime');
   if (info.tooLong.length) errors.push('speech lines do not fit their bubble');
   const said = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR, p = G.player;
+    const { G } = window.DAGYR, p = G.player;
     const vs = G.world.npcs.filter((n) => n.townsfolkId).slice(0, 4);
     vs.forEach((n, i) => { G.world.townLife.show(n, p.x + (i - 1.5) * 2.2, p.y - 2.5 - (i - 1.5) * 2.2); n.alpha = 1; n.busy = true; n.goal = n.path = null; n.barkT = 999; });
     vs[0].use(); vs[2].use();

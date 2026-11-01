@@ -56,7 +56,7 @@ const samples = +(process.argv[3] || 30);
   const all = []; // worth rows of every class and hero level
   for (const cls of classes) {
     const res = await page.evaluate(async ({ cls, samples }) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { Auto, charScore } = await import('/src/game/autoplay.js');
       const { rollItem, RARITY, RING_SLOTS } = await import('/src/data/items.js');
       const { CLASSES } = await import('/src/data/classes.js');

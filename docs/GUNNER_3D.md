@@ -40,7 +40,7 @@ left. Shadow maps are on: the wings shade the fuselage and the heads shade their
   and drawn black).
 - Turn i is game heading `i / n * 2PI` in tile space (0 = +x, screen down-right), which is yaw `-heading` in three.js.
 
-To rebake, serve the repo (`python3 -m http.server 8123`), then run `node tools/gunner3d_bake.js`. It needs three.js
+To rebake, serve the repo (`python3 -m http.server 8124`), then run `node tools/gunner3d_bake.js`. It needs three.js
 from jsDelivr. Where the CDN is blocked (Claude cloud containers), `npm pack three@0.170.0` into a scratch folder,
 unpack it and set `THREE_DIR=<that folder>/package`; the bake then serves three.js from the local copy.
 

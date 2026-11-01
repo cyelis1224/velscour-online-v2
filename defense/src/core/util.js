@@ -1,4 +1,4 @@
-// Small helpers for VELSCOUR DEFENSE (its own copy: nothing here is shared with the main game's src/).
+// Small helpers for DAGYR DEFENSE (its own copy: nothing here is shared with the main game's src/).
 export const TAU = Math.PI * 2;
 export const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -28,7 +28,7 @@ export class RNG {
   int(a, b) { return a + Math.floor(this.next() * (b - a + 1)); }
   pick(arr) { return arr[Math.floor(this.next() * arr.length)]; }
   chance(p) { return this.next() < p; }
-  shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(this.next() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+  shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(this.next() * (i + 1));[arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
   /** [[value, weight], ...] */
   weighted(list) {
     let t = 0; for (const [, w] of list) t += w;
@@ -87,7 +87,7 @@ export function timeLeft(ms) {
 let FOK;
 export function filterOK() {
   if (FOK !== undefined) return FOK;
-  if (globalThis.VELSCOUR_NO_CANVAS_FILTER) return (FOK = false);   // tests: the by-hand path in a browser that has filters
+  if (globalThis.DAGYR_NO_CANVAS_FILTER) return (FOK = false);   // tests: the by-hand path in a browser that has filters
   try {
     const a = makeCanvas(1, 1), b = makeCanvas(1, 1), x = b.getContext('2d', { willReadFrequently: true });
     a.getContext('2d').fillStyle = '#fff'; a.getContext('2d').fillRect(0, 0, 1, 1);

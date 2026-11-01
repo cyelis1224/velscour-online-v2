@@ -11,7 +11,7 @@ import { MEASURE, NOTES, beatsOf } from '../data/notation.js';
 import { bardNoteFor, bardFitGain, bardPerforming } from './bard.js';
 import { SKILLS, CLASS_SKILLS, MAX_SKILL_LEVEL, manaCost, rageCost, cooldown, useTime, skillRange, spearBarrageAreas, buffAmount, curseAmount, skillDuration, effLevel, ricochetCount } from '../data/skills.js';
 import { SUMMONS } from '../data/summons.js';
-import { SLOTS, RING_SLOTS, itemValue, itemName, itemColor, upgradeCost, socketCost, enchantCost, unsocketCost, addAffix, makeGem, RARITY, POTION_PRICE, GEMS, powerLevel, goldLvl } from '../data/items.js';
+import { SLOTS, RING_SLOTS, itemValue, itemName, itemColor, upgradeCost, socketCost, enchantCost, unsocketCost, addAffix, makeGem, RARITY, POTION_PRICE, GEMS, powerLevel, goldLvl, canEquipItem } from '../data/items.js';
 import { depthLevel, armorDiv } from '../data/depth.js';
 import { breachLevel } from '../data/breach.js';
 import { riftLevel } from '../data/rifts.js';
@@ -568,6 +568,7 @@ export const Auto = {
     if (c.statPoints > 0 && G.settings.autoStatPoints !== false) { this.spendStats(); dirty = true; }
     if (marksFree() > 0 && G.settings.autoStatPoints !== false && autoSpend()) dirty = true; // Infernal Marks (game/marks.js), spread evenly
     if (c.skillPoints > 0 && G.settings.autoSkillPoints !== false) { if (this.spendSkills()) dirty = true; }
+    if ((c.talentPoints || 0) > 0 && G.settings.autoSkillPoints !== false) { if (this.spendTalents()) dirty = true; }
     const sig = Object.entries(c.skills).map((e) => e.join(':')).join(',') + '|' + c.level;
     if (sig !== this.lastSig) { this.lastSig = sig; this.arrangeBar(); dirty = true; }
     if (this.optimizeGear()) dirty = true;
@@ -593,40 +594,45 @@ export const Auto = {
   hammersSince: 1,
   countFocus(sk) { if (sk.m.ricochet) this.hammersSince = 0; else if (isHammer(sk)) this.hammersSince++; },
 
-  /** Put each skill point where it raises buildPower most (counting the prerequisites a new skill needs), while also investing in Passive Talents. */
+  /** Spend dedicated Talent Points (awarded 1 every 5 hero levels) on the Passive Talent Tree (T). */
+  spendTalents() {
+    const p = G.player, c = G.char;
+    const tBranches = CLASS_TALENTS[c.classId];
+    if (!tBranches) return false;
+    let spent = false;
+    while ((c.talentPoints || 0) > 0) {
+      const prefBranch = clamp(mainTree(p), 0, tBranches.length - 1);
+      let bestNode = null, bestScore = -Infinity;
+      for (let bIdx = 0; bIdx < tBranches.length; bIdx++) {
+        for (const node of tBranches[bIdx].nodes) {
+          if (!canLearnTalent(c, node)) continue;
+          const gain = simulate(p, () => {
+            c.talents = c.talents || {};
+            c.talents[node.id] = (c.talents[node.id] || 0) + 1;
+            return () => {
+              if (!--c.talents[node.id]) delete c.talents[node.id];
+            };
+          });
+          const score = gain + (bIdx === prefBranch ? 0.04 : 0) + (node.choice ? 0.025 : 0);
+          if (score > bestScore) { bestScore = score; bestNode = node; }
+        }
+      }
+      if (!bestNode || !learnTalent(c, bestNode.id)) break;
+      p.recompute();
+      spent = true;
+      if ((c.talents[bestNode.id] || 0) === 1) {
+        G.ui.log(`Auto-play unlocked talent <b>${escapeHtml(bestNode.name)}</b>.`, '#8fe0ff');
+      }
+    }
+    return spent;
+  },
+
+  /** Put each skill point where it raises buildPower most (counting the prerequisites a new skill needs). */
   spendSkills() {
     const p = G.player, c = G.char;
     const list = CLASS_SKILLS[c.classId];
     let spent = false;
     while (c.skillPoints > 0) {
-      // Invest in the Passive Talent Tree (T) alongside active skills (roughly 1 talent point per 3 hero levels)
-      const tBranches = CLASS_TALENTS[c.classId];
-      if (tBranches && c.level >= 4 && talentPointsSpent(c) < Math.floor(c.level / 3)) {
-        const prefBranch = clamp(mainTree(p), 0, tBranches.length - 1);
-        let bestNode = null, bestScore = -Infinity;
-        for (let bIdx = 0; bIdx < tBranches.length; bIdx++) {
-          for (const node of tBranches[bIdx].nodes) {
-            if (canLearnTalent(c, node)) continue;
-            const gain = simulate(p, () => {
-              c.talents = c.talents || {};
-              c.talents[node.id] = (c.talents[node.id] || 0) + 1;
-              return () => {
-                if (!--c.talents[node.id]) delete c.talents[node.id];
-              };
-            });
-            const score = gain + (bIdx === prefBranch ? 0.04 : 0) + (node.choice ? 0.025 : 0);
-            if (score > bestScore) { bestScore = score; bestNode = node; }
-          }
-        }
-        if (bestNode && learnTalent(c, bestNode.id)) {
-          p.recompute();
-          spent = true;
-          if ((c.talents[bestNode.id] || 0) === 1) {
-            G.ui.log(`Auto-play unlocked talent <b>${escapeHtml(bestNode.name)}</b>.`, '#8fe0ff');
-          }
-          continue;
-        }
-      }
       const base = buildPower(p, CROWD, null, true).total;
       let best = null, bv = 0;
       const focus = focusSkills(c.classId) || [];
@@ -701,7 +707,7 @@ export const Auto = {
       isHammer(x.sk) && cooldown(x.sk) < 1.2).sort((a, b) => b.v - a.v)[0];
     const signature = c.classId === 'barbarian' ? learned.find((sk) => sk.name === 'Whirlwind') || learned.find((sk) => sk.kind === 'whirl') :
       c.classId === 'lancer' ? learned.find((sk) => sk.m.shields) :
-      c.classId === 'dragoon' ? learned.find((sk) => sk.kind === 'leap') : null;
+        c.classId === 'dragoon' ? learned.find((sk) => sk.kind === 'leap') : null;
     bar[LMB] = signature?.id || hammer?.sk?.id || main?.sk.id || free?.id || c.bar[LMB];
     const lmbSk = SKILLS[bar[LMB]];
     const rmb = free && free.id !== bar[LMB] && (lmbSk && (manaCost(lmbSk, 1) || rageCost(lmbSk) || lmbSk.kind === 'whirl' || lmbSk.kind === 'orbit' || lmbSk.kind === 'leap')) ? free :
@@ -712,8 +718,8 @@ export const Auto = {
     // All learned bar skills participate, including low-ranked gap closers.
     // Put signature and mobility skills before pure damage picks if slots fill.
     const priority = [...focused, ...learned.filter(mobility), ...parts.map((x) => x.sk),
-      ...learned.filter((sk) => OFFENSIVE.has(sk.kind)),
-      ...learned];
+    ...learned.filter((sk) => OFFENSIVE.has(sk.kind)),
+    ...learned];
     const keys = FILL_ORDER.filter((k) => k !== RMB);
     let i = 0;
     for (const sk of priority) {
@@ -742,10 +748,10 @@ export const Auto = {
     if (!gearOn()) return false;
     const placed = new Set(); // what this call put on stays on (a later pass swapped an old ring back over a new one)
     for (let pass = 0; pass < 3; pass++) {
-      const cur = simulate(p, () => () => {});
+      const cur = simulate(p, () => () => { });
       let best = -1, bs = equipBar(cur), bslot = null, bmove = null;
       c.bag.forEach((it, i) => {
-        if (!it || it.type !== 'gear' || it.unid || it.sealed || it.locked || (it.req || 1) > c.level) return;
+        if (!it || it.type !== 'gear' || it.unid || it.sealed || it.locked || !canEquipItem(c, it)) return;
         const f = fitScore(p, it, undefined, placed);
         if (f.s > bs) { bs = f.s; best = i; bslot = f.slot; bmove = f.move; }
       });
@@ -753,7 +759,7 @@ export const Auto = {
       if (best < 0) {
         this.worn = this.worn || new Set();
         c.bag.forEach((it, i) => {
-          if (best >= 0 || !it || it.type !== 'gear' || it.unid || it.sealed || it.locked || (it.req || 1) > c.level || (it.slot !== 'body' && it.slot !== 'head') || this.worn.has(it.uid)) return;
+          if (best >= 0 || !it || it.type !== 'gear' || it.unid || it.sealed || it.locked || !canEquipItem(c, it) || (it.slot !== 'body' && it.slot !== 'head') || this.worn.has(it.uid)) return;
           const old = c.equip[it.slot];
           if (old && (old.locked || it.rarity < old.rarity || it.ilvl < old.ilvl - 4)) return;
           const f = fitScore(p, it); if (f.s > cur - 0.02) { best = i; bslot = f.slot; bmove = f.move; }
@@ -790,7 +796,7 @@ export const Auto = {
     let any = false;
     if (!gearOn()) return false;
     for (let guard = 0; guard < 12; guard++) {
-      let best = null, bs = simulate(p, () => () => {}) + 0.0005;
+      let best = null, bs = simulate(p, () => () => { }) + 0.0005;
       for (const slot of SLOTS) {
         const it = c.equip[slot];
         if (!it || it.locked || it.gems.length >= it.sockets) continue;
@@ -830,10 +836,10 @@ export const Auto = {
     if (it.type === 'gem') return (!f || f.gems) && (free > 0 || c.bag.some((b) => b && b.type === 'gem' && b.gem === it.gem && b.tier === it.tier) || this.worstBag(itemValue(it)) >= 0);
     if (it.type !== 'gear' || it.sealed) return free > 0; // a sealed treasure is Epic or better: always worth a slot
     if (f) { // the player's loot filter (game/lootfilter.js) decides, plus upgrades to wear unless that's off too
-      if (!filterPasses(it) && !(f.upgrades && (it.req || 1) <= c.level && this.isUpgrade(it))) return false;
+      if (!filterPasses(it) && !(f.upgrades && canEquipItem(c, it) && this.isUpgrade(it))) return false;
       return free > 0 || this.worstBag(itemValue(it)) >= 0;
     }
-    const upgrade = (it.req || 1) <= c.level && this.isUpgrade(it);
+    const upgrade = canEquipItem(c, it) && this.isUpgrade(it);
     if (upgrade) return true;
     if ((it.slot === 'body' || it.slot === 'head') && (it.req || 1) <= c.level && (!c.equip[it.slot] || it.rarity >= c.equip[it.slot].rarity) && free > 0) return true; // new looks
     const minRarity = free > 30 ? 1 : free > 12 ? 2 : 3;
@@ -842,7 +848,7 @@ export const Auto = {
   },
   isUpgrade(it) {
     const p = G.player, c = G.char;
-    const cur = simulate(p, () => () => {});
+    const cur = simulate(p, () => () => { });
     return fitScore(p, it).s > equipBar(cur);
   },
   /** Index of the cheapest sellable bag item worth less than `than`, or -1 (always, while the gear is the player's). */
@@ -1146,7 +1152,7 @@ export const Auto = {
     else if (ct && !foes.includes(ct)) foes.push(ct);
     // retreat to the town portal when nearly dead with nothing left to heal with
     const healLeft = c.potions.hp + c.potions.rejuv > 0 || this.readySkill((s) => s.kind === 'heal');
-    const sealed = (w.raid && w.raid.sealed) || (w.velscour && w.velscour.phase > 0 && !w.velscour.m.dead); // no way out of a sealed boss room or Velscour's arena
+    const sealed = (w.raid && w.raid.sealed) || (w.Dagyr && w.Dagyr.phase > 0 && !w.Dagyr.m.dead); // no way out of a sealed boss room or Dagyr's arena
     if (!this.retreat && p.hp < p.maxHp * stanceOf(c).retreat && !healLeft && foes.length && !sealed) this.retreat = true;
     if (this.retreat && (p.hp > p.maxHp * 0.75 || !foes.length && p.hp > p.maxHp * 0.5)) this.retreat = false;
     if (this.retreat) {
@@ -1223,15 +1229,15 @@ export const Auto = {
       } else if (ow.type === 'escort' && ow.escort && ow.routeIndex < ow.route.length) {
         objective = { x: ow.escort.x, y: ow.escort.y, reach: 3.5 };
       } else if (ow.markers.length && !nearEnemy) {
-        objective = ow.markers.reduce((a,b) =>
-          !a || Math.hypot(b.x-p.x,b.y-p.y) < Math.hypot(a.x-p.x,a.y-p.y) ? b : a, null);
+        objective = ow.markers.reduce((a, b) =>
+          !a || Math.hypot(b.x - p.x, b.y - p.y) < Math.hypot(a.x - p.x, a.y - p.y) ? b : a, null);
       }
       // the Breach's fights keep arriving: after a while fighting with an objective waiting, push through to it
       if (objective && nearEnemy && w.breach) { this.objWait = (this.objWait || 0) + dt; if (this.objWait > 10) this.objPush = 4; } else this.objWait = 0;
       if (this.objPush > 0) this.objPush -= dt;
       if (objective && (!nearEnemy || this.objPush > 0)) {
-        this.setStatus('Completing '+ow.title);
-        if (this.goTo(objective.x, objective.y, objective.reach||1.4, dt) && objective.use) objective.use();
+        this.setStatus('Completing ' + ow.title);
+        if (this.goTo(objective.x, objective.y, objective.reach || 1.4, dt) && objective.use) objective.use();
         this.watchStuck(dt); return;
       }
     }
@@ -1468,7 +1474,7 @@ export const Auto = {
   },
   inDanger(list, x, y) {
     for (const d of list) {
-      if (d.outside) { if (((x - d.x) / d.rx) ** 2 + ((y - d.y) / d.ry) ** 2 > 1) return true; continue; } // Velscour's lava tide
+      if (d.outside) { if (((x - d.x) / d.rx) ** 2 + ((y - d.y) / d.ry) ** 2 > 1) return true; continue; } // Dagyr's lava tide
       if (d.ring) {
         const r = Math.hypot(x - d.x, y - d.y);
         if (r > d.r0 && r < d.r1 && Math.abs(angleDiff(d.gap, Math.atan2(y - d.y, x - d.x))) > d.gapW / 2) return true;
@@ -1877,7 +1883,7 @@ export const Auto = {
             ax = t.x; ay = t.y;
             break;
           }
-          // fall through for ordinary ranged AoE skills
+        // fall through for ordinary ranged AoE skills
         case 'rain': case 'strike': case 'trap': n = crowdAt(t.x, t.y, 2); ok = d <= Math.min(9.5, skillRange(sk)) && los; break;
         default: ok = d <= reachOf(sk) * 0.92 && los; n = crowdAt(t.x, t.y, 2.2);
       }
@@ -2133,9 +2139,9 @@ export const Auto = {
   gearGain(list) {
     const p = G.player, c = G.char;
     if (!list || !bagFree(c)) return false;
-    const cur = simulate(p, () => () => {});
+    const cur = simulate(p, () => () => { });
     const bar = Math.max(equipBar(cur), cur + 0.012);
-    return list.some((it) => it && it.type === 'gear' && (it.req || 1) <= c.level && itemValue(it) <= this.budget(0.85) && fitScore(p, it, false).s > bar);
+    return list.some((it) => it && it.type === 'gear' && canEquipItem(c, it) && itemValue(it) <= this.budget(0.85) && fitScore(p, it, false).s > bar);
   },
   potionsWanted() {
     const c = G.char;
@@ -2143,7 +2149,7 @@ export const Auto = {
   },
   /** Stored gear to take out: an upgrade now, or what auto-play put away until the hero could wear it (to wear or sell).
    *  What the player stored stays put: auto-play would sell it. */
-  stashUpgrade(it) { return it.type === 'gear' && !it.sealed && !it.locked && (it.req || 1) <= G.char.level && ((it.autoStash === true && bagFree(G.char) >= 12) || this.isUpgrade(it)); },
+  stashUpgrade(it) { return it.type === 'gear' && !it.sealed && !it.locked && canEquipItem(G.char, it) && ((it.autoStash === true && bagFree(G.char) >= 12) || this.isUpgrade(it)); },
   /** Storage chest: take out the gems (for the jeweler and fusing) and the stored gear that's an upgrade now. */
   unstash() {
     const c = G.char;
@@ -2202,7 +2208,7 @@ export const Auto = {
         if (bagFree(c) > 15 || GEMS[it.gem].special || GEMS[it.gem].sigil || it.tier >= top - 1) return;
       } else if (it.type === 'gear' && (it.req || 1) > c.level && (it.req || 1) <= c.level + 6 && it.rarity >= 2 && !future[it.slot]) {
         const s = fitScore(p, it).s;
-        if (s > simulate(p, () => () => {}) + 0.02) { future[it.slot] = true; return; }
+        if (s > simulate(p, () => () => { }) + 0.02) { future[it.slot] = true; return; }
       }
       // gems socketed in gear we're selling: pry them out when that's cheap compared to their worth
       if (it.type === 'gear' && it.gems.length) {
@@ -2242,10 +2248,10 @@ export const Auto = {
     let n = 0;
     const done = new Set(); // one purchase per slot: a cheap small upgrade bought first would be sold for the big one
     for (let guard = 0; guard < 4; guard++) {
-      const cur = simulate(p, () => () => {}), bar = Math.max(equipBar(cur), cur + 0.012);
+      const cur = simulate(p, () => () => { }), bar = Math.max(equipBar(cur), cur + 0.012);
       let best = -1, bv = 0, bslot = null;
       list.forEach((it, i) => {
-        if (!it || it.type !== 'gear' || (it.req || 1) > c.level) return;
+        if (!it || it.type !== 'gear' || !canEquipItem(c, it)) return;
         const price = itemValue(it);
         if (price > this.budget(0.85)) return;
         const f = fitScore(p, it, false); // judged on its own sockets: the gold for new ones goes on the buy
@@ -2269,7 +2275,7 @@ export const Auto = {
     const p = G.player, c = G.char;
     for (const l of [Vendor.stock.weapons, Vendor.stock.armor, Vendor.stock.rings]) {
       if (!l || l === list) continue;
-      for (const o of l) if (o && o !== it && o.type === 'gear' && o.slot === it.slot && (o.req || 1) <= c.level && itemValue(o) <= this.budget(0.85) && fitScore(p, o, false).s > s) return true;
+      for (const o of l) if (o && o !== it && o.type === 'gear' && o.slot === it.slot && canEquipItem(c, o) && itemValue(o) <= this.budget(0.85) && fitScore(p, o, false).s > s) return true;
     }
     return false;
   },
@@ -2284,7 +2290,7 @@ export const Auto = {
     for (let k = 0; k < empty; k++) {
       const list = Vendor.stock.gems;
       let best = -1, bv = 0;
-      const cur = simulate(p, () => () => {});
+      const cur = simulate(p, () => () => { });
       const slot = SLOTS.find((s) => c.equip[s] && c.equip[s].gems.length < c.equip[s].sockets);
       if (!slot) break;
       const it = c.equip[slot];
@@ -2335,7 +2341,7 @@ export const Auto = {
       for (const r of gw.sig) need[r] = (need[r] || 0) + 1;
       if (!Object.entries(need).every(([r, n]) => (have[r] || 0) >= n)) continue;
       const n = gw.sig.length;
-      const fits = (it) => it && it.type === 'gear' && it.rarity === 0 && !it.relic && !it.locked && !it.sealed && gw.slots.includes(it.slot) && it.maxSockets >= n && it.sockets <= n && !it.gems.length && (it.req || 1) <= c.level && it.ilvl >= lvl - 12;
+      const fits = (it) => it && it.type === 'gear' && it.rarity === 0 && !it.relic && !it.locked && !it.sealed && gw.slots.includes(it.slot) && it.maxSockets >= n && it.sockets <= n && !it.gems.length && canEquipItem(c, it) && it.ilvl >= lvl - 12;
       let idx = c.bag.findIndex(fits);
       if (idx < 0) {
         for (const list of [Vendor.stock.weapons, Vendor.stock.armor]) {
@@ -2358,7 +2364,7 @@ export const Auto = {
   blacksmith() {
     const p = G.player, c = G.char;
     for (let guard = 0; guard < 10; guard++) {
-      const cur = simulate(p, () => () => {});
+      const cur = simulate(p, () => () => { });
       let best = null, bv = 0;
       for (const s of SLOTS) {
         const it = c.equip[s];

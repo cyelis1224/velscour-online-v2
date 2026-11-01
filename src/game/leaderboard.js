@@ -14,7 +14,7 @@ export function buildSnapshot(c) {
   return { bar: (c.bar || []).filter(Boolean).slice(0, 15), gear, level: c.level | 0, marks: marksTotal() };
 }
 
-/** A hero that took Velscour's gift (game/deathgift.js) cheated: it never posts, and its class's entry comes off. */
+/** A hero that took Dagyr's gift (game/deathgift.js) cheated: it never posts, and its class's entry comes off. */
 export const barred = (c) => !!(c && c.cheated);
 
 /** A board entry's time stamp as milliseconds: the real SDK hands back a Timestamp, the tests' fake a number. */

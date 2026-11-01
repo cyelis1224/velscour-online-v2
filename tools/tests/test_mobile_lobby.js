@@ -1,4 +1,4 @@
-// Visual test for VELSCOUR Mobile Lobby
+// Visual test for DAGYR Mobile Lobby
 const { openGame, report } = require('./harness');
 
 (async () => {

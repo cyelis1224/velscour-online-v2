@@ -53,7 +53,7 @@ saved torso/head equipment via independent gear compositing plus item names.
 From the repository root:
 
 ```bash
-python3 -m http.server 8123
+python3 -m http.server 8124
 node tools/tests/data_check.mjs
 node tools/tests/barbarian_rage.js
 node tools/tests/lancer_shields.js

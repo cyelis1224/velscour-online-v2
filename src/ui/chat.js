@@ -1,5 +1,5 @@
 // ==========================================================================
-// VELSCOUR MODERN GAME CHAT SYSTEM
+// DAGYR MODERN GAME CHAT SYSTEM
 // Tabs, filters, scrollable history, cross-room/lobby whispers, and auto-reply.
 // ==========================================================================
 import { G } from '../state.js';
@@ -41,6 +41,18 @@ export const GameChat = {
   isFilterMenuOpen: false,
   idleTimeout: null,
   isInitialized: false,
+  // Desktop docking: the chat sits exactly where the scrolling pickup log (#log) is.
+  // It can't be minimized there; instead a pushpin keeps it open, otherwise it fades
+  // to translucent when closed and disappears entirely after 5 s without focus/hover.
+  isPinned: false,
+  isHovered: false,
+  fadeTimer: null,
+  FADE_DELAY_MS: 5000,
+
+  /** Desktop = mouse/keyboard play (not the touch layout). */
+  isDesktop() {
+    return !G.touch && !document.body.classList.contains('touch');
+  },
 
   init() {
     if (this.isInitialized && this.container?.isConnected) return;
@@ -48,11 +60,11 @@ export const GameChat = {
 
     // Load saved All tab channel filters
     try {
-      const saved = JSON.parse(localStorage.getItem('velscour_chat_all_filters') || 'null');
+      const saved = JSON.parse(localStorage.getItem('Dagyr_chat_all_filters') || 'null');
       if (saved && typeof saved === 'object') {
         Object.assign(this.allFilters, saved);
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // Attach to HUD or app
     const hud = document.getElementById('hud') || document.getElementById('app');
@@ -180,6 +192,11 @@ export const GameChat = {
     this.filterMenuEl = filterMenu;
     this.filterDotEl = root.querySelector('#gc-filter-dot');
 
+    try {
+      this.isPinned = localStorage.getItem('Dagyr_chat_pinned') === '1';
+    } catch (e) { }
+
+    this.applyDesktopMode();
     this.restoreLayout();
     this.updateFilterDot();
     this.setupListeners();
@@ -277,13 +294,14 @@ export const GameChat = {
       });
     }
 
-    // Toggle / minimize button
+    // Toggle / minimize button (desktop: pushpin)
     const toggleBtn = this.container.querySelector('#gc-btn-toggle');
     if (toggleBtn) {
       toggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         sfx('ui');
-        this.toggleMinimize();
+        if (this.isDesktop()) this.togglePin();
+        else this.toggleMinimize();
       });
     }
 
@@ -358,19 +376,25 @@ export const GameChat = {
       this.isOpen = true;
       this.container.classList.add('active');
       if (this.isMinimized) this.toggleMinimize(false);
+      this.wake();
     });
 
     this.inputEl.addEventListener('blur', () => {
       this.isOpen = false;
       this.container.classList.remove('active');
+      this.scheduleFade();
     });
 
     // Hover effect persistence
     this.container.addEventListener('mouseenter', () => {
+      this.isHovered = true;
       this.container.classList.add('active');
+      this.wake();
     });
     this.container.addEventListener('mouseleave', () => {
+      this.isHovered = false;
       if (!this.isOpen) this.container.classList.remove('active');
+      this.scheduleFade();
     });
 
     // Clicking player name in chat to whisper
@@ -422,6 +446,8 @@ export const GameChat = {
     let initialTop = 0;
 
     const onHeaderPointerDown = (e) => {
+      // Desktop chat is docked in the pickup log's spot: no dragging
+      if (this.isDesktop()) return;
       // Don't drag if mobile portrait
       if (document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch)) return;
       // Don't drag if clicked on button, tab, badge, input, etc.
@@ -488,6 +514,7 @@ export const GameChat = {
     let initialHeight = 0;
 
     const onResizePointerDown = (e) => {
+      if (this.isDesktop()) return;
       if (document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch)) return;
       if (e.button !== undefined && e.button !== 0) return;
       e.preventDefault();
@@ -595,15 +622,16 @@ export const GameChat = {
       hasCustomPos: true,
     };
     try {
-      localStorage.setItem('velscour_chat_layout', JSON.stringify(layout));
-    } catch (e) {}
+      localStorage.setItem('Dagyr_chat_layout', JSON.stringify(layout));
+    } catch (e) { }
   },
 
   restoreLayout() {
     if (!this.container) return;
+    if (this.isDesktop()) return; // docked in the pickup log's spot
     if (document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch)) return;
     try {
-      const raw = localStorage.getItem('velscour_chat_layout');
+      const raw = localStorage.getItem('Dagyr_chat_layout');
       if (!raw) return;
       const layout = JSON.parse(raw);
       if (layout.width) {
@@ -623,7 +651,7 @@ export const GameChat = {
         this.container.style.bottom = 'auto';
         this.container.style.right = 'auto';
       }
-    } catch (e) {}
+    } catch (e) { }
   },
 
   setupNetwork() {
@@ -836,12 +864,14 @@ export const GameChat = {
     if (this.container) {
       this.container.classList.toggle('active', this.isFilterMenuOpen || this.isOpen);
     }
+    if (this.isFilterMenuOpen) this.wake();
+    else this.scheduleFade();
   },
 
   saveFilters() {
     try {
-      localStorage.setItem('velscour_chat_all_filters', JSON.stringify(this.allFilters));
-    } catch (e) {}
+      localStorage.setItem('Dagyr_chat_all_filters', JSON.stringify(this.allFilters));
+    } catch (e) { }
   },
 
   updateFilterDot() {
@@ -878,11 +908,96 @@ export const GameChat = {
   },
 
   toggleMinimize(force = null) {
+    if (this.isDesktop()) return; // desktop uses the pushpin instead of minimizing
     this.isMinimized = force != null ? force : !this.isMinimized;
     this.container.classList.toggle('minimized', this.isMinimized);
     const toggleBtn = this.container.querySelector('#gc-btn-toggle');
     if (toggleBtn) toggleBtn.innerHTML = this.isMinimized ? '&#9650;' : '&#9660;';
     this.updatePortraitChatHeight();
+  },
+
+  /** Desktop: dock over the pickup log, swap the minimize arrow for a pushpin. */
+  applyDesktopMode() {
+    if (!this.container) return;
+    const desktop = this.isDesktop();
+    this.container.classList.toggle('gc-desktop', desktop);
+    const btn = this.container.querySelector('#gc-btn-toggle');
+    if (desktop) {
+      // Clear any layout from the old free-floating chat so it stays docked
+      this.isMinimized = false;
+      this.container.classList.remove('minimized');
+      for (const k of ['left', 'top', 'right', 'bottom', 'width', 'height']) this.container.style[k] = '';
+      if (btn) {
+        btn.classList.add('gc-pin-btn');
+        btn.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M16 3l5 5-2 1-3 3 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 3-3z"/></svg>`;
+      }
+      this.updatePinUI();
+    } else if (btn) {
+      btn.classList.remove('gc-pin-btn', 'pinned');
+      btn.title = 'Minimize/Expand';
+      btn.innerHTML = this.isMinimized ? '&#9650;' : '&#9660;';
+    }
+  },
+
+  updatePinUI() {
+    const btn = this.container?.querySelector('#gc-btn-toggle');
+    if (!btn) return;
+    btn.classList.toggle('pinned', this.isPinned);
+    btn.title = this.isPinned ? 'Unpin chat (let it fade out)' : 'Pin chat open';
+    this.container.classList.toggle('gc-pinned', this.isPinned);
+  },
+
+  togglePin(force = null) {
+    this.isPinned = force != null ? !!force : !this.isPinned;
+    try {
+      localStorage.setItem('Dagyr_chat_pinned', this.isPinned ? '1' : '0');
+    } catch (e) { }
+    this.updatePinUI();
+    if (this.isPinned) this.wake();
+    else this.scheduleFade();
+  },
+
+  /** Fully show the desktop chat (and hide the scrolling pickup log beneath it). */
+  wake() {
+    if (!this.container) return;
+    if (this.fadeTimer) {
+      clearTimeout(this.fadeTimer);
+      this.fadeTimer = null;
+    }
+    this.container.classList.remove('gc-fading', 'gc-faded');
+    if (this.isDesktop() && !this.container.classList.contains('hidden')) {
+      document.body.classList.add('gc-chat-visible');
+    }
+  },
+
+  /**
+   * Desktop: once the chat is closed and not hovered (and not pinned) it turns translucent,
+   * then after FADE_DELAY_MS fades out completely and the scrolling pickup log returns.
+   */
+  scheduleFade() {
+    if (!this.container || !this.isDesktop()) return;
+    if (this.isPinned || this.isOpen || this.isHovered || this.isFilterMenuOpen) return;
+    if (this.container.classList.contains('gc-faded')) return;
+    if (this.fadeTimer) clearTimeout(this.fadeTimer);
+    this.container.classList.add('gc-fading');
+    this.fadeTimer = setTimeout(() => {
+      this.fadeTimer = null;
+      if (this.isPinned || this.isOpen || this.isHovered || this.isFilterMenuOpen) return;
+      this.fadeOutNow();
+    }, this.FADE_DELAY_MS);
+  },
+
+  /** Hide the desktop chat entirely and give the spot back to the pickup log. */
+  fadeOutNow() {
+    if (!this.container) return;
+    if (this.fadeTimer) {
+      clearTimeout(this.fadeTimer);
+      this.fadeTimer = null;
+    }
+    this.container.classList.remove('gc-fading');
+    this.container.classList.add('gc-faded');
+    this.container.classList.remove('active');
+    document.body.classList.remove('gc-chat-visible');
   },
 
   cycleChannel() {
@@ -915,6 +1030,7 @@ export const GameChat = {
     if (this.isMinimized) this.toggleMinimize(false);
     this.container.classList.add('active');
     this.isOpen = true;
+    this.wake();
     if (this.inputEl) {
       if (prefix) this.inputEl.value = prefix;
       this.inputEl.focus();
@@ -928,6 +1044,7 @@ export const GameChat = {
     }
     this.isOpen = false;
     this.container?.classList.remove('active');
+    this.scheduleFade();
   },
 
   navigateHistory(dir) {
@@ -992,6 +1109,8 @@ export const GameChat = {
       if (lMsg) {
         net.sendChat(text);
       }
+    } else if (text.startsWith('/f ') || text.startsWith('/friend ') || text === '/f' || text === '/friend') {
+      net.sendChat(text);
     } else if (text === '/clear') {
       this.clearHistory();
     } else if (text === '/players' || text === '/who') {
@@ -999,7 +1118,7 @@ export const GameChat = {
     } else if (text === '/help') {
       this.addMessage({
         tab: 'system',
-        text: 'Commands: /w <name> <msg> (Whisper), /r <msg> (Reply), /p <msg> (Party), /l <msg> (Lobby), /players (Who is online), /clear',
+        text: 'Commands: /w <name> <msg> (Whisper), /r <msg> (Reply), /f <add|remove|list> (Friends), /p <msg> (Party), /l <msg> (Lobby), /players (Online), /clear',
         color: '#ffd34a',
       });
     } else {
@@ -1050,10 +1169,23 @@ export const GameChat = {
   show() {
     if (!this.container) this.init();
     this.container.classList.remove('hidden');
+    this.applyDesktopMode();
+    if (!this.isDesktop()) {
+      document.body.classList.remove('gc-chat-visible');
+      return;
+    }
+    // Desktop: start out of the way (pickup log visible) unless pinned open
+    if (this.isPinned) this.wake();
+    else this.fadeOutNow();
   },
 
   hide() {
     if (this.container) this.container.classList.add('hidden');
+    if (this.fadeTimer) {
+      clearTimeout(this.fadeTimer);
+      this.fadeTimer = null;
+    }
+    document.body.classList.remove('gc-chat-visible');
   }
 };
 

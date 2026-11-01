@@ -10,7 +10,7 @@ const SHOTS = +(process.env.SHOTS || 3), ZOOM = +(process.env.ZOOM || 1.15), LIG
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
   try {
     await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       await game.newChar('paladin', 'Biome Looks');
       document.querySelectorAll('.screen').forEach((s) => s.remove());
       G.ui.modalCount = 0; G.godMode = true;
@@ -21,7 +21,7 @@ const SHOTS = +(process.env.SHOTS || 3), ZOOM = +(process.env.ZOOM || 1.15), LIG
     }, only);
     for (const id of ids) {
       const info = await page.evaluate(async ([id, depth, ZOOM, LIGHT, SHOTS]) => {
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         const { BIOME_BY_ID } = await import('/src/data/biomes.js');
         const { loadBiomeArt } = await import('/src/core/assets.js');
         const b = BIOME_BY_ID[id];
@@ -32,13 +32,15 @@ const SHOTS = +(process.env.SHOTS || 3), ZOOM = +(process.env.ZOOM || 1.15), LIG
         if (LIGHT !== 'off') w.biome = { ...w.biome, dark: +LIGHT };
         G.settings.zoom = ZOOM; (await import('/src/core/view.js')).camera.computeZoom();
         const rooms = (w.rooms || []).filter((r) => r.w && r.type !== 'arena').sort((a, c) => c.w * c.h - a.w * a.h).slice(0, SHOTS);
-        return { style: b.style, pack: w.tileset.pack, floors: w.tileset.floors.length, scatter: w.tileset.scatter.length,
-          themes: (w.rooms || []).map((r) => r.theme).filter(Boolean), spots: rooms.map((r) => [r.mx, r.my, r.theme || r.type]) };
+        return {
+          style: b.style, pack: w.tileset.pack, floors: w.tileset.floors.length, scatter: w.tileset.scatter.length,
+          themes: (w.rooms || []).map((r) => r.theme).filter(Boolean), spots: rooms.map((r) => [r.mx, r.my, r.theme || r.type])
+        };
       }, [id, depth, ZOOM, LIGHT, SHOTS]);
       console.log(id, JSON.stringify({ ...info, spots: undefined }));
       for (let i = 0; i < info.spots.length; i++) {
         const [x, y, th] = info.spots[i];
-        await page.evaluate(([x, y]) => { const { G } = window.VELSCOUR; G.player.x = x; G.player.y = y; G.hitStop = 1e9; }, [x, y]);
+        await page.evaluate(([x, y]) => { const { G } = window.DAGYR; G.player.x = x; G.player.y = y; G.hitStop = 1e9; }, [x, y]);
         await page.waitForTimeout(i ? 400 : 2500);
         await shot(`${prefix}_${id}_${i}_${String(th).replace(/[^a-z_]/gi, '')}`);
       }

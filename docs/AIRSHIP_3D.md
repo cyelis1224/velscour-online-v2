@@ -2,7 +2,7 @@
 
 Final Fantasy style airships for deck fights against the Air Pirates: the heroes ride a gothic ironclad, the pirates pull
 alongside in boarding boats and drop ramps onto its rail to offload waves, and bosses take the quarterdeck. There is also
-a wooden galleon of the same size. All are built in three.js from the user's **VELScour Material Texture Pack**
+a wooden galleon of the same size. All are built in three.js from the user's **Dagyr Material Texture Pack**
 (`assets/source/airship/`, 35 seamless 160 px pixel-art materials). Nothing in the game uses them yet. As with the Castle
 and the arches (docs/CASTLE_3D.md, docs/ARCH_3D.md), the game will draw baked sprites and never run three.js.
 
@@ -17,7 +17,7 @@ Each builder returns `{ root, anim(t, dt), info }`. On the big ships `info.walk`
 `zAt`/`sAt`, `blocked`) for a later bake or walk map. A skiff also returns `setRamp(f)` (0 = up, 1 = down on the rail).
 
 ## Viewer
-http://localhost:8123/tools/airship3d.html. Keys 1 to 4 pick the scene: **fleet** (default), **ironclad**,
+http://localhost:8124/tools/airship3d.html. Keys 1 to 4 pick the scene: **fleet** (default), **ironclad**,
 **galleon**, **skiffs**. Other keys: I iso view, P pixel size, F figures, G tile grid, W wind, D holds the boats docked,
 E brings a hero through the portal, Space pause. Query: `?scene=`, `?px=1|2|3`, `?figures=0`, `?grid=1`, `?dock=1`. `window.AIRSHIP.look(x, y, z, zoom, az, el)`
 frames any point, `AIRSHIP.setScene(name)` switches scenes, and `AIRSHIP.step(sec)` advances the animation

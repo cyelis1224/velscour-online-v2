@@ -3,7 +3,7 @@
 // scenarios (rampart and keep fights included) and a chained Sea of Sand route, where each next area must start on
 // its own. Flags scenarios that stall, fail, or leave the hero with nothing to fight for too long. The Castle
 // scenarios rotate through the castle variants (src/data/castles.js); name castles to play all 35 in each.
-//   node tools/tests/scenarios.js [types|-] [castle ids|all]   (start the server first: python3 -m http.server 8123)
+//   node tools/tests/scenarios.js [types|-] [castle ids|all]   (start the server first: python3 -m http.server 8124)
 const { openGame, report } = require('./harness');
 
 (async () => {
@@ -11,7 +11,7 @@ const { openGame, report } = require('./harness');
   if (process.argv[2] && process.argv[2] !== '-') await page.evaluate((t) => { window.SCENARIO_ONLY = t.split(','); }, process.argv[2]); // node scenarios.js merchants,brew
   if (process.argv[3]) await page.evaluate((t) => { window.SCENARIO_CASTLES = t; }, process.argv[3]);
   const res = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('paladin', 'Scenario Bot');
     G.char.depth = 19; G.godMode = true;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -64,7 +64,7 @@ const { openGame, report } = require('./harness');
         W.portals = W.portals.slice(0, 2); W.npcs = []; W.overworldScenario = null; W.rebuildGrid?.();
         P.x = gen.shrine[0] + 1; P.y = gen.shrine[1] + 1;
         if (!W.map.walkable(P.x, P.y)) [P.x, P.y] = gen.shrine;
-        const S = createOverworldScenario(W, { ...gen, scenarioId: id }, biome, () => {}); S.start();
+        const S = createOverworldScenario(W, { ...gen, scenarioId: id }, biome, () => { }); S.start();
         const st = { idle: 0, maxIdle: 0, repath: 0, path: null, sticky: null }; let t = 0;
         while (t < 360 && !S.completed && !S.failed) { t += dt; W.update(dt); S.update(dt); if (W.map.c3struct) castle3dTick(W, dt); step(W, P, S, st); }
         st.maxIdle = Math.max(st.maxIdle, st.idle);

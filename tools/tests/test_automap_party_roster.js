@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const BASE_URL = 'http://localhost:8123';
+const BASE_URL = 'http://localhost:8124';
 const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
 
 (async () => {
@@ -19,15 +19,15 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     const p2 = await ctx2.newPage();
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
     }
 
     console.log('Navigating players to game...');
     await p1.goto(BASE_URL + '/index.html');
     await p2.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Inject hero saves
     await p1.evaluate(async () => {
@@ -67,7 +67,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
     // Wait for P1 to be in game
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
+    await p1.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
     console.log('P1 entered town as host.');
 
     // P2 finds room and joins
@@ -80,7 +80,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
+    await p2.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
     console.log('P2 entered town as guest.');
 
     // Wait for network sync
@@ -92,7 +92,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.keyboard.press('Tab');
     await p1.waitForTimeout(300);
 
-    const isAutomapOpen = await p1.evaluate(() => window.VELSCOUR.G.showAutomap);
+    const isAutomapOpen = await p1.evaluate(() => window.DAGYR.G.showAutomap);
     console.log('P1 G.showAutomap is:', isAutomapOpen);
     if (!isAutomapOpen) throw new Error('G.showAutomap was not toggled by Tab key!');
 
@@ -127,7 +127,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // TEST 4: Damage on P2 reflected in P1's Tab roster
     console.log('\n--- TEST 4: P2 takes damage, verify updated HP on P1 party roster ---');
     await p2.evaluate(() => {
-      window.VELSCOUR.G.player.hp = 35;
+      window.DAGYR.G.player.hp = 35;
     });
 
     // Wait for P2's periodic network sync (50ms) to arrive on P1
@@ -143,7 +143,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // TEST 5: Close Tab automap
     await p1.keyboard.press('Tab');
     await p1.waitForTimeout(300);
-    const closedAutomap = await p1.evaluate(() => window.VELSCOUR.G.showAutomap);
+    const closedAutomap = await p1.evaluate(() => window.DAGYR.G.showAutomap);
     console.log('P1 G.showAutomap after second Tab is:', closedAutomap);
     if (closedAutomap) throw new Error('G.showAutomap did not close when pressing Tab again!');
 

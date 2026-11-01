@@ -40,6 +40,7 @@ export const G = {
     noSkipCine: false, // "Don't skip cutscenes": Sky Battle scenes already seen play at 1x, not 20x
     fpsCap: 0, // frame rate cap: 0 none, 30 (phones run cooler over a long session)
     showHeroStats: true, // show/hide the #hero-stats div
+    alwaysShowParty: false, // keep the party list up in online rooms (otherwise it shows with the automap: Tab/M)
     showTargetBox: true, // show/hide the #target-box div
     showTargetSprite: true, // choose if target-box shows the target sprite or not
     showChatBubbles: true, // player chat bubbles over heads (and offscreen edge pointers)
@@ -47,7 +48,7 @@ export const G = {
   },
 };
 
-export const SETTINGS_KEY = 'velscour_settings_v1';
+export const SETTINGS_KEY = 'Dagyr_settings_v1';
 
 export function loadSettings() {
   try {

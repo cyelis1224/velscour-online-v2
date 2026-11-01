@@ -18,18 +18,18 @@ const FLOOR = +(process.argv[3] || 2);
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1366, height: 860 });
   const enter = async (floor, types = null) => {
-    await page.evaluate(([floor, types]) => { const { G, game } = window.VELSCOUR; G.breachTypes = types; G.char.breach.best = Math.max(G.char.breach.best, floor - 1); game.enterBreach(floor); }, [floor, types]);
-    await page.waitForFunction((f) => window.VELSCOUR.G.world?.breach?.floor === f && document.querySelector('#loading').classList.contains('hidden'), floor, { timeout: 60000 });
+    await page.evaluate(([floor, types]) => { const { G, game } = window.DAGYR; G.breachTypes = types; G.char.breach.best = Math.max(G.char.breach.best, floor - 1); game.enterBreach(floor); }, [floor, types]);
+    await page.waitForFunction((f) => window.DAGYR.G.world?.breach?.floor === f && document.querySelector('#loading').classList.contains('hidden'), floor, { timeout: 60000 });
   };
   try {
     if (process.env.BREACH_CLASS) await page.evaluate((c) => { window.BREACH_CLASS = c; }, process.env.BREACH_CLASS); // e.g. lancer
-    await page.evaluate(async () => { await window.VELSCOUR.game.newChar(window.BREACH_CLASS || 'paladin', 'Breacher'); });
+    await page.evaluate(async () => { await window.DAGYR.game.newChar(window.BREACH_CLASS || 'paladin', 'Breacher'); });
     await page.waitForTimeout(300);
 
     // ------------------------------------------------ town: the purple portal
     if (PARTS.includes('town')) {
       const r = await page.evaluate(async () => {
-        const { G, game } = window.VELSCOUR, bad = [];
+        const { G, game } = window.DAGYR, bad = [];
         const { generateTown } = await import('/src/world/town.js');
         const { biomeTileSet } = await import('/src/core/assets.js');
         const { TOWN_BIOME } = await import('/src/data/biomes.js');
@@ -51,7 +51,7 @@ const FLOOR = +(process.argv[3] || 2);
       console.log('town', JSON.stringify(r));
       for (const b of r.bad) errors.push('[town] ' + b);
       // auto-play's menu
-      await page.evaluate(async () => { const { G, game } = window.VELSCOUR; game.enterTown(); const { Auto } = await import('/src/game/autoplay.js'); Auto.toggle(true); });
+      await page.evaluate(async () => { const { G, game } = window.DAGYR; game.enterTown(); const { Auto } = await import('/src/game/autoplay.js'); Auto.toggle(true); });
       await page.waitForTimeout(400);
       await shot('breach_auto_menu');
       const m = await page.evaluate(async () => {
@@ -59,7 +59,7 @@ const FLOOR = +(process.argv[3] || 2);
         if (!btn) return 'no menu';
         btn.click();
         const { Auto } = await import('/src/game/autoplay.js');
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         // auto-play walks to the purple portal and goes through
         let t = 0;
         while (t < 120 && !G.world.breach) { G.dt = 1 / 30; G.time += G.dt; G.frame++; game.update(1 / 30); t += 1 / 30; if (t % 1 < 0.04) await new Promise((r) => setTimeout(r, 0)); }
@@ -70,7 +70,7 @@ const FLOOR = +(process.argv[3] || 2);
       await page.waitForFunction(() => document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 60000 });
       console.log('auto-play menu ->', m);
       if (m !== 'breach') errors.push('[town] auto-play menu: ' + m);
-      await page.evaluate(() => window.VELSCOUR.game.enterTown());
+      await page.evaluate(() => window.DAGYR.game.enterTown());
     }
 
     // ------------------------------------------------ a bot plays every scenario
@@ -81,7 +81,7 @@ const FLOOR = +(process.argv[3] || 2);
         while (batch.length < 7) batch.push('surge');
         await enter(FLOOR, batch.slice());
         const r = await page.evaluate(async () => {
-          const { G } = window.VELSCOUR;
+          const { G } = window.DAGYR;
           const { hit } = await import('/src/game/combat.js');
           const W = G.world, P = G.player, run = W.overworldScenario, out = [], bad = [], dt = 1 / 15;
           G.godMode = true;
@@ -116,10 +116,14 @@ const FLOOR = +(process.argv[3] || 2);
             const off = new Set(), stuck = new Set(), seen = new Set();
             // where the hero can walk in this fight: the walkways are locked to him, so the island's own tiles only
             const M = W.map, own = M.breach.own, N = M.w;
-            const isleReach = () => { const s0 = M.tileIdx(P.x, P.y), got = new Set([s0]), q = [s0];
-              for (let k = 0; k < q.length; k++) { const i = q[k], x = i % N, y = (i / N) | 0;
-                for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const j = (y + dy) * N + x + dx; if (!got.has(j) && own[j] === S.o.idx && M.walkableTile(x + dx, y + dy) && M.stepOk(i, j)) { got.add(j); q.push(j); } } }
-              return got; };
+            const isleReach = () => {
+              const s0 = M.tileIdx(P.x, P.y), got = new Set([s0]), q = [s0];
+              for (let k = 0; k < q.length; k++) {
+                const i = q[k], x = i % N, y = (i / N) | 0;
+                for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const j = (y + dy) * N + x + dx; if (!got.has(j) && own[j] === S.o.idx && M.walkableTile(x + dx, y + dy) && M.stepOk(i, j)) { got.add(j); q.push(j); } }
+              }
+              return got;
+            };
             const canReach = (x, y, r) => { for (const i of isleReach()) if (Math.hypot((i % N) + 0.5 - x, ((i / N) | 0) + 0.5 - y) <= r) return true; return false; };
             const landed = () => {
               // the fight's markers (a resonator, a grapple, a coffin, a door, a keystone) can be walked up to
@@ -129,11 +133,12 @@ const FLOOR = +(process.argv[3] || 2);
                 if (!canReach(mk.x, mk.y, (mk.reach || 1.4) - 0.3)) stuck.add(mk.label);
               }
               for (const m of S.foes) {
-              if (m.dead || m.entering || m.targetable === false || seen.has(m)) continue;
-              seen.add(m);
-              if (!W.map.walkable(m.x, m.y)) off.add(m.name);
-              if (m.static && !canReach(m.x, m.y, 1.8)) stuck.add(m.name);
-            } };
+                if (m.dead || m.entering || m.targetable === false || seen.has(m)) continue;
+                seen.add(m);
+                if (!W.map.walkable(m.x, m.y)) off.add(m.name);
+                if (m.static && !canReach(m.x, m.y, 1.8)) stuck.add(m.name);
+              }
+            };
             // the longest stretch with nothing of the fight alive and no task to do: the hero waiting for monsters
             let empty = 0, emptyMax = 0;
             while (t < 400 && !S.completed) {
@@ -187,7 +192,7 @@ const FLOOR = +(process.argv[3] || 2);
       const kinds = await page.evaluate(async () => (await import('/src/game/breach.js')).ARRIVALS);
       for (const kind of kinds) {
         const r = await page.evaluate(async (kind) => {
-          const { G, game } = window.VELSCOUR;
+          const { G, game } = window.DAGYR;
           const { arrive } = await import('/src/game/breach.js');
           const W = G.world, P = G.player, run = W.overworldScenario;
           G.godMode = true;
@@ -204,7 +209,7 @@ const FLOOR = +(process.argv[3] || 2);
         }, kind);
         await shot('breach_arrive_' + kind);
         const fin = await page.evaluate(async () => {
-          const { G, game } = window.VELSCOUR;
+          const { G, game } = window.DAGYR;
           let t = 0;
           while (t < 8) { t += 1 / 30; G.time += 1 / 30; G.frame++; game.update(1 / 30); }
           const ms = G.world.creatures.filter((m) => m.team === 'enemy' && !m.dead);
@@ -224,7 +229,7 @@ const FLOOR = +(process.argv[3] || 2);
       await page.waitForTimeout(3500);
       const at = async (name, fn, zoom = 1) => {
         await page.evaluate(async ([src, zoom]) => {
-          const { G } = window.VELSCOUR, W = G.world, run = W.overworldScenario, P = G.player;
+          const { G } = window.DAGYR, W = G.world, run = W.overworldScenario, P = G.player;
           const { camera } = await import('/src/core/view.js');
           const p = new Function('W', 'run', 'P', src)(W, run, P);
           if (p) { P.x = p[0]; P.y = p[1]; }
@@ -242,14 +247,14 @@ const FLOOR = +(process.argv[3] || 2);
       // this one, puts him back where he last stood)
       await at('ward', 'for (const w of run.wards) w.closed = w === run.wards[0] && w.was; const w = run.wards[0], b = W.breachBridges[w.b.idx], N = W.map.w; const i = (b.nearTiles || []).filter((t) => W.map.walkableTile(t % N, (t / N) | 0)).sort((a, c) => Math.hypot(a % N - w.x, ((a / N) | 0) - w.y) - Math.hypot(c % N - w.x, ((c / N) | 0) - w.y))[2]; return i === undefined ? [w.x - 1.5, w.y + 1.5] : [(i % N) + 0.5, ((i / N) | 0) + 0.5];', 1);
       await at('fight', 'for (const w of run.wards) w.closed = w.was; const S = run.scenarios.find((s) => s.type !== "heart"); run.force(S); for (let i = 0; i < 90; i++) { W.update(1/30); run.update(1/30); } return null;', 1);
-      await page.evaluate(async () => { const { G } = window.VELSCOUR; const { camera } = await import('/src/core/view.js'); G.settings.zoom = 1; camera.computeZoom(); });
+      await page.evaluate(async () => { const { G } = window.DAGYR; const { camera } = await import('/src/core/view.js'); G.settings.zoom = 1; camera.computeZoom(); });
     }
 
     // ------------------------------------------------ auto-play plays a whole floor
     if (PARTS.includes('auto')) {
       if (process.env.BREACH_SEED) await page.evaluate((s) => { window.BREACH_SEED = +s; }, process.env.BREACH_SEED); // replay a floor
       const r = await page.evaluate(async (FLOOR) => {
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         const { Auto } = await import('/src/game/autoplay.js');
         const { breachLevel } = await import('/src/data/breach.js');
         const { rollItem, rollGem } = await import('/src/data/items.js');
@@ -304,7 +309,7 @@ const FLOOR = +(process.argv[3] || 2);
       if (r.where === 'town') {
         await page.waitForTimeout(3000);
         const dark = await page.evaluate(() => {
-          const c = window.VELSCOUR.G.canvas, g = c.getContext('2d'), w = c.width, h = c.height;
+          const c = window.DAGYR.G.canvas, g = c.getContext('2d'), w = c.width, h = c.height;
           const d = g.getImageData(Math.round(w * 0.2), Math.round(h * 0.2), Math.round(w * 0.6), Math.round(h * 0.6)).data;
           let n = 0; for (let i = 0; i < d.length; i += 16) if (d[i] + d[i + 1] + d[i + 2] < 30) n++;
           return n / (d.length / 16);
@@ -321,7 +326,7 @@ const FLOOR = +(process.argv[3] || 2);
       // ones on screen (spells, the fight at hand) are dropped
       await enter(FLOOR);
       const lit = await page.evaluate(async () => {
-        const { G, game } = window.VELSCOUR, { lights } = await import('/src/gfx/vfx.js'), run = G.world.overworldScenario;
+        const { G, game } = window.DAGYR, { lights } = await import('/src/gfx/vfx.js'), run = G.world.overworldScenario;
         let most = 0;
         for (let i = 0; i < 40; i++) { G.time += 1 / 30; game.update(1 / 30); most = Math.max(most, lights.length); }
         run.force(run.scenarios.find((q) => q !== run.heart));
@@ -332,7 +337,7 @@ const FLOOR = +(process.argv[3] || 2);
       console.log(`lights a frame: at most ${lit} of 48`);
       if (lit >= 40) errors.push(`[rules] ${lit} lights a frame: the floor's far lamps crowd out the ones on screen`);
       const r = await page.evaluate(async () => {
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         const { breachReward, BREACH_ODDS, breachDepth } = await import('/src/data/breach.js');
         const { migrate } = await import('/src/game/save.js');
         const bad = [], N = 20000, tally = (floor, first) => { const n = [0, 0, 0, 0, 0, 0]; for (let i = 0; i < N; i++) n[breachReward(floor, first)]++; return n.map((v) => v / N); };
@@ -356,7 +361,7 @@ const FLOOR = +(process.argv[3] || 2);
       // a monster up on a ledge the hero can't climb is torn back down next to him
       await enter(1);
       const ledge = await page.evaluate(async () => {
-        const { G } = window.VELSCOUR;
+        const { G } = window.DAGYR;
         const { arrive } = await import('/src/game/breach.js');
         const W = G.world, P = G.player, map = W.map, run = W.overworldScenario, own = map.breach.own, here = own[map.tileIdx(P.x, P.y)];
         G.godMode = true;
@@ -383,7 +388,7 @@ const FLOOR = +(process.argv[3] || 2);
       // back at his last Breach spot (off the edge of town: the black town)
       await enter(1);
       const home = await page.evaluate(async () => {
-        const { G, game } = window.VELSCOUR, { Auto } = await import('/src/game/autoplay.js');
+        const { G, game } = window.DAGYR, { Auto } = await import('/src/game/autoplay.js');
         const step = () => { G.dt = 1 / 30; G.time += G.dt; G.frame++; game.update(1 / 30); };
         for (let i = 0; i < 30; i++) step();
         G.player.x = 90.5; G.player.y = 95.5; // far out over the void: what the ward check last saw
@@ -395,11 +400,11 @@ const FLOOR = +(process.argv[3] || 2);
       console.log('home', JSON.stringify(home));
       if (home.kind !== 'town' || !home.ok) errors.push('[rules] auto-play came home off the town\'s ground: ' + JSON.stringify(home));
       await enter(1);
-      await page.evaluate(() => { const { G } = window.VELSCOUR; G.godMode = false; G.player.hp = 0; G.player.die(null); });
+      await page.evaluate(() => { const { G } = window.DAGYR; G.godMode = false; G.player.hp = 0; G.player.die(null); });
       await page.waitForTimeout(2200);
       await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Return to Town'))?.click());
       await page.waitForTimeout(800);
-      const after = await page.evaluate(() => { const { G } = window.VELSCOUR; return { kind: G.world.kind, depth: G.char.depth, def: G.char.defiance ? G.char.defiance.n : 0, text: document.body.innerText.includes('Eternal Breach') }; });
+      const after = await page.evaluate(() => { const { G } = window.DAGYR; return { kind: G.world.kind, depth: G.char.depth, def: G.char.defiance ? G.char.defiance.n : 0, text: document.body.innerText.includes('Eternal Breach') }; });
       console.log('death', JSON.stringify(after));
       if (after.kind !== 'town' || after.depth !== r.d0 || after.def !== r.def0) errors.push('[rules] a death in the Breach changed the descent: ' + JSON.stringify(after));
     }
@@ -407,19 +412,19 @@ const FLOOR = +(process.argv[3] || 2);
     if (PARTS.includes('perf')) {
       // the game's own loop (requestAnimationFrame) with auto-play on, 8 s: the update/render ms a frame
       const measure = async () => page.evaluate(() => new Promise((res) => {
-        const { G, game } = window.VELSCOUR, u = game.update, rd = game.render, s = { u: 0, r: 0, n: 0 };
+        const { G, game } = window.DAGYR, u = game.update, rd = game.render, s = { u: 0, r: 0, n: 0 };
         game.update = function (dt) { const t = performance.now(); u.call(this, dt); s.u += performance.now() - t; };
         game.render = function () { const t = performance.now(); rd.call(this); s.r += performance.now() - t; s.n++; };
         setTimeout(() => { game.update = u; game.render = rd; res({ update: +(s.u / s.n).toFixed(2), render: +(s.r / s.n).toFixed(2), creatures: G.world.creatures.length }); }, 8000);
       }));
-      await page.evaluate(async () => { const { G } = window.VELSCOUR; const { Auto } = await import('/src/game/autoplay.js'); G.godMode = true; G.autoDest = 'breach'; if (!Auto.on) Auto.toggle(true); });
+      await page.evaluate(async () => { const { G } = window.DAGYR; const { Auto } = await import('/src/game/autoplay.js'); G.godMode = true; G.autoDest = 'breach'; if (!Auto.on) Auto.toggle(true); });
       await enter(FLOOR);
       await page.waitForTimeout(1500);
       const b = await measure();
-      await page.evaluate(async () => { const { G, game } = window.VELSCOUR; const { BIOME_BY_ID } = await import('/src/data/biomes.js'); await game.loadLevelArt(BIOME_BY_ID.mountainside); game.buildDungeon(G.char.depth, BIOME_BY_ID.mountainside); });
+      await page.evaluate(async () => { const { G, game } = window.DAGYR; const { BIOME_BY_ID } = await import('/src/data/biomes.js'); await game.loadLevelArt(BIOME_BY_ID.mountainside); game.buildDungeon(G.char.depth, BIOME_BY_ID.mountainside); });
       await page.waitForTimeout(1500);
       const m = await measure();
-      await page.evaluate(async () => { const { G } = window.VELSCOUR; const { Auto } = await import('/src/game/autoplay.js'); Auto.toggle(false); G.godMode = false; G.autoDest = null; });
+      await page.evaluate(async () => { const { G } = window.DAGYR; const { Auto } = await import('/src/game/autoplay.js'); Auto.toggle(false); G.godMode = false; G.autoDest = null; });
       console.log(`perf (ms a frame, SwiftShader): breach update ${b.update} render ${b.render} (${b.creatures} creatures); mountainside update ${m.update} render ${m.render} (${m.creatures})`);
     }
   } catch (e) { errors.push('[test] ' + (e.stack || e)); }

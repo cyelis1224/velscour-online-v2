@@ -22,12 +22,12 @@ const { openGame, report } = require('./harness');
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
   const snap = async (s, name) => { await s(name); shots.push(name); };
   try {
-    await page.evaluate(async () => { await window.VELSCOUR.game.newChar('paladin', 'Markbearer'); });
+    await page.evaluate(async () => { await window.DAGYR.game.newChar('paladin', 'Markbearer'); });
     await page.waitForTimeout(400);
 
     // ---------------------------------------------- 1. XP past the cap
     const spare = await page.evaluate(async () => {
-      const { G } = window.VELSCOUR, c = G.char, p = G.player;
+      const { G } = window.DAGYR, c = G.char, p = G.player;
       const { endgame } = await import('/src/game/endgame.js');
       const { markXp } = await import('/src/game/marks.js');
       const { xpToNext, MAX_LEVEL } = await import('/src/game/player.js');
@@ -41,7 +41,7 @@ const { openGame, report } = require('./harness');
       `level ${spare.cap - 1} -> ${spare.cap}: the last level's spare XP counts (${spare.pts} Marks + ${Math.round(spare.xp)} XP; one Mark = ${spare.cost.toLocaleString()} XP)`);
 
     const run = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR, c = G.char, p = G.player;
+      const { G, game } = window.DAGYR, c = G.char, p = G.player;
       const { endgame } = await import('/src/game/endgame.js');
       const { markXp } = await import('/src/game/marks.js');
       const { kill } = await import('/src/game/combat.js');
@@ -55,7 +55,7 @@ const { openGame, report } = require('./harness');
       const pen = Math.max(0.1, 1 - (c.level - depthLevel(6500) - 5) * 0.1), mul = 1 + p.st.xpPct / 100;
       const total = () => m.pts * cost + m.xp;
       m.xp = Math.max(m.xp, cost - 4e6);   // the next Mark a few million XP away: the kills earn it
-      const t0 = total(), pts0 = m.pts, raw = localStorage.getItem('velscour_endgame_v1');
+      const t0 = total(), pts0 = m.pts, raw = localStorage.getItem('Dagyr_endgame_v1');
       let want = 0, rawXp = 0, n = 0, rose = [];
       // the rate: a full clear's XP in Marks at depths where the level-3000 hero out-levels the monsters, and where he doesn't
       const rates = [];
@@ -74,10 +74,12 @@ const { openGame, report } = require('./harness');
         kill(e, p);
         if (m.pts > before) rose.push(m.pts);
       }
-      const saved = JSON.parse(localStorage.getItem('velscour_endgame_v1') || '{}');
+      const saved = JSON.parse(localStorage.getItem('Dagyr_endgame_v1') || '{}');
       const log = document.querySelector('#log').textContent;
-      return { n, rawXp, want, got: total() - t0, pts0, pts: m.pts, xp: m.xp, cost, pen, mul, rose: rose.length, savedPts: saved.marks && saved.marks.pts, rawChanged: raw !== localStorage.getItem('velscour_endgame_v1'),
-        log: /\+\d+ Infernal Marks? from the abyss/.test(log), mlvl: depthLevel(6500), at: rates };
+      return {
+        n, rawXp, want, got: total() - t0, pts0, pts: m.pts, xp: m.xp, cost, pen, mul, rose: rose.length, savedPts: saved.marks && saved.marks.pts, rawChanged: raw !== localStorage.getItem('Dagyr_endgame_v1'),
+        log: /\+\d+ Infernal Marks? from the abyss/.test(log), mlvl: depthLevel(6500), at: rates
+      };
     });
     console.log(`  depth 6500 (monster level ${run.mlvl}): ${run.n} kills, ${Math.round(run.rawXp).toLocaleString()} XP before the out-levelling penalty (x${run.pen}, XP find x${run.mul.toFixed(2)}) -> ${Math.round(run.got).toLocaleString()} XP = ${(run.got / run.cost).toFixed(2)} Marks per full-cleared depth`);
     console.log(`  Marks per full-cleared depth for a level-3000 hero: ${run.at.join(', ')}`);
@@ -85,16 +87,16 @@ const { openGame, report } = require('./harness');
     check(run.pts > run.pts0, `Marks rise from kills at depth 6500: ${run.pts0} -> ${run.pts}`);
     check(run.savedPts === run.pts, 'a Mark is saved at once (localStorage holds the new total)');
     check(run.log, 'the log names the Mark ("+1 Infernal Mark from the abyss")');
-    await page.evaluate(async () => { const { gainMarkXp, markXp } = await import('/src/game/marks.js'); const { G } = window.VELSCOUR; G.ui.hud.lu && G.ui.hud.lu.timers.forEach(clearTimeout); document.querySelector('#levelup').classList.add('hidden'); gainMarkXp(markXp()); });
+    await page.evaluate(async () => { const { gainMarkXp, markXp } = await import('/src/game/marks.js'); const { G } = window.DAGYR; G.ui.hud.lu && G.ui.hud.lu.timers.forEach(clearTimeout); document.querySelector('#levelup').classList.add('hidden'); gainMarkXp(markXp()); });
     await page.waitForTimeout(700);
     await snap(shot, 'marks_earned');
 
     // the save cadence: XP alone is saved at most every 5 s, every Mark at once, and by autosave
     const cad = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { endgame } = await import('/src/game/endgame.js');
       const { gainMarkXp, markXp } = await import('/src/game/marks.js');
-      const disk = () => JSON.parse(localStorage.getItem('velscour_endgame_v1')).marks.xp;
+      const disk = () => JSON.parse(localStorage.getItem('Dagyr_endgame_v1')).marks.xp;
       const m = endgame().marks;
       if (m.xp > markXp() * 0.9) m.xp = 0;
       gainMarkXp(1);                     // within 5 s of the last save: kept in memory
@@ -108,13 +110,13 @@ const { openGame, report } = require('./harness');
       const { endgame } = await import('/src/game/endgame.js');
       const { gainMarkXp } = await import('/src/game/marks.js');
       gainMarkXp(7);
-      return JSON.parse(localStorage.getItem('velscour_endgame_v1')).marks.xp === endgame().marks.xp;
+      return JSON.parse(localStorage.getItem('Dagyr_endgame_v1')).marks.xp === endgame().marks.xp;
     });
     check(late, 'XP gained 5 s after the last save is written at once');
 
     // HUD XP bar + the sheet at the cap
     await page.evaluate(async () => {
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       const { endgame } = await import('/src/game/endgame.js');
       const { gainMarkXp, markXp } = await import('/src/game/marks.js');
       const m = endgame().marks; m.xp = 0; gainMarkXp(Math.round(markXp() * 0.42));
@@ -147,18 +149,18 @@ const { openGame, report } = require('./harness');
       const { gainMarkXp } = await import('/src/game/marks.js');
       gainMarkXp(3);                     // unsaved: within the 5 s window
       const m = endgame().marks;
-      return { pts: m.pts, xp: m.xp, disk: JSON.parse(localStorage.getItem('velscour_endgame_v1')).marks.xp };
+      return { pts: m.pts, xp: m.xp, disk: JSON.parse(localStorage.getItem('Dagyr_endgame_v1')).marks.xp };
     });
     await page.reload();
-    await page.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
+    await page.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
     const after = await page.evaluate(async () => { const { endgame } = await import('/src/game/endgame.js'); const m = endgame().marks; return { pts: m.pts, xp: m.xp }; });
     check(before.disk !== before.xp && after.pts === before.pts && after.xp === before.xp, `a reload keeps the Marks and the XP towards the next (${after.pts} Marks, ${after.xp} XP; ${before.xp - before.disk} XP were not on disk before it)`);
 
     // ---------------------------------------------- 2. spending and the bonuses
-    await page.evaluate(async () => { await window.VELSCOUR.game.newChar('paladin', 'Markbearer II'); });
+    await page.evaluate(async () => { await window.DAGYR.game.newChar('paladin', 'Markbearer II'); });
     await page.waitForTimeout(300);
     const sp = await page.evaluate(async () => {
-      const { G } = window.VELSCOUR, c = G.char, p = G.player;
+      const { G } = window.DAGYR, c = G.char, p = G.player;
       const E = await import('/src/game/endgame.js');
       const M = await import('/src/game/marks.js');
       const { riftTime } = await import('/src/game/rifts.js');
@@ -190,7 +192,7 @@ const { openGame, report } = require('./harness');
       E.endgame().marks.pts = 403; o.auto = M.autoSpend(); o.spread = { ...E.endgame().marks.spent };
       o.text = M.marksText();
       // a damaged record: spent beyond the points, junk values
-      localStorage.setItem('velscour_endgame_v1', JSON.stringify({ v: 1, unlocked: 'x', marks: { pts: 5, xp: -3, spent: { life: 99, crit: 'x', mf: -4, rift: 2 } }, bests: { wizard: { tier: 'q' } }, keysFound: -2 }));
+      localStorage.setItem('Dagyr_endgame_v1', JSON.stringify({ v: 1, unlocked: 'x', marks: { pts: 5, xp: -3, spent: { life: 99, crit: 'x', mf: -4, rift: 2 } }, bests: { wizard: { tier: 'q' } }, keysFound: -2 }));
       E.resetEndgameCache();
       const d = E.endgame();
       o.damaged = { pts: d.marks.pts, xp: d.marks.xp, spent: d.marks.spent, sum: M.marksSpent(), bests: Object.keys(d.bests).length, keys: d.keysFound, unlocked: d.unlocked };
@@ -243,12 +245,12 @@ const { openGame, report } = require('./harness');
 
     // ---------------------------------------------- 3. shared across heroes, the panel
     const sh = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const E = await import('/src/game/endgame.js');
       const M = await import('/src/game/marks.js');
       const S = await import('/src/game/save.js');
       const { MAX_LEVEL } = await import('/src/game/player.js');
-      E.resetEndgameCache(); localStorage.removeItem('velscour_endgame_v1'); E.resetEndgameCache();
+      E.resetEndgameCache(); localStorage.removeItem('Dagyr_endgame_v1'); E.resetEndgameCache();
       E.unlockEndgame(); M.grantMarks(240, 'test'); M.spendMark('life', 60); M.spendMark('crit', 20); M.spendMark('mf', 30);
       G.char.level = MAX_LEVEL; G.player.recompute(); game.autosave();
       const pal = { life: G.player.marks.life, crit: G.player.marks.crit, id: G.char.id };
@@ -265,7 +267,7 @@ const { openGame, report } = require('./harness');
     check(!sh.heroes.includes('paladin') && sh.kept.pts === 240 && sh.kept.free === 130 && sh.kept.life === 60, `deleting the paladin keeps every Mark (${sh.kept.pts}, ${sh.kept.free} free)`);
 
     // the panel, by its buttons
-    await page.evaluate(() => { window.VELSCOUR.G.ui.marks.open(); });
+    await page.evaluate(() => { window.DAGYR.G.ui.marks.open(); });
     await page.waitForSelector('.marks-panel .mk-row');
     await snap(shot, 'marks_panel');
     const clicks = async (sel) => page.click(sel);
@@ -292,10 +294,10 @@ const { openGame, report } = require('./harness');
     });
     check(/Infernal Marks: 240 \(40 free\)/.test(q), `the Quest Log: "${q}"`);
     await snap(shot, 'marks_quest');
-    await page.evaluate(async () => { const { UI } = await import('/src/ui/ui.js'); UI.closeAll(); document.getElementById('velscour-skull').click(); });
+    await page.evaluate(async () => { const { UI } = await import('/src/ui/ui.js'); UI.closeAll(); document.getElementById('Dagyr-skull').click(); });
     await page.waitForTimeout(400);
-    await page.fill('#velscour-message', 'marks');
-    await page.evaluate(() => [...document.querySelectorAll('.velscour-contact-dialog button')].find((b) => b.textContent === 'Send').click());
+    await page.fill('#Dagyr-message', 'marks');
+    await page.evaluate(() => [...document.querySelectorAll('.Dagyr-contact-dialog button')].find((b) => b.textContent === 'Send').click());
     await page.waitForTimeout(300);
     check(await page.evaluate(() => !!document.querySelector('.marks-panel')), 'the skull\'s message box: "marks" opens the panel');
   } catch (e) { errs.push('[test] ' + (e.stack || e)); } finally { errs.push(...errors); await browser.close(); }
@@ -304,7 +306,7 @@ const { openGame, report } = require('./harness');
   const P = await openGame({ width: 844, height: 390, mobile: true });
   try {
     await P.page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const E = await import('/src/game/endgame.js');
       const M = await import('/src/game/marks.js');
       const { MAX_LEVEL } = await import('/src/game/player.js');
@@ -315,7 +317,7 @@ const { openGame, report } = require('./harness');
     });
     await P.page.waitForTimeout(500);
     await snap(P.shot, 'marks_phone_hud');
-    await P.page.evaluate(() => { window.VELSCOUR.G.ui.marks.open(); });
+    await P.page.evaluate(() => { window.DAGYR.G.ui.marks.open(); });
     await P.page.waitForSelector('.marks-panel .mk-row');
     await P.page.waitForTimeout(200);
     const lay = await P.page.evaluate(() => {

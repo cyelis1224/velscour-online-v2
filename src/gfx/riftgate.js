@@ -1,4 +1,4 @@
-// The Riftgate in Herrington Hollow: the blue-black tear that leads to VELSCOUR DEFENSE (defense/, a separate game
+// The Riftgate in Herrington Hollow: the blue-black tear that leads to DAGYR DEFENSE (defense/, a separate game
 // with its own page and save). The dungeon portal's size but wilder: a black core in a churning blue vortex,
 // lightning crawling round its rim, rune stones orbiting, and the ground cracked open beneath it.
 import { G } from '../state.js';

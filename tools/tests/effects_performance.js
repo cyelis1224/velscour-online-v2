@@ -19,10 +19,10 @@ for (const [name, file] of Object.entries({ render: 'game/render', world: 'game/
   const mobile = process.argv.includes('mobile');
   const { browser, page, errors, shot } = await openGame(mobile ? { width: 844, height: 390, mobile } : {});
   try {
-    await page.evaluate(() => window.VELSCOUR.game.newChar('wizard', 'Effects QA'));
+    await page.evaluate(() => window.DAGYR.game.newChar('wizard', 'Effects QA'));
     for (const id of ['catacombs', 'ice_temple', 'hell', 'astral_plane', 'heavenly', 'overworld']) {
       const result = await page.evaluate(async id => {
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         const { BIOME_BY_ID } = await import('/src/data/biomes.js');
         const { loadBiomeArt } = await import('/src/core/assets.js');
         const { renderWorld } = await import('/src/game/render.js');
@@ -58,9 +58,11 @@ for (const [name, file] of Object.entries({ render: 'game/render', world: 'game/
         };
         // Fixed live scene, same time, particles, dimensions and resolution.
         vfx.clearVfx();
-        for (let i = 0; i < (G.touch ? 1400 : 3000); i++) vfx.spawn({ type: i % 2 ? 'glow' : 'dot',
+        for (let i = 0; i < (G.touch ? 1400 : 3000); i++) vfx.spawn({
+          type: i % 2 ? 'glow' : 'dot',
           x: w.player.x + ((i * 17) % 80 - 40) / 10, y: w.player.y + ((i * 31) % 80 - 40) / 10,
-          z: i % 70, life: 2, color: i % 2 ? '#ff8a30' : '#c5f4ff', add: !!(i % 2) });
+          z: i % 70, life: 2, color: i % 2 ? '#ff8a30' : '#c5f4ff', add: !!(i % 2)
+        });
         for (const p of positions) {
           camera.follow(p.x, p.y, 0, true);
           for (let i = 0; i < 180; i++) { G.frame++; renderWorld(G.ctx, w); }
@@ -69,12 +71,12 @@ for (const [name, file] of Object.entries({ render: 'game/render', world: 'game/
           renderWorld(G.ctx, w);
           const after = G.ctx.getImageData(0, 0, G.canvas.width, G.canvas.height).data;
           for (let i = 0; i < before.length; i += 4)
-            if (before[i] !== after[i] || before[i+1] !== after[i+1] || before[i+2] !== after[i+2] || before[i+3] !== after[i+3]) changedPixels++;
+            if (before[i] !== after[i] || before[i + 1] !== after[i + 1] || before[i + 2] !== after[i + 2] || before[i + 3] !== after[i + 3]) changedPixels++;
           const a = measure(oldRender), b = measure(renderWorld);
           oldRenderMs += a[0]; renderMs += b[0]; oldCalls += a[1]; calls += b[1];
         }
         let mismatches = 0;
-        const synthetic = new World('dungeon', { map: { los: (x,y,cx,cy) => cy >= 0 } });
+        const synthetic = new World('dungeon', { map: { los: (x, y, cx, cy) => cy >= 0 } });
         synthetic.creatures = [
           { x: 1, y: 0, r: .5, team: 'enemy' }, { x: -1, y: 0, r: .5, team: 'enemy' },
           { x: 0, y: -1, r: .5, team: 'enemy' }, { x: 0, y: 1, r: .5, team: 'enemy' },
@@ -84,7 +86,7 @@ for (const [name, file] of Object.entries({ render: 'game/render', world: 'game/
         for (let rebuild = 0; rebuild < 3; rebuild++) {
           synthetic.rebuildGrid();
           for (const r of [.5, 3, 30]) for (const los of [false, true])
-            if (synthetic.nearestHostile('player',0,0,r,los) !== OldWorld.prototype.nearestHostile.call(synthetic,'player',0,0,r,los)) mismatches++;
+            if (synthetic.nearestHostile('player', 0, 0, r, los) !== OldWorld.prototype.nearestHostile.call(synthetic, 'player', 0, 0, r, los)) mismatches++;
         }
         // Include target ties, dead/untargetable units, sparse/dense and LOS searches.
         for (const p of positions) for (const r of [0.5, 3, 8, 30]) for (const los of [false, true]) {
@@ -99,8 +101,10 @@ for (const [name, file] of Object.entries({ render: 'game/render', world: 'game/
         const oldQueryMs = queryTime(OldWorld.prototype.nearestHostile), queryMs = queryTime(w.nearestHostile);
         // Alternating expired/live particles exercise compaction and survivor order.
         vfx.clearVfx(); oldVfx.clearVfx();
-        for (let i = 0; i < 1000; i++) for (const fx of [vfx, oldVfx]) fx.spawn({ type: 'dot',
-          x: i / 100, y: 2, life: i % 2 ? 1 : 0.01, vx: 1, drag: 2, color: '#ffffff' });
+        for (let i = 0; i < 1000; i++) for (const fx of [vfx, oldVfx]) fx.spawn({
+          type: 'dot',
+          x: i / 100, y: 2, life: i % 2 ? 1 : 0.01, vx: 1, drag: 2, color: '#ffffff'
+        });
         vfx.updateVfx(0.02, w); oldVfx.updateVfx(0.02, w);
         const particleMatch = JSON.stringify(vfx.particles) === JSON.stringify(oldVfx.particles);
         vfx.clearVfx();

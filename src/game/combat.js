@@ -79,10 +79,10 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
       dmg *= 1 - clamp(res, -1, 0.9);
       if (tgt.dmgReduce) dmg *= 1 - clamp(tgt.dmgReduce, 0, 0.75);
       if (el === 'holy' && (tgt.undead || tgt.demon)) dmg *= 1.5;
-      const C = tgt.curses;
+      const C = tgt.curses || {};
       if (C.amp && C.amp.t > 0) dmg *= 1 + C.amp.amt / 100;
       if (C.mark && C.mark.t > 0) dmg *= 1 + C.mark.amt / 100;
-      if (tgt.status.shred && tgt.status.shred.t > 0) dmg *= 1 + tgt.status.shred.amt;
+      if (tgt.status && tgt.status.shred && tgt.status.shred.t > 0) dmg *= 1 + tgt.status.shred.amt;
       if (tgt.ward !== undefined) dmg *= tgt.ward; // a raid boss behind its warding crystals
       if (src && src.curses && src.curses.weaken && src.curses.weaken.t > 0 && !fromPlayer) dmg *= 1 - src.curses.weaken.amt / 100;
       if (tgt.reflect && src && src.isPlayer && !o.dot && !o.force) {
@@ -106,17 +106,20 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
   } else if (o.fromNetwork && o.crit) {
     crit = true;
   }
-  if (tgt.vel) dmg = tgt.vel.absorb(dmg); // Velscour's life gates and damage cap (game/velscour.js)
+  if (tgt.vel) dmg = tgt.vel.absorb(dmg); // Dagyr's life gates and damage cap (game/dagyr.js)
 
   const byHero = !tgt.isPlayer && tgt.team !== 'player' && (fromPlayer || (src && src.team === 'player'));
+  // o.lightFx: a rapid multi-hit (the Lancer's tower-shield rings) shows its full feedback on about one hit in sixteen,
+  // a damage number on about one in three; the damage itself is untouched
+  const showFx = !o.lightFx || chance(0.06), showNum = !o.lightFx || crit || chance(0.35);
   if (src?.isRemotePlayer) {
-    if (!o.silent && el) hitSpark(tgt.x, tgt.y, 28, el);
+    if (!o.silent && el && (!o.lightFx || chance(0.06))) hitSpark(tgt.x, tgt.y, 28, el);
     return;
   }
   const tLvl = tgt.level || depthLevel((world && world.depth) || 1); // what the hero sees is shownDmg (data/depth.js), not raw power
   if (byHero) Meter.add(shownDmg(Math.min(dmg, Math.max(0, tgt.hp)), tLvl));
   if (byHero && src && src.isPlayer && !o.dot) G.lastHit = tgt; // the HUD's target window
-  if (byHero && src && src.isPlayer && o.sk && !o.dot) classHitFx(src, tgt, o.sk, el); // the class's own splash (gfx/classfx.js)
+  if (byHero && src && src.isPlayer && o.sk && !o.dot && showFx) classHitFx(src, tgt, o.sk, el); // the class's own splash (gfx/classfx.js)
   tgt.hp -= dmg;
   if (G.room && byHero && !o.fromNetwork && !src?.isRemotePlayer && net.connected) {
     const isBoss = tgt.rank === 'boss' || tgt.rank === 'raid' || tgt === G.world?.boss;
@@ -135,11 +138,11 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
     if (tgt.isPlayer) {
       damageText(tgt.x, tgt.y, z, dmg, o.dot ? 'dot' : 'hurt', '#ff4030');
       if (!o.dot) { sfx('hurt'); G.hurtFlash = Math.min(0.5, (G.hurtFlash || 0) + dmg / tgt.maxHp * 2); camera.shake(Math.min(8, 2 + (dmg / tgt.maxHp) * 30)); }
-    } else if (byHero) {
+    } else if (byHero && showNum) {
       damageText(tgt.x, tgt.y, z, Math.max(1, shownDmg(dmg, tLvl)), crit ? 'crit' : o.dot ? 'dot' : 'hit', elem(el).glow);
     }
   }
-  if (!o.dot || chance(0.15)) {
+  if ((!o.dot || chance(0.15)) && showFx) {
     const ang = o.ang ?? (src ? angleTo(src.x, src.y, tgt.x, tgt.y) : rand(TAU));
     const force = clamp(dmg / tgt.maxHp, 0.05, 1);
     if (!(tgt.goreType === 'spark' || tgt.goreType === 'ecto') || chance(0.5)) bloodSpray(tgt.x, tgt.y, 28, ang, Math.round(4 + force * 18), bloodOf(tgt), 0.7 + force);
@@ -181,9 +184,9 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
 }
 
 function applyStatus(src, tgt, dmg, el, o) {
-  const s = tgt.status;
+  const s = tgt.status || {};
   const boss = tgt.rank === 'boss';
-  const leg = src && src.isPlayer ? src.st.legendary : {};
+  const leg = (src && src.isPlayer && src.st && src.st.legendary) ? src.st.legendary : {};
   if (el === 'fire' && (o.burn || chance(0.25))) s.burn = { t: 3, dps: Math.max(s.burn && s.burn.t > 0 ? s.burn.dps : 0, dmg * (o.burn ? 0.35 : 0.2)), src };
   if (el === 'poison' || o.poison) s.poison = { t: 3.5, dps: Math.max(s.poison && s.poison.t > 0 ? s.poison.dps : 0, dmg * (o.poison ? 0.45 : 0.3)), src };
   if (el === 'blood' || o.bleed) s.bleed = { t: 3, dps: Math.max(s.bleed && s.bleed.t > 0 ? s.bleed.dps : 0, dmg * 0.3), src };
@@ -332,7 +335,7 @@ function gibSets(c) {
   if (BUG.has(a)) return ['bug'];
   if (g === 'goo') return ['bug', 'eye'];
   if (g !== 'flesh') return null;
-  if (c.demon || a === 'imp' || a === 'demon' || a === 'velscour') return ['demon', 'flesh'];
+  if (c.demon || a === 'imp' || a === 'demon' || a === 'Dagyr') return ['demon', 'flesh'];
   if (a === 'bat' || a === 'hound') return ['flesh', 'bug'];
   return ['flesh', 'limb'];
 }

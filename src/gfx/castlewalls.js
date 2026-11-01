@@ -1,5 +1,5 @@
 // Castle masonry (docs/CASTLE_OVERWORLD.md): the faces of the Castle's height-mapped curtain walls, towers, stairs,
-// halls and bridges, painted with the user's castle artwork (assets/source/biomes/VELSCOUR_Castle_Artwork_Complete.zip,
+// halls and bridges, painted with the user's castle artwork (assets/source/biomes/DAGYR_Castle_Artwork_Complete.zip,
 // cut by tools/castleramparts.py). terrain.js asks drawCastleFace for every column face whose tile has a style in
 // map.faceArt; the textures are level (unsheared) in the atlas and sheared back onto each face here, anchored in world
 // space so the courses run on unbroken from one tile to the next.
@@ -146,79 +146,83 @@ export function castleSpan({ L, T = 1, zs, zc, zt, axis = 'x', warm = false, por
   const w = Math.ceil((L + T) * HWp) + 2, h = Math.ceil(top + T * HHp + L * HHp - zs + 4);
   const key = [L, T, zs, zc, zt, axis, warm, portcullis, merlons, topTile?.name].join('|');
   const spr = { sx: 0, sy: 0, w, h, ox: axis === 'x' ? -1 : -(w - 1), oy: -(top + T * HHp + 1), name: 'castle_span_' + key, castle: true, lazy: true };
-  Object.defineProperty(spr, 'img', { enumerable: true, get() {
-    if (typeof document === 'undefined') return null;
-    let c = spanCache.get(key);
-    if (c) return c;
-    const T_ = textures();
-    if (!T_) return null;
-    c = makeCanvas(w, h);
-    const g = c.getContext('2d'), dark = axis === 'y';
-    if (dark) { g.translate(w, 0); g.scale(-1, 1); }
-    g.translate(1, top + T * HHp + 1);   // origin: the face's ground point at u = 0
-    // tile point (u, v) at height z -> canvas, v = T on the face
-    const P = (u, v, z) => [(u - (v - T)) * HWp, (u + (v - T)) * HHp - z];
-    const face = warm ? (dark ? T_.warmD : T_.warmL) : (dark ? T_.wallD : T_.wallL);
-    const arch = (s) => { const t = (s - L / 2) / (L / 2); return zs + (zc - zs) * Math.sqrt(Math.max(0, 1 - t * t)); };
-    const N = 24;
-    // the front face, above the arch
-    g.beginPath();
-    g.moveTo(...P(0, T, zt)); g.lineTo(...P(L, T, zt));
-    for (let k = N; k >= 0; k--) { const s = (k / N) * L; g.lineTo(...P(s, T, arch(s))); }
-    g.closePath();
-    const p = g.createPattern(face, 'repeat'); p.setTransform(new DOMMatrix([1, 0.5, 0, 1, 0, 0]));
-    g.fillStyle = p; g.fill();
-    g.fillStyle = 'rgba(4,6,12,0.12)'; g.fill();
-    // voussoirs: a lighter ring of wedge stones round the arch
-    const ring = 9;
-    for (let k = 0; k < 11; k++) {
-      const s0 = (k / 11) * L, s1 = ((k + 1) / 11) * L;
+  Object.defineProperty(spr, 'img', {
+    enumerable: true, get() {
+      if (typeof document === 'undefined') return null;
+      let c = spanCache.get(key);
+      if (c) return c;
+      const T_ = textures();
+      if (!T_) return null;
+      c = makeCanvas(w, h);
+      const g = c.getContext('2d'), dark = axis === 'y';
+      if (dark) { g.translate(w, 0); g.scale(-1, 1); }
+      g.translate(1, top + T * HHp + 1);   // origin: the face's ground point at u = 0
+      // tile point (u, v) at height z -> canvas, v = T on the face
+      const P = (u, v, z) => [(u - (v - T)) * HWp, (u + (v - T)) * HHp - z];
+      const face = warm ? (dark ? T_.warmD : T_.warmL) : (dark ? T_.wallD : T_.wallL);
+      const arch = (s) => { const t = (s - L / 2) / (L / 2); return zs + (zc - zs) * Math.sqrt(Math.max(0, 1 - t * t)); };
+      const N = 24;
+      // the front face, above the arch
       g.beginPath();
-      g.moveTo(...P(s0, T, arch(s0))); g.lineTo(...P(s1, T, arch(s1)));
-      g.lineTo(...P(s1, T, arch(s1) + ring)); g.lineTo(...P(s0, T, arch(s0) + ring)); g.closePath();
-      g.fillStyle = k % 2 ? 'rgba(200,210,226,0.16)' : 'rgba(150,162,184,0.12)'; g.fill();
-      g.strokeStyle = 'rgba(8,10,16,0.55)'; g.lineWidth = 1; g.stroke();
-    }
-    // the arch's edge in shadow (the thickness of the wall), and the keystone
-    g.beginPath();
-    for (let k = 0; k <= N; k++) { const s = (k / N) * L; const [x, y] = P(s, T, arch(s)); k ? g.lineTo(x, y) : g.moveTo(x, y); }
-    g.strokeStyle = 'rgba(2,3,6,0.85)'; g.lineWidth = 2; g.stroke();
-    { const s = L / 2, a = arch(s); g.beginPath(); g.moveTo(...P(s - 0.18, T, a)); g.lineTo(...P(s + 0.18, T, a)); g.lineTo(...P(s + 0.24, T, a + ring + 3)); g.lineTo(...P(s - 0.24, T, a + ring + 3)); g.closePath();
-      g.fillStyle = 'rgba(214,222,236,0.35)'; g.fill(); g.strokeStyle = 'rgba(8,10,16,0.6)'; g.lineWidth = 1; g.stroke(); }
-    if (portcullis) {
-      // the raised portcullis: its iron grid in the top of the opening, teeth hanging below
-      g.strokeStyle = 'rgba(22,22,26,0.95)'; g.lineWidth = 2.2;
-      const bars = Math.round(L * 3);
-      for (let k = 1; k < bars; k++) {
-        const s = (k / bars) * L, a = arch(s), z1 = Math.max(zs - 2, zc - 26);
-        if (a <= z1) continue;
-        g.beginPath(); g.moveTo(...P(s, T, a)); g.lineTo(...P(s, T, z1)); g.stroke();
-        const [x, y] = P(s, T, z1); g.fillStyle = '#1a1a1e'; g.beginPath(); g.moveTo(x - 2, y); g.lineTo(x + 2, y + 1); g.lineTo(x, y + 6); g.closePath(); g.fill();
+      g.moveTo(...P(0, T, zt)); g.lineTo(...P(L, T, zt));
+      for (let k = N; k >= 0; k--) { const s = (k / N) * L; g.lineTo(...P(s, T, arch(s))); }
+      g.closePath();
+      const p = g.createPattern(face, 'repeat'); p.setTransform(new DOMMatrix([1, 0.5, 0, 1, 0, 0]));
+      g.fillStyle = p; g.fill();
+      g.fillStyle = 'rgba(4,6,12,0.12)'; g.fill();
+      // voussoirs: a lighter ring of wedge stones round the arch
+      const ring = 9;
+      for (let k = 0; k < 11; k++) {
+        const s0 = (k / 11) * L, s1 = ((k + 1) / 11) * L;
+        g.beginPath();
+        g.moveTo(...P(s0, T, arch(s0))); g.lineTo(...P(s1, T, arch(s1)));
+        g.lineTo(...P(s1, T, arch(s1) + ring)); g.lineTo(...P(s0, T, arch(s0) + ring)); g.closePath();
+        g.fillStyle = k % 2 ? 'rgba(200,210,226,0.16)' : 'rgba(150,162,184,0.12)'; g.fill();
+        g.strokeStyle = 'rgba(8,10,16,0.55)'; g.lineWidth = 1; g.stroke();
       }
-      for (const z of [zc - 6, zc - 16]) {
-        g.beginPath(); let on = false;
-        for (let k = 0; k <= N; k++) { const s = (k / N) * L; if (arch(s) < z + 1) { on = false; continue; } const [x, y] = P(s, T, z); on ? g.lineTo(x, y) : g.moveTo(x, y); on = true; }
-        g.lineWidth = 1.6; g.stroke();
+      // the arch's edge in shadow (the thickness of the wall), and the keystone
+      g.beginPath();
+      for (let k = 0; k <= N; k++) { const s = (k / N) * L; const [x, y] = P(s, T, arch(s)); k ? g.lineTo(x, y) : g.moveTo(x, y); }
+      g.strokeStyle = 'rgba(2,3,6,0.85)'; g.lineWidth = 2; g.stroke();
+      {
+        const s = L / 2, a = arch(s); g.beginPath(); g.moveTo(...P(s - 0.18, T, a)); g.lineTo(...P(s + 0.18, T, a)); g.lineTo(...P(s + 0.24, T, a + ring + 3)); g.lineTo(...P(s - 0.24, T, a + ring + 3)); g.closePath();
+        g.fillStyle = 'rgba(214,222,236,0.35)'; g.fill(); g.strokeStyle = 'rgba(8,10,16,0.6)'; g.lineWidth = 1; g.stroke();
       }
-    }
-    // the top: flagstones, a lit front lip
-    g.beginPath(); g.moveTo(...P(0, 0, zt)); g.lineTo(...P(L, 0, zt)); g.lineTo(...P(L, T, zt)); g.lineTo(...P(0, T, zt)); g.closePath();
-    const R = castleRamparts(), tf = topTile || { img: R.img, sx: R.rects.top_2[0], sy: R.rects.top_2[1], w: R.rects.top_2[2], h: R.rects.top_2[3] };
-    g.save(); g.clip(); for (let u = -1; u < L + 1; u++) for (let v = -1; v <= T; v++) { const [x, y] = P(u, v, zt); g.drawImage(tf.img, tf.sx, tf.sy, tf.w, tf.h, x - HWp - 0.6, y - 0.6, 2 * HWp + 1.2, 2 * HHp + 1.2); } g.restore();
-    g.strokeStyle = 'rgba(230,236,248,0.55)'; g.lineWidth = 1; g.beginPath(); g.moveTo(...P(0, T, zt)); g.lineTo(...P(L, T, zt)); g.stroke();
-    if (merlons) {
-      // a short battlement between the gate towers
-      for (let s = 0.15; s < L - 0.3; s += 1) {
-        const a = s, b = s + 0.55, v0 = T - 0.5, z0 = zt, z1 = zt + 18;
-        g.beginPath(); g.moveTo(...P(a, T, z1)); g.lineTo(...P(b, T, z1)); g.lineTo(...P(b, T, z0)); g.lineTo(...P(a, T, z0)); g.closePath();
-        g.fillStyle = p; g.fill(); g.strokeStyle = 'rgba(6,8,12,0.6)'; g.stroke();
-        g.beginPath(); g.moveTo(...P(a, v0, z1)); g.lineTo(...P(b, v0, z1)); g.lineTo(...P(b, T, z1)); g.lineTo(...P(a, T, z1)); g.closePath();
-        g.fillStyle = 'rgb(112,120,138)'; g.fill(); g.stroke();
+      if (portcullis) {
+        // the raised portcullis: its iron grid in the top of the opening, teeth hanging below
+        g.strokeStyle = 'rgba(22,22,26,0.95)'; g.lineWidth = 2.2;
+        const bars = Math.round(L * 3);
+        for (let k = 1; k < bars; k++) {
+          const s = (k / bars) * L, a = arch(s), z1 = Math.max(zs - 2, zc - 26);
+          if (a <= z1) continue;
+          g.beginPath(); g.moveTo(...P(s, T, a)); g.lineTo(...P(s, T, z1)); g.stroke();
+          const [x, y] = P(s, T, z1); g.fillStyle = '#1a1a1e'; g.beginPath(); g.moveTo(x - 2, y); g.lineTo(x + 2, y + 1); g.lineTo(x, y + 6); g.closePath(); g.fill();
+        }
+        for (const z of [zc - 6, zc - 16]) {
+          g.beginPath(); let on = false;
+          for (let k = 0; k <= N; k++) { const s = (k / N) * L; if (arch(s) < z + 1) { on = false; continue; } const [x, y] = P(s, T, z); on ? g.lineTo(x, y) : g.moveTo(x, y); on = true; }
+          g.lineWidth = 1.6; g.stroke();
+        }
       }
+      // the top: flagstones, a lit front lip
+      g.beginPath(); g.moveTo(...P(0, 0, zt)); g.lineTo(...P(L, 0, zt)); g.lineTo(...P(L, T, zt)); g.lineTo(...P(0, T, zt)); g.closePath();
+      const R = castleRamparts(), tf = topTile || { img: R.img, sx: R.rects.top_2[0], sy: R.rects.top_2[1], w: R.rects.top_2[2], h: R.rects.top_2[3] };
+      g.save(); g.clip(); for (let u = -1; u < L + 1; u++) for (let v = -1; v <= T; v++) { const [x, y] = P(u, v, zt); g.drawImage(tf.img, tf.sx, tf.sy, tf.w, tf.h, x - HWp - 0.6, y - 0.6, 2 * HWp + 1.2, 2 * HHp + 1.2); } g.restore();
+      g.strokeStyle = 'rgba(230,236,248,0.55)'; g.lineWidth = 1; g.beginPath(); g.moveTo(...P(0, T, zt)); g.lineTo(...P(L, T, zt)); g.stroke();
+      if (merlons) {
+        // a short battlement between the gate towers
+        for (let s = 0.15; s < L - 0.3; s += 1) {
+          const a = s, b = s + 0.55, v0 = T - 0.5, z0 = zt, z1 = zt + 18;
+          g.beginPath(); g.moveTo(...P(a, T, z1)); g.lineTo(...P(b, T, z1)); g.lineTo(...P(b, T, z0)); g.lineTo(...P(a, T, z0)); g.closePath();
+          g.fillStyle = p; g.fill(); g.strokeStyle = 'rgba(6,8,12,0.6)'; g.stroke();
+          g.beginPath(); g.moveTo(...P(a, v0, z1)); g.lineTo(...P(b, v0, z1)); g.lineTo(...P(b, T, z1)); g.lineTo(...P(a, T, z1)); g.closePath();
+          g.fillStyle = 'rgb(112,120,138)'; g.fill(); g.stroke();
+        }
+      }
+      spanCache.set(key, c);
+      return c;
     }
-    spanCache.set(key, c);
-    return c;
-  } });
+  });
   return spr;
 }
 
@@ -232,20 +236,22 @@ export function castlePanel(art, { len = 1, hpx = 52, axis = 'y', trim = [0, 0, 
   const run = len * 32, rise = len * 16, w = run + 2, h = hpx + rise + 2, key = art.name + '|' + len + '|' + hpx + '|' + axis + '|' + trim.join(',');
   // axis 'y' climbs to the right, so its start (the pivot) is the canvas's low left corner; 'x' falls to the right
   const spr = { sx: 0, sy: 0, w, h, ox: -1, oy: -(hpx + 1 + (axis === 'y' ? rise : 0)), name: 'castle_panel_' + key, castle: true, lazy: true };
-  Object.defineProperty(spr, 'img', { enumerable: true, get() {
-    if (typeof document === 'undefined' || !art.img) return null;
-    let c = panelCache.get(key);
-    if (c) return c;
-    c = makeCanvas(w, h);
-    const g = c.getContext('2d'), [l, t, r, b] = trim;
-    if (axis === 'y') g.setTransform(1, -0.5, 0, 1, 1, hpx + 1 + rise); else g.setTransform(1, 0.5, 0, 1, 1, hpx + 1);
-    g.drawImage(art.img, art.sx + l, art.sy + t, art.w - l - r, art.h - t - b, 0, -hpx, run, hpx);
-    g.globalCompositeOperation = 'source-atop';
-    g.fillStyle = shade ?? (axis === 'y' ? 'rgba(10,8,14,0.3)' : 'rgba(10,8,14,0.08)'); g.fillRect(0, -hpx, run, hpx);
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    panelCache.set(key, c);
-    return c;
-  } });
+  Object.defineProperty(spr, 'img', {
+    enumerable: true, get() {
+      if (typeof document === 'undefined' || !art.img) return null;
+      let c = panelCache.get(key);
+      if (c) return c;
+      c = makeCanvas(w, h);
+      const g = c.getContext('2d'), [l, t, r, b] = trim;
+      if (axis === 'y') g.setTransform(1, -0.5, 0, 1, 1, hpx + 1 + rise); else g.setTransform(1, 0.5, 0, 1, 1, hpx + 1);
+      g.drawImage(art.img, art.sx + l, art.sy + t, art.w - l - r, art.h - t - b, 0, -hpx, run, hpx);
+      g.globalCompositeOperation = 'source-atop';
+      g.fillStyle = shade ?? (axis === 'y' ? 'rgba(10,8,14,0.3)' : 'rgba(10,8,14,0.08)'); g.fillRect(0, -hpx, run, hpx);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      panelCache.set(key, c);
+      return c;
+    }
+  });
   return spr;
 }
 /** An open door leaf: a panel cut from a door sprite inside its frame. */

@@ -1,4 +1,4 @@
-// "DEATH IS THE ONLY WAY OUT, MY KIND SIR." sent to Velscour: level 350, the best gear of the hero's class (Mythic,
+// "DEATH IS THE ONLY WAY OUT, MY KIND SIR." sent to Dagyr: level 350, the best gear of the hero's class (Mythic,
 // +10, perfect rolls and an extra enchanted line, Eternal gems, max-power ring augments), every skill and mastery
 // maxed, a full potion belt, a fortune in gold, and the way down opened to Depth 500. It is a cheat: the hero is marked
 // for good (c.cheated) and never listed on the Honour Board (game/leaderboard.js).
@@ -14,7 +14,7 @@ import { addToBag } from './player.js';
 import { Board } from './leaderboard.js';
 
 export const DEATH_PHRASE = 'DEATH IS THE ONLY WAY OUT, MY KIND SIR.';
-const GIFT_LEVEL = 350, MYTHIC = 5;
+const GIFT_LEVEL = 100, MYTHIC = 5;
 const SLOT_LETTER = { weapon: 'W', offhand: 'O', head: 'H', body: 'B', hands: 'G', legs: 'L', feet: 'F', ring: 'R' };
 const LEGEND = { weapon: 'crit', offhand: 'echo', head: 'nova', body: 'phoenix', hands: 'vamp', legs: 'giant', feet: 'wraith' };
 const RING_LEGEND = ['thunder', 'hammer', 'orbit', 'bloodbath'];
@@ -70,8 +70,10 @@ export function grantDeathGift() {
   Board.withdraw(c.classId).catch((e) => console.warn('Honour board:', e));
   const ilvl = Math.max(c.level, GIFT_LEVEL); // items of the hero's own level are the best they can wear
   // level 350, its attribute points spent on the class's attribute and vitality
-  const gained = Math.max(0, GIFT_LEVEL - c.level);
-  c.level = Math.max(c.level, GIFT_LEVEL); c.xp = 0;
+  const prevLevel = c.level || 1;
+  const gained = Math.max(0, GIFT_LEVEL - prevLevel);
+  c.level = Math.max(prevLevel, GIFT_LEVEL); c.xp = 0;
+  c.talentPoints = (c.talentPoints || 0) + Math.max(0, Math.floor(c.level / 5) - Math.floor(prevLevel / 5));
   const pts = c.statPoints + gained * 5;
   const main = C.primary === 'vit' ? pts : Math.round(pts * 0.6);
   c.attrs[C.primary] += main; c.attrs.vit += pts - main; c.statPoints = 0;
@@ -96,7 +98,7 @@ export function grantDeathGift() {
     if (old && !addToBag(c, old)) { const k = c.stash.findIndex((x) => !x); if (k >= 0) c.stash[k] = old; }
     c.equip[s] = it;
   }
-  // the rest of the best: a full belt, a fortune, and the way to Velscour
+  // the rest of the best: a full belt, a fortune, and the way to Dagyr
   c.potions = { ...c.potions, hp: 30, mp: 30, rejuv: 30, fury: 30 };
   c.gold = Math.max(c.gold, 999999999);
   c.depth = FINAL_DEPTH;
@@ -107,8 +109,8 @@ export function grantDeathGift() {
   sfx('levelup', 1);
   if (G.ui) {
     if (G.ui.hud) G.ui.hud.levelUp(c.level, levelUpFanfare());
-    G.ui.log('<b style="color:#ff3020">Velscour answers.</b> Level 350, his finest arms, and the road to Depth 500. Come die properly.', '#ffd860');
-    G.ui.log('This hero took Velscour\'s gift: it will never be listed on the Honour Board.', '#ff9070');
+    G.ui.log('<b style="color:#ff3020">Dagyr answers.</b> Level 350, his finest arms, and the road to Depth 500. Come die properly.', '#ffd860');
+    G.ui.log('This hero took Dagyr\'s gift: it will never be listed on the Honour Board.', '#ff9070');
     G.ui.refresh();
   }
 }

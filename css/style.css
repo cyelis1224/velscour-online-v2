@@ -1,4 +1,4 @@
-/* VELSCOUR - UI styles */
+/* DAGYR - UI styles */
 :root {
   --gold: #d8b26a;
   --gold-dim: #8a6a34;
@@ -25,6 +25,41 @@
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: #5c4424 rgba(12, 8, 6, 0.7);
+}
+
+/* Universal slim stylistic scrollbars matching gothic fantasy UI */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(12, 8, 6, 0.7);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #5c4424;
+  border-radius: 3px;
+  border: 1px solid rgba(142, 92, 46, 0.5);
+  box-shadow: inset 0 0 2px rgba(216, 178, 106, 0.2);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #7d592f;
+  border-color: #caa050;
+  box-shadow: inset 0 0 4px rgba(216, 178, 106, 0.4);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: #8e5c2e;
+  border-color: #ffe2a0;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 html,
@@ -526,7 +561,7 @@ button {
    -------------------------------------------------------------------------- */
 #special-actions {
   position: absolute;
-  left: max(8px, calc(50% - var(--hud-w) * 0.5 - 116px));
+  left: max(8px, calc(50% - var(--hud-w) * 0.5 - 176px));
   bottom: 16px;
   display: flex;
   flex-direction: row;
@@ -744,6 +779,37 @@ button {
   background: #600835;
   border-color: #ff4090;
   color: #ffffff;
+}
+
+.special-btn.hearth {
+  border-color: rgba(90, 170, 220, 0.5);
+}
+
+.special-btn.hearth .ring-fill {
+  stroke: #7fd8ff;
+  filter: drop-shadow(0 0 4px #2a9ad8);
+}
+
+.special-btn.hearth.ready {
+  border-color: #aee8ff;
+  box-shadow: 0 0 16px rgba(90, 200, 255, 0.7), inset 0 0 8px rgba(150, 225, 255, 0.45);
+}
+
+.special-btn.hearth.ready .special-status {
+  background: linear-gradient(#08324a, #02141e);
+  border-color: #7fd8ff;
+  color: #dff6ff;
+}
+
+/* full, but in town: nothing to return from */
+.special-btn.hearth.idle .special-icon {
+  opacity: 0.85;
+}
+
+.special-btn.hearth.casting {
+  border-color: #ffffff;
+  box-shadow: 0 0 24px rgba(140, 220, 255, 0.95), inset 0 0 12px #e6fbff;
+  animation: smiteAimPulse 0.4s ease-in-out infinite alternate;
 }
 
 body.touch #special-actions {
@@ -1303,7 +1369,7 @@ body.touch #sealed-btn i {
 #hud-top-left {
   position: absolute;
   left: 12px;
-  top: 40px;
+  top: 10px;
   pointer-events: none;
   text-shadow: 0 0 4px #000, 0 0 2px #000;
 }
@@ -1384,8 +1450,8 @@ body.touch #sealed-btn i {
   right: 10px;
   top: 10px;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row-reverse;
+  align-items: flex-start;
   gap: 6px;
   pointer-events: none;
 }
@@ -1396,7 +1462,7 @@ body.touch #sealed-btn i {
   pointer-events: none;
 }
 
-#velscour-skull {
+#Dagyr-skull {
   pointer-events: auto;
   display: grid;
   place-items: center;
@@ -1413,7 +1479,7 @@ body.touch #sealed-btn i {
   right: -10px;
 }
 
-#velscour-skull img {
+#Dagyr-skull img {
   display: block;
   width: 30px;
   height: 30px;
@@ -1422,12 +1488,12 @@ body.touch #sealed-btn i {
   filter: drop-shadow(0 0 2px #000);
 }
 
-#velscour-skull:hover {
+#Dagyr-skull:hover {
   border-color: var(--gold-bright);
   box-shadow: 0 0 10px rgba(255, 170, 70, .55);
 }
 
-#velscour-skull:active {
+#Dagyr-skull:active {
   transform: scale(.94);
 }
 
@@ -1723,7 +1789,7 @@ body.touch #sealed-btn i {
   margin-top: 6px;
   width: max-content;
   min-width: 162px;
-  max-width: 190px;
+  box-sizing: border-box;
   padding: 4px 7px 5px;
   border: 1px solid #5c3a1c;
   border-radius: 3px;
@@ -2153,7 +2219,7 @@ body.touch #sealed-btn i {
   animation: lu-in 1.4s 2.6s forwards, lu-flicker 2.3s 4s steps(1) infinite;
 }
 
-/* Velscour's mood (src/data/taunts.js) colours the second line: dread is the blood-red flicker above */
+/* Dagyr's mood (src/data/taunts.js) colours the second line: dread is the blood-red flicker above */
 #levelup[data-mood="mock"] #lu-l2 {
   color: #9cc838;
   text-shadow: 0 0 3px #000, 0 2px 0 #000, 0 0 14px rgba(110, 190, 0, .7);
@@ -2662,11 +2728,12 @@ body.touch #sealed-btn i {
   justify-content: center;
   opacity: .9;
   pointer-events: none;
+  transform: translateY(22px);
 }
 
 .paperdoll .portrait img {
-  max-height: 132px;
-  max-width: 64px;
+  max-height: 136px;
+  max-width: 76px;
   object-fit: contain;
   filter: drop-shadow(0 0 6px #000);
 }
@@ -3172,15 +3239,41 @@ body.touch .reliquary-panel .codex-cell {
 /* tooltip */
 #tooltip {
   position: fixed;
-  z-index: 50;
+  z-index: 100;
   pointer-events: none;
   max-width: 320px;
-  background: rgba(8, 5, 4, .96);
+  background: rgba(14, 9, 7, .96);
   border: 1px solid var(--gold-dim);
-  border-radius: 4px;
-  padding: 8px 10px;
+  border-radius: 6px;
+  padding: 10px 12px;
   font-size: 14px;
-  box-shadow: 0 4px 20px #000;
+  box-shadow: 0 6px 24px #000c, inset 0 0 20px rgba(0, 0, 0, .6);
+  user-select: none;
+}
+
+#tooltip.touch-open {
+  pointer-events: auto;
+}
+
+#tooltip:not(.touch-open) .tt-actions {
+  display: none;
+}
+
+.tt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.tt-actions .btn {
+  flex: 1 1 auto;
+  text-align: center;
+  font-size: 13px;
+  padding: 6px 10px;
+  cursor: pointer;
 }
 
 .tt-name {
@@ -4180,16 +4273,16 @@ body.touch .reliquary-panel .codex-cell {
   justify-content: center;
 }
 
-.velscour-contact-dialog {
+.Dagyr-contact-dialog {
   width: min(560px, 92vw);
 }
 
-.velscour-taunt {
+.Dagyr-taunt {
   color: #d2b994;
   font: 700 15px/1.5 var(--font-head);
 }
 
-.velscour-message-label {
+.Dagyr-message-label {
   display: block;
   margin: 16px 0 6px;
   color: var(--gold);
@@ -4198,24 +4291,24 @@ body.touch .reliquary-panel .codex-cell {
   text-transform: uppercase;
 }
 
-.velscour-message-row {
+.Dagyr-message-row {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
 
-.velscour-message-row .name-input {
+.Dagyr-message-row .name-input {
   width: min(360px, 68vw);
 }
 
-#velscour-message-count {
+#Dagyr-message-count {
   min-width: 44px;
   color: var(--text-dim);
   font-size: 11px;
 }
 
-.velscour-biome-select {
+.Dagyr-biome-select {
   max-width: 82vw;
   padding: 9px 12px;
   border: 2px solid var(--gold-dim);
@@ -5066,8 +5159,6 @@ body.touch.portrait #hero-stats {
 
 body.touch.portrait #party-roster {
   min-width: 0;
-  width: 100%;
-  max-width: 180px;
 }
 
 body.touch.portrait #hero-stats .hs-first,
@@ -5136,7 +5227,7 @@ body.touch.portrait #hud-dials {
   pointer-events: none;
 }
 
-body.touch.portrait #velscour-skull {
+body.touch.portrait #Dagyr-skull {
   grid-area: skull;
   position: static;
   width: 34px;
@@ -5147,13 +5238,13 @@ body.touch.portrait #velscour-skull {
   justify-self: center;
 }
 
-body.touch.portrait #velscour-skull img {
+body.touch.portrait #Dagyr-skull img {
   width: 26px;
   height: 26px;
 }
 
 body.touch.portrait #boss-bar {
-  top: max(316px, calc(env(safe-area-inset-top) + 308px));
+  top: max(168px, calc(env(safe-area-inset-top) + 160px));
   left: 50%;
   width: min(92vw, 360px);
 }
@@ -5167,12 +5258,22 @@ body.touch.portrait #madness {
   width: 42vw;
 }
 
+/* portrait: Rage stays inside the gauge box, which the touch layout centres between the Hearthstone and ATK */
 body.touch.portrait #barbarian-rage {
-  position: absolute;
-  left: calc(100vw - max(5px, env(safe-area-inset-right)) - 21vw);
-  top: calc(max(308px, env(safe-area-inset-top) + 300px) - 100vh + var(--hud-w) * var(--hud-k));
+  position: relative;
+  left: auto;
+  top: auto;
   bottom: auto;
-  width: 42vw;
+  width: 100%;
+}
+
+body.touch.portrait #gauge-box.portrait-band {
+  width: auto;
+}
+
+/* under the raised portrait boss bar */
+body.touch.portrait #boss-bar:not(.hidden)~#sand-objective {
+  top: max(216px, calc(env(safe-area-inset-top) + 208px));
 }
 
 body.touch.portrait #center-msg {
@@ -5320,6 +5421,7 @@ body.touch.portrait .settings-tab-pane {
 body.touch.portrait .help-keys {
   columns: 1;
 }
+
 @media (max-width: 420px) {
   body.touch.portrait #hero-stats {
     padding: 2px 4px;
@@ -5351,6 +5453,15 @@ body.touch .panel {
 body.touch .paperdoll {
   grid-template-columns: repeat(4, 52px);
   grid-template-rows: repeat(4, 52px);
+}
+
+body.touch .paperdoll .portrait {
+  transform: translateY(18px);
+}
+
+body.touch .paperdoll .portrait img {
+  max-height: 110px;
+  max-width: 64px;
 }
 
 body.touch .vslot {
@@ -5625,7 +5736,7 @@ body.touch .skill-detail {
 }
 
 /* THE ETERNAL BREACH: the purple portal's floor dialog (game.confirmBreach) */
-.breach-dialog .velscour-biome-select {
+.breach-dialog .Dagyr-biome-select {
   width: 100%;
   border-color: #7a40b0;
   color: #e0c0ff;
@@ -6263,7 +6374,7 @@ body.touch .mk-btns {
   text-shadow: 0 0 10px rgba(32, 224, 255, .45);
 }
 
-.rift-dialog .velscour-biome-select {
+.rift-dialog .Dagyr-biome-select {
   width: 100%;
 }
 
@@ -6441,7 +6552,7 @@ body.touch .rift-board .rb-note {
   display: none;
 }
 
-body.touch .rift-board .velscour-biome-select {
+body.touch .rift-board .Dagyr-biome-select {
   padding: 5px 10px;
 }
 
@@ -6604,7 +6715,7 @@ body:not(.touch) .inv-wrap {
 }
 
 .paperdoll .portrait img {
-  max-height: 160px;
+  max-height: 136px;
   max-width: 76px;
   filter: drop-shadow(0 8px 9px #000) drop-shadow(0 0 7px #b07a3440);
 }
@@ -6897,23 +7008,558 @@ body.touch .shop-price {
   font-size: 8px;
 }
 
-.macros-panel .mc-why { font-size: 12px; margin-bottom: 8px; }
-.mc-row { padding: 6px 8px; margin-bottom: 6px; border: 1px solid #3a2e22; border-left: 3px solid var(--gold-dim); border-radius: 6px; background: rgba(16,10,6,.55); }
-.mc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.mc-head .mc-name { flex: 1 1 120px; min-width: 0; width: auto; padding: 3px 6px; font-size: 14px; }
-.mc-key, .mc-add { background: #160e08; color: #e8d8c0; border: 1px solid #5a4630; border-radius: 4px; padding: 3px 4px; font: inherit; font-size: 13px; }
-.mc-keep { display: flex; align-items: center; gap: 4px; font-size: 13px; color: #d8c8a8; cursor: pointer; white-space: nowrap; }
-.mc-skills { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
-.mc-chip { position: relative; width: 38px; height: 38px; border: 1px solid var(--gold-dim); border-radius: 5px; background: #0c0805; cursor: pointer; }
-.mc-chip img { width: 100%; height: 100%; border-radius: 4px; display: block; }
-.mc-chip .mc-n { position: absolute; left: 2px; top: 0; font: 700 10px var(--font-body); color: var(--gold); text-shadow: 0 0 2px #000, 0 0 2px #000; }
-.mc-chip .mc-x { position: absolute; right: 1px; top: -3px; font-size: 13px; color: #ff8070; text-shadow: 0 0 2px #000; opacity: 0; }
-.mc-chip:hover .mc-x, body.touch .mc-chip .mc-x { opacity: 1; }
-.mc-chip.gone { opacity: .4; }
-body.touch .mc-chip { width: 42px; height: 42px; }
-body.touch .mc-key, body.touch .mc-add, body.touch .mc-head .mc-name, body.touch .mc-row .btn { min-height: 32px; font-size: 14px; }
-body.touch .mc-keep input { width: 20px; height: 20px; }
-body.touch .macros-panel .mc-why { display: none; }
-.tbtn.macro { border-color: #8a6ad0; background: rgba(16,8,24,.8); }
-.tbtn.macro .k { top: auto; bottom: 1px; font-size: 8px; color: #d8c8ff; }
-.tt-augdmg { font-size: 12px; color: #ffcf7a; margin-top: 1px; }
+.macros-panel .mc-why {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.mc-row {
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  border: 1px solid #3a2e22;
+  border-left: 3px solid var(--gold-dim);
+  border-radius: 6px;
+  background: rgba(16, 10, 6, .55);
+}
+
+.mc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.mc-head .mc-name {
+  flex: 1 1 120px;
+  min-width: 0;
+  width: auto;
+  padding: 3px 6px;
+  font-size: 14px;
+}
+
+.mc-key,
+.mc-add {
+  background: #160e08;
+  color: #e8d8c0;
+  border: 1px solid #5a4630;
+  border-radius: 4px;
+  padding: 3px 4px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.mc-keep {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #d8c8a8;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mc-skills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.mc-chip {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--gold-dim);
+  border-radius: 5px;
+  background: #0c0805;
+  cursor: pointer;
+}
+
+.mc-chip img {
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  display: block;
+}
+
+.mc-chip .mc-n {
+  position: absolute;
+  left: 2px;
+  top: 0;
+  font: 700 10px var(--font-body);
+  color: var(--gold);
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+}
+
+.mc-chip .mc-x {
+  position: absolute;
+  right: 1px;
+  top: -3px;
+  font-size: 13px;
+  color: #ff8070;
+  text-shadow: 0 0 2px #000;
+  opacity: 0;
+}
+
+.mc-chip:hover .mc-x,
+body.touch .mc-chip .mc-x {
+  opacity: 1;
+}
+
+.mc-chip.gone {
+  opacity: .4;
+}
+
+body.touch .mc-chip {
+  width: 42px;
+  height: 42px;
+}
+
+body.touch .mc-key,
+body.touch .mc-add,
+body.touch .mc-head .mc-name,
+body.touch .mc-row .btn {
+  min-height: 32px;
+  font-size: 14px;
+}
+
+body.touch .mc-keep input {
+  width: 20px;
+  height: 20px;
+}
+
+body.touch .macros-panel .mc-why {
+  display: none;
+}
+
+.tbtn.macro {
+  border-color: #8a6ad0;
+  background: rgba(16, 8, 24, .8);
+}
+
+.tbtn.macro .k {
+  top: auto;
+  bottom: 1px;
+  font-size: 8px;
+  color: #d8c8ff;
+}
+
+.tt-augdmg {
+  font-size: 12px;
+  color: #ffcf7a;
+  margin-top: 1px;
+}
+
+/* ------------------------------------------------ town portal: floor picker (game.confirmDungeon) */
+.floor-pick-dialog {
+  min-width: min(440px, 92vw);
+}
+
+.floor-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.floor-pick-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.floor-pick-label,
+.floor-pick-max {
+  font-family: var(--font-title, serif);
+  color: #c8a060;
+  letter-spacing: 1px;
+  font-size: 15px;
+}
+
+.floor-pick-num {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.floor-pick-step.btn {
+  min-width: 34px;
+  padding: 2px 8px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.floor-pick-input {
+  width: 84px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffd860;
+  background: #120c08;
+  border: 1px solid #8e5c2e;
+  border-radius: 3px;
+  box-shadow: inset 0 0 8px #000;
+  padding: 4px 6px;
+  font-family: inherit;
+}
+
+.floor-pick-input:focus {
+  outline: none;
+  border-color: #ffb050;
+  box-shadow: inset 0 0 8px #000, 0 0 6px rgba(255, 160, 60, 0.5);
+}
+
+.floor-pick-range {
+  --pct: 0%;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ff5020 0%, #ffb050 var(--pct), #2a1a10 var(--pct), #2a1a10 100%);
+  border: 1px solid #5a3c20;
+  outline: none;
+  cursor: pointer;
+}
+
+.floor-pick-range:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.floor-pick-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #ffe0a0, #e07020 60%, #7a2a08);
+  border: 2px solid #2a1406;
+  box-shadow: 0 0 8px rgba(255, 110, 30, 0.8);
+}
+
+.floor-pick-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #ffe0a0, #e07020 60%, #7a2a08);
+  border: 2px solid #2a1406;
+  box-shadow: 0 0 8px rgba(255, 110, 30, 0.8);
+}
+
+.floor-pick-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #9a8060;
+  margin-top: -4px;
+}
+
+.floor-pick-desc {
+  min-height: 72px;
+}
+
+.floor-pick-desc p,
+.floor-pick-note {
+  margin: 4px 0;
+}
+
+/* the member's level beside the name in the party list */
+.pr-lvl {
+  flex-shrink: 0;
+  font: 700 9.5px var(--font-head);
+  color: #e8c890;
+  letter-spacing: .3px;
+  margin-right: auto;
+  padding-left: 4px;
+}
+
+/* ------------------------------------------------ Portrait Orientation Panel Stacking */
+/* Stack panels vertically, splitting 50/50 top/bottom when multiple are open (shop + inventory, etc.) */
+@media (orientation: portrait) {
+  #panels {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    padding: 6px !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    z-index: 30 !important;
+  }
+
+  #panels > .panel,
+  body.touch .vendor-panel,
+  body.touch .stash-panel,
+  body.touch .reliquary-panel,
+  body:not(.touch) .vendor-panel,
+  body:not(.touch) .stash-panel,
+  body:not(.touch) .reliquary-panel,
+  body:not(.touch) .panel[data-panel="inventory"] {
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    pointer-events: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Single panel in portrait: full height */
+  #panels:not(.multi-panel):not(:has(> .panel:nth-child(2))) > .panel {
+    flex: 0 1 auto !important;
+    max-height: 100% !important;
+  }
+
+  /* Multiple panels in portrait (e.g. shop + inventory): 50/50 top/bottom split */
+  #panels.multi-panel > .panel,
+  #panels:has(> .panel:nth-child(2)) > .panel {
+    flex: 1 1 50% !important;
+    height: calc(50% - 3px) !important;
+    max-height: calc(50% - 3px) !important;
+    min-height: 0 !important;
+  }
+
+  #panels > .panel .panel-head {
+    flex-shrink: 0 !important;
+  }
+
+  #panels > .panel .panel-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .inv-wrap {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+}
+
+body.portrait #panels {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  padding: 6px !important;
+  gap: 6px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  z-index: 30 !important;
+}
+
+body.portrait #panels > .panel,
+body.portrait.touch .vendor-panel,
+body.portrait.touch .stash-panel,
+body.portrait.touch .reliquary-panel,
+body.portrait:not(.touch) .vendor-panel,
+body.portrait:not(.touch) .stash-panel,
+body.portrait:not(.touch) .reliquary-panel,
+body.portrait:not(.touch) .panel[data-panel="inventory"] {
+  position: relative !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  pointer-events: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+body.portrait #panels:not(.multi-panel):not(:has(> .panel:nth-child(2))) > .panel {
+  flex: 0 1 auto !important;
+  max-height: 100% !important;
+}
+
+body.portrait #panels.multi-panel > .panel,
+body.portrait #panels:has(> .panel:nth-child(2)) > .panel {
+  flex: 1 1 50% !important;
+  height: calc(50% - 3px) !important;
+  max-height: calc(50% - 3px) !important;
+  min-height: 0 !important;
+}
+
+body.portrait #panels > .panel .panel-head {
+  flex-shrink: 0 !important;
+}
+
+body.portrait #panels > .panel .panel-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+body.portrait .inv-wrap {
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+
+/* ------------------------------------------------ Portrait Orientation Panel Stacking */
+/* Stack panels vertically, splitting 50/50 top/bottom when multiple are open (shop + inventory, etc.) */
+@media (orientation: portrait) {
+  #panels {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    padding: 6px !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    z-index: 30 !important;
+  }
+
+  #panels > .panel,
+  body.touch .vendor-panel,
+  body.touch .stash-panel,
+  body.touch .reliquary-panel,
+  body:not(.touch) .vendor-panel,
+  body:not(.touch) .stash-panel,
+  body:not(.touch) .reliquary-panel,
+  body:not(.touch) .panel[data-panel="inventory"] {
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    pointer-events: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Single panel in portrait: full height */
+  #panels:not(.multi-panel):not(:has(> .panel:nth-child(2))) > .panel {
+    flex: 0 1 auto !important;
+    max-height: 100% !important;
+  }
+
+  /* Multiple panels in portrait (e.g. shop + inventory): 50/50 top/bottom split */
+  #panels.multi-panel > .panel,
+  #panels:has(> .panel:nth-child(2)) > .panel {
+    flex: 1 1 50% !important;
+    height: calc(50% - 3px) !important;
+    max-height: calc(50% - 3px) !important;
+    min-height: 0 !important;
+  }
+
+  #panels > .panel .panel-head {
+    flex-shrink: 0 !important;
+  }
+
+  #panels > .panel .panel-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .inv-wrap {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+}
+
+body.portrait #panels {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  padding: 6px !important;
+  gap: 6px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  z-index: 30 !important;
+}
+
+body.portrait #panels > .panel,
+body.portrait.touch .vendor-panel,
+body.portrait.touch .stash-panel,
+body.portrait.touch .reliquary-panel,
+body.portrait:not(.touch) .vendor-panel,
+body.portrait:not(.touch) .stash-panel,
+body.portrait:not(.touch) .reliquary-panel,
+body.portrait:not(.touch) .panel[data-panel="inventory"] {
+  position: relative !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  pointer-events: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+body.portrait #panels:not(.multi-panel):not(:has(> .panel:nth-child(2))) > .panel {
+  flex: 0 1 auto !important;
+  max-height: 100% !important;
+}
+
+body.portrait #panels.multi-panel > .panel,
+body.portrait #panels:has(> .panel:nth-child(2)) > .panel {
+  flex: 1 1 50% !important;
+  height: calc(50% - 3px) !important;
+  max-height: calc(50% - 3px) !important;
+  min-height: 0 !important;
+}
+
+body.portrait #panels > .panel .panel-head {
+  flex-shrink: 0 !important;
+}
+
+body.portrait #panels > .panel .panel-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+body.portrait .inv-wrap {
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 8px !important;
+}

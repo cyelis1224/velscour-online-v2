@@ -33,7 +33,7 @@ const E = 6, WALK = 2.4, RUSH = 30, G_FIX = 17, C_G = 1.15;
   const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };
   // 1. XP per depth (endgame.js)
   let xp = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     await game.newChar('paladin', 'XP');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll();
@@ -56,7 +56,7 @@ const E = 6, WALK = 2.4, RUSH = 30, G_FIX = 17, C_G = 1.15;
   const rifts = {};
   for (const T of tiers) {
     rifts[T] = await page.evaluate(async (T) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { riftWeight } = await import('/src/data/rifts.js');
       const { spawnGuardian } = await import('/src/game/rifts.js');
       const out = [];
@@ -86,7 +86,7 @@ const E = 6, WALK = 2.4, RUSH = 30, G_FIX = 17, C_G = 1.15;
   }
   // 3-4. heroes
   const gear = (cls, H, L, D) => page.evaluate(async ({ cls, H, L, D, rounds }) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { Auto, heroDamage, buildPower } = await import('/src/game/autoplay.js');
     const { rollItem, rollGem } = await import('/src/data/items.js');
     await game.newChar(cls, 'Rift');

@@ -4,6 +4,7 @@ import { sanitizeBardTabs } from '../data/tabs.js';
 import { shownEquip } from '../data/items.js';
 import { itemLook, gearSrc } from '../core/gearart.js';
 import { heldLook } from '../gfx/heldart.js';
+import { sfx } from '../core/audio.js';
 
 export function serializeGearItem(item, slot, classId = null) {
   if (!item) return null;
@@ -77,10 +78,11 @@ class NetworkManager {
     this.reconnectTimer = null;
     this.lastPingTime = 0;
     this.lastPongTime = 0;
+    this.friends = [];
 
     if (typeof BroadcastChannel !== 'undefined') {
       try {
-        this.broadcastChannel = new BroadcastChannel('velscour_online_tab_bus');
+        this.broadcastChannel = new BroadcastChannel('dagyr_online_tab_bus');
         this.broadcastChannel.onmessage = (e) => this.handleTabBus(e.data);
       } catch (err) {
         console.warn('BroadcastChannel not available', err);
@@ -99,6 +101,16 @@ class NetworkManager {
       window.addEventListener('pageshow', () => this.handleForegroundResume());
       window.addEventListener('online', () => this.handleForegroundResume());
     }
+
+    // Periodic watchdog: checks connection every 15s and recovers if dropped
+    setInterval(() => {
+      const needsConnection = this.shouldReconnect || G.mode === 'lobby' || !!G.room || !!G.char?.isOnline;
+      if (needsConnection && !this.connected && !this.reconnectTimer) {
+        if (this.charData || G.char) {
+          this.connect(this.charData || G.char, true);
+        }
+      }
+    }, 15000);
   }
 
   on(event, fn) {
@@ -150,7 +162,7 @@ class NetworkManager {
       this.ws.onmessage = null;
       this.ws.onerror = null;
       this.ws.onclose = null;
-      try { this.ws.close(); } catch (e) {}
+      try { this.ws.close(); } catch (e) { }
       this.ws = null;
     }
     this.connected = false;
@@ -168,17 +180,17 @@ class NetworkManager {
       this.simWelcomeTimeout = null;
     }
 
-    const defaultRemoteHost = 'velscour.dagyr.me:8123';
+    const defaultRemoteHost = 'mmo.dagyr.me:8124';
     let params;
     try { params = new URLSearchParams(window.location.search); } catch (e) { params = new URLSearchParams(); }
-    const configuredHost = params.get('server') || localStorage.getItem('velscour_lobby_server') || defaultRemoteHost;
+    const configuredHost = params.get('server') || localStorage.getItem('dagyr_lobby_server') || defaultRemoteHost;
 
     this.targetHost = configuredHost;
 
     let url;
-    if (configuredHost.startsWith('velscour.dagyr.me')) {
-      // Connect to Cloudflare tunnel WebSocket on port 443 which forwards to the port 8123 server
-      url = 'wss://velscour.dagyr.me/ws';
+    if (configuredHost.startsWith('mmo.dagyr.me')) {
+      // Connect to Cloudflare tunnel WebSocket on port 443 which forwards to the port 8124 server
+      url = 'wss://mmo.dagyr.me/ws';
     } else {
       const loc = window.location;
       const proto = (loc.protocol === 'https:' && !configuredHost.includes('localhost')) ? 'wss:' : 'ws:';
@@ -201,6 +213,7 @@ class NetworkManager {
       const activeRoom = this.activeRoomName || (this.currentRoom ? this.currentRoom.name : null) || (G.room ? G.room.name : null);
       this.send({
         type: 'enter_lobby',
+        charId: this.charData.id || null,
         name: this.charData.name,
         classId: this.charData.classId,
         level: this.charData.level,
@@ -210,6 +223,9 @@ class NetworkManager {
         clientVersion: getClientVersion(),
         gear: serializeShownGear(this.charData),
       });
+      if (isReconnect && G.game && G.char) {
+        G.game.autosave();
+      }
       this.emit('connected', { url, isReconnect });
     };
 
@@ -293,7 +309,7 @@ class NetworkManager {
   disconnect() {
     this.shouldReconnect = false;
     if (this.connected && (this.currentRoom || this.activeRoomName) && this.ws && this.ws.readyState === WebSocket.OPEN) {
-      try { this.ws.send(JSON.stringify({ type: 'leave_room' })); } catch (e) {}
+      try { this.ws.send(JSON.stringify({ type: 'leave_room' })); } catch (e) { }
     }
     this.activeRoomName = null;
     this.currentRoom = null;
@@ -318,7 +334,7 @@ class NetworkManager {
       this.ws.onmessage = null;
       this.ws.onerror = null;
       this.ws.onclose = null;
-      try { this.ws.close(); } catch (e) {}
+      try { this.ws.close(); } catch (e) { }
       this.ws = null;
     }
     this.connected = false;
@@ -345,9 +361,9 @@ class NetworkManager {
                   this.disconnect();
                   showUpdateDialog(info);
                 }
-              }).catch(() => {});
+              }).catch(() => { });
             }
-          }).catch(() => {});
+          }).catch(() => { });
         }
         this.emit('lobby_welcome', msg);
         this.emit('lobby_update', { players: this.channelPlayers, rooms: this.rooms, channel: msg.channel });
@@ -366,6 +382,85 @@ class NetworkManager {
         });
         break;
 
+      case 'session_kicked': {
+        this.shouldReconnect = false;
+        const kickMsg = msg.message || 'This character was logged into from another device. Your previous session has been disconnected.';
+        this.disconnect();
+        this.emit('session_kicked', msg);
+        if (G.mode === 'game' && G.game) {
+          G.game.quitToTitle(false);
+          import('../ui/ui.js').then(({ UI }) => {
+            import('../core/util.js').then(({ escapeHtml }) => {
+              UI.dialog({
+                title: 'Disconnected — Signed In Elsewhere',
+                html: `<p>${escapeHtml(kickMsg)}</p>`,
+                buttons: [{ label: 'OK' }],
+              });
+            });
+          }).catch(() => { });
+        }
+        break;
+      }
+
+      case 'server_shutdown_warning': {
+        this.emit('server_shutdown_warning', msg);
+        // Automatically save character progression in background immediately
+        if (G.game && G.char) {
+          G.game.autosave();
+        }
+        import('../core/audio.js').then(({ sfx }) => sfx('danger', 0.8)).catch(() => { });
+        import('../ui/ui.js').then(({ UI }) => {
+          const m = msg.minutesLeft || Math.ceil((msg.secondsLeft || 180) / 60);
+          const s = msg.secondsLeft != null ? msg.secondsLeft : 180;
+          const timeText = s >= 60 ? `${m} minute${m > 1 ? 's' : ''}` : `${s} second${s > 1 ? 's' : ''}`;
+          UI.centerMsg('⚠️ SERVER RESTARTING SOON ⚠️', `Server update in ${timeText}! Save & Exit now to secure progress.`, 5);
+          UI.log(`[SERVER ALERT] Server is restarting in <b style="color:#ff5555">${timeText}</b>! Please move to a safe zone and click <b>Save & Quit</b>.`, '#ff4444', true);
+        }).catch(() => { });
+        break;
+      }
+
+      case 'friends_list': {
+        this.friends = msg.friends || [];
+        this.emit('friends_list', this.friends);
+        break;
+      }
+
+      case 'friend_error': {
+        this.emit('friend_error', msg.message);
+        break;
+      }
+
+      case 'server_shutdown_now': {
+        this.shouldReconnect = false;
+        // 1. Force flush save
+        if (G.game && G.char) {
+          G.game.autosave();
+        }
+        // 2. Disconnect cleanly
+        this.disconnect();
+        // 3. Navigate out of game and display polite update notice
+        import('../ui/ui.js').then(({ UI }) => {
+          if (G.mode === 'game' && G.game) {
+            G.game.quitToTitle(false);
+          }
+          UI.dialog({
+            title: 'Server Restarting',
+            html: '<p style="color:#ffd34a;font-size:15px;line-height:1.5"><b>The server has shut down for an update.</b><br>Your character progression has been securely saved.<br><br>Please wait approximately 30–60 seconds and sign back in.</p>',
+            buttons: [{ label: 'OK' }],
+          });
+        }).catch(() => { });
+        break;
+      }
+
+      case 'server_shutdown_cancelled': {
+        this.emit('server_shutdown_cancelled', msg);
+        import('../ui/ui.js').then(({ UI }) => {
+          UI.centerMsg('RESTART CANCELLED', 'Scheduled server restart was cancelled. You may continue playing.', 3.5);
+          UI.log('[SERVER] Scheduled restart was cancelled. Play continues normally.', '#60ff80');
+        }).catch(() => { });
+        break;
+      }
+
       case 'lobby_update':
         this.channelPlayers = msg.players || [];
         this.rooms = msg.rooms || [];
@@ -373,6 +468,8 @@ class NetworkManager {
         break;
 
       case 'chat':
+        // chime once per incoming whisper (not for whispers you send), lobby or in game
+        if (msg.kind === 'whisper') sfx('whisper');
         this.emit('chat', msg);
         break;
 
@@ -519,7 +616,7 @@ class NetworkManager {
           title: msg.title,
           gear: msg.gear,
         });
-        this.emit('lobby_update', { players: this.channelPlayers, rooms: this.rooms, channel: 'Velscour En-1' });
+        this.emit('lobby_update', { players: this.channelPlayers, rooms: this.rooms, channel: 'Dagyr Online En-1' });
       } else if (msg.type === 'chat') {
         this.emit('chat', msg);
       }
@@ -624,11 +721,11 @@ class NetworkManager {
 
     this.simWelcomeTimeout = setTimeout(() => {
       this.simWelcomeTimeout = null;
-      this.emit('chat', { type: 'chat', text: 'You have joined channel: Velscour En-1', color: '#3a8aff', kind: 'system' });
-      this.emit('chat', { type: 'chat', text: 'There are currently 28,528 users playing 30,596 games of VELSCOUR.', color: '#5a9aff', kind: 'system' });
+      this.emit('chat', { type: 'chat', text: 'You have joined channel: Dagyr Online En-1', color: '#3a8aff', kind: 'system' });
+      this.emit('chat', { type: 'chat', text: 'There are currently 28,528 users playing 30,596 games of DAGYR ONLINE.', color: '#5a9aff', kind: 'system' });
       this.emit('chat', { type: 'chat', text: '# Email Service # whispers: Welcome back to Sanctuary.', color: '#48e868', kind: 'system' });
       this.emit('chat', { type: 'chat', text: 'is diablo 2 dead?', from: 'Pladinson', classId: 'paladin', color: '#e9dcc4' });
-      this.emit('lobby_update', { players: this.channelPlayers, rooms: this.rooms, channel: 'Velscour En-1' });
+      this.emit('lobby_update', { players: this.channelPlayers, rooms: this.rooms, channel: 'Dagyr Online En-1' });
     }, 200);
 
     // Periodically post bot banter in chat
@@ -933,6 +1030,71 @@ class NetworkManager {
       type: 'game_town_transition',
       depth,
     });
+  }
+
+  // ---------------------------------------------------------------- Friends List API
+  requestFriendsList() {
+    if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.send({ type: 'friend_list' });
+    } else {
+      this.loadOfflineFriends();
+    }
+  }
+
+  addFriend(name) {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) return;
+    if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.send({ type: 'friend_add', name: trimmed });
+    } else {
+      this.addOfflineFriend(trimmed);
+    }
+  }
+
+  removeFriend(name) {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) return;
+    if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.send({ type: 'friend_remove', name: trimmed });
+    } else {
+      this.removeOfflineFriend(trimmed);
+    }
+  }
+
+  sendCharacterSave(charData) {
+    if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.send({ type: 'save_character', character: charData });
+    }
+  }
+
+  loadOfflineFriends() {
+    try {
+      const raw = localStorage.getItem('dagyr_friends_v1');
+      const list = raw ? JSON.parse(raw) : [];
+      this.friends = Array.isArray(list) ? list : [];
+    } catch (e) {
+      this.friends = [];
+    }
+    this.emit('friends_list', this.friends);
+    return this.friends;
+  }
+
+  addOfflineFriend(name) {
+    const list = this.loadOfflineFriends();
+    if (!list.some(f => (f.name || f).toLowerCase() === name.toLowerCase())) {
+      list.push({ name, level: 1, classId: 'paladin', online: false, status: 'offline', roomName: null });
+      try { localStorage.setItem('dagyr_friends_v1', JSON.stringify(list)); } catch (e) { }
+    }
+    this.friends = list;
+    this.emit('friends_list', this.friends);
+  }
+
+  removeOfflineFriend(name) {
+    let list = this.loadOfflineFriends();
+    list = list.filter(f => (f.name || f).toLowerCase() !== name.toLowerCase());
+    try { localStorage.setItem('dagyr_friends_v1', JSON.stringify(list)); } catch (e) { }
+    this.friends = list;
+    this.emit('friends_list', this.friends);
   }
 }
 

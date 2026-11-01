@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const BASE_URL = 'http://localhost:8123';
+const BASE_URL = 'http://localhost:8124';
 const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
 
 (async () => {
@@ -19,15 +19,15 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     const p2 = await ctx2.newPage();
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
     }
 
     console.log('Navigating players to game...');
     await p1.goto(BASE_URL + '/index.html');
     await p2.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Inject hero saves
     await p1.evaluate(async () => {
@@ -70,7 +70,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.fill('#d2-create-name', roomName);
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
-    await p1.waitForFunction(() => window.VELSCOUR.G.mode === 'game' && window.VELSCOUR.G.world?.kind === 'town');
+    await p1.waitForFunction(() => window.DAGYR.G.mode === 'game' && window.DAGYR.G.world?.kind === 'town');
     console.log('P1 created room and entered town.');
 
     // P2 joins room
@@ -84,14 +84,14 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.VELSCOUR.G.mode === 'game' && window.VELSCOUR.G.world?.kind === 'town');
+    await p2.waitForFunction(() => window.DAGYR.G.mode === 'game' && window.DAGYR.G.world?.kind === 'town');
     console.log('P2 joined room and entered town.');
 
     // Verify P1 sees 1 remote player
-    await p1.waitForFunction(() => window.VELSCOUR.G.remotePlayers && window.VELSCOUR.G.remotePlayers.size === 1);
+    await p1.waitForFunction(() => window.DAGYR.G.remotePlayers && window.DAGYR.G.remotePlayers.size === 1);
     const countInitialP1 = await p1.evaluate(() => {
-      const rpCount = window.VELSCOUR.G.remotePlayers?.size || 0;
-      const creatureCount = window.VELSCOUR.G.world.creatures.filter(c => c.isRemotePlayer).length;
+      const rpCount = window.DAGYR.G.remotePlayers?.size || 0;
+      const creatureCount = window.DAGYR.G.world.creatures.filter(c => c.isRemotePlayer).length;
       return { rpCount, creatureCount };
     });
     console.log('P1 remote players after initial join:', countInitialP1);
@@ -104,7 +104,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // -------------------------------------------------------------
     console.log('\nP2 leaving room (Save & Quit to lobby)...');
     await p2.evaluate(() => {
-      window.VELSCOUR.game.quitToTitle(true);
+      window.DAGYR.game.quitToTitle(true);
     });
 
     // P2 should be in lobby
@@ -113,14 +113,14 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // P1 should see P2 removed completely (0 remote players)
     await p1.waitForFunction(() => {
-      const rpCount = window.VELSCOUR.G.remotePlayers?.size || 0;
-      const creatureCount = window.VELSCOUR.G.world?.creatures?.filter(c => c.isRemotePlayer).length || 0;
+      const rpCount = window.DAGYR.G.remotePlayers?.size || 0;
+      const creatureCount = window.DAGYR.G.world?.creatures?.filter(c => c.isRemotePlayer).length || 0;
       return rpCount === 0 && creatureCount === 0;
     }, null, { timeout: 6000 });
 
     const countAfterLeave = await p1.evaluate(() => {
-      const rpCount = window.VELSCOUR.G.remotePlayers?.size || 0;
-      const creatureCount = window.VELSCOUR.G.world.creatures.filter(c => c.isRemotePlayer).length;
+      const rpCount = window.DAGYR.G.remotePlayers?.size || 0;
+      const creatureCount = window.DAGYR.G.world.creatures.filter(c => c.isRemotePlayer).length;
       return { rpCount, creatureCount };
     });
     console.log('P1 remote players after P2 left:', countAfterLeave);
@@ -139,16 +139,16 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.VELSCOUR.G.mode === 'game' && window.VELSCOUR.G.world?.kind === 'town');
+    await p2.waitForFunction(() => window.DAGYR.G.mode === 'game' && window.DAGYR.G.world?.kind === 'town');
     console.log('P2 rejoined room and entered town.');
 
     // P1 should now see EXACTLY 1 remote player, NOT 2!
-    await p1.waitForFunction(() => window.VELSCOUR.G.remotePlayers && window.VELSCOUR.G.remotePlayers.size === 1);
+    await p1.waitForFunction(() => window.DAGYR.G.remotePlayers && window.DAGYR.G.remotePlayers.size === 1);
     await p1.waitForTimeout(1000);
 
     const countAfterRejoin = await p1.evaluate(() => {
-      const rpCount = window.VELSCOUR.G.remotePlayers?.size || 0;
-      const creatures = window.VELSCOUR.G.world.creatures.filter(c => c.isRemotePlayer).map(c => ({
+      const rpCount = window.DAGYR.G.remotePlayers?.size || 0;
+      const creatures = window.DAGYR.G.world.creatures.filter(c => c.isRemotePlayer).map(c => ({
         id: c.id,
         name: c.name,
       }));
@@ -170,12 +170,12 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // -------------------------------------------------------------
     console.log('\nTesting second leave and rejoin cycle...');
     await p2.evaluate(() => {
-      window.VELSCOUR.game.quitToTitle(true);
+      window.DAGYR.game.quitToTitle(true);
     });
     await p2.waitForSelector('#d2-lobby', { timeout: 5000 });
     await p1.waitForFunction(() => {
-      return (window.VELSCOUR.G.remotePlayers?.size || 0) === 0 &&
-             (window.VELSCOUR.G.world?.creatures?.filter(c => c.isRemotePlayer).length || 0) === 0;
+      return (window.DAGYR.G.remotePlayers?.size || 0) === 0 &&
+        (window.DAGYR.G.world?.creatures?.filter(c => c.isRemotePlayer).length || 0) === 0;
     }, null, { timeout: 6000 });
 
     await p2.waitForTimeout(600);
@@ -185,14 +185,14 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.click(roomSelector);
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
-    await p2.waitForFunction(() => window.VELSCOUR.G.mode === 'game' && window.VELSCOUR.G.world?.kind === 'town');
+    await p2.waitForFunction(() => window.DAGYR.G.mode === 'game' && window.DAGYR.G.world?.kind === 'town');
 
-    await p1.waitForFunction(() => window.VELSCOUR.G.remotePlayers && window.VELSCOUR.G.remotePlayers.size === 1);
+    await p1.waitForFunction(() => window.DAGYR.G.remotePlayers && window.DAGYR.G.remotePlayers.size === 1);
     await p1.waitForTimeout(1000);
 
     const countSecondCycle = await p1.evaluate(() => {
-      const rpCount = window.VELSCOUR.G.remotePlayers?.size || 0;
-      const creatures = window.VELSCOUR.G.world.creatures.filter(c => c.isRemotePlayer).map(c => ({
+      const rpCount = window.DAGYR.G.remotePlayers?.size || 0;
+      const creatures = window.DAGYR.G.world.creatures.filter(c => c.isRemotePlayer).map(c => ({
         id: c.id,
         name: c.name,
       }));

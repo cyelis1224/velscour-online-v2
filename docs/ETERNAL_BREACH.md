@@ -2,7 +2,7 @@
 
 A broken world floating in a violet void, behind a **purple portal** in Herrington Hollow. It has its own monsters and
 bosses (none from the standard biomes), its own floors and its own rewards; it never enters a biome bag, the overworld
-guarantee or Velscour's teleport list, and dying there costs no Defiance and leaves the descent (`c.depth`) alone.
+guarantee or Dagyr's teleport list, and dying there costs no Defiance and leaves the descent (`c.depth`) alone.
 
 Tests: `node tools/tests/breach_gen.mjs [seeds] [floor]` (no browser),
 `node tools/tests/breach.js [town,play,arrive,shots,auto,rules] [floor]` and `node tools/tests/breach_dragon.js` (the wyrm).

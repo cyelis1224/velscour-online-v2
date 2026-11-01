@@ -98,14 +98,14 @@ Overworlds can also appear naturally from the regular shuffle bag. Visiting any
 overworld resets the miss count to zero. Reentering the
 same depth and biome after a town trip is protected from double counting by
 `c.overworldLastVisit`. Those fields migrate safely for old saves. Depth 500
-always remains Velscour's throne; the guarantee does not override it.
+always remains Dagyr's throne; the guarantee does not override it.
 
 ### Testing / QA
 
 Run the game from an HTTP server (the root has no build step):
 
 ```bash
-python3 -m http.server 8123
+python3 -m http.server 8124
 node tools/tests/data_check.mjs
 node tools/tests/overworld.js
 node tools/tests/flow.js

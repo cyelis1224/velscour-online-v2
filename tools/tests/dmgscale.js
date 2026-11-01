@@ -12,7 +12,7 @@ const classes = (process.argv[3] || 'paladin,wizard').split(',');
   const rows = [];
   for (const cls of classes) for (const D of depths) {
     const r = await page.evaluate(async ({ cls, D }) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { Auto } = await import('/src/game/autoplay.js');
       const { depthLevel, dmgScale, shownDmg } = await import('/src/data/depth.js');
       const { rollItem, rollGem } = await import('/src/data/items.js');
@@ -60,9 +60,11 @@ const classes = (process.argv[3] || 'paladin,wizard').split(',');
       const weapon = c.equip.weapon;
       const tip = weapon ? (/Damage: <b>([^<]+)<\/b>/.exec(itemTooltip(weapon)) || [])[1] : '-';
       const B = monsterBase(L);
-      return { cls, D, L, life: p.maxHp, scale: dmgScale(L), monLife: shownDmg(B.hp, L), monHit: B.dmg, hit: med(hits), crit: med(crits), n: hits.length + crits.length,
+      return {
+        cls, D, L, life: p.maxHp, scale: dmgScale(L), monLife: shownDmg(B.hp, L), monHit: B.dmg, hit: med(hits), crit: med(crits), n: hits.length + crits.length,
         maxShown: Math.max(0, ...hits.concat(crits).map(num).filter((x) => x > 0)),
-        atk: document.querySelector('#hs-atk').textContent, dps: document.querySelector('#hs-dps').textContent, avg: document.querySelector('#hs-avg').textContent, tip };
+        atk: document.querySelector('#hs-atk').textContent, dps: document.querySelector('#hs-dps').textContent, avg: document.querySelector('#hs-avg').textContent, tip
+      };
     }, { cls, D });
     rows.push(r);
     await shot(`dmgscale_${cls}_${D}`);
@@ -71,7 +73,7 @@ const classes = (process.argv[3] || 'paladin,wizard').split(',');
   // thorns (combat.js) land on the shown scale x Fortitude: a normal attacker dies in ~40 blows at every depth; weapon
   // figures read ~100 for a Common of the depth (shownWeapon), never the 0.0x they were
   const th = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     const { makeMonster } = await import('/src/game/monster.js');
     const { rollItem } = await import('/src/data/items.js');

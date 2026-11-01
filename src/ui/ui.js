@@ -26,7 +26,14 @@ export const UI = {
     this.ghost = $('#drag-ghost');
     initDnD();
     window.addEventListener('resize', () => this.layoutPanels());
-    document.addEventListener('pointermove', (e) => { if (!this.tipEl.classList.contains('hidden') && e.pointerType === 'mouse') this.placeTip(e.clientX, e.clientY); });
+    document.addEventListener('pointermove', (e) => { if (!this.tipEl.classList.contains('hidden') && e.pointerType === 'mouse' && !this.isTouchTip) this.placeTip(e.clientX, e.clientY); });
+    document.addEventListener('pointerdown', (e) => {
+      if (this.tipEl && !this.tipEl.classList.contains('hidden')) {
+        if (this.tipEl.contains(e.target)) return;
+        if (this.touchTipTarget && this.touchTipTarget.contains(e.target)) return;
+        this.hideTip();
+      }
+    });
   },
 
   // ------------------------------------------------------------- panels
@@ -97,9 +104,16 @@ export const UI = {
     }
     if (this.hud) this.hud.refreshStatic();
   },
-  onPanelsChanged() { document.body.classList.toggle('panel-open', this.panels.size > 0); if (this.hud) this.hud.refreshStatic(); }, // (portrait touch hides its buttons under a panel)
+  onPanelsChanged() {
+    document.body.classList.toggle('panel-open', this.panels.size > 0);
+    if (this.panelsEl) this.panelsEl.classList.toggle('multi-panel', this.panels.size > 1);
+    if (this.hud) this.hud.refreshStatic();
+  }, // (portrait touch hides its buttons under a panel)
 
-  desktopPanels() { return !G.touch && !document.body.classList.contains('touch'); },
+  desktopPanels() {
+    if (document.body.classList.contains('portrait') || window.innerHeight > window.innerWidth) return false;
+    return !G.touch && !document.body.classList.contains('touch');
+  },
   focusPanel(name) {
     const p = this.panels.get(name);
     if (p && this.desktopPanels()) p.root.style.zIndex = ++this.windowOrder;
@@ -119,7 +133,17 @@ export const UI = {
     this.windowPositions.set(name, { x: left, y: top, moved: true });
   },
   layoutPanels() {
-    if (!this.panelsEl || !this.desktopPanels()) return;
+    if (!this.panelsEl) return;
+    const isPortrait = document.body.classList.contains('portrait') || window.innerHeight > window.innerWidth;
+    if (isPortrait) {
+      for (const [, p] of this.panels) {
+        p.root.style.left = '';
+        p.root.style.top = '';
+        p.root.style.width = '';
+      }
+      return;
+    }
+    if (!this.desktopPanels()) return;
     const host = this.panelsEl.getBoundingClientRect();
     const inventory = this.panels.get('inventory');
     const partner = [...this.panels].find(([name]) => ['vendor', 'stash', 'reliquary'].includes(name));
@@ -225,25 +249,77 @@ export const UI = {
   },
 
   // ------------------------------------------------------------- tooltip
-  showTip(html, x, y) {
-    if (G.touch) return;
+  showTip(content, x, y, isTouch = false, anchorEl = null) {
+    let html = '', actions = null;
+    if (content && typeof content === 'object') {
+      html = content.html || '';
+      actions = content.actions || null;
+    } else {
+      html = content || '';
+    }
+    if (!html) return;
     this.tipEl.innerHTML = html;
+    this.isTouchTip = isTouch;
+    this.touchTipTarget = anchorEl;
+    this.tipEl.classList.toggle('touch-open', isTouch);
     this.tipEl.classList.remove('hidden');
+    if (actions && actions.length) {
+      this.tipEl.querySelectorAll('[data-tt-act]').forEach((btn) => {
+        const idx = +btn.dataset.ttAct;
+        const act = actions[idx];
+        if (act && act.fn) {
+          btn.onclick = (e) => {
+            e.stopPropagation();
+            this.hideTip();
+            act.fn(e);
+          };
+        }
+      });
+    }
     this.placeTip(x, y);
   },
   placeTip(x, y) {
-    const t = this.tipEl, r = t.getBoundingClientRect();
+    const t = this.tipEl;
+    t.style.maxWidth = 'min(340px, calc(100vw - 16px))';
+    t.style.maxHeight = 'calc(100vh - 24px)';
+    t.style.overflowY = 'auto';
+    const r = t.getBoundingClientRect();
     let nx = x + 18, ny = y + 12;
-    if (nx + r.width > innerWidth - 4) nx = x - r.width - 14;
-    if (ny + r.height > innerHeight - 4) ny = innerHeight - r.height - 4;
-    t.style.left = Math.max(4, nx) + 'px';
-    t.style.top = Math.max(4, ny) + 'px';
+    if (nx + r.width > innerWidth - 8) nx = x - r.width - 14;
+    if (ny + r.height > innerHeight - 8) ny = innerHeight - r.height - 8;
+    nx = Math.max(8, Math.min(nx, innerWidth - r.width - 8));
+    ny = Math.max(8, Math.min(ny, innerHeight - r.height - 8));
+    t.style.left = Math.round(nx) + 'px';
+    t.style.top = Math.round(ny) + 'px';
   },
-  hideTip() { this.tipEl.classList.add('hidden'); },
-  /** Attach hover tooltip to an element. html may be a function. */
+  hideTip() {
+    this.tipEl.classList.add('hidden');
+    this.tipEl.classList.remove('touch-open');
+    this.isTouchTip = false;
+    this.touchTipTarget = null;
+  },
+  /** Attach hover tooltip to an element (and tap on touch). html may be a function returning string or { html, actions }. */
   tip(elm, html) {
-    elm.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse' && !drag.active) this.showTip(typeof html === 'function' ? html() : html, e.clientX, e.clientY); });
-    elm.addEventListener('pointerleave', () => this.hideTip());
+    elm.addEventListener('pointerenter', (e) => {
+      if (e.pointerType === 'mouse' && !drag.active) {
+        this.showTip(typeof html === 'function' ? html() : html, e.clientX, e.clientY, false, elm);
+      }
+    });
+    elm.addEventListener('pointerleave', (e) => {
+      if (e.pointerType === 'mouse' && !this.isTouchTip) {
+        this.hideTip();
+      }
+    });
+    elm.addEventListener('pointerup', (e) => {
+      if (e.pointerType !== 'mouse' || G.touch) {
+        if (!drag.active) {
+          const content = typeof html === 'function' ? html() : html;
+          if (content) {
+            this.showTip(content, e.clientX, e.clientY, true, elm);
+          }
+        }
+      }
+    });
   },
 };
 

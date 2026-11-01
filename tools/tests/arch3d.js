@@ -9,7 +9,7 @@ const { openGame, report } = require('./harness');
   await page.click('text=Heroes'); await page.click('.class-card[data-id="paladin"]'); await page.click('text=Begin');
   await page.waitForTimeout(800);
   const found = await page.evaluate(async ([id, design]) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { BIOMES } = await import('/src/data/biomes.js');
     const { loadBiomeArt, biomeTileSet } = await import('/src/core/assets.js');
     const b = BIOMES.find((x) => x.id === id);
@@ -24,10 +24,10 @@ const { openGame, report } = require('./harness');
   }, [biome, design]);
   if (!found) errors.push(`[arch3d] no ${design} arch in 40 ${biome} levels`);
   else {
-    await page.evaluate(async () => { const { camera } = await import('/src/core/view.js'); window.VELSCOUR.G.settings.zoom = 1.6; camera.computeZoom(); });
+    await page.evaluate(async () => { const { camera } = await import('/src/core/view.js'); window.DAGYR.G.settings.zoom = 1.6; camera.computeZoom(); });
     for (const [name, off] of [['front', 1.6], ['under', 0], ['behind', -1.6]]) {
       await page.evaluate((off) => {
-        const { G } = window.VELSCOUR, a = window.__arch, n = a.axis === 'x' ? [0, 1] : [1, 0];
+        const { G } = window.DAGYR, a = window.__arch, n = a.axis === 'x' ? [0, 1] : [1, 0];
         G.player.x = a.x + n[0] * off + (a.axis === 'x' ? 0.5 : 0); G.player.y = a.y + n[1] * off + (a.axis === 'y' ? 0.5 : 0);
       }, off);
       await page.waitForTimeout(name === 'front' ? 2500 : 700);

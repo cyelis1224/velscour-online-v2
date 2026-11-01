@@ -1,12 +1,12 @@
 // Focused auto-play regression: point routing, bar coverage, skill rotation, Rage.
-// From repo root: python3 -m http.server 8123; node tools/tests/autoplay_focus.js
+// From repo root: python3 -m http.server 8124; node tools/tests/autoplay_focus.js
 const { openGame, report } = require('./harness');
 
 (async () => {
   const { browser, page, errors } = await openGame({ width: 844, height: 390 });
   try {
     const result = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { SKILLS, CLASS_SKILLS, rageCost, manaCost, cooldown } = await import('/src/data/skills.js');
       const { Auto } = await import('/src/game/autoplay.js');
       const problems = [], details = {};
@@ -57,8 +57,10 @@ const { openGame, report } = require('./harness');
           if (SKILLS[id].kind === 'buff' && !start.buffs.some((b) => b.id === id))
             start.buffs.push({ id, t: 100 });
         }
-        const target = { x: start.x + 5, y: start.y, r: 0.35,
-          rank: 'normal', curses: {}, status: {} };
+        const target = {
+          x: start.x + 5, y: start.y, r: 0.35,
+          rank: 'normal', curses: {}, status: {}
+        };
         const oldLos = G.world.map.los;
         G.world.map.los = () => true;
         let gapCast;
@@ -66,9 +68,11 @@ const { openGame, report } = require('./harness');
         finally { G.world.map.los = oldLos; }
         if (!gapCast || !['leap', 'dash', 'blink'].includes(gapCast.sk.kind))
           problems.push(cls + ' did not select a gap-closing skill at five tiles');
-        details[cls] = { learned: learned.length, signature: signature.map((sk) => sk.name),
+        details[cls] = {
+          learned: learned.length, signature: signature.map((sk) => sk.name),
           gapCast: gapCast?.sk.name || null,
-          bar: G.char.bar.filter(Boolean).map((id) => SKILLS[id].name) };
+          bar: G.char.bar.filter(Boolean).map((id) => SKILLS[id].name)
+        };
       }
 
       await game.newChar('barbarian', 'Rage test');

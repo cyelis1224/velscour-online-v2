@@ -11,14 +11,14 @@ const shots = !process.argv.includes('noshots');
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
   try {
     await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       await game.newChar('paladin', 'Scenario Check');
       document.querySelectorAll('.screen').forEach((s) => s.remove());
       G.ui.modalCount = 0; G.godMode = true;
     });
     // rooms: themes per biome, reachability
     const rooms = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOMES } = await import('/src/data/biomes.js');
       const { loadBiomeArt } = await import('/src/core/assets.js');
       const { BIOME_ROOMS } = await import('/src/data/biomerooms.js');
@@ -48,7 +48,7 @@ const shots = !process.argv.includes('noshots');
     for (const id of only) {
       for (let i = 0; i < 20; i++) {
         const r = await page.evaluate(async ([id, i]) => {
-          const { G, game } = window.VELSCOUR;
+          const { G, game } = window.DAGYR;
           const { BIOME_BY_ID } = await import('/src/data/biomes.js');
           const { loadBiomeArt } = await import('/src/core/assets.js');
           const { scenarioTick } = await import('/src/game/scenarios.js');
@@ -62,7 +62,7 @@ const shots = !process.argv.includes('noshots');
           const info = { id, i, mech: S.mech, title: S.title, at: mark ? [mark.x, mark.y] : null };
           // the cheating solver: a minute of game time in 0.25 s steps
           for (let t = 0; t < 240 && !S.done && !S.failed; t++) {
-            for (const m of w.creatures) if (m.team === 'enemy' && !m.dead && (S.foes.includes(m) || (S.targets || []).includes(m) || Math.hypot(m.x - p.x, m.y - p.y) < 12)) { m.hp = 0; m.dead = true; if (m.onDeath) try { m.onDeath(p); } catch (e) {} }
+            for (const m of w.creatures) if (m.team === 'enemy' && !m.dead && (S.foes.includes(m) || (S.targets || []).includes(m) || Math.hypot(m.x - p.x, m.y - p.y) < 12)) { m.hp = 0; m.dead = true; if (m.onDeath) try { m.onDeath(p); } catch (e) { } }
             const mk = w.chests.find((c) => c.scen === S && !c.opened && !c.hidden);
             if (S.objective) { p.x = S.objective.x; p.y = S.objective.y; }
             else if (mk) { p.x = mk.x + 0.3; p.y = mk.y + 0.3; mk.use(); }
@@ -76,7 +76,7 @@ const shots = !process.argv.includes('noshots');
         if (r.err || !r.done) errors.push(`[SCENARIO] ${id} #${i} ${r.mech || ''} ${r.err || (r.failed ? 'failed' : 'not completed: ' + r.progress)}`);
         if (shots && id === only[0] && r.at) {
           await page.evaluate(async ([id, i]) => {
-            const { G, game } = window.VELSCOUR;
+            const { G, game } = window.DAGYR;
             const { BIOME_BY_ID } = await import('/src/data/biomes.js');
             G.scenarioForce = i; game.buildDungeon(14, BIOME_BY_ID[id]); G.scenarioForce = null;
             const w = G.world, S = w.scenario, mk = w.chests.find((c) => c.scen === S && !c.hidden) || (S.targets && S.targets[0]);

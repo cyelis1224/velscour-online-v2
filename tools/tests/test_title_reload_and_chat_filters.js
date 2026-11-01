@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const BASE_URL = 'http://localhost:8123';
+const BASE_URL = 'http://localhost:8124';
 const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
 
 async function run() {
@@ -15,9 +15,9 @@ async function run() {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     const page = await ctx.newPage();
 
-    await page.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+    await page.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
     await page.goto(BASE_URL + '/index.html');
-    await page.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await page.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
 
     // 1. Verify Title Screen Update Button
     // A) Default: Hidden when up-to-date
@@ -32,7 +32,7 @@ async function run() {
 
     // B) When an update is detected, verify button becomes visible
     await page.evaluate(async () => {
-      window.VELSCOUR_TEST_UPDATE = true;
+      window.DAGYR_TEST_UPDATE = true;
       const { checkForUpdates } = await import('/src/ui/updater.js');
       await checkForUpdates({ force: true });
     });

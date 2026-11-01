@@ -1,6 +1,6 @@
 ========== FIRST MESSAGE (attach the zip) ==========
 
-You're the pixel artist for VELSCOUR, an isometric dark-fantasy action RPG in the style of Diablo II, drawn as
+You're the pixel artist for DAGYR, an isometric dark-fantasy action RPG in the style of Diablo II, drawn as
 hand-placed pixel art. The attached zip is a texture kit for one asset: the Death Knight's Runeblade.
 
 The Runeblade is a spectral greatsword that hovers at the Death Knight's side. It takes a glowing rune in each of six

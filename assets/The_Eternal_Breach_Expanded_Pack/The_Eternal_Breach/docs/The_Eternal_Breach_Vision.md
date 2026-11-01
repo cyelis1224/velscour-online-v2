@@ -9,7 +9,7 @@ The breach is ancient and active. It has exposed chambers sealed for generations
 
 ### Visual direction
 
-Keep the VELSCOUR reference pack’s 2:1 dimetric pixel-isometric language, crisp hard-edged pixel clusters, dense material texture, and dark outline treatment. Favor charcoal, ash gray, dirt brown, tarnished iron and bronze, and aged bone. Use chipped stone, granular rubble, tight shadow clusters, and restrained candle warmth.
+Keep the DAGYR reference pack’s 2:1 dimetric pixel-isometric language, crisp hard-edged pixel clusters, dense material texture, and dark outline treatment. Favor charcoal, ash gray, dirt brown, tarnished iron and bronze, and aged bone. Use chipped stone, granular rubble, tight shadow clusters, and restrained candle warmth.
 
 The breach adds a distinct accent: bruised violet in the depths and rare sickly green pixels in the deepest fractures or where its light touches stone. Keep the upper graveyard cold and muted. Avoid broad neon glows and smooth gradients.
 

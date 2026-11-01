@@ -379,7 +379,7 @@ export function heroPortrait(cls, body, head, w, h, over = null, extra = null) {
 }
 
 /** A copy of canvas `c` cropped to its opaque pixels (null stays null), so a card can fill its frame with the hero. */
-export function trimCanvas(c) {
+export function trimCanvas(c, meta = null) {
   if (!c) return c;
   const { width: w, height: h } = c, d = c.getContext('2d').getImageData(0, 0, w, h).data;
   let x0 = w, y0 = h, x1 = -1, y1 = -1;
@@ -389,6 +389,12 @@ export function trimCanvas(c) {
   if (x1 < 0) return c;
   const t = makeCanvas(x1 - x0 + 1, y1 - y0 + 1);
   t.getContext('2d').drawImage(c, -x0, -y0);
+  if (meta && meta.frame && meta.feet && meta.headTop) {
+    const scale = w / meta.frame[0];
+    t._bodyH = (meta.feet - meta.headTop) * scale;
+    t._feetFromBottom = Math.max(0, y1 - meta.feet * scale);
+    t._centerX = (meta.frame[0] / 2) * scale - x0;
+  }
   return t;
 }
 
@@ -427,7 +433,7 @@ export function savedGearPreview(cls, body, head, weapon = null, offhand = null)
         console.warn('Held gear preview unavailable for', cls, e);
       }
     }
-    return trimCanvas(finalArt);
+    return trimCanvas(finalArt, src.meta);
   });
   previewQueue = work.catch(() => {});
   const result = work.catch(e => {

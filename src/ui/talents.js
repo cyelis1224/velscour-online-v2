@@ -38,7 +38,7 @@ function talentWhyNot(c, node) {
     if (node.row === 3) return 'Requires 3 points in Tier 3 of this branch';
     return 'Prerequisite not met';
   }
-  if ((c.skillPoints || 0) <= 0) return 'No skill points available';
+  if ((c.talentPoints || 0) <= 0) return 'No talent points available';
   return null;
 }
 
@@ -132,13 +132,13 @@ function renderTalentDetail(node) {
   btn.onclick = (e) => handleLearnTalent(node, e && (e.shiftKey || e.ctrlKey || e.metaKey));
   row.appendChild(btn);
 
-  if (!why && c.skillPoints > 1 && node.maxRank - cur > 1) {
-    const room = Math.min(c.skillPoints, node.maxRank - cur);
+  if (!why && (c.talentPoints || 0) > 1 && node.maxRank - cur > 1) {
+    const room = Math.min(c.talentPoints || 0, node.maxRank - cur);
     const maxBtn = el('button', 'btn small', `Max (+${room})`);
     maxBtn.onclick = () => handleLearnTalent(node, true);
     row.appendChild(maxBtn);
   }
-  if (why && why !== 'No skill points available') {
+  if (why && why !== 'No talent points available') {
     const msg = el('span', 'dim', why);
     if (lockedByChoice) msg.style.color = '#ff7070';
     row.appendChild(msg);
@@ -163,11 +163,11 @@ export function renderTalents(body) {
   head.style.justifyContent = 'space-between';
   head.style.flexWrap = 'wrap';
   head.style.gap = '8px';
-  head.innerHTML = `<span>Skill Points: <b class="gold-text" style="font-size:18px">${c.skillPoints}</b> <span class="dim" style="font-size:12px">(${spent} spent in Talents)</span></span>
+  head.innerHTML = `<span>Talent Points: <b class="gold-text" style="font-size:18px">${c.talentPoints || 0}</b> <span class="dim" style="font-size:12px">(${spent} spent · +1 every 5 levels)</span></span>
     <span class="dim" style="font-size:12px">Click to inspect · double/right-click to spend · Choosing branch A locks B</span>`;
 
   const btns = el('span', 'row');
-  const toSkillsBtn = el('button', 'btn small', 'Active Skills (K)');
+  const toSkillsBtn = el('button', 'btn small', `Active Skills (K)${c.skillPoints > 0 ? ` [${c.skillPoints}]` : ''}`);
   toSkillsBtn.title = 'Switch to Active Skill Tree (K)';
   toSkillsBtn.onclick = () => {
     sfx('ui');
@@ -217,7 +217,7 @@ export function renderTalents(body) {
         if (node.row === 3) card.classList.add('talent-keystone');
         if (rank > 0) card.classList.add('has');
         else if (!why) card.classList.add('avail');
-        else if (why !== 'No skill points available') card.classList.add('locked');
+        else if (why !== 'No talent points available') card.classList.add('locked');
         if (lockedChoice) card.classList.add('choice-locked');
         if (selectedTalentId === node.id) card.classList.add('sel');
 

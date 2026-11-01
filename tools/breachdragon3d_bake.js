@@ -1,7 +1,7 @@
 // Bake the Ethereal Wyrm of the Eternal Breach (tools/breachdragon3d.html) into the sheets the game draws
 // (src/gfx/breachdragon.js): assets/sprites/breach_dragon/body.webp (segment and tail, 24 headings x 3 layers),
 // parts.webp (heads and claws cut from the set 2 dragons) and dragon.json.
-// Needs the repo served (python -m http.server 8123) and three.js from jsDelivr, or THREE_DIR (see gunner3d_bake.js).
+// Needs the repo served (python -m http.server 8124) and three.js from jsDelivr, or THREE_DIR (see gunner3d_bake.js).
 //   node tools/breachdragon3d_bake.js            # bake
 //   node tools/breachdragon3d_bake.js preview    # a contact sheet -> tools/tests/out/breachdragon3d_preview.png
 //   node tools/breachdragon3d_bake.js parts      # the heads and legs cut, marked -> tools/tests/out/breachdragon_parts.png
@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE_URL || 'http://localhost:8123';
+const BASE = process.env.BASE_URL || 'http://localhost:8124';
 const ROOT = path.resolve(__dirname, '..');
 const data = (u) => Buffer.from(u.split(',')[1], 'base64');
 (async () => {

@@ -1,7 +1,7 @@
 // Shared helpers for the headless-browser test scripts in this folder.
 //
-// Run from the repo root with the game served on BASE_URL (default http://localhost:8123):
-//   python3 -m http.server 8123 &
+// Run from the repo root with the game served on BASE_URL (default http://localhost:8124):
+//   python3 -m http.server 8124 &
 //   NODE_PATH=/opt/node22/lib/node_modules node tools/tests/skills.js
 //
 // Env:
@@ -9,14 +9,14 @@
 //   CHROMIUM_PATH  Chromium binary (default: the one preinstalled in Claude Code cloud containers)
 //   OUT_DIR        where screenshots go (default tools/tests/out/, git-ignored)
 //
-// Every script drives the game through the debug hook main.js exposes: window.VELSCOUR = { G, game }.
+// Every script drives the game through the debug hook main.js exposes: window.DAGYR = { G, game }.
 // Inside page.evaluate() you can also `await import('/src/...')` any module, which returns the
 // SAME module instances the game uses, so you can call internal functions directly.
 const path = require('path');
 const fs = require('fs');
 const { chromium } = require('playwright');
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8123';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:8124';
 const CHROMIUM_PATH = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const OUT_DIR = process.env.OUT_DIR || path.join(__dirname, 'out');
 fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -44,12 +44,12 @@ async function openGame({ width = 1280, height = 720, mobile = false, intro = fa
       await route.fulfill({ status: 200, contentType: mime[path.extname(file)] || 'application/octet-stream', body: fs.readFileSync(file) });
     });
   }
-  if (!intro) await page.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });   // title buttons take clicks at once
+  if (!intro) await page.addInitScript(() => { window.DAGYR_TEST_MENU = true; });   // title buttons take clicks at once
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push('[console] ' + m.text()); });
   page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message + ' ' + (e.stack || '').split('\n').slice(1, 3).join(' | ')));
   await page.goto(BASE_URL + '/index.html');
-  await page.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
+  await page.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
   const shot = (name) => page.screenshot({ path: path.join(OUT_DIR, name + '.png') });
   return { browser, ctx, page, errors, shot };
 }

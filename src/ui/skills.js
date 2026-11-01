@@ -181,7 +181,7 @@ export function renderTree(body) {
   const mb = el('button', 'btn small', 'Macros');
   mb.title = 'Cast several skills with one key (ui/macros.js)';
   mb.onclick = () => G.ui.macros.open();
-  const tbBtn = el('button', 'btn small', 'Talents (T)');
+  const tbBtn = el('button', 'btn small', `Talents (T)${c.talentPoints > 0 ? ` [${c.talentPoints}]` : ''}`);
   tbBtn.title = 'Open Passive Talent Tree (T)';
   tbBtn.onclick = () => {
     sfx('ui');

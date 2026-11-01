@@ -19,7 +19,7 @@ export function render(root) {
   const s = D.save, n = Math.min(s.frontier, LEVELS.length), L = LEVELS[n - 1], R = regionOf(n), done = s.frontier > LEVELS.length;
   playMusic('hymn_of_the_abyss', 0.5);
   root.innerHTML = `<div class="hub">
-    <div class="hub-stage"><div class="hub-logo"><img src="../assets/ui/logo.webp" alt="VELSCOUR"><div class="logo-sub">DEFENSE</div></div><div class="hub-heroes"></div></div>
+    <div class="hub-stage"><div class="hub-logo"><img src="../assets/ui/logo.webp" alt="DAGYR"><div class="logo-sub">DEFENSE</div></div><div class="hub-heroes"></div></div>
     <div class="hub-side">
       <div class="panel next-card">
         <div class="dim cinzel" style="font-size:12px">${done ? 'The campaign is won' : escapeHtml(actOf(n).name) + ' · ' + escapeHtml(R.name) + ' · Stage ' + n}</div>
@@ -54,6 +54,6 @@ export function render(root) {
   root.querySelector('[data-k=works]').onclick = () => { sfx('door_open', 0.4); show('works'); };
   root.querySelector('[data-k=login]').onclick = () => { const r = claimLogin(s); if (r) { sfx('chest_open', 0.7); toast(`Day ${s.daily.day}: ${r.label}`); save(); refresh(); } else show('rewards'); };
   root.querySelector('[data-k=hourly]').onclick = () => { const r = claimHourly(s); if (r) { sfx('chest_open', 0.6); toast(`Bounty: +${fmt(r.gold)} gold, +${r.shards} shards`); save(); refresh(); } else toast('The bounty is still gathering'); };
-  root.querySelector('[data-k=home]').onclick = () => modal('<h2>Return to Herrington Hollow?</h2><p class="dim">Step back through the Riftgate into VELSCOUR. Your Defense progress is saved.</p>',
+  root.querySelector('[data-k=home]').onclick = () => modal('<h2>Return to Herrington Hollow?</h2><p class="dim">Step back through the Riftgate into DAGYR. Your Defense progress is saved.</p>',
     [{ label: 'Stay', cls: 'ghost' }, { label: 'Return', cls: 'blue', fn: () => { save(true); location.href = '../index.html'; } }]);
 }

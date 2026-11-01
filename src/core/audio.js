@@ -91,6 +91,72 @@ function tone(t, dur, { wave = 'sine', f0 = 440, f1 = f0, vol = 0.3, a = 0.005, 
 
 const R = (a, b) => a + Math.random() * (b - a);
 
+// Acoustic plucked lute string: medieval lute pitches, physical plectrum attack transient,
+// double-strung course detuning (+/- 4 cents), and rapid dynamic damping filter.
+function luteString(t, p = 1) {
+  if (!ac) return;
+  // Medieval lute pitch set: warm lute register D3 (146.8), G3 (196.0), A3 (220.0), C4 (261.6), D4 (293.7), E4 (329.6), G4 (392.0), A4 (440.0)
+  const FREQS = [146.8, 196.0, 220.0, 261.6, 293.7, 329.6, 392.0, 440.0];
+  const baseF = FREQS[Math.floor(Math.random() * FREQS.length)] * p;
+  const dur = 0.52;
+
+  // 1. Pluck transient: short high-friction attack of plectrum/nail on gut string
+  if (noiseBuf) {
+    const nsrc = ac.createBufferSource();
+    nsrc.buffer = noiseBuf;
+    nsrc.playbackRate.value = 1.3 + Math.random() * 0.4;
+    const nfilt = ac.createBiquadFilter();
+    nfilt.type = 'bandpass';
+    nfilt.frequency.setValueAtTime(2200, t);
+    nfilt.Q.value = 2.5;
+    const ngain = ac.createGain();
+    ngain.gain.setValueAtTime(0.0001, t);
+    ngain.gain.exponentialRampToValueAtTime(0.08, t + 0.002);
+    ngain.gain.exponentialRampToValueAtTime(0.0001, t + 0.024);
+    nsrc.connect(nfilt);
+    nfilt.connect(ngain);
+    ngain.connect(sfxBus);
+    nsrc.start(t);
+    nsrc.stop(t + 0.03);
+  }
+
+  // 2. Dual string course: two strings tuned in unison with a warm ~6-cent shimmer
+  const o1 = ac.createOscillator();
+  const o2 = ac.createOscillator();
+  o1.type = 'sawtooth';
+  o2.type = 'triangle';
+  o1.frequency.setValueAtTime(baseF, t);
+  o2.frequency.setValueAtTime(baseF, t);
+  o1.detune.setValueAtTime(-3.5, t);
+  o2.detune.setValueAtTime(4.0, t);
+
+  // 3. Dynamic lowpass filter: bright pluck attack quickly decays to warm acoustic resonance
+  const filter = ac.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.Q.value = 2.2;
+  const startCutoff = Math.min(3800, Math.max(1400, baseF * 6));
+  const endCutoff = Math.max(220, baseF * 1.6);
+  filter.frequency.setValueAtTime(startCutoff, t);
+  filter.frequency.exponentialRampToValueAtTime(endCutoff, t + 0.16);
+
+  // 4. Plucked string volume envelope
+  const g = ac.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.15, t + 0.003);
+  g.gain.exponentialRampToValueAtTime(0.065, t + 0.09);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+  o1.connect(filter);
+  o2.connect(filter);
+  filter.connect(g);
+  g.connect(sfxBus);
+
+  o1.start(t);
+  o2.start(t);
+  o1.stop(t + dur + 0.02);
+  o2.stop(t + dur + 0.02);
+}
+
 const SOUNDS = {
   swing: (t, p) => noise(t, 0.14, { type: 'bandpass', f0: 3000 * p, f1: 600, q: 2, vol: 0.25 }),
   hit: (t, p) => { noise(t, 0.09, { f0: 1800 * p, f1: 300, vol: 0.35 }); tone(t, 0.1, { f0: 160 * p, f1: 60, vol: 0.3 }); },
@@ -135,7 +201,14 @@ const SOUNDS = {
   door: (t) => SOUNDS.thud(t, 0.7),
   gate: (t) => { tone(t, 0.8, { wave: 'sawtooth', f0: 70, f1: 50, vol: 0.12 }); noise(t, 0.8, { type: 'bandpass', f0: 900, f1: 400, q: 6, vol: 0.2 }); },
   step: (t, p) => noise(t, 0.05, { f0: 700 * p, f1: 200, vol: 0.06 }),
-  note: (t, p) => { const f = [523, 587, 659, 784, 880][Math.floor(Math.random() * 5)]; tone(t, 0.3, { wave: 'triangle', f0: f * p, vol: 0.12 }); },
+  note: (t, p) => luteString(t, p),
+  // incoming whisper: a soft two-note bell chime (E6 -> A6) with a faint shimmer overtone
+  whisper: (t) => {
+    tone(t, 0.45, { f0: 1319, vol: 0.09, a: 0.004 });
+    tone(t, 0.3, { f0: 2638, vol: 0.02, a: 0.004 });
+    tone(t + 0.11, 0.7, { f0: 1760, vol: 0.09, a: 0.004 });
+    tone(t + 0.11, 0.45, { f0: 3520, vol: 0.02, a: 0.004 });
+  },
 };
 
 export function sfx(name, vol = 1, pitch = 1) {

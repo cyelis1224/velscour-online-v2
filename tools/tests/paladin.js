@@ -20,7 +20,7 @@ const OUT = process.env.OUT_DIR || path.join(__dirname, 'out');
   const { browser, page, errors, shot } = await openGame();
   const fails = [];
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('paladin', 'Pal' + Math.random());
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll();
     G.settings.signatures = false; G.godMode = true;
@@ -30,7 +30,7 @@ const OUT = process.env.OUT_DIR || path.join(__dirname, 'out');
     const all = {};
     for (const H of levels) {
       const res = await page.evaluate(async ({ H, secs, only }) => {
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         const { CLASS_SKILLS, MAX_SKILL_LEVEL, manaCost } = await import('/src/data/skills.js');
         const { BIOME_BY_ID } = await import('/src/data/biomes.js');
         const { makeMonster } = await import('/src/game/monster.js');
@@ -73,7 +73,7 @@ const OUT = process.env.OUT_DIR || path.join(__dirname, 'out');
           w.rebuildGrid && w.rebuildGrid();
           let dealt = 0, mana = 0, casts = 0;
           const aim = [dummies[0].x0, dummies[0].y0]; // channels and whirls follow the aim, which the mouse would move
-          Object.defineProperty(P, 'aim', { get: () => aim, set() {}, configurable: true });
+          Object.defineProperty(P, 'aim', { get: () => aim, set() { }, configurable: true });
           const moving = () => w.hazards.some((h) => h.src === P && /^(Leap|Dash|Whirl)$/.test(h.constructor.name));
           for (let i = 0; i < secs * 30; i++) {
             P.mana = P.maxMana = 1e9;
@@ -122,7 +122,7 @@ const OUT = process.env.OUT_DIR || path.join(__dirname, 'out');
     // auto-play's build: where its points go, what it puts on the bar, and what it casts in a real level (god mode)
     for (const H of process.argv[3] ? levels : [14, 25, 45, 90]) {
       const r = await page.evaluate(async ({ H, secs }) => {
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         const { Auto } = await import('/src/game/autoplay.js');
         const { SKILLS } = await import('/src/data/skills.js');
         const { depthLevel } = await import('/src/data/depth.js');
@@ -168,7 +168,7 @@ const OUT = process.env.OUT_DIR || path.join(__dirname, 'out');
 
   if (mode === 'shield' || mode === 'all') {
     const res = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { CLASS_SKILLS, ricochetCount } = await import('/src/data/skills.js');
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { makeMonster } = await import('/src/game/monster.js');
@@ -289,7 +289,7 @@ const OUT = process.env.OUT_DIR || path.join(__dirname, 'out');
     for (const k of ['hammer_sheet', 'shield_sheet']) fs.writeFileSync(path.join(OUT, `paladin_${k}.png`), Buffer.from(sheets[k].split(',')[1], 'base64'));
     // in play: a pack of dummies, then each skill cast and shot a moment later
     await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { makeMonster } = await import('/src/game/monster.js');
       const { CLASS_SKILLS } = await import('/src/data/skills.js');
@@ -306,26 +306,26 @@ const OUT = process.env.OUT_DIR || path.join(__dirname, 'out');
       p.recompute(); G.settings.zoom = 2; G.settings.signatures = true;
     });
     // the live loop keeps rendering, but the world only moves when advance() steps it: exact moments in every shot
-    await page.evaluate(() => { const { game } = window.VELSCOUR; game._update = game._update || game.update; game.update = () => {}; });
+    await page.evaluate(() => { const { game } = window.DAGYR; game._update = game._update || game.update; game.update = () => { }; });
     const advance = (secs) => page.evaluate((secs) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       for (let i = 0; i < Math.round(secs * 60); i++) { G.dt = 1 / 60; G.time += G.dt; G.frame++; game._update(1 / 60); }
     }, secs);
     const cast = (names, x = 3.5, y = 0) => page.evaluate(async ({ names, x, y }) => {
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       const { CLASS_SKILLS } = await import('/src/data/skills.js');
       const p = G.player; p.mana = p.maxMana = 1e6; G.world.hazards.length = 0; // a clean stage for each skill
       for (const n of names) { p.castLock = 0; p.cooldowns = {}; p.tryUseSkill(CLASS_SKILLS.paladin.find((s) => s.name === n), p.x + x, p.y + y, null); }
     }, { names, x, y });
     const at = async (name, times) => { let t0 = 0; for (const t of times) { await advance((t - t0) / 1000); t0 = t; await page.waitForTimeout(60); await shot(`paladin_${name}_${t}`); } await advance(1.5); };
     for (const [name, list, times] of [['wheel', ['Wheel of Hammers'], [300, 900]], ['storm', ['Hammerstorm', 'Blessed Hammer'], [250, 700]],
-      ['shield', ['Shield Throw'], [80, 200, 330, 480]], ['gods', ['Hammer of the Gods'], [100, 180]]]) {
+    ['shield', ['Shield Throw'], [80, 200, 330, 480]], ['gods', ['Hammer of the Gods'], [100, 180]]]) {
       await cast(list); await at(name, times);
     }
     await cast(['Shield Throw'], -3, -3); await at('shield_air', [280]); // up the screen, away from the pack: the model alone
-    await page.evaluate(async () => { const { G } = window.VELSCOUR; const { sigFire } = await import('/src/game/signature.js'); sigFire(G.player); });
+    await page.evaluate(async () => { const { G } = window.DAGYR; const { sigFire } = await import('/src/game/signature.js'); sigFire(G.player); });
     await at('judgement', [250, 520, 900]);
-    await page.evaluate(() => { const { game } = window.VELSCOUR; game.update = game._update; });
+    await page.evaluate(() => { const { game } = window.DAGYR; game.update = game._update; });
   }
 
   report(errors.concat(fails));

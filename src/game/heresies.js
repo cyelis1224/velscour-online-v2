@@ -1,6 +1,6 @@
 // Heresies (docs/ENDGAME.md, data/heresies.js): the difficulty modifiers a hero switches on at the Altar of Heresy
-// once Velscour has fallen. They are read when a level is built (game.buildDungeon / buildBreach: heresySpawns and
-// heresyWorld, after the Greed lever) and never in Abyssal Rifts or Velscour Unbound; heresyTick (from happeningsTick)
+// once Dagyr has fallen. They are read when a level is built (game.buildDungeon / buildBreach: heresySpawns and
+// heresyWorld, after the Greed lever) and never in Abyssal Rifts or Dagyr Unbound; heresyTick (from happeningsTick)
 // marks every enemy as it appears. The hero's own ones (Glass Cannon, Dry Throat, Hunger) read the level he is in, so
 // a rift is played clean. Saves keep c.heresy.on; the rank's rewards are heresyMods in data/heresies.js.
 import { G } from '../state.js';
@@ -41,7 +41,7 @@ export function setHeresy(id, on, c = G.char) {
 export const heresyText = (ids) => (ids && ids.length ? ids.map((id) => HERESY_BY_ID[id] && HERESY_BY_ID[id].name).filter(Boolean).join(' · ') : 'none');
 
 // ---------------------------------------------------------------- building a level
-/** Pack spawns of a fresh level: Twinned Packs double every pack (not guardians, raid bosses or Velscour). */
+/** Pack spawns of a fresh level: Twinned Packs double every pack (not guardians, raid bosses or Dagyr). */
 export function heresySpawns(spawns, ids) {
   if (!ids || !ids.includes('twins')) return spawns;
   return spawns.map((s) => (!s.n || ['raid', 'boss'].includes(s.rank) ? s : { ...s, n: s.n * 2 }));
@@ -72,7 +72,7 @@ export function heresyWorld(world, c = G.char) {
     world.addLoot = function (l) { return l && (l.kind === 'orb_hp' || l.kind === 'orb_mp') ? l : add.call(this, l); };
   }
 }
-/** Each enemy as it appears (packs, ambushes, adds): Iron Hide, Cruel Hand, Velscour's Gaze, Crowned Champions, the XP bonus. */
+/** Each enemy as it appears (packs, ambushes, adds): Iron Hide, Cruel Hand, Dagyr's Gaze, Crowned Champions, the XP bonus. */
 export function heresyMonster(m, ids) {
   if (!m || m._heresy || m.team !== 'enemy' || m.summon) return;
   m._heresy = true;
@@ -110,7 +110,7 @@ export function heresyTick(world, dt) {
   }
 }
 /**
- * Velscour's Legion of the Pit: a hellgate tears open near `near` (a creature) and n Pit Demons / Imps climb out a
+ * Dagyr's Legion of the Pit: a hellgate tears open near `near` (a creature) and n Pit Demons / Imps climb out a
  * moment later (his own fight calls it with himself as the source; the Heresy with the hero). Their level: lvl - 2.
  */
 export function legionGate(world, near, n, lvl, opts = {}) {
@@ -124,19 +124,22 @@ export function legionGate(world, near, n, lvl, opts = {}) {
     if (w.map.circleFree(x, y, 0.6) && w.map.flowAt(x, y) >= 0 && w.map.los(near.x, near.y, x, y)) { gx = x; gy = y; break; }
   }
   addEffect(new Telegraph({ kind: 'circle', x: gx, y: gy, r: 1.8, dur: 1.2, color: '#ff4010' }), 'ground');
-  if (G.ui && G.ui.log) G.ui.log(`<b style="color:#ff5020">Legion of the Pit</b>: ${opts.src ? 'Velscour tears open a hellgate and his demons climb out!' : 'a hellgate tears open beside you; Velscour\'s demons climb out.'}`, '#ffb090');
+  if (G.ui && G.ui.log) G.ui.log(`<b style="color:#ff5020">Legion of the Pit</b>: ${opts.src ? 'Dagyr tears open a hellgate and his demons climb out!' : 'a hellgate tears open beside you; Dagyr\'s demons climb out.'}`, '#ffb090');
   if (opts.src) floatText(near.x, near.y, 160, 'RISE, MY LEGION', '#ff5020', 16, { life: 1.6 });
   sfx('roar', 0.7);
-  return w.addHazard({ t: 1.2, team: 'enemy', update(dt) {
-    this.t -= dt; if (this.t > 0) return true;
-    explosionFx(gx, gy, 2, 'fire', 'eruption'); addEffect(new Ring(gx, gy, 0.2, 2.2, 0.6, '#ff3010', 5)); sfx('summon');
-    for (let i = 0; i < n; i++) {
-      const [x, y] = w.map.randomNear(gx, gy, 1.6);
-      const d = makeMonster(w, i % 2 ? 'imp' : 'demon', w.biome, Math.max(1, lvl - 2), i === 0 ? 'champion' : 'normal', x, y);
-      d.awake = true; d.aggro = p; d.maxHp *= 0.55; d.hp = d.maxHp; d.pitSpawn = true; d.name = i % 2 ? 'Pit Imp' : 'Pit Demon';
-      w.add(d); smoke(x, y, 0, '#200808', 5, 9);
-    }
-    return false; }, draw() {} });
+  return w.addHazard({
+    t: 1.2, team: 'enemy', update(dt) {
+      this.t -= dt; if (this.t > 0) return true;
+      explosionFx(gx, gy, 2, 'fire', 'eruption'); addEffect(new Ring(gx, gy, 0.2, 2.2, 0.6, '#ff3010', 5)); sfx('summon');
+      for (let i = 0; i < n; i++) {
+        const [x, y] = w.map.randomNear(gx, gy, 1.6);
+        const d = makeMonster(w, i % 2 ? 'imp' : 'demon', w.biome, Math.max(1, lvl - 2), i === 0 ? 'champion' : 'normal', x, y);
+        d.awake = true; d.aggro = p; d.maxHp *= 0.55; d.hp = d.maxHp; d.pitSpawn = true; d.name = i % 2 ? 'Pit Imp' : 'Pit Demon';
+        w.add(d); smoke(x, y, 0, '#200808', 5, 9);
+      }
+      return false;
+    }, draw() { }
+  });
 }
 
 // ---------------------------------------------------------------- the hero

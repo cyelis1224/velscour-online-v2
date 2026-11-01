@@ -1,7 +1,7 @@
-// Velscour's first seconds without god mode, traced: a depth-500-geared hero (like velscour_real.js) set down in his
+// Dagyr's first seconds without god mode, traced: a depth-500-geared hero (like Dagyr_real.js) set down in his
 // arena; every drop in life is logged with the fight's clock, what was near and who hit last, until the hero dies or
 // `secs` of fight pass. For finding deaths that happen right as the fight begins.
-//   node tools/tests/velscour_probe.js [class] [attempts] [secs] [unbound] [court=ysol,nyx] [every=15]   (every: a status line
+//   node tools/tests/Dagyr_probe.js [class] [attempts] [secs] [unbound] [court=ysol,nyx] [every=15]   (every: a status line
 //   each N seconds of the fight: his life and phase, the court's, what auto-play is doing and hitting)
 const { openGame, report } = require('./harness');
 const cls = process.argv[2] || 'ranger', attempts = +(process.argv[3] || 4), secs = +(process.argv[4] || 20), unbound = process.argv.includes('unbound');
@@ -11,7 +11,7 @@ const court = (process.argv.find((a) => a.startsWith('court=')) || '').slice(6),
   const { browser, page, errors } = await openGame();
   for (let a = 0; a < attempts; a++) {
     const r = await page.evaluate(async ({ cls, secs, unbound, court, every }) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { Auto, charScore } = await import('/src/game/autoplay.js');
       const { rollItem, rollGem, SLOTS } = await import('/src/data/items.js');
       const { depthLevel } = await import('/src/data/depth.js');
@@ -38,7 +38,7 @@ const court = (process.argv.find((a) => a.startsWith('court=')) || '').slice(6),
       if (court) G.unboundCourt = court.split(',');
       if (unbound) { const { unlockEndgame } = await import('/src/game/endgame.js'); unlockEndgame(); c.keys = 3; await game.enterUnbound(); }
       else await game.finalBoss();
-      const w = G.world, V = w.velscour, P = G.player, log = [];
+      const w = G.world, V = w.Dagyr, P = G.player, log = [];
       let killer = null;
       const die0 = P.die.bind(P);
       P.die = (src) => { killer = src ? `${src.name || src.constructor.name}${src.owner ? ' of ' + src.owner.name : ''}` : 'none'; return die0(src); };

@@ -2,7 +2,7 @@ import { resolveHelmetFit } from '../../src/core/helmetfit.js';
 
 const $ = (id) => document.getElementById(id);
 const base = '../../assets/sprites/gear/';
-const draftKey = () => `velscour-helmet-fitter-v4-${activeSet}`;
+const draftKey = () => `Dagyr-helmet-fitter-v4-${activeSet}`;
 const camera = { x: 24, y: 48, w: 80, h: 96 };
 const canvas = $('editor'), ctx = canvas.getContext('2d');
 let index, atlas, data, persisted, current, loaded, activeSet = 'helmet', sets = {}, zoom = 6, history = [], dragging = null, space = false;
@@ -257,7 +257,7 @@ $('save').onclick = async () => {
 };
 $('export').onclick = () => {
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' }));
-  const a = document.createElement('a'); a.href = url; a.download = 'velscour-helmet-placements.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const a = document.createElement('a'); a.href = url; a.download = 'Dagyr-helmet-placements.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   status('JSON downloaded. You can send that file or a screenshot of this view.');
 };
 $('png').onclick = () => {
@@ -271,7 +271,7 @@ $('png').onclick = () => {
   const frame = composite(design()); x.imageSmoothingEnabled = false;
   x.drawImage(frame, camera.x, camera.y, camera.w, camera.h, 16, 110, 480, 576);
   x.drawImage(frame, 520, 110, 256, 384);
-  const a = document.createElement('a'); a.download = `velscour-fit-${current}-${design()}.png`; a.href = output.toDataURL('image/png'); a.click();
+  const a = document.createElement('a'); a.download = `Dagyr-fit-${current}-${design()}.png`; a.href = output.toDataURL('image/png'); a.click();
   status('PNG downloaded with the exact fit values. You can send me that image.');
 };
 $('import').onclick = () => $('file').click();

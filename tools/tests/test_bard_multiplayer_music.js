@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const BASE_URL = 'http://localhost:8123';
+const BASE_URL = 'http://localhost:8124';
 const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
 
 (async () => {
@@ -32,15 +32,15 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     });
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
     }
 
     console.log('Loading game on P1 and P2...');
     await p1.goto(BASE_URL + '/index.html');
     await p2.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
 
     // P1: Bard character
     await p1.evaluate(async () => {
@@ -90,7 +90,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.fill('#d2-create-name', roomName);
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
+    await p1.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
     console.log('P1 created and entered game in town.');
 
     // P2 joins room
@@ -104,34 +104,34 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
+    await p2.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
     console.log('P2 successfully joined room and entered town.');
 
     // Both enter dungeon depth 1 so Bard music and notation are active
     console.log('Transitioning party to dungeon depth 1...');
     await p1.evaluate(() => {
-      const portal = window.VELSCOUR.G.world.portals[0];
-      window.VELSCOUR.G.player.x = portal.x;
-      window.VELSCOUR.G.player.y = portal.y;
-      window.VELSCOUR.G.char.nextBiome = 'catacombs';
+      const portal = window.DAGYR.G.world.portals[0];
+      window.DAGYR.G.player.x = portal.x;
+      window.DAGYR.G.player.y = portal.y;
+      window.DAGYR.G.char.nextBiome = 'catacombs';
     });
     await p2.evaluate(() => {
-      const portal = window.VELSCOUR.G.world.portals[0];
-      window.VELSCOUR.G.player.x = portal.x;
-      window.VELSCOUR.G.player.y = portal.y;
+      const portal = window.DAGYR.G.world.portals[0];
+      window.DAGYR.G.player.x = portal.x;
+      window.DAGYR.G.player.y = portal.y;
     });
 
-    await p1.evaluate(() => window.VELSCOUR.game.enterDungeon());
-    await p2.waitForFunction(() => window.VELSCOUR.G.room?.biome === 'catacombs', null, { timeout: 5000 });
-    await p2.evaluate(() => window.VELSCOUR.game.enterDungeon());
+    await p1.evaluate(() => window.DAGYR.game.enterDungeon());
+    await p2.waitForFunction(() => window.DAGYR.G.room?.biome === 'catacombs', null, { timeout: 5000 });
+    await p2.evaluate(() => window.DAGYR.game.enterDungeon());
 
-    await p1.waitForFunction(() => window.VELSCOUR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
-    await p2.waitForFunction(() => window.VELSCOUR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
+    await p1.waitForFunction(() => window.DAGYR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
+    await p2.waitForFunction(() => window.DAGYR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
     console.log('Both players in dungeon Depth 1.');
 
     // Ensure P2 sees P1 as a remote player
     await p2.waitForFunction(() => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       return G.remotePlayers && G.remotePlayers.size >= 1;
     }, { timeout: 5000 });
     console.log('P2 registered remote player for P1.');
@@ -148,7 +148,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // P1 writes and loads a custom Tab: "Ode to Joy"
     console.log('P1 loading custom music sheet into Tab 1...');
     await p1.evaluate(async () => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       const { loadTab } = await import('/src/ui/sheets.js');
       const tabText = `
 e|-------------------|
@@ -172,13 +172,13 @@ E|-------------------|
     // Wait for P2 to receive P1's custom bard sheet
     console.log('Checking that P2 received P1\'s custom sheet and song data...');
     await p2.waitForFunction(() => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       const rp = Array.from(G.remotePlayers.values())[0];
       return rp && rp.char?.tabs && rp.char.tabs[0] && rp.char.tabs[0].title === 'Ode to Joy';
     }, { timeout: 6000 });
 
     const remoteSongInfo = await p2.evaluate(() => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       const rp = Array.from(G.remotePlayers.values())[0];
       return {
         tabTitle: rp.char.tabs[0].title,
@@ -194,7 +194,7 @@ E|-------------------|
     // Now P1 plays a note skill (e.g. bard basic attack bard.0.0)
     console.log('P1 casting note skills to play the sheet...');
     const castDebug = await p1.evaluate(() => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       if (!G.char.skills) G.char.skills = {};
       G.char.skills['bard.0.0'] = 5;
       if (G.player.char) {
@@ -202,7 +202,7 @@ E|-------------------|
         G.player.char.skills['bard.0.0'] = 5;
       }
       G.player.castLock = 0;
-      const { SKILLS } = window.VELSCOUR;
+      const { SKILLS } = window.DAGYR;
       const sk = SKILLS ? SKILLS['bard.0.0'] : 'bard.0.0';
       const before = {
         dead: G.player.dead,
@@ -230,7 +230,7 @@ E|-------------------|
 
     // Verify ScoreFx is actively rendering over the remote Bard on P2
     const scoreFxActive = await p2.evaluate(async () => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       const { effects } = await import('/src/gfx/vfx.js');
       const { ScoreFx } = await import('/src/gfx/notation.js');
       const rp = Array.from(G.remotePlayers.values())[0];
@@ -244,7 +244,7 @@ E|-------------------|
     // P1 continues casting to trigger a Cadence
     console.log('P1 casting remaining beats to trigger a Cadence...');
     await p1.evaluate(() => {
-      const G = window.VELSCOUR.G;
+      const G = window.DAGYR.G;
       for (let i = 0; i < 4; i++) {
         G.player.cooldowns['bard.0.0'] = 0;
         G.player.castLock = 0;

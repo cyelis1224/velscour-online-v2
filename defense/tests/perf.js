@@ -1,4 +1,4 @@
-// VELSCOUR DEFENSE frame cost on a phone: an iPhone-sized touch screen (844x390 landscape or 390x844 portrait, DPR 3),
+// DAGYR DEFENSE frame cost on a phone: an iPhone-sized touch screen (844x390 landscape or 390x844 portrait, DPR 3),
 // the CPU slowed (default 4x), a stage fought on auto at 2x speed. Prints fps, ms per frame in the sim (battle steps),
 // the view's update and draw, the worst frame, and the top self-time functions of a CPU profile.
 // Serve the repo root first (python -m http.server 8317), then:
@@ -19,7 +19,7 @@ fs.mkdirSync(path.join(__dirname, 'out'), { recursive: true });
   const page = await ctx.newPage(), errors = [];
   page.on('pageerror', (e) => errors.push('[pageerror] ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push('[console] ' + m.text()); });
-  await page.addInitScript(() => { try { localStorage.removeItem('velscour_defense_v1'); } catch { /* */ } });
+  await page.addInitScript(() => { try { localStorage.removeItem('Dagyr_defense_v1'); } catch { /* */ } });
   await page.goto(BASE + '/defense/index.html');
   await page.waitForFunction(() => window.VDEF && !document.getElementById('loading'), null, { timeout: 30000 });
   const cdp = await ctx.newCDPSession(page);

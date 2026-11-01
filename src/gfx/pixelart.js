@@ -330,7 +330,7 @@ ccc..aaaaa..ccc.
 ......aaa....aaa......
 ......aaa....aaa......
 .....AAAA....AAAA.....`,
-  velscour: `
+  Dagyr: `
 ....ww......................ww....
 ....www....................www....
 .....www..................www.....
@@ -994,30 +994,30 @@ export function gemIcon(kind, color, tier = 3, size = 48) {
   x.translate(s, s);
   if (painted) x.drawImage(painted, -s, -s);
   else {
-  const grad = x.createRadialGradient(-R * 0.3, -R * 0.35, 1, 0, 0, R * 1.3);
-  grad.addColorStop(0, shade(color, 0.7)); grad.addColorStop(0.45, color); grad.addColorStop(1, shade(color, -0.6));
-  x.fillStyle = grad; x.strokeStyle = '#0a0606'; x.lineWidth = Math.max(2, size / 20);
-  x.beginPath();
-  const poly = (n, r, rot = -Math.PI / 2) => { for (let i = 0; i < n; i++) { const a = rot + (i / n) * Math.PI * 2; x.lineTo(Math.cos(a) * r, Math.sin(a) * r); } x.closePath(); };
-  switch (shape) {
-    case 'oval': x.ellipse(0, 0, R * 0.8, R, 0, 0, Math.PI * 2); break;
-    case 'square': poly(4, R * 1.1, Math.PI / 4); break;
-    case 'tri': poly(3, R * 1.15); break;
-    case 'rect': x.rect(-R * 0.65, -R, R * 1.3, R * 2); break;
-    case 'diamond': poly(4, R * 1.15); break;
-    case 'hex': poly(6, R); break;
-    case 'round': x.arc(0, 0, R, 0, Math.PI * 2); break;
-    case 'moon': x.arc(0, 0, R, 0.6, Math.PI * 2 - 0.6); x.arc(R * 0.5, 0, R * 0.6, Math.PI * 2 - 1.2, 1.2, true); break;
-    case 'star': for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5; const r = i % 2 ? R * 0.5 : R * 1.15; x.lineTo(Math.cos(a) * r, Math.sin(a) * r); } x.closePath(); break;
-    case 'twin': x.arc(-R * 0.45, 0, R * 0.7, 0, Math.PI * 2); x.moveTo(R * 1.15, 0); x.arc(R * 0.45, 0, R * 0.7, 0, Math.PI * 2); break;
-    case 'eye': x.ellipse(0, 0, R * 1.1, R * 0.65, 0, 0, Math.PI * 2); break;
-    default: poly(4, R);
-  }
-  x.fill(); x.stroke();
-  // facet highlight
-  x.globalAlpha = 0.55; x.fillStyle = '#ffffff';
-  x.beginPath(); x.ellipse(-R * 0.3, -R * 0.4, R * 0.28, R * 0.16, -0.6, 0, Math.PI * 2); x.fill();
-  if (shape === 'eye') { x.globalAlpha = 1; x.fillStyle = '#000'; x.beginPath(); x.arc(0, 0, R * 0.3, 0, Math.PI * 2); x.fill(); }
+    const grad = x.createRadialGradient(-R * 0.3, -R * 0.35, 1, 0, 0, R * 1.3);
+    grad.addColorStop(0, shade(color, 0.7)); grad.addColorStop(0.45, color); grad.addColorStop(1, shade(color, -0.6));
+    x.fillStyle = grad; x.strokeStyle = '#0a0606'; x.lineWidth = Math.max(2, size / 20);
+    x.beginPath();
+    const poly = (n, r, rot = -Math.PI / 2) => { for (let i = 0; i < n; i++) { const a = rot + (i / n) * Math.PI * 2; x.lineTo(Math.cos(a) * r, Math.sin(a) * r); } x.closePath(); };
+    switch (shape) {
+      case 'oval': x.ellipse(0, 0, R * 0.8, R, 0, 0, Math.PI * 2); break;
+      case 'square': poly(4, R * 1.1, Math.PI / 4); break;
+      case 'tri': poly(3, R * 1.15); break;
+      case 'rect': x.rect(-R * 0.65, -R, R * 1.3, R * 2); break;
+      case 'diamond': poly(4, R * 1.15); break;
+      case 'hex': poly(6, R); break;
+      case 'round': x.arc(0, 0, R, 0, Math.PI * 2); break;
+      case 'moon': x.arc(0, 0, R, 0.6, Math.PI * 2 - 0.6); x.arc(R * 0.5, 0, R * 0.6, Math.PI * 2 - 1.2, 1.2, true); break;
+      case 'star': for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5; const r = i % 2 ? R * 0.5 : R * 1.15; x.lineTo(Math.cos(a) * r, Math.sin(a) * r); } x.closePath(); break;
+      case 'twin': x.arc(-R * 0.45, 0, R * 0.7, 0, Math.PI * 2); x.moveTo(R * 1.15, 0); x.arc(R * 0.45, 0, R * 0.7, 0, Math.PI * 2); break;
+      case 'eye': x.ellipse(0, 0, R * 1.1, R * 0.65, 0, 0, Math.PI * 2); break;
+      default: poly(4, R);
+    }
+    x.fill(); x.stroke();
+    // facet highlight
+    x.globalAlpha = 0.55; x.fillStyle = '#ffffff';
+    x.beginPath(); x.ellipse(-R * 0.3, -R * 0.4, R * 0.28, R * 0.16, -0.6, 0, Math.PI * 2); x.fill();
+    if (shape === 'eye') { x.globalAlpha = 1; x.fillStyle = '#000'; x.beginPath(); x.arc(0, 0, R * 0.3, 0, Math.PI * 2); x.fill(); }
   }
   // the Gem Forge's tiers past Royal: a halo and a star per tier
   if (tier > 5) {

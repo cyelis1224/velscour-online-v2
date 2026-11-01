@@ -1,18 +1,18 @@
-# VELSCOUR DEFENSE
+# DAGYR DEFENSE
 
-A second game in the VELSCOUR universe: a free-to-play (no purchases of any kind) character tower defense with
+A second game in the DAGYR universe: a free-to-play (no purchases of any kind) character tower defense with
 Rift Card packs, modelled on the mobile game **Fantasica** (Silicon Studio / DeNA Mobage, 2011-2018) and drawn in
-VELSCOUR's isometric pixel art. You reach it through **the Riftgate**, a blue-black portal across the square from
+DAGYR's isometric pixel art. You reach it through **the Riftgate**, a blue-black portal across the square from
 the dungeon portal in Herrington Hollow, or directly at `defense/index.html`.
 
 ## Kept apart from the main game
 - Everything lives in `defense/`: its own page (`defense/index.html`), stylesheet, modules (`defense/src/`), data,
   tests (`defense/tests/`) and tools (`defense/tools/`). It never imports a main-game module.
-- It reads VELSCOUR's **art and sound files** in `assets/` (read only). The few things it needs from the main game's
+- It reads DAGYR's **art and sound files** in `assets/` (read only). The few things it needs from the main game's
   `src/data/` (class names and colours, the 69 palette finishes, each class's held-gear sets and design names, the
   690 painted monsters, 400 of the Bard's 2,000 two-bar melodies) are snapshotted into `defense/data/art_index.json` by
   `node defense/tools/art_index.mjs` (re-run it when the main game adds classes, finishes, held designs, monsters).
-- Its own save, `localStorage['velscour_defense_v1']`; the main game's `velscour_saves_v1` / `velscour_settings_v1`
+- Its own save, `localStorage['Dagyr_defense_v1']`; the main game's `Dagyr_saves_v1` / `Dagyr_settings_v1`
   are never touched.
 - The main game's only changes: `src/gfx/riftgate.js` (where the Riftgate stands, how it is drawn), two lines in
   `src/game/game.js` (`enterTown` adds it as `world.portals[1]`, after the dungeon portal that auto-play uses, and
@@ -38,13 +38,13 @@ the dungeon portal in Herrington Hollow, or directly at `defense/index.html`.
   the Veilscar March, the Abbey, the Mirefen, the Foundry, the Eternal Breach, the Screaming Throne. Act IV, The Descent
   (201-250): the Ashen Road, the Hollow Deeps, the Crystal Galleries, the Drowned Kingdom, the Bonefields of Morrow.
   Act V, The Demon Lord (251-300): the Gate of Teeth, the Burning Archive, the Garden of Hooks, the Last Rampart and
-  Velscour's Hall, where Velscour's Shadow waits. Every 5th stage brings a lieutenant, every 10th a boss, every 8th
-  (from Act II) a named warlord, and from stage 61 roaming warlords walk ordinary stages too: all painted VELSCOUR
+  Dagyr's Hall, where Dagyr's Shadow waits. Every 5th stage brings a lieutenant, every 10th a boss, every 8th
+  (from Act II) a named warlord, and from stage 61 roaming warlords walk ordinary stages too: all painted DAGYR
   giants named for the art they use. Each stage opens when the one before it is won.
 - **5,000 waves:** Act I's 80 stages share waves 1..1000 (6 to 19 a stage), Acts II-III the next 2,000 (14 to 19),
   Acts IV-V the last 2,000 (18 to 22). Every wave's horde is a little stronger than the last (`data/waves.js hpMul`,
   eased across each stage from `data/curve.js`).
-- **Every monster in VELSCOUR marches:** `buildRosters()` hands out the 690 painted monsters once, in stage order, with
+- **Every monster in DAGYR marches:** `buildRosters()` hands out the 690 painted monsters once, in stage order, with
   a usage penalty, so all 690 appear across the 300 stages (each region still keeps its own taste: elements, undead,
   demons, families). The Bestiary pack draws from the ones you have met.
 - **40 battlefields** (`data/maps.js`), drawn as ASCII: roads, rift tears, the Heart, posts, raised posts, high ground,

@@ -21,7 +21,7 @@ const MOBILE = process.argv.includes('mobile');
       const P = await import('/src/gfx/phoenix3d.js');
       if (!P.phoenix3DReady()) return { gl: false };
       const rows = [['wings up', { flap: Math.PI / 2 }], ['level', { flap: 0 }], ['wings down', { flap: -Math.PI / 2 }],
-        ['gliding', { amp: 0.12, flap: 1 }], ['stoop', { fold: 1, pitch: 0.8 }], ['banked', { flap: 0.6, roll: -0.6 }]];
+      ['gliding', { amp: 0.12, flap: 1 }], ['stoop', { fold: 1, pitch: 0.8 }], ['banked', { flap: 0.6, roll: -0.6 }]];
       const CW = 170, CH = 150, c = document.createElement('canvas'); c.width = 90 + CW * 8; c.height = CH * rows.length;
       const g = c.getContext('2d'); g.fillStyle = '#1c1a22'; g.fillRect(0, 0, c.width, c.height);
       g.font = '13px monospace'; g.fillStyle = '#e8e0c8';
@@ -62,7 +62,7 @@ const MOBILE = process.argv.includes('mobile');
 
     // 3-4. in play
     const r = await page.evaluate(async (MOBILE) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       await game.newChar('ranger', 'Phoebe');
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -91,7 +91,7 @@ const MOBILE = process.argv.includes('mobile');
     const vp = page.viewportSize(), CW = MOBILE ? 360 : 440, CH = MOBILE ? 300 : 380;
     const clip = { x: vp.width / 2 - CW / 2, y: vp.height / 2 - CH * 0.62, width: CW, height: CH };
     const state = () => page.evaluate(async () => {
-      const { G } = window.VELSCOUR, s = G.player.sig.s, { particles } = await import('/src/gfx/vfx.js');
+      const { G } = window.DAGYR, s = G.player.sig.s, { particles } = await import('/src/gfx/vfx.js');
       const near = particles.filter((q) => q.life > 0 && ['#fff0a0', '#ffd050', '#ffa028', '#ff6414'].includes(q.color)).length;
       return { yaw: s.yaw, pitch: s.pitch, roll: s.roll, amp: s.amp, fv: s.fv, flap: s.flap, embers: near, hz: s.hz, fin: [s.yaw, s.pitch, s.roll, s.flap, s.hx, s.hy, s.hz].every(Number.isFinite) };
     });
@@ -110,7 +110,7 @@ const MOBILE = process.argv.includes('mobile');
 
     // the stoop on a tough foe
     const st0 = await page.evaluate(async () => {
-      const { G } = window.VELSCOUR, p = G.player, w = G.world, { makeMonster } = await import('/src/game/monster.js');
+      const { G } = window.DAGYR, p = G.player, w = G.world, { makeMonster } = await import('/src/game/monster.js');
       const roster = w.biome.roster || ['skeleton'];
       const m = makeMonster(w, roster[0], w.biome, 6, 'champion', p.x + 2.4, p.y - 1.2); m.maxHp = m.hp = 1e8; m.speed = 0; m.awake = true; w.add(m); w.rebuildGrid();
       const s = p.sig.s; s.quarry = m; s.look = 99; s.feathers = 6; G.sigStats = {};
@@ -118,7 +118,7 @@ const MOBILE = process.argv.includes('mobile');
     });
     const stoop = []; let folded = 0;
     for (const n of [1, 8, 8, 8, 14, 30]) { await step(n); stoop.push(await page.screenshot({ clip })); folded = Math.max(folded, (await state()).fv); }
-    const after = await page.evaluate(() => { const { G } = window.VELSCOUR, s = G.player.sig.s; return { fired: (G.sigStats.ranger || {}).fire || 0, hp: s.quarry ? s.quarry.hp : null }; });
+    const after = await page.evaluate(() => { const { G } = window.DAGYR, s = G.player.sig.s; return { fired: (G.sigStats.ranger || {}).fire || 0, hp: s.quarry ? s.quarry.hp : null }; });
     await step(60); const opened = (await state()).fv;
     ok(after.fired === 1, 'six feathers: the phoenix stoops');
     ok(folded > 0.8, `wings fold for the dive (${folded.toFixed(2)})`);

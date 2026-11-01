@@ -7,7 +7,7 @@ const feet = new Map();
 /**
  * The feet's centre column of a cell, in its pixels (creature.js anchors art there and mirrors about it). The atlas
  * stores fx as a fraction (0.5 for every cell), which creature.js read as pixels: every painted replacement was drawn
- * from its left edge, so a turn threw it a whole sprite width sideways (Velscour looked to face away). Measured from
+ * from its left edge, so a turn threw it a whole sprite width sideways (Dagyr looked to face away). Measured from
  * the opaque pixels of the cell's bottom eighth, once per cell.
  */
 function feetX(id, cell) {
@@ -66,7 +66,7 @@ export function replacementIcon(id, size = 48, tint = null, fraction = .88) {
   image = makeCanvas(size, size);
   const ctx = image.getContext('2d'), k = size * fraction / Math.max(src.width, src.height);
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(src, (size-src.width*k)/2, (size-src.height*k)/2, src.width*k, src.height*k);
+  ctx.drawImage(src, (size - src.width * k) / 2, (size - src.height * k) / 2, src.width * k, src.height * k);
   if (tint) {
     ctx.globalCompositeOperation = 'source-atop'; ctx.globalAlpha = .24; ctx.fillStyle = tint;
     ctx.fillRect(0, 0, size, size); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';

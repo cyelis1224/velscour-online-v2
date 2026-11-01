@@ -34,7 +34,7 @@
 ## Validation checklist
 ```sh
 node tools/tests/dragoon_spearstorm.mjs
-python3 -m http.server 8123
+python3 -m http.server 8124
 node tools/tests/data_check.mjs
 node tools/tests/dragoon_spearstorm.js
 node tools/tests/skills.js dragoon

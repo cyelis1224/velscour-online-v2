@@ -99,7 +99,8 @@ export function updateAutomapPartyRoster() {
   const rosterEl = document.getElementById('party-roster');
   if (!rosterEl) return;
 
-  if (!G.showAutomap) {
+  // with the automap open, or always while in an online room (Settings > HUD > Always show party list)
+  if (!G.showAutomap && !(G.settings.alwaysShowParty && G.room)) {
     if (!rosterEl.classList.contains('hidden')) {
       rosterEl.classList.add('hidden');
     }
@@ -135,6 +136,7 @@ export function updateAutomapPartyRoster() {
       <div class="pr-member ${pl.isMe ? 'is-me' : ''}" style="border-left-color: ${borderCol}">
         <div class="pr-meta">
           <span class="pr-name" title="${nameStr}">${nameStr}</span>
+          <span class="pr-lvl">Lv ${pl.level || 1}</span>
           ${locText}
         </div>
         <div class="pr-bar-row">
@@ -146,7 +148,12 @@ export function updateAutomapPartyRoster() {
       </div>`;
   }
 
-  rosterEl.innerHTML = html;
+  if (rosterEl._html !== html) { rosterEl.innerHTML = html; rosterEl._html = html; } // rebuilt only when it changed
+  // as wide as the hero stats plaque above it (its width follows its numbers), when that's shown
+  const stats = document.getElementById('hero-stats');
+  const w = stats && !stats.classList.contains('hidden') ? stats.offsetWidth : 0;
+  const want = w ? w + 'px' : '';
+  if (rosterEl.style.width !== want) rosterEl.style.width = want;
 }
 
 /** Legacy stub if called anywhere */

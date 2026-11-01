@@ -361,6 +361,718 @@ export function smiteIcon(size = 64) {
   return c;
 }
 
+export function cataclysmIcon(size = 64) {
+  const key = 'special_cataclysm|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Dark volcanic magma backdrop
+  const bg = x.createRadialGradient(h, h * 0.7, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#541404');
+  bg.addColorStop(0.5, '#220802');
+  bg.addColorStop(1, '#080201');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Volcanic fissure cracks in ground
+  x.save();
+  x.translate(h, h * 1.1);
+  x.strokeStyle = '#ff5010';
+  x.lineWidth = 2 * s;
+  x.beginPath();
+  x.moveTo(-22 * s, 6 * s); x.lineTo(-12 * s, 0); x.lineTo(-2 * s, 4 * s); x.lineTo(10 * s, -2 * s); x.lineTo(22 * s, 5 * s);
+  x.stroke();
+  x.strokeStyle = '#ffd030';
+  x.lineWidth = 1 * s;
+  x.stroke();
+  x.restore();
+
+  // Crossed Barbarian Battleaxes
+  const drawAxe = (angle) => {
+    x.save();
+    x.translate(h, h * 0.95);
+    x.rotate(angle);
+
+    // Ashwood Haft
+    const haft = x.createLinearGradient(-2.5 * s, 0, 2.5 * s, 0);
+    haft.addColorStop(0, '#381c0e');
+    haft.addColorStop(0.5, '#784422');
+    haft.addColorStop(1, '#200e06');
+    x.fillStyle = haft;
+    x.fillRect(-2 * s, -18 * s, 4 * s, 36 * s);
+
+    // Iron bindings
+    x.fillStyle = '#caa050';
+    x.fillRect(-2.5 * s, 14 * s, 5 * s, 2 * s);
+    x.fillRect(-2.5 * s, -8 * s, 5 * s, 1.5 * s);
+
+    // Curved crescent heavy bearded axe head
+    const blade = x.createLinearGradient(-16 * s, -18 * s, 0, -6 * s);
+    blade.addColorStop(0, '#f0e8e0');
+    blade.addColorStop(0.4, '#9c8c82');
+    blade.addColorStop(1, '#4a3830');
+    x.fillStyle = blade;
+    x.strokeStyle = '#ff7030';
+    x.lineWidth = 1.2 * s;
+    x.beginPath();
+    x.moveTo(0, -16 * s);
+    x.quadraticCurveTo(-14 * s, -18 * s, -18 * s, -10 * s);
+    x.quadraticCurveTo(-15 * s, -4 * s, -2 * s, -6 * s);
+    x.lineTo(0, -6 * s);
+    x.closePath();
+    x.fill();
+    x.stroke();
+
+    x.restore();
+  };
+
+  drawAxe(-0.55);
+  drawAxe(0.55);
+
+  // Erupting Magma Sparks
+  x.fillStyle = '#ffe060';
+  for (let i = 0; i < 7; i++) {
+    const sx = h + (Math.sin(i * 1.7) * 16) * s;
+    const sy = h * 0.6 + (Math.cos(i * 2.1) * 12) * s;
+    x.beginPath();
+    x.arc(sx, sy, (1.2 + (i % 2) * 0.8) * s, 0, TAU);
+    x.fill();
+  }
+
+  x.restore(); // end clip
+  cache.set(key, c);
+  return c;
+}
+
+export function gungnirIcon(size = 64) {
+  const key = 'special_gungnir|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Storm-sky electric navy backdrop
+  const bg = x.createRadialGradient(h, h * 0.45, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#103454');
+  bg.addColorStop(0.5, '#071828');
+  bg.addColorStop(1, '#02080f');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Concentric electric forcefield rings
+  x.strokeStyle = 'rgba(100, 200, 255, 0.35)';
+  x.lineWidth = 1.5 * s;
+  x.beginPath();
+  x.arc(h, h * 0.9, size * 0.32, 0, TAU);
+  x.stroke();
+  x.beginPath();
+  x.arc(h, h * 0.9, size * 0.2, 0, TAU);
+  x.stroke();
+
+  // Celestial Lightning Spear
+  x.save();
+  x.translate(h, h * 0.95);
+  x.rotate(-0.45);
+
+  // Steel/silver shaft
+  const shaft = x.createLinearGradient(-2 * s, 0, 2 * s, 0);
+  shaft.addColorStop(0, '#4a6078');
+  shaft.addColorStop(0.5, '#b0d0f0');
+  shaft.addColorStop(1, '#2c3c4e');
+  x.fillStyle = shaft;
+  x.fillRect(-1.8 * s, -12 * s, 3.6 * s, 34 * s);
+
+  // Winged Celestial Spearhead
+  const head = x.createLinearGradient(-8 * s, -26 * s, 8 * s, -8 * s);
+  head.addColorStop(0, '#ffffff');
+  head.addColorStop(0.35, '#a6e2ff');
+  head.addColorStop(0.7, '#4890d0');
+  head.addColorStop(1, '#1c4470');
+  x.fillStyle = head;
+  x.strokeStyle = '#e0f4ff';
+  x.lineWidth = 1.4 * s;
+  x.beginPath();
+  x.moveTo(0, -28 * s);
+  x.lineTo(7 * s, -14 * s);
+  x.lineTo(5 * s, -10 * s);
+  x.lineTo(1 * s, -11 * s);
+  x.lineTo(0, -6 * s);
+  x.lineTo(-1 * s, -11 * s);
+  x.lineTo(-5 * s, -10 * s);
+  x.lineTo(-7 * s, -14 * s);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // Central glowing lightning rune in spear
+  x.strokeStyle = '#ffffff';
+  x.lineWidth = 1.5 * s;
+  x.beginPath();
+  x.moveTo(0, -24 * s); x.lineTo(-2 * s, -17 * s); x.lineTo(2 * s, -15 * s); x.lineTo(0, -9 * s);
+  x.stroke();
+
+  x.restore();
+
+  // Electric spark arcs
+  x.strokeStyle = '#b8f0ff';
+  x.lineWidth = 1.5 * s;
+  x.beginPath();
+  x.moveTo(h + 8 * s, h * 0.4); x.lineTo(h + 16 * s, h * 0.35); x.lineTo(h + 14 * s, h * 0.25);
+  x.moveTo(h - 12 * s, h * 0.5); x.lineTo(h - 18 * s, h * 0.42); x.lineTo(h - 22 * s, h * 0.48);
+  x.stroke();
+
+  x.restore(); // end clip
+  cache.set(key, c);
+  return c;
+}
+
+export function shaftsIcon(size = 64) {
+  const key = 'special_shafts|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Deep emerald forest canopy backdrop
+  const bg = x.createRadialGradient(h, h * 0.4, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#1c441a');
+  bg.addColorStop(0.5, '#0c220c');
+  bg.addColorStop(1, '#030a04');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Recurve longbow arched horizontally
+  x.save();
+  x.translate(h, h * 1.05);
+
+  // Bow Wood Arch
+  const wood = x.createLinearGradient(-22 * s, 0, 22 * s, 0);
+  wood.addColorStop(0, '#8c5828');
+  wood.addColorStop(0.5, '#d4a34b');
+  wood.addColorStop(1, '#8c5828');
+  x.strokeStyle = wood;
+  x.lineWidth = 3.5 * s;
+  x.beginPath();
+  x.moveTo(-22 * s, -4 * s);
+  x.quadraticCurveTo(0, 16 * s, 22 * s, -4 * s);
+  x.stroke();
+
+  // Drawn Bowstring
+  x.strokeStyle = '#e8dcc4';
+  x.lineWidth = 1.2 * s;
+  x.beginPath();
+  x.moveTo(-22 * s, -4 * s);
+  x.lineTo(0, 8 * s);
+  x.lineTo(22 * s, -4 * s);
+  x.stroke();
+
+  // Triple Fanned Arrows
+  const drawArrow = (ang, col) => {
+    x.save();
+    x.rotate(ang);
+    // Shaft
+    x.strokeStyle = '#b8a07c';
+    x.lineWidth = 1.8 * s;
+    x.beginPath();
+    x.moveTo(0, 8 * s); x.lineTo(0, -24 * s);
+    x.stroke();
+    // Broadhead Arrowhead
+    x.fillStyle = col;
+    x.beginPath();
+    x.moveTo(0, -28 * s);
+    x.lineTo(4 * s, -21 * s);
+    x.lineTo(1 * s, -22 * s);
+    x.lineTo(0, -18 * s);
+    x.lineTo(-1 * s, -22 * s);
+    x.lineTo(-4 * s, -21 * s);
+    x.closePath();
+    x.fill();
+    // Fletching
+    x.fillStyle = '#68c438';
+    x.fillRect(-3 * s, 2 * s, 6 * s, 3 * s);
+    x.fillRect(-3 * s, -3 * s, 6 * s, 3 * s);
+    x.restore();
+  };
+
+  drawArrow(-0.25, '#c0e0b0');
+  drawArrow(0.25, '#c0e0b0');
+  drawArrow(0, '#ffffff'); // Center bright prime arrow
+
+  x.restore();
+
+  // Glowing green wind motes
+  x.fillStyle = '#80ff50';
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI + 0.3;
+    x.beginPath();
+    x.arc(h + Math.cos(a) * 18 * s, h * 0.45 + Math.sin(a) * 8 * s, 1.5 * s, 0, TAU);
+    x.fill();
+  }
+
+  x.restore(); // end clip
+  cache.set(key, c);
+  return c;
+}
+
+export function artilleryIcon(size = 64) {
+  const key = 'special_artillery|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Smoldering black powder backdrop
+  const bg = x.createRadialGradient(h * 1.1, h * 0.4, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#421a08');
+  bg.addColorStop(0.5, '#1e0c04');
+  bg.addColorStop(1, '#070301');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Black Iron Siege Mortar Barrel (angled at 45 deg)
+  x.save();
+  x.translate(h * 0.8, h * 1.1);
+  x.rotate(-0.75);
+
+  // Main cannon barrel body
+  const iron = x.createLinearGradient(-8 * s, 0, 8 * s, 0);
+  iron.addColorStop(0, '#5a626a');
+  iron.addColorStop(0.4, '#a2abb4');
+  iron.addColorStop(1, '#242a30');
+  x.fillStyle = iron;
+  x.fillRect(-7 * s, -24 * s, 14 * s, 32 * s);
+
+  // Reinforced muzzle reinforcement ring
+  x.fillStyle = '#caa050';
+  x.fillRect(-9 * s, -26 * s, 18 * s, 4 * s);
+  x.fillRect(-8 * s, -14 * s, 16 * s, 3 * s);
+
+  // Dark cannon bore
+  x.fillStyle = '#110401';
+  x.beginPath();
+  x.ellipse(0, -26 * s, 7 * s, 2.5 * s, 0, 0, TAU);
+  x.fill();
+
+  x.restore();
+
+  // Muzzle Flash & High Explosive Fire Burst
+  x.save();
+  x.translate(h * 1.1, h * 0.4);
+
+  const burst = x.createRadialGradient(0, 0, 2 * s, 0, 0, 18 * s);
+  burst.addColorStop(0, '#ffffff');
+  burst.addColorStop(0.25, '#ffe260');
+  burst.addColorStop(0.65, '#ff5010');
+  burst.addColorStop(1, 'rgba(180, 20, 0, 0)');
+  x.fillStyle = burst;
+  x.beginPath();
+  x.arc(0, 0, 18 * s, 0, TAU);
+  x.fill();
+
+  // Shrapnel sparks
+  x.strokeStyle = '#ffe890';
+  x.lineWidth = 1.5 * s;
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * TAU + 0.3;
+    x.beginPath();
+    x.moveTo(Math.cos(a) * 6 * s, Math.sin(a) * 6 * s);
+    x.lineTo(Math.cos(a) * 16 * s, Math.sin(a) * 16 * s);
+    x.stroke();
+  }
+  x.restore();
+
+  x.restore(); // end clip
+  cache.set(key, c);
+  return c;
+}
+
+export function crescendoIcon(size = 64) {
+  const key = 'special_crescendo|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Velvet magenta/plum skaldic backdrop
+  const bg = x.createRadialGradient(h, h * 0.45, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#4a1028');
+  bg.addColorStop(0.5, '#200512');
+  bg.addColorStop(1, '#080105');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Concentric Sonic Shockwaves
+  x.strokeStyle = 'rgba(255, 120, 180, 0.35)';
+  x.lineWidth = 1.5 * s;
+  for (let r = 10; r <= 24; r += 7) {
+    x.beginPath();
+    x.arc(h, h * 0.9, r * s, 0, TAU);
+    x.stroke();
+  }
+
+  // Renaissance Acoustic Lute
+  x.save();
+  x.translate(h, h * 0.95);
+
+  // Pear-shaped bowl body
+  const luteWood = x.createRadialGradient(-3 * s, 4 * s, 2, 0, 4 * s, 14 * s);
+  luteWood.addColorStop(0, '#ffd070');
+  luteWood.addColorStop(0.4, '#c87828');
+  luteWood.addColorStop(1, '#66320e');
+  x.fillStyle = luteWood;
+  x.strokeStyle = '#ffb040';
+  x.lineWidth = 1.5 * s;
+  x.beginPath();
+  x.ellipse(0, 4 * s, 12 * s, 15 * s, 0, 0, TAU);
+  x.fill();
+  x.stroke();
+
+  // Rosette soundhole
+  x.fillStyle = '#1a0a03';
+  x.beginPath();
+  x.arc(0, 1 * s, 4 * s, 0, TAU);
+  x.fill();
+  x.strokeStyle = '#ffd870';
+  x.lineWidth = 1 * s;
+  x.stroke();
+
+  // Neck and Angled Pegbox
+  x.fillStyle = '#50280c';
+  x.fillRect(-3 * s, -14 * s, 6 * s, 12 * s);
+  x.fillStyle = '#ffd870';
+  x.fillRect(-5 * s, -16 * s, 10 * s, 4 * s); // Pegbox nut
+
+  // Vibrating strings
+  x.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+  x.lineWidth = 1 * s;
+  x.beginPath();
+  x.moveTo(-2 * s, -14 * s); x.lineTo(-2 * s, 13 * s);
+  x.moveTo(0, -14 * s); x.lineTo(0, 13 * s);
+  x.moveTo(2 * s, -14 * s); x.lineTo(2 * s, 13 * s);
+  x.stroke();
+
+  x.restore();
+
+  // Floating Treble Rune / Musical Note Motifs
+  x.fillStyle = '#ff80b0';
+  x.font = `bold ${Math.round(14 * s)}px serif`;
+  x.fillText('♪', h - 18 * s, h * 0.45);
+  x.fillText('♫', h + 10 * s, h * 0.4);
+
+  x.restore(); // end clip
+  cache.set(key, c);
+  return c;
+}
+
+export function supernovaIcon(size = 64) {
+  const key = 'special_supernova|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Cosmic void backdrop
+  const bg = x.createRadialGradient(h, h, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#2e0842');
+  bg.addColorStop(0.55, '#12021c');
+  bg.addColorStop(1, '#040008');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Swirling galaxy dust arms
+  x.save();
+  x.translate(h, h);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * TAU;
+    x.strokeStyle = 'rgba(255, 120, 40, 0.35)';
+    x.lineWidth = 2 * s;
+    x.beginPath();
+    x.arc(0, 0, 16 * s, a, a + 1.2);
+    x.stroke();
+  }
+
+  // Brilliant Supernova Core
+  const star = x.createRadialGradient(0, 0, 2 * s, 0, 0, 15 * s);
+  star.addColorStop(0, '#ffffff');
+  star.addColorStop(0.25, '#fff6a0');
+  star.addColorStop(0.65, '#ff7010');
+  star.addColorStop(1, 'rgba(255, 30, 0, 0)');
+  x.fillStyle = star;
+  x.beginPath();
+  x.arc(0, 0, 15 * s, 0, TAU);
+  x.fill();
+
+  // 8-Point Cosmic Diffraction Flare Spikes
+  x.strokeStyle = '#ffffff';
+  x.lineWidth = 1.8 * s;
+  x.beginPath();
+  // Primary Cardinal Rays
+  x.moveTo(0, -22 * s); x.lineTo(0, 22 * s);
+  x.moveTo(-22 * s, 0); x.lineTo(22 * s, 0);
+  x.stroke();
+  // Diagonal Rays
+  x.strokeStyle = '#ffd060';
+  x.lineWidth = 1.2 * s;
+  x.beginPath();
+  x.moveTo(-13 * s, -13 * s); x.lineTo(13 * s, 13 * s);
+  x.moveTo(13 * s, -13 * s); x.lineTo(-13 * s, 13 * s);
+  x.stroke();
+
+  x.restore();
+
+  x.restore(); // end clip
+  cache.set(key, c);
+  return c;
+}
+
+export function graveIcon(size = 64) {
+  const key = 'special_grave|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Abyssal tomb shadow backdrop
+  const bg = x.createRadialGradient(h, h * 0.45, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#2e1044');
+  bg.addColorStop(0.5, '#12041c');
+  bg.addColorStop(1, '#05010a');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Erupting Ivory Bone Pikes in Background
+  x.fillStyle = '#dcd4c0';
+  x.strokeStyle = '#7c6894';
+  x.lineWidth = 1 * s;
+  const drawSpike = (sx, sy, hgt, rot) => {
+    x.save();
+    x.translate(sx, sy);
+    x.rotate(rot);
+    x.beginPath();
+    x.moveTo(0, -hgt);
+    x.lineTo(3.5 * s, 0);
+    x.lineTo(-3.5 * s, 0);
+    x.closePath();
+    x.fill();
+    x.stroke();
+    x.restore();
+  };
+  drawSpike(h - 14 * s, h * 1.05, 22 * s, -0.3);
+  drawSpike(h + 14 * s, h * 1.05, 22 * s, 0.3);
+  drawSpike(h - 8 * s, h * 1.15, 26 * s, -0.12);
+  drawSpike(h + 8 * s, h * 1.15, 26 * s, 0.12);
+
+  // Ancient Weathered Skull in Center
+  x.save();
+  x.translate(h, h * 0.88);
+
+  const cranium = x.createRadialGradient(-3 * s, -4 * s, 2, 0, 0, 14 * s);
+  cranium.addColorStop(0, '#ffffff');
+  cranium.addColorStop(0.6, '#d8d0be');
+  cranium.addColorStop(1, '#5a4c62');
+  x.fillStyle = cranium;
+  x.strokeStyle = '#2c2234';
+  x.lineWidth = 1.4 * s;
+
+  // Cranium
+  x.beginPath();
+  x.arc(0, -3 * s, 11 * s, 0, TAU);
+  x.fill();
+  x.stroke();
+
+  // Maxilla / teeth row
+  x.fillStyle = '#e8e2d4';
+  x.fillRect(-5 * s, 5 * s, 10 * s, 6 * s);
+  x.strokeRect(-5 * s, 5 * s, 10 * s, 6 * s);
+
+  // Hollow green/violet glowing eye sockets
+  x.fillStyle = '#100418';
+  x.beginPath();
+  x.ellipse(-4.5 * s, -2 * s, 3.2 * s, 4 * s, -0.2, 0, TAU);
+  x.ellipse(4.5 * s, -2 * s, 3.2 * s, 4 * s, 0.2, 0, TAU);
+  x.fill();
+
+  // Glowing Soul Flame in eye sockets
+  x.fillStyle = '#a060ff';
+  x.beginPath();
+  x.arc(-4.5 * s, -2 * s, 1.6 * s, 0, TAU);
+  x.arc(4.5 * s, -2 * s, 1.6 * s, 0, TAU);
+  x.fill();
+
+  x.restore();
+
+  // Swirling soul wisps
+  x.strokeStyle = 'rgba(180, 100, 255, 0.45)';
+  x.lineWidth = 1.5 * s;
+  x.beginPath();
+  x.arc(h, h, 20 * s, -0.5, 1.4);
+  x.stroke();
+
+  x.restore(); // end clip
+  cache.set(key, c);
+  return c;
+}
+
+export function crowsIcon(size = 64) {
+  const key = 'special_crows|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Caustic toxic mire backdrop
+  const bg = x.createRadialGradient(h, h * 0.45, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#1c340a');
+  bg.addColorStop(0.5, '#0a1a04');
+  bg.addColorStop(1, '#020601');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Toxic crescent / mist ring
+  x.strokeStyle = 'rgba(130, 220, 40, 0.4)';
+  x.lineWidth = 2 * s;
+  x.beginPath();
+  x.arc(h, h * 0.85, 20 * s, 0.2, Math.PI - 0.2);
+  x.stroke();
+
+  // Silhouette of the Great Raven / Crow
+  x.save();
+  x.translate(h, h * 0.92);
+
+  // Jet black with occult violet feather sheen
+  const crowFeather = x.createLinearGradient(0, -14 * s, 0, 12 * s);
+  crowFeather.addColorStop(0, '#2c1e38');
+  crowFeather.addColorStop(0.5, '#121612');
+  crowFeather.addColorStop(1, '#060a06');
+  x.fillStyle = crowFeather;
+  x.strokeStyle = '#80e030';
+  x.lineWidth = 1 * s;
+
+  // Crow Body & Spread Wings
+  x.beginPath();
+  x.moveTo(0, -10 * s); // Beak tip
+  x.lineTo(3 * s, -5 * s); // Head
+  // Right Wing
+  x.lineTo(12 * s, -12 * s);
+  x.lineTo(21 * s, -8 * s);
+  x.lineTo(16 * s, -2 * s);
+  x.lineTo(19 * s, 3 * s);
+  x.lineTo(12 * s, 4 * s);
+  x.lineTo(14 * s, 8 * s);
+  x.lineTo(6 * s, 8 * s);
+  x.lineTo(0, 14 * s); // Tail
+  // Left Wing
+  x.lineTo(-6 * s, 8 * s);
+  x.lineTo(-14 * s, 8 * s);
+  x.lineTo(-12 * s, 4 * s);
+  x.lineTo(-19 * s, 3 * s);
+  x.lineTo(-16 * s, -2 * s);
+  x.lineTo(-21 * s, -8 * s);
+  x.lineTo(-12 * s, -12 * s);
+  x.lineTo(-3 * s, -5 * s);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // Piercing yellow eye
+  x.fillStyle = '#ffe030';
+  x.beginPath();
+  x.arc(1.5 * s, -6 * s, 1.4 * s, 0, TAU);
+  x.arc(-1.5 * s, -6 * s, 1.4 * s, 0, TAU);
+  x.fill();
+
+  x.restore();
+
+  // Bubbling Caustic Spores
+  x.fillStyle = '#90f030';
+  for (let i = 0; i < 6; i++) {
+    const bx = h + (Math.sin(i * 2.3) * 18) * s;
+    const by = h * 0.4 + (Math.cos(i * 1.9) * 10) * s;
+    x.beginPath();
+    x.arc(bx, by, (1.2 + (i % 3) * 0.6) * s, 0, TAU);
+    x.fill();
+  }
+
+  x.restore(); // end clip
+  cache.set(key, c);
+  return c;
+}
+
+export function ultimateIcon(classId, size = 64) {
+  switch (classId) {
+    case 'paladin': return smiteIcon(size);
+    case 'barbarian': return cataclysmIcon(size);
+    case 'lancer': return gungnirIcon(size);
+    case 'ranger': return shaftsIcon(size);
+    case 'gunner': return artilleryIcon(size);
+    case 'bard': return crescendoIcon(size);
+    case 'wizard': return supernovaIcon(size);
+    case 'necromancer': return graveIcon(size);
+    case 'carrion_witch': return crowsIcon(size);
+    default: return smiteIcon(size);
+  }
+}
+
+export function ultimateIconURL(classId, size = 64) {
+  const key = `special_ult_${classId}|${size}`;
+  let u = urlCache.get(key);
+  if (!u) {
+    u = ultimateIcon(classId, size).toDataURL();
+    urlCache.set(key, u);
+  }
+  return u;
+}
+
 export function madnessIcon(size = 64) {
   const key = 'special_madness|' + size;
   let c = cache.get(key);
@@ -485,4 +1197,86 @@ export function madnessIconURL(size = 64) {
   let u = urlCache.get(key);
   if (!u) { u = madnessIcon(size).toDataURL(); urlCache.set(key, u); }
   return u;
+}
+
+/** The Hearthstone special button (game/hearth.js): a smooth river stone with a glowing blue hearth rune. */
+export function hearthIcon(size = 64) {
+  const key = 'special_hearth|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64;
+  const h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Night-blue hearth glow backdrop
+  const bg = x.createRadialGradient(h, h * 0.9, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#173a52');
+  bg.addColorStop(0.55, '#0a1824');
+  bg.addColorStop(1, '#03070b');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Soft aura behind the stone
+  const aura = x.createRadialGradient(h, h, 4 * s, h, h, 26 * s);
+  aura.addColorStop(0, 'rgba(127, 216, 255, 0.45)');
+  aura.addColorStop(1, 'rgba(127, 216, 255, 0)');
+  x.fillStyle = aura;
+  x.fillRect(0, 0, size, size);
+
+  // The stone: a flattened, slightly tilted pebble
+  x.save();
+  x.translate(h, h + 1 * s);
+  x.rotate(-0.18);
+  x.beginPath();
+  x.ellipse(0, 0, 19 * s, 15 * s, 0, 0, TAU);
+  const stone = x.createRadialGradient(-6 * s, -7 * s, 2 * s, 0, 0, 20 * s);
+  stone.addColorStop(0, '#cfd6dc');
+  stone.addColorStop(0.45, '#7d8790');
+  stone.addColorStop(1, '#2d3238');
+  x.fillStyle = stone;
+  x.fill();
+  x.lineWidth = 1.6 * s;
+  x.strokeStyle = '#14181c';
+  x.stroke();
+  // Polished highlight
+  x.beginPath();
+  x.ellipse(-7 * s, -7 * s, 7 * s, 3.2 * s, -0.5, 0, TAU);
+  x.fillStyle = 'rgba(255, 255, 255, 0.28)';
+  x.fill();
+
+  // Hearth rune: a house/roof glyph over a flame, glowing blue
+  x.shadowColor = '#7fd8ff';
+  x.shadowBlur = 8 * s;
+  x.strokeStyle = '#bff0ff';
+  x.lineWidth = 2.4 * s;
+  x.lineCap = 'round';
+  x.lineJoin = 'round';
+  x.beginPath();
+  x.moveTo(-9 * s, -1 * s);
+  x.lineTo(0, -9 * s);
+  x.lineTo(9 * s, -1 * s);
+  x.moveTo(-6.5 * s, -3 * s);
+  x.lineTo(-6.5 * s, 8 * s);
+  x.lineTo(6.5 * s, 8 * s);
+  x.lineTo(6.5 * s, -3 * s);
+  x.stroke();
+  // Flame inside the hearth
+  x.beginPath();
+  x.moveTo(0, 6.5 * s);
+  x.quadraticCurveTo(-4.2 * s, 3 * s, -1 * s, -2 * s);
+  x.quadraticCurveTo(0, 1 * s, 1.6 * s, -0.5 * s);
+  x.quadraticCurveTo(4.4 * s, 3.5 * s, 0, 6.5 * s);
+  x.fillStyle = '#e6fbff';
+  x.fill();
+  x.restore();
+
+  x.restore();
+  cache.set(key, c);
+  return c;
 }

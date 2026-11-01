@@ -1,4 +1,4 @@
-// Electron Main Process for VELSCOUR
+// Electron Main Process for DAGYR ONLINE
 const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
 const http = require('http');
@@ -6,7 +6,7 @@ const { fork } = require('child_process');
 
 let mainWindow = null;
 let serverProcess = null;
-const PORT = process.env.PORT || 8123;
+const PORT = process.env.PORT || 8124;
 
 function isServerRunning(port) {
   return new Promise((resolve) => {
@@ -56,9 +56,9 @@ function createWindow() {
     height: 800,
     minWidth: 960,
     minHeight: 640,
-    title: 'Velscour',
+    title: 'Dagyr Online',
     backgroundColor: '#050303',
-    icon: path.join(__dirname, '../assets/ui/icon.png'),
+    icon: path.join(__dirname, '../assets/ui/icon-1024.png'),
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false,
@@ -136,7 +136,7 @@ function createWindow() {
     try {
       childWindow.setMenuBarVisibility(false);
       childWindow.webContents.setUserAgent(cleanUserAgent);
-    } catch (e) {}
+    } catch (e) { }
   });
 
   mainWindow.loadURL(`http://localhost:${PORT}/index.html`);

@@ -105,18 +105,19 @@ export const tierName = (L) => NAMES[tierOf(L)];
 
 /** The class flourish on a cast: at the hero, and again where the skill lands. */
 export function classCastFx(p, sk, L, tx, ty) {
+  const isShield = sk.kind === 'orbit' && sk.m?.shields;
   const T = THEMES[p.classId] || DEF, tier = tierOf(L), k = 1 + tier * 0.22;
   const E = T.el ? elem(sk.el) : { glow: T.c[0], core: T.c[1], dark: T.c[2] };
   const n = Math.round((6 + L * 0.9) * (G.touch ? 0.55 : 1));
-  T.fx(p.x, p.y, n, k, 'cast', E);
+  if (!isShield) T.fx(p.x, p.y, n, k, 'cast', E);
   const g = p._classGlow;
-  if (g && g.t < g.dur) { g.t = 0; g.k = Math.max(g.k, k); } else addEffect(p._classGlow = new HeroGlow(p, T.c, k, 0.45 + tier * 0.12));
-  if (tier >= 1) addEffect(new Ring(p.x, p.y, 0.1, 0.9 + tier * 0.3, 0.45, T.c[0], 2 + tier));
+  if (g && g.t < g.dur) { g.t = 0; g.k = Math.max(g.k, k); } else if (!isShield || !p._classGlow) addEffect(p._classGlow = new HeroGlow(p, T.c, k, 0.45 + tier * 0.12));
+  if (tier >= 1 && !isShield) addEffect(new Ring(p.x, p.y, 0.1, 0.9 + tier * 0.3, 0.45, T.c[0], 2 + tier));
   const bard = p.classId === 'bard'; // the Bard's ranks show on his notes and staves instead of a bloom over him
-  if (tier >= 2 && !bard) { addEffect(new Ring(p.x, p.y, 0.05, 0.6 + tier * 0.2, 0.55, T.c[1], 2, { fill: true })); addLight(p.x, p.y, 3 + tier, 0.6); }
+  if (tier >= 2 && !bard && !isShield) { addEffect(new Ring(p.x, p.y, 0.05, 0.6 + tier * 0.2, 0.55, T.c[1], 2, { fill: true })); addLight(p.x, p.y, 3 + tier, 0.6); }
   const far = Math.hypot(tx - p.x, ty - p.y) > 0.8 && Math.hypot(tx - p.x, ty - p.y) < 14;
   if (tier >= 3 && far) { T.fx(tx, ty, Math.round(n * 0.6), k, 'hit', E); addEffect(new Ring(tx, ty, 0.1, 1.4, 0.5, T.c[0], 4)); }
-  if (tier >= 4 && !bard) { addEffect(new Column(p.x, p.y, T.c[0], 0.45, 16, 180)); if (!sk.m.free) camera.shake(1.2); }
+  if (tier >= 4 && !bard && !isShield) { addEffect(new Column(p.x, p.y, T.c[0], 0.45, 16, 180)); if (!sk.m.free) camera.shake(1.2); }
 }
 
 let hitBudget = 0, hitAt = 0;

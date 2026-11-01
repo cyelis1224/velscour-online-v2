@@ -8,7 +8,7 @@ const BIOMES = (process.argv[2] || 'catacombs,frozen,molten,fungal,void,flesh').
 (async () => {
   const { browser, page, errors, shot } = await openGame();
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('paladin', 'Bestiary');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
     G.godMode = true;
@@ -20,7 +20,7 @@ const BIOMES = (process.argv[2] || 'catacombs,frozen,molten,fungal,void,flesh').
   const n = await page.evaluate(async () => (await import('/src/data/bestiary.js')).BESTIARY.length);
   for (let start = 0; start < n; start += 14) {
     const names = await page.evaluate(async (start) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { BESTIARY } = await import('/src/data/bestiary.js');
       const { makeMonster } = await import('/src/game/monster.js');
@@ -54,7 +54,7 @@ const BIOMES = (process.argv[2] || 'catacombs,frozen,molten,fungal,void,flesh').
 
   // ---- corpses: kill one of each kind on screen
   await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const { hit } = await import('/src/game/combat.js');
     for (const c of G.world.creatures.filter((c) => c.team === 'enemy')) { delete c.update; hit(G.player, c, c.maxHp * 0.99 + 1, 'phys', { crit: false }); }
   });
@@ -64,7 +64,7 @@ const BIOMES = (process.argv[2] || 'catacombs,frozen,molten,fungal,void,flesh').
   // ---- real levels
   for (const id of BIOMES) {
     const info = await page.evaluate(async (id) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID, mixPartner } = await import('/src/data/biomes.js');
       const { loadBiomeArt } = await import('/src/core/assets.js');
       const { camera } = await import('/src/core/view.js');
@@ -88,7 +88,7 @@ const BIOMES = (process.argv[2] || 'catacombs,frozen,molten,fungal,void,flesh').
     await page.waitForTimeout(500);
     await shot('en_' + id);
     await page.evaluate(async () => {
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       const { camera } = await import('/src/core/view.js');
       const b = G.world.boss;
       G.player.x = b.x - 2.5; G.player.y = b.y + 2.5;

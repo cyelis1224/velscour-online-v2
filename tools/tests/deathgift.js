@@ -1,12 +1,12 @@
-// "DEATH IS THE ONLY WAY OUT, MY KIND SIR." typed to Velscour (src/game/deathgift.js): sent from a dungeon, the hero
+// "DEATH IS THE ONLY WAY OUT, MY KIND SIR." typed to Dagyr (src/game/deathgift.js): sent from a dungeon, the hero
 // is level 350 with Mythic +10 gear in every slot, maxed skills and mastery, and back in town with Depth 500 next.
 // The hero is marked (c.cheated) and barred from the Honour Board. A near miss (wrong case) must do nothing. Usage: node tools/tests/deathgift.js [classes]
 const { openGame, report } = require('./harness');
 
 const send = async (page, text) => {
-  await page.evaluate(() => window.VELSCOUR.game.openVelscourContact());
-  await page.fill('#velscour-message', text);
-  await page.$eval('.velscour-contact-dialog .btn.red', (b) => b.click()); // the title screen may still sit behind the game
+  await page.evaluate(() => window.DAGYR.game.openDagyrContact());
+  await page.fill('#Dagyr-message', text);
+  await page.$eval('.Dagyr-contact-dialog .btn.red', (b) => b.click()); // the title screen may still sit behind the game
   await page.waitForTimeout(1500);
 };
 
@@ -15,17 +15,17 @@ const send = async (page, text) => {
   const { browser, page, errors, shot } = await openGame();
   let fail = 0;
   for (const cls of classes) {
-    await page.evaluate(async (cls) => { await window.VELSCOUR.game.newChar(cls, 'Gift'); }, cls);
+    await page.evaluate(async (cls) => { await window.DAGYR.game.newChar(cls, 'Gift'); }, cls);
     await page.waitForTimeout(1000);
-    await page.evaluate(async () => { const { G, game } = window.VELSCOUR; G.char.nextBiome = 'catacombs'; game.enterDungeon(); });
+    await page.evaluate(async () => { const { G, game } = window.DAGYR; G.char.nextBiome = 'catacombs'; game.enterDungeon(); });
     await page.waitForTimeout(2500);
     await send(page, 'death is the only way out, my kind sir.');
-    const miss = await page.evaluate(() => window.VELSCOUR.G.char.level), missMark = await page.evaluate(() => !!window.VELSCOUR.G.char.cheated);
-    await page.$eval('.velscour-contact-dialog .btn', (b) => b.click()); // Close: a miss keeps the dialog open
+    const miss = await page.evaluate(() => window.DAGYR.G.char.level), missMark = await page.evaluate(() => !!window.DAGYR.G.char.cheated);
+    await page.$eval('.Dagyr-contact-dialog .btn', (b) => b.click()); // Close: a miss keeps the dialog open
     if (miss !== 1 || missMark) { console.log(`FAIL ${cls}: lowercase phrase levelled the hero to ${miss} (marked: ${missMark})`); fail++; }
     await send(page, 'DEATH IS THE ONLY WAY OUT, MY KIND SIR.');
     const r = await page.evaluate(async () => {
-      const { G } = window.VELSCOUR, c = G.char;
+      const { G } = window.DAGYR, c = G.char;
       const { SLOTS } = await import('/src/data/items.js');
       const { CLASS_SKILLS } = await import('/src/data/skills.js');
       const gear = SLOTS.map((s) => c.equip[s] && [s, c.equip[s].rarity, c.equip[s].upg, c.equip[s].gems.length, c.equip[s].affixes.length]);

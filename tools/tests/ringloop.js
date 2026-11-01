@@ -12,10 +12,10 @@ const TRIALS = +process.argv[2] || 60;
   const { browser, page, errors } = await openGame({ width: 1280, height: 720 });
   let fails = 0;
   const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };
-  await page.evaluate(async () => { await window.VELSCOUR.game.newChar('death_knight', 'Ringbot'); });
+  await page.evaluate(async () => { await window.DAGYR.game.newChar('death_knight', 'Ringbot'); });
   await page.waitForTimeout(800);
   const r = await page.evaluate(async (TRIALS) => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const items = await import('/src/data/items.js');
     const { addToBag } = await import('/src/game/player.js');
     const { Auto } = await import('/src/game/autoplay.js');

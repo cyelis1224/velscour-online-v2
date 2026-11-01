@@ -6,7 +6,7 @@ import { shownWeapon, heroDmgLevel } from '../data/depth.js';
 import { sfx } from '../core/audio.js';
 import { UI, draggable, droppable } from './ui.js';
 import { itemCell, itemTooltip, rarityClass } from './itemui.js';
-import { SLOTS, SLOT_NAMES, VANITY_SLOTS, shownEquip, itemName, itemColor, GEMS, gemName, itemValue, fitsSlot, slotFor, unsocketCost, makeGem } from '../data/items.js';
+import { SLOTS, SLOT_NAMES, VANITY_SLOTS, shownEquip, itemName, itemColor, GEMS, gemName, itemValue, fitsSlot, slotFor, unsocketCost, makeGem, itemReqStat, charEffectiveStat, canEquipItem, STAT_NAMES } from '../data/items.js';
 import { CLASSES, ATTRS } from '../data/classes.js';
 import { xpToNext, CRIT_OVER } from '../game/player.js';
 import { addToBag } from '../game/player.js';
@@ -54,6 +54,15 @@ export function equipFromBag(idx, slot) {
   if (it.sealed) { UI.log('Break the seal first.', '#ffdf8a'); return false; }
   if ((it.req || 1) > c.level) { UI.log(`Requires level ${it.req}.`, '#ff8080'); sfx('error'); return false; }
   const to = slot && fitsSlot(it, slot, c.classId) ? slot : slotFor(c.equip, it, c.classId);
+  const reqStat = itemReqStat(it);
+  if (reqStat) {
+    const cur = charEffectiveStat(c, reqStat.stat, to);
+    if (cur < reqStat.val) {
+      UI.log(`Requires ${reqStat.val} ${STAT_NAMES[reqStat.stat]} (you have ${cur}).`, '#ff8080');
+      sfx('error');
+      return false;
+    }
+  }
   const old = c.equip[to];
   c.equip[to] = it;
   c.bag[idx] = old || null;
@@ -68,7 +77,7 @@ export function unequip(slot, toIdx) {
   let i = toIdx ?? c.bag.findIndex((b) => !b);
   if (i < 0 || (toIdx !== undefined && c.bag[toIdx])) {
     const other = toIdx !== undefined ? c.bag[toIdx] : null;
-    if (fitsSlot(other, slot, c.classId) && (other.req || 1) <= c.level) { c.bag[toIdx] = it; c.equip[slot] = other; changed(); return true; }
+    if (fitsSlot(other, slot, c.classId) && canEquipItem(c, other, slot)) { c.bag[toIdx] = it; c.equip[slot] = other; changed(); return true; }
     if (i < 0) { UI.log('Inventory full.', '#ff8080'); sfx('error'); return false; }
     i = c.bag.findIndex((b) => !b);
   }
@@ -326,14 +335,64 @@ function bagSlot(idx) {
     key: 'bag:' + idx,
     data: () => (c.bag[idx] ? { type: 'item', where: 'bag', idx } : null),
     icon: () => d.querySelector('img') && d.querySelector('img').src,
-    onClick: () => { UI.selected = c.bag[idx] ? { where: 'bag', idx } : null; sfx('ui'); UI.refresh(); },
+    onClick: () => {
+      UI.selected = c.bag[idx] ? { where: 'bag', idx } : null;
+      sfx('ui');
+      document.querySelectorAll('.bag .bslot.sel, .paperdoll .eslot.sel').forEach(s => s.classList.remove('sel'));
+      if (UI.selected) d.classList.add('sel');
+    },
     onDouble: () => quickUse(idx),
     onRight: () => quickUse(idx),
     onDropWorld: (data) => (data.where === 'bag' ? dropFromBag(data.idx) : false),
   });
   droppable(d, (data) => handleDropOnBag(idx, data), (data) => data.type === 'item' || data.type === 'shop' || data.type === 'stash' || data.type === 'vault');
-  if (it) UI.tip(d, () => itemTooltip(c.bag[idx], { compare: c.bag[idx] && c.bag[idx].slot ? c.equip[slotFor(c.equip, c.bag[idx])] : null, price: G.ui.vendor && G.ui.vendor.active ? Math.max(1, Math.floor(itemValue(c.bag[idx]) / 4)) : 0, priceLabel: 'Sells for', hint: G.ui.vendor && G.ui.vendor.active ? 'Right-click to sell' : G.ui.stash && G.ui.stash.active ? 'Right-click to store' : it.sealed ? 'Right-click / double-click to break the seal' : it.type === 'gear' ? 'Right-click / double-click to equip' : it.type === 'gem' ? 'Drag onto gear to socket' : it.type === 'sheet' ? (it.inked && c.classId === 'bard' ? 'Right-click to load it into a Tab' : it.inked ? 'Right-click to read it' : 'Right-click to write on it') : '' }));
+  if (it) UI.tip(d, () => bagTip(idx));
   return d;
+}
+
+function bagTip(idx) {
+  const c = G.char, it = c.bag[idx];
+  if (!it) return '';
+  const acts = getBagActions(idx);
+  return {
+    html: itemTooltip(it, {
+      compare: it.slot ? c.equip[slotFor(c.equip, it)] : null,
+      price: G.ui.vendor && G.ui.vendor.active ? Math.max(1, Math.floor(itemValue(it) / 4)) : 0,
+      priceLabel: 'Sells for',
+      hint: G.ui.vendor && G.ui.vendor.active ? 'Right-click or double-tap to sell' : G.ui.stash && G.ui.stash.active ? 'Right-click or double-tap to store' : it.sealed ? 'Right-click or double-tap to break seal' : it.type === 'gear' ? 'Right-click or double-tap to equip' : it.type === 'gem' ? 'Drag onto gear to socket' : '',
+      actions: acts,
+    }),
+    actions: acts,
+  };
+}
+
+function equipTip(slot) {
+  const c = G.char, it = c.equip[slot];
+  if (!it) return '';
+  const acts = getEquipActions(slot);
+  return {
+    html: itemTooltip(it, {
+      hint: 'Right-click or double-tap to unequip',
+      actions: acts,
+    }),
+    actions: acts,
+  };
+}
+
+function vanityTip(slot) {
+  const c = G.char, it = c.vanity && c.vanity[slot];
+  if (!it) {
+    const what = slot === 'head' ? 'helmet' : 'body armor';
+    return `<b>${LOOK_NAMES[slot]}</b><div class="dim">Drop any ${what} here to look like it. Your worn gear keeps giving its stats.</div>`;
+  }
+  const acts = getVanityActions(slot);
+  return {
+    html: itemTooltip(it, {
+      hint: 'A look only: no stats. Right-click or double-tap to take off',
+      actions: acts,
+    }),
+    actions: acts,
+  };
 }
 
 function quickUse(idx) {
@@ -359,12 +418,17 @@ function equipSlot(slot) {
     key: 'equip:' + slot,
     data: () => (c.equip[slot] ? { type: 'item', where: 'equip', slot } : null),
     icon: () => d.querySelector('img') && d.querySelector('img').src,
-    onClick: () => { UI.selected = c.equip[slot] ? { where: 'equip', slot } : null; sfx('ui'); UI.refresh(); },
+    onClick: () => {
+      UI.selected = c.equip[slot] ? { where: 'equip', slot } : null;
+      sfx('ui');
+      document.querySelectorAll('.bag .bslot.sel, .paperdoll .eslot.sel').forEach(s => s.classList.remove('sel'));
+      if (UI.selected) d.classList.add('sel');
+    },
     onDouble: () => unequip(slot),
-    onRight: () => (G.ui.vendor && G.ui.vendor.active ? (UI.selected = { where: 'equip', slot }, UI.refresh()) : unequip(slot)),
+    onRight: () => (G.ui.vendor && G.ui.vendor.active ? (UI.selected = { where: 'equip', slot }) : unequip(slot)),
   });
   droppable(d, (data) => handleDropOnEquip(slot, data), (data) => data.type === 'item' && data.where === 'bag' && G.char.bag[data.idx] && (fitsSlot(G.char.bag[data.idx], slot) || G.char.bag[data.idx].type === 'gem'));
-  if (it) UI.tip(d, () => itemTooltip(c.equip[slot], { hint: 'Right-click to unequip' }));
+  if (it) UI.tip(d, () => equipTip(slot));
   return d;
 }
 
@@ -380,14 +444,18 @@ function vanitySlot(slot) {
     key: 'vanity:' + slot,
     data: () => (c.vanity && c.vanity[slot] ? { type: 'item', where: 'vanity', slot } : null),
     icon: () => d.querySelector('img') && d.querySelector('img').src,
-    onClick: () => { UI.selected = c.vanity && c.vanity[slot] ? { where: 'vanity', slot } : null; sfx('ui'); UI.refresh(); },
+    onClick: () => {
+      UI.selected = c.vanity && c.vanity[slot] ? { where: 'vanity', slot } : null;
+      sfx('ui');
+      document.querySelectorAll('.bag .bslot.sel, .paperdoll .eslot.sel').forEach(s => s.classList.remove('sel'));
+      if (UI.selected) d.classList.add('sel');
+    },
     onDouble: () => takeOffLook(slot),
     onRight: () => takeOffLook(slot),
   });
   const fits = (b) => b && b.type === 'gear' && b.slot === slot;
   droppable(d, (data) => (data.type === 'item' && data.where === 'bag' && fits(c.bag[data.idx]) ? wearLook(data.idx) : (sfx('error'), false)), (data) => data.type === 'item' && data.where === 'bag' && fits(G.char.bag[data.idx]));
-  const what = slot === 'head' ? 'helmet' : 'armor';
-  UI.tip(d, () => (c.vanity && c.vanity[slot] ? itemTooltip(c.vanity[slot], { hint: 'A look only: no stats. Right-click to take it off' }) : `<b>${LOOK_NAMES[slot]}</b><div class="dim">Drop any ${slot === 'head' ? 'helmet' : 'body armor'} here to look like it. Your worn ${what} keeps giving the stats.</div>`));
+  UI.tip(d, () => vanityTip(slot));
   return d;
 }
 /** The Appearance row under the paper doll: the two look slots and the helmet toggle. */
@@ -402,52 +470,67 @@ function vanityRow() {
   return row;
 }
 
-function detailBox() {
-  const box = el('div', 'item-detail');
-  const sel = UI.selected;
-  const it = getItem(sel);
-  if (!it) { box.innerHTML = '<div class="dim">Tap or click an item to inspect it. Drag items to equip, move, socket gems or sell. Drag out of the window to drop.</div>'; return box; }
-  box.innerHTML = (sel.where === 'vanity' ? '<div style="color:#d8c8ff;font-size:12px">Worn as a look: its stats don\'t count.</div>' : '') + itemTooltip(it, { compare: sel.where === 'bag' && it.slot ? G.char.equip[slotFor(G.char.equip, it)] : null });
-  const row = el('div', 'row');
-  row.style.marginTop = '8px';
-  const btn = (label, fn, cls = 'small') => { const b = el('button', 'btn ' + cls, label); b.onclick = () => { sfx('ui'); fn(); }; row.appendChild(b); };
-  if (sel.where === 'bag') {
-    if (it.sealed) btn('Break the Seal', () => openSeal(sel.idx), 'small red');
-    else if (it.type === 'gear') btn('Equip', () => equipFromBag(sel.idx));
-    if (it.type === 'gear' && !it.sealed && VANITY_SLOTS.includes(it.slot)) btn('Wear as look', () => wearLook(sel.idx));
-    if (it.type === 'gem') {
-      const targets = [...SLOTS.map((s) => ({ where: 'equip', slot: s })), ...G.char.bag.map((b, i) => ({ where: 'bag', idx: i }))].filter((r) => { const x = getItem(r); return x && x.type === 'gear' && !x.sealed && x.gems.length < x.sockets; });
-      if (targets.length) btn(`Socket (${targets.length} items)`, () => pickSocketTarget(sel.idx, targets));
+function getBagActions(idx) {
+  const c = G.char, it = c.bag[idx];
+  if (!it) return [];
+  const acts = [];
+  if (it.sealed) {
+    acts.push({ label: 'Break Seal', fn: () => openSeal(idx), cls: 'small red' });
+  } else if (it.type === 'gear') {
+    acts.push({ label: 'Equip', fn: () => equipFromBag(idx) });
+    if (VANITY_SLOTS.includes(it.slot)) acts.push({ label: 'Wear as look', fn: () => wearLook(idx) });
+  } else if (it.type === 'gem') {
+    const targets = [...SLOTS.map((s) => ({ where: 'equip', slot: s })), ...c.bag.map((b, i) => ({ where: 'bag', idx: i }))].filter((r) => { const x = getItem(r); return x && x.type === 'gear' && !x.sealed && x.gems.length < x.sockets; });
+    if (targets.length) acts.push({ label: `Socket (${targets.length})`, fn: () => pickSocketTarget(idx, targets) });
+  }
+  if (it.type === 'sheet') {
+    sheetButtons((lbl, fn, cls) => acts.push({ label: lbl, fn, cls }), { where: 'bag', idx }, it);
+  }
+  if (G.ui.vendor && G.ui.vendor.active && !it.sealed) {
+    acts.push({ label: `Sell (${fmtInt(Math.max(1, Math.floor(itemValue(it) / 4)))}g)`, fn: () => G.ui.vendor.sell({ where: 'bag', idx }) });
+  }
+  if (G.ui.stash && G.ui.stash.active) {
+    acts.push({ label: 'Store', fn: () => G.ui.stash.store(idx) });
+  }
+  if (it.type === 'gear') {
+    acts.push({ label: it.locked ? '🔓 Unlock' : '🔒 Lock', fn: () => { if (it.locked) delete it.locked; else it.locked = true; UI.log(it.locked ? `<b>${escapeHtml(itemName(it))}</b> locked.` : `<b>${escapeHtml(itemName(it))}</b> unlocked.`, '#ffd860'); changed(); } });
+    if (it.gems && it.gems.length) {
+      const cost = unsocketCost(it);
+      const needed = new Set(it.gems.filter((g) => !c.bag.some((b) => b && b.type === 'gem' && b.gem === g.gem && b.tier === g.tier)).map((g) => `${g.gem}:${g.tier}`)).size;
+      const free = c.bag.filter((b) => !b).length;
+      if (c.gold >= cost && free >= needed) {
+        acts.push({
+          label: `Remove gems (${fmtInt(cost)}g)`,
+          fn: () => {
+            c.gold -= cost;
+            for (const gem of it.gems) addToBag(c, makeGem(gem.gem, gem.tier));
+            it.gems = [];
+            sfx('gold');
+            changed();
+          }
+        });
+      }
     }
-    if (it.type === 'sheet') sheetButtons(btn, sel, it);
-    if (G.ui.vendor && G.ui.vendor.active && !it.sealed) btn(`Sell (${fmtInt(Math.max(1, Math.floor(itemValue(it) / 4)))}g)`, () => G.ui.vendor.sell(sel));
-    btn('Drop', () => dropFromBag(sel.idx), 'small red');
-  } else if (sel.where === 'tab') sheetButtons(btn, sel, it);
-  else if (sel.where === 'vanity') btn('Take off look', () => takeOffLook(sel.slot));
-  else {
-    btn('Unequip', () => unequip(sel.slot));
   }
-  // a lock: auto-play leaves the item alone (worn: never swapped out; in the bag or chest: never equipped, sold or moved)
-  if (it.type === 'gear') btn(it.locked ? '🔓 Unlock' : '🔒 Lock', () => { if (it.locked) delete it.locked; else it.locked = true; UI.log(it.locked ? `<b>${escapeHtml(itemName(it))}</b> locked: auto-play won't touch it${sel.where === 'equip' ? ' or swap it out' : ''}.` : `<b>${escapeHtml(itemName(it))}</b> unlocked.`, '#ffd860'); changed(); });
-  if (it.type === 'gear' && it.gems.length) {
-    const cost = unsocketCost(it);
-    const needed = new Set(it.gems.filter((g) => !G.char.bag.some((b) => b && b.type === 'gem' && b.gem === g.gem && b.tier === g.tier)).map((g) => `${g.gem}:${g.tier}`)).size;
-    const free = G.char.bag.filter((b) => !b).length;
-    const remove = el('button', 'btn small', `Remove gems (${fmtInt(cost)}g)`);
-    remove.disabled = G.char.gold < cost || free < needed;
-    remove.title = free < needed ? 'Make room in your inventory first.' : '';
-    remove.onclick = () => {
-      if (G.char.gold < cost || free < needed) return;
-      G.char.gold -= cost;
-      for (const gem of it.gems) addToBag(G.char, makeGem(gem.gem, gem.tier));
-      it.gems = [];
-      sfx('gold');
-      changed();
-    };
-    row.appendChild(remove);
+  acts.push({ label: 'Drop', fn: () => dropFromBag(idx), cls: 'small red' });
+  return acts;
+}
+
+function getEquipActions(slot) {
+  const c = G.char, it = c.equip[slot];
+  if (!it) return [];
+  const acts = [{ label: 'Unequip', fn: () => unequip(slot) }];
+  if (G.ui.vendor && G.ui.vendor.active) {
+    acts.push({ label: 'Sell', fn: () => unequip(slot) });
   }
-  box.appendChild(row);
-  return box;
+  acts.push({ label: it.locked ? '🔓 Unlock' : '🔒 Lock', fn: () => { if (it.locked) delete it.locked; else it.locked = true; changed(); } });
+  return acts;
+}
+
+function getVanityActions(slot) {
+  const c = G.char, it = c.vanity && c.vanity[slot];
+  if (!it) return [];
+  return [{ label: 'Take off look', fn: () => takeOffLook(slot) }];
 }
 
 function pickSocketTarget(gemIdx, targets) {
@@ -538,6 +621,12 @@ export function attrRespec() {
   if (!n || c.gold < cost) return false;
   c.attrs = { ...c.attrs, ...CLASSES[c.classId].base };
   c.statPoints += n; c.gold -= cost;
+  for (const slot of ['weapon', 'offhand']) {
+    const it = c.equip[slot];
+    if (it && !canEquipItem(c, it, slot)) {
+      unequip(slot);
+    }
+  }
   sfx('buff');
   UI.log(`Attributes reset: <b>${n}</b> attribute points refunded for ${fmtInt(cost)} gold.`, '#ffd860');
   changed();
@@ -600,7 +689,6 @@ export function renderInventory(body) {
     body.appendChild(wrap);
     return;
   }
-  left.appendChild(detailBox());
   wrap.appendChild(left);
   const mid = el('div', 'col inv-bag');
   mid.appendChild(el('div', 'inv-section-title', `Backpack <span>${c.bag.filter(Boolean).length} / ${c.bag.length}</span>`));

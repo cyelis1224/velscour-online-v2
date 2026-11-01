@@ -2,7 +2,7 @@
 // (the hero takes the stairs, no hits from the ward below), then a foe pinned in the ward is fought down there (the
 // hero takes the stairs back down, never leaps or blinks off the wall). Per class: damage the hero did across the
 // height, the biggest one-tick change of level (a stair step is 4), and whether he got there.
-// Start server at repo root: python3 -m http.server 8123
+// Start server at repo root: python3 -m http.server 8124
 // Run: node tools/tests/castle_autoplay.js [classes] (default wizard,dragoon,paladin,ranger,necromancer,lancer)
 const { openGame, report } = require('./harness');
 const classes = (process.argv[2] || 'wizard,dragoon,paladin,ranger,necromancer,lancer').split(',');
@@ -10,7 +10,7 @@ const classes = (process.argv[2] || 'wizard,dragoon,paladin,ranger,necromancer,l
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
   for (const cls of classes) {
     const res = await page.evaluate(async (cls) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { Auto } = await import('/src/game/autoplay.js');
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { makeMonster } = await import('/src/game/monster.js');

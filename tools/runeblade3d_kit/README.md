@@ -33,7 +33,7 @@ placeholder, drawn on the template to show the layout.
 |---|---|
 | `PROMPT.txt` | The messages to paste into ChatGPT, in order, plus fixes for common mistakes. |
 | `SPEC.md` | The exact layout: canvas, columns, guide lines, rune slots, sizes, and how the game reads the sheet. **It wins over everything else.** |
-| `STYLE.md` | The VELSCOUR style lock (Grim Nocturne pixel art) and the exact palette for this sword. |
+| `STYLE.md` | The DAGYR style lock (Grim Nocturne pixel art) and the exact palette for this sword. |
 | `templates/runeblade3d_texture_template.png` | **The template.** 1024 x 1536, flat magenta, with the three columns and guide lines. |
 | `examples/runeblade3d_layout_example.png` | The placeholder sword painted into the template, with the guides over it. Copy the **placement**, not the look. |
 | `examples/runeblade3d_placeholder_clean.png` | The same placeholder sheet without guides: what a finished sheet looks like. |
@@ -70,7 +70,7 @@ placeholder, drawn on the template to show the layout.
 
 ## Bringing it into the game
 
-Save the PNG into the VELSCOUR repo (for example `assets/source/runeblade3d_sheet.png`) and run:
+Save the PNG into the DAGYR repo (for example `assets/source/runeblade3d_sheet.png`) and run:
 
 ```bash
 python tools/runeblade3d.py install assets/source/runeblade3d_sheet.png

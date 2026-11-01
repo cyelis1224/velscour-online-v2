@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const BASE_URL = 'http://localhost:8123';
+const BASE_URL = 'http://localhost:8124';
 const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
 
 async function run() {
@@ -15,9 +15,9 @@ async function run() {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     const page = await ctx.newPage();
 
-    await page.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+    await page.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
     await page.goto(BASE_URL + '/index.html');
-    await page.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await page.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Start game / char
     await page.evaluate(async () => {
@@ -65,9 +65,9 @@ async function run() {
     });
     console.log('User select rules:', userSelectChecks);
     if (userSelectChecks.tabUserSelect !== 'none' ||
-        userSelectChecks.channelBtnUserSelect !== 'none' ||
-        userSelectChecks.sendBtnUserSelect !== 'none' ||
-        userSelectChecks.headerUserSelect !== 'none') {
+      userSelectChecks.channelBtnUserSelect !== 'none' ||
+      userSelectChecks.sendBtnUserSelect !== 'none' ||
+      userSelectChecks.headerUserSelect !== 'none') {
       throw new Error('One or more buttons/tabs still allow text selection!');
     }
 
@@ -97,7 +97,7 @@ async function run() {
     console.log('Moved chat rect:', movedRect);
 
     if (Math.abs((movedRect.left - initialRect.left) - 80) > 4 ||
-        Math.abs((movedRect.top - initialRect.top) - (-60)) > 4) {
+      Math.abs((movedRect.top - initialRect.top) - (-60)) > 4) {
       throw new Error(`Chat did not move as expected: initial=${JSON.stringify(initialRect)}, moved=${JSON.stringify(movedRect)}`);
     }
     console.log('Dragging test PASSED successfully!');

@@ -12,7 +12,7 @@ game-scale WebP atlases in `assets/tiles/approved_biomes/`. These are
 
 The floor/prop row mapping, in the exact order of the supplied artwork:
 
-| Sheet row (0-based) | VELSCOUR biome | Theme |
+| Sheet row (0-based) | DAGYR biome | Theme |
 | --- | --- | --- |
 | 0 | `desert_temple` | Sandstone, lapis and Egyptian-style gold |
 | 1 | `ice_temple` | Icy slate, frost blue, snow and silver |
@@ -89,7 +89,7 @@ generated before the approved atlas loads cannot remain stale.
 From the repository root:
 
 ```bash
-python3 -m http.server 8123
+python3 -m http.server 8124
 node tools/tests/approved_biome_art.js
 node tools/tests/heavenly.js
 node tools/tests/worldwide_biomes.js

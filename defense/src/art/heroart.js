@@ -1,4 +1,4 @@
-// Heroes in Velscour's Grim Nocturne gear, composed for Defense: an armor frame (assets/sprites/gear/<cls>/), an
+// Heroes in Dagyr's Grim Nocturne gear, composed for Defense: an armor frame (assets/sprites/gear/<cls>/), an
 // enclosed helmet (gear/helmets/), palette finishes (the art index's palettes) and the held weapon and off-hand
 // (assets/sprites/held/) laid in the armor's fists. The recolour is the main game's (src/core/gearart.js recolorPx,
 // src/gfx/heldart.js recolor), ported so this page imports none of its modules.
@@ -11,21 +11,23 @@ let helms = null;         // { meta, atlas: bytes, aw, placements }
 let heldIndex = null;
 const heldSets = {};      // set -> { meta, img }
 
-export const ELEMENT_COL = { phys: '#e8e0d0', fire: '#ff7a2a', cold: '#7ad8ff', light: '#ffe86a', poison: '#8ae04a', arcane: '#c87aff',
-  holy: '#ffe9a0', shadow: '#9a5aff', blood: '#ff3040', acid: '#4ab8ff' };
+export const ELEMENT_COL = {
+  phys: '#e8e0d0', fire: '#ff7a2a', cold: '#7ad8ff', light: '#ffe86a', poison: '#8ae04a', arcane: '#c87aff',
+  holy: '#ffe9a0', shadow: '#9a5aff', blood: '#ff3040', acid: '#4ab8ff'
+};
 
 export async function loadHeroArt(cls) {
   const jobs = [];
   if (!gear[cls]) jobs.push((async () => {
     const [meta, armor, mask] = await Promise.all([loadAssetJSON(`assets/sprites/gear/${cls}/gear.json`),
-      loadImage(`assets/sprites/gear/${cls}/armor.webp`), loadImage(`assets/sprites/gear/${cls}/armor_mask.png`)]);
+    loadImage(`assets/sprites/gear/${cls}/armor.webp`), loadImage(`assets/sprites/gear/${cls}/armor_mask.png`)]);
     const md = pixelsOf(mask), m = new Uint8Array(md.length / 4);
     for (let i = 0; i < m.length; i++) m[i] = md[i * 4] > 127 ? 1 : 0;
     gear[cls] = { meta, armor: pixelsOf(armor), aw: armor.width, mask: m };
   })());
   if (!helms) jobs.push((async () => {
     const [meta, atlas, placements] = await Promise.all([loadAssetJSON('assets/sprites/gear/helmets/index.json'),
-      loadImage('assets/sprites/gear/helmets/atlas.webp'), loadAssetJSON('assets/sprites/gear/helmets/placements.json').catch(() => ({}))]);
+    loadImage('assets/sprites/gear/helmets/atlas.webp'), loadAssetJSON('assets/sprites/gear/helmets/placements.json').catch(() => ({}))]);
     helms = { meta, atlas: pixelsOf(atlas), aw: atlas.width, placements, boxes: new Map() };
   })());
   jobs.push((async () => {
@@ -187,8 +189,10 @@ export function heroCanvas(L, hd = 2) {
   x.drawImage(armorCanvas(L.cls, L.armor, L.armorFin), 0, 0, FRAME_W * hd, FRAME_H * hd);
   if (L.helm > 0) {
     const h = helmCanvas(L.cls, L.helm, L.helmFin), f = helms.meta.fit, [cw] = helms.meta.frame;
-    const pl = { x: f.xAnchor - cw * f.scaleX / 2, y: meta.headTop + f.baselineOffset - (f.sourceBaseline || 0) * f.scaleY, scaleX: f.scaleX, scaleY: f.scaleY, rotation: 0,
-      ...helms.placements?.classes?.[L.cls]?.[String(L.helm)] };
+    const pl = {
+      x: f.xAnchor - cw * f.scaleX / 2, y: meta.headTop + f.baselineOffset - (f.sourceBaseline || 0) * f.scaleY, scaleX: f.scaleX, scaleY: f.scaleY, rotation: 0,
+      ...helms.placements?.classes?.[L.cls]?.[String(L.helm)]
+    };
     const [hdx, hdy] = meta.armor.head?.[L.armor - 1] || [0, 0];
     const [x0, y0, x1, y1] = h.box, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     x.save();

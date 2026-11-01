@@ -15,7 +15,7 @@ const SOAK = process.argv[3] || 'death_knight', MINUTES = +(process.argv[4] || 8
   let failed = false;
   for (const cls of CLASSES) {
     const r = await page.evaluate(async (cls) => {
-      const { game } = window.VELSCOUR;
+      const { game } = window.DAGYR;
       await game.loadClassPack(cls);
       const ga = await import('/src/core/gearart.js');
       const { PALETTES } = await import('/src/data/gear.js');
@@ -73,14 +73,14 @@ const SOAK = process.argv[3] || 'death_knight', MINUTES = +(process.argv[4] || 8
 
   if (SOAK !== 'none' && MINUTES > 0) {
     await page.evaluate(async (cls) => {
-      const { game } = window.VELSCOUR;
+      const { game } = window.DAGYR;
       await game.newChar(cls, 'Lookbot');
       const { Auto } = await import('/src/game/autoplay.js');
       Auto.toggle(true);
     }, SOAK);
     for (let min = 1; min <= MINUTES; min++) {
       const res = await page.evaluate(async () => {
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         const ga = await import('/src/core/gearart.js');
         const bad = [], seen = new WeakMap(), cv = document.createElement('canvas'), x = cv.getContext('2d', { willReadFrequently: true });
         const opaque = (img) => {

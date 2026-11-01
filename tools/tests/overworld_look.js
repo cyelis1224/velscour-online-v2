@@ -1,6 +1,6 @@
 // Look at an overworld: screenshots of a few spots of a seeded map with the hero there and no monsters, for art review
 // (scatter in context, sizes against the hero, height maps). Shots: tools/tests/out/look_<biome>_<n>.png.
-// Start server at repo root: python3 -m http.server 8123
+// Start server at repo root: python3 -m http.server 8124
 // Run: node tools/tests/overworld_look.js [biome] [seed] [x,y,zoom;x,y,zoom...]
 //   biome: overworld (the Forsaken Wilds, default), sea_of_sand, dark_forest, mountainside, castle
 const { openGame, report } = require('./harness');
@@ -16,7 +16,7 @@ const spots = (process.argv[4] || DEFAULT[biome] || '36,36,.6').split(';').map((
   const { browser, page, errors, shot } = await openGame({ width: 1440, height: 900 });
   try {
     await page.evaluate(async ([biome, seed]) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       await game.newChar('paladin', 'Look QA');
       const { BIOME_BY_ID, BETA_BIOMES } = await import('/src/data/biomes.js');
       const B = BIOME_BY_ID[biome] || BETA_BIOMES.find((b) => b.id === biome);
@@ -30,7 +30,7 @@ const spots = (process.argv[4] || DEFAULT[biome] || '36,36,.6').split(';').map((
     for (let k = 0; k < spots.length; k++) {
       const [x, y, zoom] = spots[k];
       await page.evaluate(async ([x, y, zoom]) => {
-        const { G } = window.VELSCOUR, { camera } = await import('/src/core/view.js');
+        const { G } = window.DAGYR, { camera } = await import('/src/core/view.js');
         const m = G.world.map, [px, py] = m.walkable(x, y) ? [x, y] : (m.randomNear(x, y, 5) || [x, y]);
         G.player.x = px; G.player.y = py;
         G.settings.zoom = 1; camera.computeZoom(); G.settings.zoom = zoom / camera.zoom; camera.computeZoom();

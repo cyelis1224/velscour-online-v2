@@ -4,7 +4,7 @@ const { openGame, report } = require('./harness');
 (async () => {
   const { browser, page, errors } = await openGame();
   const r = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('paladin', 'Stasher');
     const { Stash } = await import('/src/ui/stash.js');
     const { rollItem, makeGem } = await import('/src/data/items.js');

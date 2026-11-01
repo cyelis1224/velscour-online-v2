@@ -98,7 +98,7 @@ def frame_box(d, x0, y0, k):
 # ---------------------------------------------------------------- palette (parsed from the art bible)
 def palette():
     ramps = []
-    text = open(os.path.join(TEXTS, '01_VELSCOUR_ART_BIBLE.md'), encoding='utf-8').read()
+    text = open(os.path.join(TEXTS, '01_DAGYR_ART_BIBLE.md'), encoding='utf-8').read()
     sec = text[text.index('## 6. The master palette'):text.index('## 7.')]
     for line in sec.splitlines():
         m = re.match(r'^\| ([^|]+?) \| ((?:`#[0-9a-f]{6}` ?)+)\|$', line.strip())
@@ -126,7 +126,7 @@ def palette_sheet(ramps):
 def palette_files(ramps):
     flat = [c for _, cols in ramps for c in cols]
     hexf = '\n'.join(c[1:] for c in flat) + '\n'
-    gpl = 'GIMP Palette\nName: VELSCOUR Grim Nocturne\nColumns: 7\n#\n' + ''.join(
+    gpl = 'GIMP Palette\nName: DAGYR Grim Nocturne\nColumns: 7\n#\n' + ''.join(
         '%3d %3d %3d\t%s %d\n' % (int(c[1:3], 16), int(c[3:5], 16), int(c[5:7], 16), n, i + 1)
         for n, cols in ramps for i, c in enumerate(cols))
     return hexf, gpl

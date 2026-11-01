@@ -1,6 +1,6 @@
 // Bake the Gunner's turrets and Bombing Run biplane (tools/gunner3d.html, models in tools/gunner3d.js) into the sheets
 // the game draws (src/gfx/gunner3d.js): assets/sprites/gunner/<turret kind>.webp/json and biplane.webp/json.
-// Needs the repo served (python -m http.server 8123) and three.js: jsDelivr, or a local copy of the npm package
+// Needs the repo served (python -m http.server 8124) and three.js: jsDelivr, or a local copy of the npm package
 // (THREE_DIR=<dir holding build/ and examples/>, e.g. from `npm pack three@0.170.0`) when the CDN is out of reach.
 //   node tools/gunner3d_bake.js            # bake
 //   node tools/gunner3d_bake.js preview    # a contact sheet -> tools/tests/out/gunner3d_preview.png
@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE_URL || 'http://localhost:8123';
+const BASE = process.env.BASE_URL || 'http://localhost:8124';
 const ROOT = path.resolve(__dirname, '..');
 const data = (u) => Buffer.from(u.split(',')[1], 'base64');
 (async () => {

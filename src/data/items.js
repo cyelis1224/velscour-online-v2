@@ -62,10 +62,93 @@ export const fitsSlot = (it, slot, classId = null) => !!it && it.type === 'gear'
 /** The equipment slot an item goes to: its own, or for a ring the first empty ring slot (else the first). */
 export const slotFor = (equip, it, classId = null) => (classId === 'barbarian' && it.slot === 'weapon' && equip.weapon && !equip.offhand ? 'offhand' : it.slot !== 'ring' ? it.slot : RING_SLOTS.find((s) => !equip[s]) || RING_SLOTS[0]);
 
-// Redesigned around the 9 core classes (Paladin, Ranger, Wizard, Necromancer, Barbarian, Witch, Bard, Lancer, Gunner).
-// Universal equipability: any class may equip any weapon, offhand, or armor if they meet the level requirement.
-// Each weapon and off-hand base carries class-synergistic implicit bonuses so serious builds naturally gravitate
-// toward weapons and off-hands suited to their combat archetype.
+// Stat requirements for weapons and off-hands: archetype enforcement
+// Strength: blunt weapons (maces, hammers), spears/lances, swords, axes, shields
+// Dexterity: bows, crossbows, pistols, instruments (lutes, drums), daggers, quivers, bombs, boomerangs
+// Intellect: staves, wands, scythes, orbs, tomes, lanterns, idols, skulls, jars
+export const BASE_REQ_STAT = {
+  // Strength
+  sword: 'str',
+  axe: 'str',
+  mace: 'str',
+  hammer: 'str',
+  spear: 'str',
+  shield: 'str',
+
+  // Dexterity
+  bow: 'dex',
+  crossbow: 'dex',
+  pistol: 'dex',
+  lute: 'dex',
+  dagger: 'dex',
+  boomerang: 'dex',
+  quiver: 'dex',
+  drum: 'dex',
+  bomb: 'dex',
+  rang: 'dex',
+
+  // Intellect
+  staff: 'int',
+  wand: 'int',
+  scythe: 'int',
+  orb: 'int',
+  tome: 'int',
+  lantern: 'int',
+  skull: 'int',
+  idol: 'int',
+  jar: 'int',
+};
+
+export const STAT_NAMES = {
+  str: 'Strength',
+  dex: 'Dexterity',
+  int: 'Intellect',
+  vit: 'Vitality',
+};
+
+/** The stat requirement for a weapon or off-hand ({ stat, val }), or null if none. */
+export function itemReqStat(item) {
+  if (!item || item.type !== 'gear') return null;
+  if (item.slot !== 'weapon' && item.slot !== 'offhand') return null;
+  const stat = BASE_REQ_STAT[item.base];
+  if (!stat) return null;
+  if (item.reqStat && item.reqStat.stat && typeof item.reqStat.val === 'number') {
+    return item.reqStat;
+  }
+  const lv = Math.max(1, Math.min(item.req || item.ilvl || 1, MAX_LEVEL));
+  const val = 20 + (lv - 1) * 2;
+  return { stat, val };
+}
+
+/** Calculates the character's total effective attribute score (base + gear), optionally excluding a slot being swapped. */
+export function charEffectiveStat(c, stat, excludingSlot = null) {
+  if (!c || !c.attrs) return 0;
+  let total = Number(c.attrs[stat]) || 0;
+  if (c.equip) {
+    for (const [slot, it] of Object.entries(c.equip)) {
+      if (it && it.type === 'gear' && slot !== excludingSlot && Array.isArray(it.affixes)) {
+        for (const a of it.affixes) {
+          if (a.s === stat && typeof a.v === 'number') total += a.v;
+          if (a.s === 'allAttr' && typeof a.v === 'number') total += a.v;
+        }
+      }
+    }
+  }
+  return Math.round(total);
+}
+
+/** Returns whether character c meets the level and stat requirements to equip item it into slot. */
+export function canEquipItem(c, it, slot = null) {
+  if (!it || it.type !== 'gear') return false;
+  if ((it.req || 1) > (c.level || 1)) return false;
+  const reqStat = itemReqStat(it);
+  if (reqStat) {
+    const cur = charEffectiveStat(c, reqStat.stat, slot || it.slot);
+    if (cur < reqStat.val) return false;
+  }
+  return true;
+}
+
 export const WEAPONS = {
   sword: { names: ['Shortsword', 'Longsword', 'Broadsword', 'Bastard Sword', 'Runeblade'], icon: 'sword', dmg: 1.0, spd: 1.0, crit: 3, classes: ['paladin', 'barbarian', 'bard', 'lancer'] },
   axe: { names: ['Hatchet', 'War Axe', 'Bearded Axe', 'Battle Axe', 'Executioner'], icon: 'axe', dmg: 1.15, spd: 0.92, critDmg: 12, classes: ['barbarian'] },
@@ -478,6 +561,8 @@ export function rollItem(ilvl, opts = {}) {
     item.suf = rarity >= 2 && suf ? AFFIX_BY_STAT[suf.s].suf : (suf && !pre ? AFFIX_BY_STAT[suf.s].suf : null);
   }
   item.req = Math.min(ilvl, MAX_LEVEL); // a level N item needs a level N hero (never past the cap): each level up opens the next step of gear
+  const reqStat = itemReqStat(item);
+  if (reqStat) item.reqStat = reqStat;
   if (opts.unid) item.unid = true;
   return item;
 }

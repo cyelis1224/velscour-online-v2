@@ -1,4 +1,4 @@
-# Velscour Townsfolk Animation Pack (v4)
+# Dagyr Townsfolk Animation Pack (v4)
 
 25 painted identities (`generated_sources/*.png`) cut by `python tools/build_townsfolk_pack.py` into
 `townsfolk_001.png` … `townsfolk_025.png`, plus 75 colourway sheets (`townsfolk_026` … `townsfolk_100`; sheet k is

@@ -72,10 +72,19 @@ export function heroCanvas(id, cls = 'hero-cv') {
       this.ex += (want - this.ex) * Math.min(1, dt * (want ? 7 : 3));
       const R = this.R, t = this.t, ex = calm ? this.ex * 0.4 : this.ex, idle = calm ? 0.5 : 1;
       if (ex > 0.01) this.hopT += dt * R.hopHz; else this.hopT = 0;
-      // fit: leave headroom for the hop and stretch; the feet sit just above the card's name plaque edge
-      const k = Math.min(cw / (nw * 1.12), ch / (nh * 1.1));
-      const W = nw * k, H = nh * k;
-      const cx = cw / 2, base = ch - Math.max(2, ch * 0.02);
+      // fit: scale strictly by the hero's body height so large weapons stick out without shrinking the character
+      const isLobbyPod = canvas.classList.contains('d2-player-canvas');
+      const wrapH = (isLobbyPod && canvas.parentElement && canvas.parentElement.clientHeight)
+        ? Math.round(canvas.parentElement.clientHeight * dpr)
+        : ch;
+      const bodyH = img._bodyH || nh;
+      const k = (isLobbyPod || img._bodyH)
+        ? (wrapH / 1.15) / bodyH
+        : Math.min(cw / (nw * 1.12), ch / (nh * 1.1));
+      const W = nw * k, H = nh * k, BH = bodyH * k;
+      const centerRatio = (img._centerX !== undefined && nw > 0) ? (img._centerX / nw) : 0.5;
+      const feetOffset = (img._feetFromBottom || 0) * k;
+      const cx = cw / 2, base = ch - Math.max(2, wrapH * 0.02);
       const b = Math.sin(t * 6.283 / R.breath + R.ph) * idle;                  // breathing, -1..1
       const s = (Math.sin(t * 6.283 / R.sway + R.ph2) + 0.35 * Math.sin(t * 2.1 + R.ph)) * R.swayAmp * idle;
       const hs = Math.sin(Math.PI * this.hopT);                                  // hop arc
@@ -84,18 +93,19 @@ export function heroCanvas(id, cls = 'hero-cv') {
       const stretch = Math.abs(hs) * 0.035 * ex;
       const sy = 1 + 0.012 * b + stretch - squash + R.wobble * 0.02 * Math.sin(t * 7.3) * (0.5 + ex);
       const sx = 1 - (sy - 1) * 0.6;
-      const lean = (s + Math.sin(Math.PI * this.hopT * 0.5) * R.lean * ex) * H;  // top-of-head offset
-      const feet = base - hop * H;
+      const lean = (s + Math.sin(Math.PI * this.hopT * 0.5) * R.lean * ex) * BH; // top-of-head offset
+      const feet = base - hop * BH;
+      const imgBottom = feet + feetOffset;
       // ground: a shadow that shrinks as the hero leaves it, and a class-coloured glow when excited
       ctx.save();
       ctx.globalAlpha = 0.55 - hop * 3;
       ctx.fillStyle = '#000';
-      ctx.beginPath(); ctx.ellipse(cx, base - 1, W * 0.36 * (1 - hop * 2), H * 0.035, 0, 0, 6.283); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx, base - 1, BH * 0.24 * (1 - hop * 2), BH * 0.035, 0, 0, 6.283); ctx.fill();
       if (ex > 0.02) {
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = ex * (0.55 + 0.15 * Math.sin(t * 9));
-        const rx = Math.min(cw * 0.5, W * 0.85), ry = H * 0.55;               // an ellipse that fits the canvas
-        ctx.translate(cx, base - H * 0.38); ctx.scale(1, ry / rx);
+        const rx = Math.min(cw * 0.5, BH * 0.55), ry = BH * 0.55;             // an ellipse that fits the canvas
+        ctx.translate(cx, base - BH * 0.38); ctx.scale(1, ry / rx);
         const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
         g.addColorStop(0, this.color); g.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = g;
@@ -110,9 +120,9 @@ export function heroCanvas(id, cls = 'hero-cv') {
       const jig = R.wobble * 0.02 * (0.5 + ex);
       for (let i = 0; i < n; i++) {
         const v0 = i / n, v1 = (i + 1) / n, vm = (v0 + v1) / 2;
-        const y1 = feet - lift(v1), y0 = feet - lift(v0);
+        const y1 = imgBottom - lift(v1), y0 = imgBottom - lift(v0);
         const wx = W * sx * (1 + jig * Math.sin(t * 6 + vm * 9));
-        const x = cx - wx / 2 + lean * vm * vm;
+        const x = cx - wx * centerRatio + lean * vm * vm;
         ctx.drawImage(img, 0, nh - (i + 1) * srcH, sw, srcH, x, y1, wx, y0 - y1 + 0.6);
       }
       // sparks rising off an excited hero

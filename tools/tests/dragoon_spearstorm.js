@@ -1,5 +1,5 @@
 // Dragoon single/triple spear damage, VFX, cooldowns and bot rotation in the live browser.
-// python3 -m http.server 8123; node tools/tests/dragoon_spearstorm.js [mobile]
+// python3 -m http.server 8124; node tools/tests/dragoon_spearstorm.js [mobile]
 const { openGame, report } = require('./harness');
 const mobile = process.argv.includes('mobile');
 (async () => {
@@ -7,7 +7,7 @@ const mobile = process.argv.includes('mobile');
   try {
     const result = await page.evaluate(async () => {
       const problems = [];
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { SKILLS, cooldown, useTime, skillRange, grantedSkillsAt } = await import('/src/data/skills.js');
       const { effects } = await import('/src/gfx/vfx.js');
@@ -19,7 +19,7 @@ const mobile = process.argv.includes('mobile');
       const p = G.player, w = G.world;
       const single = SKILLS['dragoon.3.0'], triple = SKILLS['dragoon.3.1'];
       if (!single || !triple || cooldown(single) !== 8 || cooldown(triple) !== 14 ||
-          useTime(single) !== 0 || useTime(triple) !== 0) problems.push('Spearstorm cooldown or instant-cast data wrong');
+        useTime(single) !== 0 || useTime(triple) !== 0) problems.push('Spearstorm cooldown or instant-cast data wrong');
       if (!grantedSkillsAt('dragoon', 2).includes(triple.id)) problems.push('Triple Spearfall not granted at level 2');
       G.char.skills[single.id] = G.char.skills[triple.id] = 2;
       G.char.skills['dragoon.1.0'] = 1;
@@ -77,8 +77,10 @@ const mobile = process.argv.includes('mobile');
       Auto.reset(); Auto.arrangeBar();
       if (!G.char.bar.includes(single.id) || !G.char.bar.includes(triple.id))
         problems.push('Dragoon bot did not equip both granted spear barrages');
-      const target = { x: p.x + 2, y: p.y, r: 0.35, rank: 'normal',
-        curses: {}, status: {}, hp: 500, maxHp: 500 };
+      const target = {
+        x: p.x + 2, y: p.y, r: 0.35, rank: 'normal',
+        curses: {}, status: {}, hp: 500, maxHp: 500
+      };
       const oldLos = w.map.los;
       w.map.los = () => true;
       try {
@@ -95,8 +97,10 @@ const mobile = process.argv.includes('mobile');
         if (!jumpBackIn || !['leap', 'dash'].includes(jumpBackIn.sk.kind))
           problems.push('Dragoon did not leap to close a 5.5-tile gap with the barrage ready');
       } finally { w.map.los = oldLos; }
-      return { problems, level: G.char.level, bar: G.char.bar.filter(Boolean),
-        spearEffects: effects.filter((e) => e.constructor.name === 'SpearBarrage').length };
+      return {
+        problems, level: G.char.level, bar: G.char.bar.filter(Boolean),
+        spearEffects: effects.filter((e) => e.constructor.name === 'SpearBarrage').length
+      };
     });
     errors.push(...result.problems);
     console.log('DRAGOON SPEARSTORM QA', JSON.stringify(result));

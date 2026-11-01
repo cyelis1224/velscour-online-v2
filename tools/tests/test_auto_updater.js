@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const http = require('http');
 
-const BASE_URL = 'http://localhost:8123';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:8124';
 const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
 
 function fetchJson(url) {
@@ -38,21 +38,31 @@ function fetchHeaders(url, headers = {}) {
 }
 
 async function run() {
-  console.log('--- Testing Auto-Updater & Client Distribution System ---');
+  console.log('--- Testing Auto-Updater & Differential Android OTA System ---');
 
   // 1. Verify /api/version
   console.log('1. Checking GET /api/version...');
   const verRes = await fetchJson(`${BASE_URL}/api/version`);
-  if (verRes.status !== 200 || !verRes.body || !verRes.body.version) {
+  if (verRes.status !== 200 || !verRes.body || !verRes.body.version || !verRes.body.manifestHash) {
     throw new Error(`Failed /api/version test. Status: ${verRes.status}`);
   }
   console.log('✓ /api/version response:', {
     version: verRes.body.version,
-    downloads: {
-      android: verRes.body.downloads?.android?.available,
-      windows: verRes.body.downloads?.windows?.available,
-      linux: verRes.body.downloads?.linux?.available,
-    }
+    manifestHash: verRes.body.manifestHash,
+    totalFiles: verRes.body.totalFiles,
+    inGameUpdateSupported: verRes.body.inGameUpdateSupported,
+  });
+
+  // 1b. Verify /api/update-manifest
+  console.log('1b. Checking GET /api/update-manifest...');
+  const manRes = await fetchJson(`${BASE_URL}/api/update-manifest`);
+  if (manRes.status !== 200 || !manRes.body || !manRes.body.files || !manRes.body.manifestHash) {
+    throw new Error(`Failed /api/update-manifest test. Status: ${manRes.status}`);
+  }
+  console.log('✓ /api/update-manifest verified:', {
+    manifestHash: manRes.body.manifestHash,
+    totalFiles: manRes.body.totalFiles,
+    sampleEntry: manRes.body.files['src/ui/updater.js'],
   });
 
   // 2. Verify /download portal page
@@ -63,19 +73,8 @@ async function run() {
   }
   console.log('✓ /download portal returned 200 OK HTML');
 
-  // 3. Verify /download/android streaming with Range requests
-  console.log('3. Checking GET /download/android with Range header...');
-  const rangeRes = await fetchHeaders(`${BASE_URL}/download/android`, { Range: 'bytes=0-1024' });
-  if (rangeRes.status !== 206) {
-    throw new Error(`/download/android range request failed: status ${rangeRes.status}`);
-  }
-  if (!rangeRes.headers['content-disposition'] || !/Velscour.*\.apk/i.test(rangeRes.headers['content-disposition'])) {
-    throw new Error('Missing Content-Disposition for APK');
-  }
-  console.log('✓ Range download for Android APK verified: HTTP 206 Partial Content, Content-Range:', rangeRes.headers['content-range']);
-
-  // 4. Launch browser to test In-Game Title Screen Update Button & Dialog
-  console.log('4. Launching browser to test in-game UI...');
+  // 3. Launch browser to test In-Game Title Screen Update Button, Differential Android Patcher & Dialog
+  console.log('3. Launching browser to test in-game Android differential updater UI...');
   const browser = await chromium.launch({
     executablePath: CHROMIUM_PATH,
     headless: true,
@@ -85,11 +84,15 @@ async function run() {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     const page = await ctx.newPage();
 
-    await page.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
-    await page.goto(`${BASE_URL}/index.html`);
-    await page.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await page.addInitScript(() => {
+      window.DAGYR_TEST_MENU = true;
+      window.DAGYR_TEST_ANDROID = true;
+      window.DAGYR_NO_RELOAD_ON_UPDATE = true;
+    });
+    await page.goto(`${BASE_URL}/index.html`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
 
-    // A) Verify button is hidden when client is on latest version
+    // A) Verify button is hidden when client is on latest version & manifest hash
     const initiallyHidden = await page.evaluate(() => {
       const btn = document.getElementById('title-update-btn');
       return !btn || btn.classList.contains('hidden') || window.getComputedStyle(btn).display === 'none';
@@ -100,7 +103,7 @@ async function run() {
     // B) Simulate update available
     console.log('Simulating update available...');
     await page.evaluate(async () => {
-      window.VELSCOUR_TEST_UPDATE = true;
+      window.DAGYR_TEST_UPDATE = true;
       const { checkForUpdates } = await import('/src/ui/updater.js');
       await checkForUpdates({ force: true });
     });
@@ -108,40 +111,67 @@ async function run() {
     await page.waitForSelector('#title-update-btn:not(.hidden)', { state: 'visible', timeout: 5000 });
     console.log('✓ Title update button revealed with update pulse animation');
 
-    // Capture title screen screenshot with update button
-    await page.screenshot({ path: '/home/dagyr/.gemini/antigravity-ide/brain/6bb481c7-fe94-4fc6-ab53-82e8cede2761/updater_title_screen_button.png' });
-
-    // C) Click update button to open dialog
+    // C) Click update button to open dialog and verify Android Differential Patch calculation
     console.log('Clicking title update button...');
     await page.click('#title-update-btn');
 
     await page.waitForSelector('.update-dialog-content', { state: 'visible', timeout: 5000 });
+    await page.waitForFunction(() => {
+      const badge = document.getElementById('update-delta-badge');
+      return badge && badge.innerText.includes('files');
+    }, { timeout: 5000 });
+
     const modalInfo = await page.evaluate(() => {
       const modal = document.querySelector('.update-dialog-content');
       if (!modal) return null;
       const title = modal.querySelector('div[style*="font-family"]')?.innerText;
       const updateBtn = modal.querySelector('[data-update]');
+      const apkBtn = modal.querySelector('[data-download-apk]');
+      const deltaBadge = modal.querySelector('#update-delta-badge');
       return {
         title,
         hasUpdateBtn: !!updateBtn,
         updateBtnText: updateBtn ? updateBtn.innerText.trim() : null,
+        hasApkFallbackBtn: !!apkBtn,
+        deltaBadgeText: deltaBadge ? deltaBadge.innerText.trim() : null,
       };
     });
 
-    console.log('✓ Velscour Updater Modal verified:', modalInfo);
-    if (!modalInfo || !modalInfo.hasUpdateBtn) {
-      throw new Error('Update dialog missing action button');
+    console.log('✓ Dagyr Android Differential Updater Modal verified:', modalInfo);
+    if (!modalInfo || !modalInfo.hasUpdateBtn || !modalInfo.updateBtnText.includes('Update In-Game')) {
+      throw new Error('Update dialog missing in-game update button');
     }
 
-    // Capture modal screenshot
-    await page.screenshot({ path: '/home/dagyr/.gemini/antigravity-ide/brain/6bb481c7-fe94-4fc6-ab53-82e8cede2761/updater_modal_dialog.png' });
+    // D) Trigger in-game differential file update and verify progress bar reaches 100%
+    console.log('Clicking Update In-Game to download & verify differential files...');
+    await page.click('.update-dialog-content [data-update]');
+
+    await page.waitForFunction(() => {
+      const pct = document.getElementById('update-progress-pct');
+      return pct && pct.innerText.trim() === '100%';
+    }, { timeout: 10000 });
+
+    const progressState = await page.evaluate(() => {
+      return {
+        pct: document.getElementById('update-progress-pct')?.innerText.trim(),
+        text: document.getElementById('update-progress-text')?.innerText.trim(),
+        status: document.getElementById('update-action-status')?.innerText.trim(),
+        savedLiveManifest: JSON.parse(localStorage.getItem('Dagyr_live_updated_files') || 'null'),
+      };
+    });
+    console.log('✓ In-game differential update completed:', {
+      pct: progressState.pct,
+      text: progressState.text,
+      status: progressState.status,
+      updatedFiles: Object.keys(progressState.savedLiveManifest?.files || {}),
+    });
 
     // Close modal
     await page.click('.update-dialog-content [data-cancel]');
     await page.waitForSelector('.update-dialog-content', { state: 'detached', timeout: 5000 });
     console.log('✓ Modal dismissed successfully');
 
-    // D) Test Settings Screen "Check for Updates"
+    // E) Test Settings Screen "Check for Updates"
     console.log('Testing Settings dialog updater row...');
     await page.evaluate(() => {
       const btns = Array.from(document.querySelectorAll('.title-menu button'));
@@ -157,10 +187,7 @@ async function run() {
     });
     console.log('✓ Settings version row verified:', versionLabel);
 
-    // Capture settings screen screenshot
-    await page.screenshot({ path: '/home/dagyr/.gemini/antigravity-ide/brain/6bb481c7-fe94-4fc6-ab53-82e8cede2761/updater_settings_screen.png' });
-
-    console.log('ALL AUTO-UPDATER & CLIENT DISTRIBUTION TESTS PASSED!');
+    console.log('ALL AUTO-UPDATER & DIFFERENTIAL ANDROID OTA TESTS PASSED!');
   } finally {
     await browser.close();
   }

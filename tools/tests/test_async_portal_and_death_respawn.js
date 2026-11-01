@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const BASE_URL = 'http://localhost:8123';
+const BASE_URL = 'http://localhost:8124';
 const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
 
 (async () => {
@@ -22,15 +22,15 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     p2.on('console', m => console.log('[P2 console]', m.text()));
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
     }
 
     console.log('Navigating players to game...');
     await p1.goto(BASE_URL + '/index.html');
     await p2.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Inject saves
     await p1.evaluate(async () => {
@@ -69,7 +69,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.fill('#d2-create-name', roomName);
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
+    await p1.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
     console.log('P1 entered town as host.');
 
     // P2 joins room
@@ -81,7 +81,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
+    await p2.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
     console.log('P2 entered town.');
 
     // Allow states to sync in town
@@ -90,12 +90,12 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // Verify both can see each other in town
     const p1SeesP2InTown = await p1.evaluate(() => {
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       const rps = [...(G.remotePlayers?.values() || [])];
       return rps.some(rp => rp.world === G.world && G.world.creatures.includes(rp));
     });
     const p2SeesP1InTown = await p2.evaluate(() => {
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       const rps = [...(G.remotePlayers?.values() || [])];
       return rps.some(rp => rp.world === G.world && G.world.creatures.includes(rp));
     });
@@ -113,11 +113,11 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       game.enterDungeon();
     });
 
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'dungeon' && window.VELSCOUR?.G?.world?.depth === 1, { timeout: 8000 });
+    await p1.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'dungeon' && window.DAGYR?.G?.world?.depth === 1, { timeout: 8000 });
     console.log('P1 arrived at Depth 1.');
 
     // Verify P2 is STILL in town
-    const p2WorldKind = await p2.evaluate(() => window.VELSCOUR?.G?.world?.kind);
+    const p2WorldKind = await p2.evaluate(() => window.DAGYR?.G?.world?.kind);
     console.log(`P2 world kind while P1 is in dungeon: ${p2WorldKind}`);
     if (p2WorldKind !== 'town') {
       throw new Error(`P2 was forcibly pulled out of town! Kind: ${p2WorldKind}`);
@@ -126,7 +126,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // Verify remote player rendering across different worlds:
     // P1 (in dungeon) should NOT render P2 in dungeon
     const p1RendersP2InDungeon = await p1.evaluate(() => {
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       return [...(G.remotePlayers?.values() || [])].some(rp => G.world.creatures.includes(rp));
     });
     console.log(`P1 renders P2 in dungeon: ${p1RendersP2InDungeon} (expected: false)`);
@@ -139,7 +139,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     console.log('P1 making selection at exit portal to Depth 2 (Return to Town)...');
     await p1.evaluate(async () => {
       const { game } = await import('/src/game/game.js');
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       // Simulate exit portal choice selecting Depth 2 and going to town
       const next = 2;
       const cdId = 'dark_forest';
@@ -154,15 +154,15 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       game.enterTown();
     });
 
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'town' && window.VELSCOUR?.G?.room?.depth === 2, { timeout: 8000 });
+    await p1.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'town' && window.DAGYR?.G?.room?.depth === 2, { timeout: 8000 });
     console.log('P1 returned to town at Depth 2.');
 
     // Verify P2's town portal immediately updated to Depth 2!
     await p2.waitForFunction(() => {
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       return G?.room?.depth === 2 && G?.world?.portals?.[0]?.label?.includes('Depth 2');
     }, { timeout: 5000 });
-    const p2PortalLabel = await p2.evaluate(() => window.VELSCOUR?.G?.world?.portals?.[0]?.label);
+    const p2PortalLabel = await p2.evaluate(() => window.DAGYR?.G?.world?.portals?.[0]?.label);
     console.log(`P2 town portal label: "${p2PortalLabel}"`);
     if (!p2PortalLabel.includes('Depth 2')) {
       throw new Error(`P2 town portal did not update immediately! Found: ${p2PortalLabel}`);
@@ -179,11 +179,11 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       game.enterDungeon();
     });
 
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'dungeon' && window.VELSCOUR?.G?.world?.depth === 2, { timeout: 8000 });
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'dungeon' && window.VELSCOUR?.G?.world?.depth === 2, { timeout: 8000 });
+    await p1.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'dungeon' && window.DAGYR?.G?.world?.depth === 2, { timeout: 8000 });
+    await p2.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'dungeon' && window.DAGYR?.G?.world?.depth === 2, { timeout: 8000 });
 
-    const p1Seed = await p1.evaluate(() => window.VELSCOUR?.G?.room?.dungeonSeed);
-    const p2Seed = await p2.evaluate(() => window.VELSCOUR?.G?.room?.dungeonSeed);
+    const p1Seed = await p1.evaluate(() => window.DAGYR?.G?.room?.dungeonSeed);
+    const p2Seed = await p2.evaluate(() => window.DAGYR?.G?.room?.dungeonSeed);
     console.log(`P1 seed: ${p1Seed}, P2 seed: ${p2Seed}`);
     if (p1Seed !== p2Seed) {
       throw new Error(`Dungeon seeds diverged! P1: ${p1Seed}, P2: ${p2Seed}`);
@@ -194,7 +194,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // Verify players see each other on Depth 2
     const p1SeesP2Depth2 = await p1.evaluate(() => {
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       return [...(G.remotePlayers?.values() || [])].some(rp => rp.world === G.world && G.world.creatures.includes(rp));
     });
     console.log(`P1 sees P2 on Depth 2: ${p1SeesP2Depth2}`);
@@ -203,7 +203,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     console.log('Testing death: P1 dies on Depth 2...');
     await p1.evaluate(async () => {
       const { game } = await import('/src/game/game.js');
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       G.player.hp = 0;
       G.player.dead = true;
       game.onPlayerDeath({ name: 'Dungeon Boss' });
@@ -217,18 +217,18 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       await continueBtn.click();
     }
 
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'town', { timeout: 10000 });
+    await p1.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'town', { timeout: 10000 });
     console.log('P1 respawned in town.');
 
     // Verify P2 is STILL alive on Depth 2
-    const p2StillInDungeon = await p2.evaluate(() => window.VELSCOUR?.G?.world?.kind === 'dungeon' && window.VELSCOUR?.G?.world?.depth === 2);
+    const p2StillInDungeon = await p2.evaluate(() => window.DAGYR?.G?.world?.kind === 'dungeon' && window.DAGYR?.G?.world?.depth === 2);
     console.log(`P2 still in Depth 2 dungeon: ${p2StillInDungeon}`);
     if (!p2StillInDungeon) {
       throw new Error('P2 was yanked to town when P1 died!');
     }
 
     // Verify P1 in town has portal ready for Depth 2
-    const p1RespawnPortal = await p1.evaluate(() => window.VELSCOUR?.G?.world?.portals?.[0]?.label);
+    const p1RespawnPortal = await p1.evaluate(() => window.DAGYR?.G?.world?.portals?.[0]?.label);
     console.log(`P1 town portal label after respawn: "${p1RespawnPortal}"`);
     if (!p1RespawnPortal.includes('Depth 2')) {
       throw new Error(`P1 portal after death was reset! Label: ${p1RespawnPortal}`);
@@ -241,7 +241,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       game.enterDungeon();
     });
 
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'dungeon' && window.VELSCOUR?.G?.world?.depth === 2, { timeout: 8000 });
+    await p1.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'dungeon' && window.DAGYR?.G?.world?.depth === 2, { timeout: 8000 });
     console.log('P1 successfully rejoined Depth 2!');
 
     await p1.screenshot({ path: 'tools/tests/out/test_async_portal_success.png' });

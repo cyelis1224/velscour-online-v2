@@ -1,4 +1,4 @@
-# VELSCOUR Forsaken Wilds scatter sprite atlas
+# DAGYR Forsaken Wilds scatter sprite atlas
 
 Generated with the built-in image generation tool as a transparent dark-fantasy pixel-art sheet, using the existing biome variant atlas as a style reference. The committed source PNG and runtime lossless WebP are both 400 × 320 pixels; each runtime cell is 80 × 80 pixels. The source was reduced with nearest-neighbor sampling to keep the shipped art small and crisp.
 

@@ -1,7 +1,7 @@
 # Low-resolution biome art variants
 
 This pass adds a compact, transparent 400 × 240 WebP atlas at
-`assets/tiles/approved_biomes/velscour_variants.webp`. Its source PNG and
+`assets/tiles/approved_biomes/Dagyr_variants.webp`. Its source PNG and
 reading-order catalog are kept in `assets/source/biome-variants/`.
 
 The atlas uses a 5-column × 3-row grid of 80 × 80 pixel cells:

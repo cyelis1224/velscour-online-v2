@@ -10,20 +10,20 @@ Two kinds of art drive a class's look:
   60 ability effects.
 
 ## Grim Nocturne gear
-### Source zips (kept outside the repo; F:\!  VELSCOUR\...)
+### Source zips (kept outside the repo; F:\!  DAGYR\...)
 - `Grim_Nocturne_All_16_Classes_Artwork.zip`: 96 high-res armors (6 rarities x 16), bare-headed, empty-handed.
 - `Grim_Nocturne_All_16_Classes_Game_Exports.zip`: their 128 x 192 natives. Only used to place each class's head:
   their pasted "shared head patch" has stray pale-blue/black blocks, so the armors are re-cut from the artwork.
-- `VELSCOUR_96_Additional_Armor_Source_Artwork.zip`: a second set of 96, high-res only (no game exports).
-- `VELSCOUR_80_Helmets_Game_Exports.zip`: 80 helmets as 40 x 40 cutouts pinned at (45,63) on the 128 x 192 frame,
+- `DAGYR_96_Additional_Armor_Source_Artwork.zip`: a second set of 96, high-res only (no game exports).
+- `DAGYR_80_Helmets_Game_Exports.zip`: 80 helmets as 40 x 40 cutouts pinned at (45,63) on the 128 x 192 frame,
   plus full-colour layers (`layers_fullcolor`, every class but the Arcane Sorcerer, whose palette-limited layer is used).
-- `VELSCOUR_Collection_02_96_Armor_Source_Artwork.zip` (October 19): 96 more high-res armors, six per class (Rare A/B,
+- `DAGYR_Collection_02_96_Armor_Source_Artwork.zip` (October 19): 96 more high-res armors, six per class (Rare A/B,
   Epic, Legendary, Mythic A/B, `collection_02/artwork/<class>/`): armors 13-18 (`armor_NN_<rarity>_c02[a|b].png`).
-- `VELSCOUR_Nocturne_Collection_04_128_Armor_Source_Artwork.zip` (October 21): 128 more, eight per class (Rare A/B/C,
+- `DAGYR_Nocturne_Collection_04_128_Armor_Source_Artwork.zip` (October 21): 128 more, eight per class (Rare A/B/C,
   Epic A/B/C, Legendary, Mythic, `collection_04_nocturne/artwork/<class>/`): armors 19-26 (`armor_NN_<rarity>_c04[a|b|c].png`).
-- `VELSCOUR_Helmet_Set_02_Game_Exports.zip`, `VELSCOUR_Helmet_Set_03_Game_Exports.zip` (October 19): 80 helmets each,
+- `DAGYR_Helmet_Set_02_Game_Exports.zip`, `DAGYR_Helmet_Set_03_Game_Exports.zip` (October 19): 80 helmets each,
   same pin and layout as set 01, rarities Common, Uncommon, Rare, Epic and Mythic (`helmet_set0N_<rarity>.png`).
-- `VELSCOUR_STYLE_LOCK_DOCUMENTS.zip` (STYLE_LOCK.md, CLASS_CARDS.md, HELMET_OVERLAY_ADDENDUM.md, prompt templates):
+- `DAGYR_STYLE_LOCK_DOCUMENTS.zip` (STYLE_LOCK.md, CLASS_CARDS.md, HELMET_OVERLAY_ADDENDUM.md, prompt templates):
   the art direction for any new armor or helmet. Helmets are fully enclosed and draw only exterior surfaces.
 
 ### Importer (`tools/nocturnegear.py`, needs pillow numpy scipy)

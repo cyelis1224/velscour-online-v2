@@ -532,7 +532,7 @@ const NAMES = {
 // quick abilities that may chain straight on from another
 const FOLLOW = ['nova', 'spiral', 'barrage', 'orbs', 'fissures'];
 
-const later = (w, delay, fn) => w.addHazard({ t: delay, update(dt) { if ((this.t -= dt) <= 0) { fn(); return false; } return true; }, draw() {} });
+const later = (w, delay, fn) => w.addHazard({ t: delay, update(dt) { if ((this.t -= dt) <= 0) { fn(); return false; } return true; }, draw() { } });
 
 /** One random rotation of a phase's pool: weighted picks, never the same twice running, one cataclysm/adds at most. */
 function rollRotation(pool, once = []) {
@@ -573,7 +573,7 @@ export const raidHpMul = (depth) => 0.35 + Math.min(depth, 500) * 0.0004;
 // fights lasted 20 s, not two minutes)
 export const raidHitMul = (depth) => 2.7 * (1 - 0.3 * clamp((depth - 10) / 90, 0, 1));
 /** opts.tpl / opts.art: a given template (copied, maybe renamed) and look instead of a random one (game/tower.js).
- *  opts.court: one of Velscour Unbound's court (game/unbound.js): it never seals the arena or announces a BOSS ROOM.
+ *  opts.court: one of Dagyr Unbound's court (game/unbound.js): it never seals the arena or announces a BOSS ROOM.
  *  opts.hp / opts.dmg: multipliers on a BOSS ROOM's. */
 export function makeRaidBoss(world, arena, depth, level, opts = {}) {
   const rnd = opts.rnd || Math.random;
@@ -1023,8 +1023,10 @@ class Raid {
           if (!p) break;
           const tx = p.x + (i ? rand(-3.5, 3.5) : 0), ty = p.y + (i ? rand(-3.5, 3.5) : 0);
           if (!w.map.walkable(tx, ty)) continue;
-          w.addHazard(new Projectile({ world: w, src: m, x: m.x, y: m.y, z: 60, lob: true, tx, ty, range: 16, fx: 'blob', el: shotEl, dmg: [dmg * 0.8, dmg], exp: 1.2, size: 1.8,
-            onLand: (x, y) => w.addHazard(new Area({ world: w, src: m, x, y, r: 1.4, dur: 7, tick: 0.5, dmg: [dmg * 0.25, dmg * 0.32], el: shotEl, fx: { fire: 'fire', cold: 'frost', poison: 'poison', shadow: 'void', arcane: 'void', light: 'storm', holy: 'holy' }[el] || 'poison' })) }));
+          w.addHazard(new Projectile({
+            world: w, src: m, x: m.x, y: m.y, z: 60, lob: true, tx, ty, range: 16, fx: 'blob', el: shotEl, dmg: [dmg * 0.8, dmg], exp: 1.2, size: 1.8,
+            onLand: (x, y) => w.addHazard(new Area({ world: w, src: m, x, y, r: 1.4, dur: 7, tick: 0.5, dmg: [dmg * 0.25, dmg * 0.32], el: shotEl, fx: { fire: 'fire', cold: 'frost', poison: 'poison', shadow: 'void', arcane: 'void', light: 'storm', holy: 'holy' }[el] || 'poison' }))
+          }));
         }
         sfx('acid');
         break;

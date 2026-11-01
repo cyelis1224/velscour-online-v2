@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const BASE_URL = 'http://localhost:8123';
+const BASE_URL = 'http://localhost:8124';
 const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
 
 (async () => {
@@ -13,14 +13,14 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     const p2 = await ctx2.newPage();
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
     }
 
     await p1.goto(BASE_URL + '/index.html');
     await p2.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
 
     await p1.evaluate(async () => {
       const S = await import('/src/game/save.js');
@@ -56,13 +56,13 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.fill('#d2-create-name', roomName);
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game');
+    await p1.waitForFunction(() => window.DAGYR?.G?.mode === 'game');
     console.log('P1 started game. State:');
     const p1Init = await p1.evaluate(() => ({
-      mode: window.VELSCOUR.G.mode,
-      worldKind: window.VELSCOUR.G.world?.kind,
-      depth: window.VELSCOUR.G.world?.depth,
-      room: window.VELSCOUR.G.room,
+      mode: window.DAGYR.G.mode,
+      worldKind: window.DAGYR.G.world?.kind,
+      depth: window.DAGYR.G.world?.depth,
+      room: window.DAGYR.G.room,
     }));
     console.log('P1 initial:', JSON.stringify(p1Init));
 
@@ -75,13 +75,13 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game');
+    await p2.waitForFunction(() => window.DAGYR?.G?.mode === 'game');
     console.log('P2 started game. State:');
     const p2Init = await p2.evaluate(() => ({
-      mode: window.VELSCOUR.G.mode,
-      worldKind: window.VELSCOUR.G.world?.kind,
-      depth: window.VELSCOUR.G.world?.depth,
-      room: window.VELSCOUR.G.room,
+      mode: window.DAGYR.G.mode,
+      worldKind: window.DAGYR.G.world?.kind,
+      depth: window.DAGYR.G.world?.depth,
+      room: window.DAGYR.G.room,
     }));
     console.log('P2 initial:', JSON.stringify(p2Init));
 
@@ -94,7 +94,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       const { game } = await import('/src/game/game.js');
       game.enterDungeon();
     });
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'dungeon');
+    await p1.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'dungeon');
 
     // Now P2 clicks portal to enter dungeon
     console.log('\n--- P2 ENTERS DUNGEON VIA PORTAL ---');
@@ -102,35 +102,35 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       const { game } = await import('/src/game/game.js');
       game.enterDungeon();
     });
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'dungeon');
+    await p2.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'dungeon');
 
     await p1.waitForTimeout(1000);
     await p2.waitForTimeout(1000);
 
     const p1Dung = await p1.evaluate(() => ({
-      worldKind: window.VELSCOUR.G.world?.kind,
-      depth: window.VELSCOUR.G.world?.depth,
-      biome: window.VELSCOUR.G.world?.biome?.id,
-      mapW: window.VELSCOUR.G.world?.map?.w,
-      mapH: window.VELSCOUR.G.world?.map?.h,
-      room: window.VELSCOUR.G.room,
-      creaturesCount: window.VELSCOUR.G.world?.creatures?.length,
-      remotePlayers: [...(window.VELSCOUR.G.remotePlayers?.values() || [])].map(r => ({
-        id: r.id, name: r.name, x: r.x, y: r.y, world: !!r.world, inWorld: window.VELSCOUR.G.world?.creatures?.includes(r),
+      worldKind: window.DAGYR.G.world?.kind,
+      depth: window.DAGYR.G.world?.depth,
+      biome: window.DAGYR.G.world?.biome?.id,
+      mapW: window.DAGYR.G.world?.map?.w,
+      mapH: window.DAGYR.G.world?.map?.h,
+      room: window.DAGYR.G.room,
+      creaturesCount: window.DAGYR.G.world?.creatures?.length,
+      remotePlayers: [...(window.DAGYR.G.remotePlayers?.values() || [])].map(r => ({
+        id: r.id, name: r.name, x: r.x, y: r.y, world: !!r.world, inWorld: window.DAGYR.G.world?.creatures?.includes(r),
         lastState: r._lastState
       }))
     }));
 
     const p2Dung = await p2.evaluate(() => ({
-      worldKind: window.VELSCOUR.G.world?.kind,
-      depth: window.VELSCOUR.G.world?.depth,
-      biome: window.VELSCOUR.G.world?.biome?.id,
-      mapW: window.VELSCOUR.G.world?.map?.w,
-      mapH: window.VELSCOUR.G.world?.map?.h,
-      room: window.VELSCOUR.G.room,
-      creaturesCount: window.VELSCOUR.G.world?.creatures?.length,
-      remotePlayers: [...(window.VELSCOUR.G.remotePlayers?.values() || [])].map(r => ({
-        id: r.id, name: r.name, x: r.x, y: r.y, world: !!r.world, inWorld: window.VELSCOUR.G.world?.creatures?.includes(r),
+      worldKind: window.DAGYR.G.world?.kind,
+      depth: window.DAGYR.G.world?.depth,
+      biome: window.DAGYR.G.world?.biome?.id,
+      mapW: window.DAGYR.G.world?.map?.w,
+      mapH: window.DAGYR.G.world?.map?.h,
+      room: window.DAGYR.G.room,
+      creaturesCount: window.DAGYR.G.world?.creatures?.length,
+      remotePlayers: [...(window.DAGYR.G.remotePlayers?.values() || [])].map(r => ({
+        id: r.id, name: r.name, x: r.x, y: r.y, world: !!r.world, inWorld: window.DAGYR.G.world?.creatures?.includes(r),
         lastState: r._lastState
       }))
     }));
@@ -144,7 +144,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       const { game } = await import('/src/game/game.js');
       game.enterTown();
     });
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'town');
+    await p1.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'town');
 
     // Now P2 returns to town via blue portal
     console.log('\n--- P2 RETURNS TO TOWN ---');
@@ -152,31 +152,31 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       const { game } = await import('/src/game/game.js');
       game.enterTown();
     });
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'town');
+    await p2.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'town');
 
     await p1.waitForTimeout(1000);
     await p2.waitForTimeout(1000);
 
     const p1TownReturn = await p1.evaluate(() => ({
-      worldKind: window.VELSCOUR.G.world?.kind,
-      townSeed: window.VELSCOUR.G.char?.townSeed,
-      roomTownSeed: window.VELSCOUR.G.room?.townSeed,
-      mapW: window.VELSCOUR.G.world?.map?.w,
-      mapH: window.VELSCOUR.G.world?.map?.h,
-      remotePlayers: [...(window.VELSCOUR.G.remotePlayers?.values() || [])].map(r => ({
-        id: r.id, name: r.name, x: r.x, y: r.y, world: !!r.world, inWorld: window.VELSCOUR.G.world?.creatures?.includes(r),
+      worldKind: window.DAGYR.G.world?.kind,
+      townSeed: window.DAGYR.G.char?.townSeed,
+      roomTownSeed: window.DAGYR.G.room?.townSeed,
+      mapW: window.DAGYR.G.world?.map?.w,
+      mapH: window.DAGYR.G.world?.map?.h,
+      remotePlayers: [...(window.DAGYR.G.remotePlayers?.values() || [])].map(r => ({
+        id: r.id, name: r.name, x: r.x, y: r.y, world: !!r.world, inWorld: window.DAGYR.G.world?.creatures?.includes(r),
         lastState: r._lastState
       }))
     }));
 
     const p2TownReturn = await p2.evaluate(() => ({
-      worldKind: window.VELSCOUR.G.world?.kind,
-      townSeed: window.VELSCOUR.G.char?.townSeed,
-      roomTownSeed: window.VELSCOUR.G.room?.townSeed,
-      mapW: window.VELSCOUR.G.world?.map?.w,
-      mapH: window.VELSCOUR.G.world?.map?.h,
-      remotePlayers: [...(window.VELSCOUR.G.remotePlayers?.values() || [])].map(r => ({
-        id: r.id, name: r.name, x: r.x, y: r.y, world: !!r.world, inWorld: window.VELSCOUR.G.world?.creatures?.includes(r),
+      worldKind: window.DAGYR.G.world?.kind,
+      townSeed: window.DAGYR.G.char?.townSeed,
+      roomTownSeed: window.DAGYR.G.room?.townSeed,
+      mapW: window.DAGYR.G.world?.map?.w,
+      mapH: window.DAGYR.G.world?.map?.h,
+      remotePlayers: [...(window.DAGYR.G.remotePlayers?.values() || [])].map(r => ({
+        id: r.id, name: r.name, x: r.x, y: r.y, world: !!r.world, inWorld: window.DAGYR.G.world?.creatures?.includes(r),
         lastState: r._lastState
       }))
     }));

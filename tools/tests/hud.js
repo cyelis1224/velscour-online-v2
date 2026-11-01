@@ -20,7 +20,7 @@ const fail = (msg) => { console.log('FAIL', msg); process.exitCode = 1; };
   if (JSON.stringify(mig) !== JSON.stringify(want)) fail('10-slot bar migration: ' + JSON.stringify(mig));
   // a wizard with 15 learned skills, one on every slot
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { newCharData } = await import('/src/game/save.js');
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
     const c = newCharData('wizard', 'Barkeep');
@@ -33,8 +33,8 @@ const fail = (msg) => { console.log('FAIL', msg); process.exitCode = 1; };
     G.godMode = true;
   });
   await page.waitForTimeout(800);
-  await page.evaluate(() => window.VELSCOUR.game.enterDungeon());
-  await page.waitForFunction(() => window.VELSCOUR.G.world && window.VELSCOUR.G.world.kind === 'dungeon', null, { timeout: 30000 });
+  await page.evaluate(() => window.DAGYR.game.enterDungeon());
+  await page.waitForFunction(() => window.DAGYR.G.world && window.DAGYR.G.world.kind === 'dungeon', null, { timeout: 30000 });
   await page.waitForTimeout(1200);
   const slots = await page.evaluate(() => [...document.querySelectorAll('#hud-slots .slot')].map((d) => { const r = d.getBoundingClientRect(); return { x: r.x, w: r.width, title: d.title, icon: d.querySelector('img.icon').style.display !== 'none' }; }));
   if (slots.length !== 19) fail('expected 19 HUD slots, got ' + slots.length);
@@ -46,7 +46,7 @@ const fail = (msg) => { console.log('FAIL', msg); process.exitCode = 1; };
   const cast = [];
   for (let i = 0; i < 15; i++) {
     const ok = await page.evaluate(async ({ i, key }) => {
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       const { input } = await import('/src/core/input.js');
       const p = G.player, id = G.char.bar[i];
       p.cooldowns = {}; p.castLock = 0; p.mana = p.maxMana;
@@ -86,7 +86,7 @@ const fail = (msg) => { console.log('FAIL', msg); process.exitCode = 1; };
   // ---- touch: the skill cluster's two pages
   ({ browser, page, errors, shot } = await openGame({ width: 844, height: 390, mobile: true }));
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { newCharData } = await import('/src/game/save.js');
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
     const c = newCharData('necromancer', 'Thumbs');
@@ -99,7 +99,7 @@ const fail = (msg) => { console.log('FAIL', msg); process.exitCode = 1; };
     G.godMode = true;
     game.enterDungeon();
   });
-  await page.waitForFunction(() => window.VELSCOUR.G.world && window.VELSCOUR.G.world.kind === 'dungeon', null, { timeout: 30000 });
+  await page.waitForFunction(() => window.DAGYR.G.world && window.DAGYR.G.world.kind === 'dungeon', null, { timeout: 30000 });
   await page.waitForTimeout(1200);
   const labels = () => page.evaluate(() => [...document.querySelectorAll('.tbtn:not(.flip):not(.hidden) .k')].map((k) => k.textContent).join(' '));
   const p1 = await labels();

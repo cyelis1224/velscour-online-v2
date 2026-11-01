@@ -21,9 +21,9 @@ async function testInventoryLayout() {
     // Test 1: Desktop 1440x900
     console.log('Testing Desktop Inventory layout (1440x900)...');
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-    await ctx.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+    await ctx.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8123');
+    await page.goto('http://localhost:8124');
 
     await page.evaluate(async () => {
       const S = await import('/src/game/save.js');
@@ -39,7 +39,7 @@ async function testInventoryLayout() {
     await page.waitForSelector('button:has-text("Enter World")', { timeout: 10000 });
     await page.click('button:has-text("Enter World")');
 
-    await page.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game', null, { timeout: 15000 });
+    await page.waitForFunction(() => window.DAGYR?.G?.mode === 'game', null, { timeout: 15000 });
     await sleep(1000);
 
     await page.keyboard.press('KeyI');
@@ -67,9 +67,9 @@ async function testInventoryLayout() {
       isMobile: true,
       hasTouch: true,
     });
-    await ctxM.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+    await ctxM.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
     const pageM = await ctxM.newPage();
-    await pageM.goto('http://localhost:8123');
+    await pageM.goto('http://localhost:8124');
 
     await pageM.evaluate(async () => {
       const S = await import('/src/game/save.js');
@@ -85,7 +85,7 @@ async function testInventoryLayout() {
     await pageM.waitForSelector('button:has-text("Enter World")', { timeout: 10000 });
     await pageM.click('button:has-text("Enter World")');
 
-    await pageM.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game', null, { timeout: 15000 });
+    await pageM.waitForFunction(() => window.DAGYR?.G?.mode === 'game', null, { timeout: 15000 });
     await sleep(1000);
 
     // Click Bag button in top-right HUD

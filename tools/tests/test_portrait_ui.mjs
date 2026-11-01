@@ -34,12 +34,12 @@ async function runTest() {
   });
 
   try {
-    await page.goto('http://localhost:8123/?touch=1&autostart=1', { waitUntil: 'domcontentloaded', timeout: 20000 });
+    await page.goto('http://localhost:8124/?touch=1&autostart=1', { waitUntil: 'domcontentloaded', timeout: 20000 });
     await page.waitForTimeout(1500);
 
     // Ensure we are in game / town
     await page.evaluate(async () => {
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       const { game } = await import('/src/game/game.js');
       const { newCharData } = await import('/src/game/save.js');
       const { GameChat } = await import('/src/ui/chat.js');
@@ -80,7 +80,7 @@ async function runTest() {
       const hudBarRect = hudBar.getBoundingClientRect();
       const minimap = document.getElementById('minimap-wrap');
       const minimapRect = minimap.getBoundingClientRect();
-      const skull = document.getElementById('velscour-skull');
+      const skull = document.getElementById('Dagyr-skull');
       const skullRect = skull.getBoundingClientRect();
       const greed = document.getElementById('hud-dials');
       const greedRect = greed.getBoundingClientRect();

@@ -14,7 +14,7 @@ const SECS = +(process.argv[2] || 14), PLAY = +(process.argv[3] || 40);
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1400, height: 800 });
   const setup = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('slime_lord', 'Gloop');
     document.querySelectorAll('.screen').forEach((s) => s.remove());
     G.ui.modalCount = 0;
@@ -38,7 +38,7 @@ const SECS = +(process.argv[2] || 14), PLAY = +(process.argv[3] || 40);
 
   // every set, idle, grouped by colour
   const r1 = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { SUMMONS } = await import('/src/data/summons.js');
     const { buildSummon } = await import('/src/game/monster.js');
     const { SLIME_SETS } = await import('/src/gfx/slimeart.js');
@@ -66,7 +66,7 @@ const SECS = +(process.argv[2] || 14), PLAY = +(process.argv[3] || 40);
 
   // one set of each kind, each animation in a row
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { SUMMONS } = await import('/src/data/summons.js');
     const { buildSummon } = await import('/src/game/monster.js');
     const p = G.player, w = G.world;
@@ -79,7 +79,7 @@ const SECS = +(process.argv[2] || 14), PLAY = +(process.argv[3] || 40);
     kinds.forEach((k, i) => anims.forEach((a, j) => {
       const m = buildSummon(p, SUMMONS['sl_' + k], 'sl_' + k, p.x - 6.5 + i * 0.95 + j * 0.9, p.y - 4 - i * 0.95 + j * 0.9 + 3, 1, 100, 0);
       Object.assign(m.slime, { set: sets[k], anim: a, animT: 0.25 });
-      m.static = true; m.spawnT = 1; m.update = () => {};
+      m.static = true; m.spawnT = 1; m.update = () => { };
       w.add(m); list.push(m);
     }));
     G.paused = true; game.render();
@@ -90,7 +90,7 @@ const SECS = +(process.argv[2] || 14), PLAY = +(process.argv[3] || 40);
 
   // the court: every kind round the Lord, minis in front, with the rainbow brood checked
   const r3 = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { SUMMONS } = await import('/src/data/summons.js');
     const { buildSummon } = await import('/src/game/monster.js');
     const { courtSummon } = await import('/src/game/slimecourt.js');
@@ -111,7 +111,7 @@ const SECS = +(process.argv[2] || 14), PLAY = +(process.argv[3] || 40);
 
   // battle: the court against a crowd at depth 11
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     for (const m of window.sc.list) { if (m.slime) m.slime.popped = true; m.dead = true; }
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     game.buildDungeon(11, BIOME_BY_ID.catacombs);
@@ -121,7 +121,7 @@ const SECS = +(process.argv[2] || 14), PLAY = +(process.argv[3] || 40);
   });
   await page.waitForTimeout(500);
   let battle = await page.evaluate(async (SECS) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { SUMMONS } = await import('/src/data/summons.js');
     const { buildSummon, makeMonster } = await import('/src/game/monster.js');
     const { courtSummon } = await import('/src/game/slimecourt.js');
@@ -177,7 +177,7 @@ const SECS = +(process.argv[2] || 14), PLAY = +(process.argv[3] || 40);
   out.push((battle.far.leap ? '  ok ' : 'FAIL ') + `pouncers leapt ${battle.far.leap} times in the brawl, longest ${battle.far.maxD.toFixed(1)} tiles`);
   // a lone foe far off: a pouncer by the Lord goes for it at once, in one long leap
   const far = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const { SUMMONS } = await import('/src/data/summons.js');
     const { buildSummon, makeMonster } = await import('/src/game/monster.js');
     const p = G.player, w = G.world;
@@ -201,7 +201,7 @@ const SECS = +(process.argv[2] || 14), PLAY = +(process.argv[3] || 40);
 
   // play: nothing to fight; the Lord stands, then walks about
   const play = await page.evaluate(async (PLAY) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { SUMMONS } = await import('/src/data/summons.js');
     const { buildSummon } = await import('/src/game/monster.js');
     const { courtSummon } = await import('/src/game/slimecourt.js');
@@ -240,7 +240,7 @@ const SECS = +(process.argv[2] || 14), PLAY = +(process.argv[3] || 40);
 
   // the Lord close up: the mass bubble clear of his head, the royal puddle
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { camera } = await import('/src/core/view.js');
     const p = G.player, w = G.world;
     for (const c of w.creatures) if (!c.isPlayer) c.dead = true;

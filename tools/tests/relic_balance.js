@@ -14,7 +14,7 @@ const samples = +(process.argv[3] || 16);
   const rows = [];
   for (const cls of classes) {
     const res = await page.evaluate(async ({ cls, samples }) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { Auto, charScore } = await import('/src/game/autoplay.js');
       const { rollItem, RING_SLOTS } = await import('/src/data/items.js');
       const R = await import('/src/data/relics.js');
@@ -90,8 +90,10 @@ const samples = +(process.argv[3] || 16);
         await setLevel(H + 4);
         const curve = []; for (let l = H - 10; l <= H + 60; l += 2) curve.push([l, score(l, 0, H)]);
         const w = (k) => +(worth(curve, score(H, k, H)) - H).toFixed(1);
-        out[H] = { epic: w(3), legendary: w(4), mythic: w(5), heir: w('heir'), cov: w('cov'),
-          set: +(setScore(H, 'set') - setScore(H, 3)).toFixed(3), setVsMythic: +(setScore(H, 'set') - setScore(H, 5)).toFixed(3) };
+        out[H] = {
+          epic: w(3), legendary: w(4), mythic: w(5), heir: w('heir'), cov: w('cov'),
+          set: +(setScore(H, 'set') - setScore(H, 3)).toFixed(3), setVsMythic: +(setScore(H, 'set') - setScore(H, 5)).toFixed(3)
+        };
       }
       return out;
     }, { cls, samples });

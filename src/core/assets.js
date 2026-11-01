@@ -1,5 +1,6 @@
 // Asset loading + derived (recoloured / rescaled) sprite caches.
 import { makeCanvas, recolor, scaleImage, pageAtlas } from './util.js';
+import { walkOverProp } from '../data/walkover.js';
 import { G } from '../state.js';
 import { preloadWallTorchHolders } from '../gfx/walltorches.js';
 import { preloadWallHangings } from '../gfx/wallhangings.js';
@@ -181,7 +182,7 @@ export function biomeTileSet(biome) {
     const src = 'pack:' + p.meta.pack_id, fimg = isoFixImage(src), fix = fimg && (pal ? recolor(fimg, pal) : fimg);
     return p.meta.scatter.map((s) => {
       const f = fix && isoFix(src, s.name);
-      return { img, sx: s.x, sy: s.y, w: s.w, h: s.h, ox: s.ox, oy: s.oy, ...(f && { ...f, img: fix }), fp: s.fp, block: s.block, name: s.name };
+      return { img, sx: s.x, sy: s.y, w: s.w, h: s.h, ox: s.ox, oy: s.oy, ...(f && { ...f, img: fix }), fp: s.fp, block: s.block && !walkOverProp(s.name), name: s.name }; // low debris never blocks (data/walkover.js)
     });
   };
   const inR = (rs, i) => !rs || rs.some(([a, b]) => i + 1 >= a && i + 1 <= b);
@@ -221,7 +222,7 @@ export function biomeTileSet(biome) {
   if (extra) {
     const n = set.features.length;
     for (const f of extra.floors) { for (let j = 0; j < Math.max(1, n / extra.floors.length); j++) set.features.push(set.floors.length); set.floors.push(f); }
-    set.scatter.push(...extra.scatter);
+    set.scatter.push(...extra.scatter.map((e) => (e.block && walkOverProp(e.name) ? { ...e, block: false } : e)));
   }
   if (A.chestImg && A.chestMeta) {
     const img = pal ? recolor(A.chestImg, pal) : A.chestImg;

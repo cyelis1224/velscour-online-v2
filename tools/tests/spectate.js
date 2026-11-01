@@ -17,19 +17,19 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
   const press = async (sel) => { const bb = await (await page.$(sel)).boundingBox(); await tap(bb.x + bb.width / 2, bb.y + bb.height / 2); }; // pulsing buttons never hold still for page.click
   // a hero in a catacombs depth, god mode, auto-play on (spawning critters must not need anything else)
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('wizard', 'Spectator');
     G.char.nextBiome = 'catacombs'; G.char.depth = 3;
     game.enterDungeon();
   });
-  await page.waitForFunction(() => window.VELSCOUR.G.world && window.VELSCOUR.G.world.kind === 'dungeon' && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
-  await page.evaluate(() => { const { G } = window.VELSCOUR; G.godMode = true; for (const m of G.world.creatures) if (m.team === 'enemy' && m !== G.world.boss) m.dead = true; });
+  await page.waitForFunction(() => window.DAGYR.G.world && window.DAGYR.G.world.kind === 'dungeon' && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
+  await page.evaluate(() => { const { G } = window.DAGYR; G.godMode = true; for (const m of G.world.creatures) if (m.team === 'enemy' && m !== G.world.boss) m.dead = true; });
   await page.waitForTimeout(600);
 
   // ---------------------------------------------------------------- 4. gilded critters
   for (const key of ['wisp', 'moth', 'scarab', 'prism']) {
     const pos = await page.evaluate(async (key) => {
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       const { spawnCritter } = await import('/src/game/critters.js');
       const { Auto } = await import('/src/game/autoplay.js');
       if (!Auto.on) Auto.toggle(true);
@@ -44,11 +44,11 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
     }, key);
     if (!pos) { check(false, `${key}: spawned`); continue; }
     if (key === 'wisp') { await page.waitForTimeout(300); await shot('spectate_critter' + tag); }
-    const p2 = await page.evaluate(() => { const c = window.VELSCOUR.G.world.critters.find((x) => x.alive); const [x, y] = c.screen(); return { x, y }; });
+    const p2 = await page.evaluate(() => { const c = window.DAGYR.G.world.critters.find((x) => x.alive); const [x, y] = c.screen(); return { x, y }; });
     await tap(p2.x, p2.y);
     await page.waitForTimeout(120);
     const r = await page.evaluate(async () => {
-      const { G } = window.VELSCOUR;
+      const { G } = window.DAGYR;
       const { Auto } = await import('/src/game/autoplay.js');
       const b = window._before;
       return { caught: (G.char.critters || 0) - b.n, gold: G.char.gold - b.gold, xp: G.char.level > b.lvl || G.char.xp > b.xp, override: Auto.overrideT, status: Auto.status };
@@ -60,7 +60,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
   }
   // one that gets away
   const away = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { spawnCritter } = await import('/src/game/critters.js');
     const cr = spawnCritter(G.world, 'wisp');
     const n = G.char.critters || 0;
@@ -70,7 +70,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
   check(away.gone && !away.caught && away.n === 0 && !away.listed, 'an untouched critter escapes and is cleared');
   // the hero walking over one never catches it: only a click or a tap does (and it shies away)
   const walk = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { spawnCritter } = await import('/src/game/critters.js');
     const out = [];
     for (const key of ['scarab', 'moth']) {
@@ -87,7 +87,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
   check(walk.every((w) => w && w.d > 0.8), 'critters shy away from the hero');
   // the spawning clock
   const clock = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { Auto } = await import('/src/game/autoplay.js');
     Auto.toggle(false);
     G.world.critterT = 0.5; G.world.critters = [];
@@ -98,7 +98,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
 
   // ---------------------------------------------------------------- 5. SMITE
   const fill = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const { onKill } = await import('/src/game/happenings.js');
     const { SMITE_KILLS } = await import('/src/game/smite.js');
     G.char.smite = 0;
@@ -109,7 +109,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
   });
   check(Math.abs(fill.a - fill.want) < 1e-6 && Math.abs(fill.b - fill.a - fill.boss) < 1e-6, `kills fill the SMITE meter (${fill.a.toFixed(3)}, a guardian +${(fill.b - fill.a).toFixed(3)})`);
   const pack = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { makeMonster } = await import('/src/game/monster.js');
     const { Auto } = await import('/src/game/autoplay.js');
     Auto.toggle(true);
@@ -124,10 +124,10 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
   check(pack.ready, 'a full meter shows the SMITE button');
   await shot('spectate_smite_ready' + tag);
   await press('#smite-btn');
-  const armed = await page.evaluate(() => window.VELSCOUR.G.smiteArmed === true);
+  const armed = await page.evaluate(() => window.DAGYR.G.smiteArmed === true);
   check(armed, 'the SMITE button arms the strike');
   const at = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const { camera } = await import('/src/core/view.js');
     const m = window._pack[0];
     G.player.moveTarget = null;
@@ -140,7 +140,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
   await shot('spectate_smite_strike' + tag);
   await page.waitForTimeout(600);
   const hitR = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const { Auto } = await import('/src/game/autoplay.js');
     return { dead: window._pack.filter((m) => m.dead || m.hp < m.maxHp * 0.2).length, smite: G.char.smite, armed: !!G.smiteArmed, override: Auto.overrideT, smites: G.char.smites };
   });
@@ -150,7 +150,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
 
   // ---------------------------------------------------------------- 6. sealed treasures
   const seal = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const { rollItem, itemName } = await import('/src/data/items.js');
     const { GroundItem } = await import('/src/game/loot.js');
     const { addToBag } = await import('/src/game/player.js');
@@ -167,7 +167,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
     window._myth = myth;
     const { Auto } = await import('/src/game/autoplay.js');
     Auto.toggle(false);
-    window.VELSCOUR.game.update(1 / 30);
+    window.DAGYR.game.update(1 / 30);
     out.chip = !document.querySelector('#sealed-btn').classList.contains('hidden') && document.querySelector('#sealed-text').textContent;
     // auto-play never equips, sells or stashes one
     Auto.optimizeGear();
@@ -190,13 +190,13 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
   check(land.next.some((t) => /Next seal \(1\)/.test(t)), `the card offers the next seal (${land.next.join(', ')})`);
   await page.click('.rv-btns button.red');
   await page.waitForTimeout(3600);
-  const second = await page.evaluate(async () => { const { G } = window.VELSCOUR; return G.char.bag.filter((b) => b && b.sealed).length; });
+  const second = await page.evaluate(async () => { const { G } = window.DAGYR; return G.char.bag.filter((b) => b && b.sealed).length; });
   check(second === 0, 'Next seal opened the second one');
   await page.evaluate(async () => { const { close } = await import('/src/ui/sealed.js'); close(); });
 
   // ---------------------------------------------------------------- 7. stance
   const st = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const { Auto } = await import('/src/game/autoplay.js');
     const out = {};
     for (const k of ['cautious', 'balanced', 'reckless']) { G.char.stance = k; Auto.hurt = 0; out[k] = Auto.boldness(); }
@@ -207,7 +207,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
 
   // ---------------------------------------------------------------- 9. portal choice, auto-play's countdown
   const pc = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { Auto } = await import('/src/game/autoplay.js');
     const { kill } = await import('/src/game/combat.js');
     Auto.toggle(true);
@@ -218,7 +218,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
     return { cards: document.querySelectorAll('.portal-choice .pc-card').length, depth: G.world.depth };
   });
   check(pc.cards === 3, `the exit offers three portals (${pc.cards})`);
-  await page.evaluate(() => { for (let i = 0; i < 45; i++) window.VELSCOUR.game.update(1 / 30); });
+  await page.evaluate(() => { for (let i = 0; i < 45; i++) window.DAGYR.game.update(1 / 30); });
   await page.waitForTimeout(100);
   await shot('spectate_portals' + tag);
   const cd = await page.evaluate(() => document.querySelector('.pc-auto').textContent);
@@ -226,17 +226,17 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
   // the player taps the second portal: auto-play takes that one
   await page.click('.pc-card[data-i="1"]');
   const want = await page.evaluate(() => document.querySelector('.pc-card[data-i="1"] .pc-name').textContent);
-  const told = await page.evaluate(() => { const g = window.VELSCOUR.game; let n = 0; while (g.pick && n++ < 400) g.update(1 / 30); return { secs: n / 30, omen: window.VELSCOUR.G.char.nextOmen, biome: window.VELSCOUR.G.char.nextBiome }; });
+  const told = await page.evaluate(() => { const g = window.DAGYR.game; let n = 0; while (g.pick && n++ < 400) g.update(1 / 30); return { secs: n / 30, omen: window.DAGYR.G.char.nextOmen, biome: window.DAGYR.G.char.nextBiome }; });
   check(told.secs <= 3.1, `a tapped portal goes after ${told.secs.toFixed(1)} s`);
-  await page.waitForFunction((d) => window.VELSCOUR.G.world && window.VELSCOUR.G.world.depth === d + 1 && document.querySelector('#loading').classList.contains('hidden'), pc.depth, { timeout: 30000 }).catch(() => {});
-  const after = await page.evaluate(async () => { const { G } = window.VELSCOUR; const { BIOME_BY_ID } = await import('/src/data/biomes.js'); return { depth: G.world.depth, biome: G.world.biome.name, omen: G.world.happen && G.world.happen.omen, kind: G.world.kind, pending: G.char.nextOmen, name: (BIOME_BY_ID[G.char.nextBiome] || {}).name }; });
+  await page.waitForFunction((d) => window.DAGYR.G.world && window.DAGYR.G.world.depth === d + 1 && document.querySelector('#loading').classList.contains('hidden'), pc.depth, { timeout: 30000 }).catch(() => { });
+  const after = await page.evaluate(async () => { const { G } = window.DAGYR; const { BIOME_BY_ID } = await import('/src/data/biomes.js'); return { depth: G.world.depth, biome: G.world.biome.name, omen: G.world.happen && G.world.happen.omen, kind: G.world.kind, pending: G.char.nextOmen, name: (BIOME_BY_ID[G.char.nextBiome] || {}).name }; });
   check(after.depth === pc.depth + 1 && after.biome === want, `descended into the chosen portal (${after.biome}, wanted ${want})`);
   check(told.omen === undefined || (told.omen === 'none' ? !after.omen : after.omen === told.omen), `the depth keeps the omen its portal showed (${told.omen} -> ${after.omen})`);
   check(after.pending === undefined, 'the promised omen is spent');
 
   // ---------------------------------------------------------------- 6b. auto-play waits in town while seals fill the bag
   const wait = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { Auto } = await import('/src/game/autoplay.js');
     const { rollItem } = await import('/src/data/items.js');
     const { GroundItem } = await import('/src/game/loot.js');
@@ -253,7 +253,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
   check(wait.urgent, 'the SEALED button pleads');
   await shot('spectate_town_wait' + tag);
   const go = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { openNextSeal, close } = await import('/src/ui/sealed.js');
     openNextSeal(); close(); // one seal broken: auto-play sells, stashes or wears it, and a slot is free
     for (let i = 0; i < 30 * 120 && G.world.kind === 'town'; i++) { game.update(1 / 30); if (i % 300 === 0) await new Promise((r) => setTimeout(r, 0)); }
@@ -264,7 +264,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
 
   // ---------------------------------------------------------------- 11. Greed
   const gr = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { Auto } = await import('/src/game/autoplay.js');
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     const { setGreed, greedCleared, greedDeath, hoardOf } = await import('/src/game/greed.js');
@@ -297,7 +297,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
   check(gr.lost && gr.after.greed === 0 && gr.after.hoard === 0, 'a death loses the Hoard and drops the lever');
   // the HUD dials, raised
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { Auto } = await import('/src/game/autoplay.js');
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     G.char.greed = 3; G.char.hoard = 12; G.char.smite = 0.6; G.char.madness = 0.4; G.char.stance = 'cautious';
@@ -312,7 +312,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
   const plus = await page.$('#greed .gr-btn[data-d="1"]');
   const bb = await plus.boundingBox();
   await tap(bb.x + bb.width / 2, bb.y + bb.height / 2);
-  const g4 = await page.evaluate(() => window.VELSCOUR.G.char.greed);
+  const g4 = await page.evaluate(() => window.DAGYR.G.char.greed);
   check(g4 === 4, 'the + button raises the lever');
 
   console.log(fails ? `${fails} FAILED` : 'ALL PASSED');

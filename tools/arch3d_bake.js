@@ -1,7 +1,7 @@
 // Bake arch models (tools/arch3d.py extract -> tools/arch3d.html) to the game's iso view, all four directions:
 // assets/source/arches3d/<pack>/<design>/<DIR>.png (raised colour, 1 px = 1 native px) + <DIR>_tags.png (R = 1 + half-tile
 // slice along the span, 0 = empty) + bake.json (canvas size and ground pivot per direction). tools/biomepack.py slices
-// these instead of ray casting the pack sprite. Needs the repo served (python -m http.server 8123) and internet (three.js
+// these instead of ray casting the pack sprite. Needs the repo served (python -m http.server 8124) and internet (three.js
 // comes from jsDelivr, for this tool only).
 //   node tools/arch3d_bake.js <pack> [design,...] [--review]
 // --review also writes tools/tests/out/arch3d_<design>.png: the current game sprite next to the bake, per direction.
@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE_URL || 'http://localhost:8123';
+const BASE = process.env.BASE_URL || 'http://localhost:8124';
 const ROOT = path.resolve(__dirname, '..');
 (async () => {
   const [pack, list] = process.argv.slice(2).filter((a) => !a.startsWith('--'));

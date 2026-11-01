@@ -489,10 +489,10 @@ export class Orbit {
         const k = c.id * 100 + i;
         if ((this.cd.get(c.id) || 0) > this.t) continue;
         this.cd.set(c.id, this.t + 0.33);
-        hit(this.src, c, roll(this.dmg), this.el, { ...this.o, ang: a + Math.PI / 2 });
+        hit(this.src, c, roll(this.dmg), this.el, { ...this.o, ang: a + Math.PI / 2, lightFx: !!this.shieldVariant || this.o.lightFx });
         void k;
       }
-      if (chance(dt * 10)) trail(this.fx, x, y, 24, this.E, dt, this.size);
+      if (!this.shieldVariant && chance(dt * 10)) trail(this.fx, x, y, 24, this.E, dt, this.size);
     }
     return true;
   }

@@ -13,7 +13,7 @@ const SIZES = [['desktop', { width: 1400, height: 800 }], ['land', { width: 844,
   for (const [tag, opts] of SIZES) {
     const { browser, page, errors, shot } = await openGame(opts);
     const res = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       await game.newChar('slime_lord', 'Gloop');
       document.querySelectorAll('.screen').forEach((s) => s.remove());
       G.ui.modalCount = 0;
@@ -48,14 +48,14 @@ const SIZES = [['desktop', { width: 1400, height: 800 }], ['land', { width: 844,
     await page.waitForTimeout(700);
     await shot(`rims_${tag}_small`);
     if (tag === 'desktop' && res.spot) { // the pet walks behind the wall (held there), then the same view with it gone
-      await page.evaluate(([x, y]) => { const { G } = window.VELSCOUR, m = G.world.creatures.find((c) => c.summon); m.x = x - 0.6; m.y = y - 0.6; m.speed = 0; m.followOwner = () => {}; m.update = () => {}; }, res.spot);
+      await page.evaluate(([x, y]) => { const { G } = window.DAGYR, m = G.world.creatures.find((c) => c.summon); m.x = x - 0.6; m.y = y - 0.6; m.speed = 0; m.followOwner = () => { }; m.update = () => { }; }, res.spot);
       await page.waitForTimeout(300); await shot('rims_wall_pet');
-      await page.evaluate(() => { const m = window.VELSCOUR.G.world.creatures.find((c) => c.summon); m.x += 60; });
+      await page.evaluate(() => { const m = window.DAGYR.G.world.creatures.find((c) => c.summon); m.x += 60; });
       await page.waitForTimeout(300); await shot('rims_wall_nopet');
       // a monster behind the same wall cuts its own hole too
-      await page.evaluate(([x, y]) => { const { G } = window.VELSCOUR, m = G.world.creatures.find((c) => c.team === 'enemy' && !c.dead); G.rimFoe = m; m.x = x - 0.6; m.y = y - 0.6; m.speed = 0; m.update = () => {}; }, res.spot);
+      await page.evaluate(([x, y]) => { const { G } = window.DAGYR, m = G.world.creatures.find((c) => c.team === 'enemy' && !c.dead); G.rimFoe = m; m.x = x - 0.6; m.y = y - 0.6; m.speed = 0; m.update = () => { }; }, res.spot);
       await page.waitForTimeout(300); await shot('rims_wall_foe');
-      await page.evaluate(() => { window.VELSCOUR.G.rimFoe.x += 60; });
+      await page.evaluate(() => { window.DAGYR.G.rimFoe.x += 60; });
       await page.waitForTimeout(300); await shot('rims_wall_nofoe');
     }
     const box = async () => page.evaluate(() => { const b = document.getElementById('target-box'), r = b.getBoundingClientRect(), pic = document.getElementById('tb-pic').getBoundingClientRect(); return { cls: b.className, w: pic.width, x: r.left, y: r.top, r: r.right, b: r.bottom, vw: innerWidth, vh: innerHeight }; });
@@ -71,7 +71,7 @@ const SIZES = [['desktop', { width: 1400, height: 800 }], ['land', { width: 844,
     out.push(`[${tag}] ${b.w >= a.w * 2 && fits && /big/.test(b.cls) && !/big/.test(c.cls) && c.w === a.w ? '  ok ' : 'FAIL '} target window ${a.w}px -> ${b.w}px (box ${Math.round(b.r - b.x)}x${Math.round(b.b - b.y)} at ${Math.round(b.x)},${Math.round(b.y)} in ${b.vw}x${b.vh}) -> ${c.w}px`);
     if (tag === 'desktop') { // town: cyan rims round vendors, violet round townsfolk (rims_town.png)
       await page.evaluate(async () => {
-        const { G, game } = window.VELSCOUR, w0 = G.world; game.enterTown();
+        const { G, game } = window.DAGYR, w0 = G.world; game.enterTown();
         for (let i = 0; i < 100 && (G.world === w0 || !document.getElementById('loading').classList.contains('hidden')); i++) await new Promise((r) => setTimeout(r, 100));
         const v = G.world.npcs.find((n) => n.vendor);
         G.player.x = v.x + 1.5; G.player.y = v.y + 1.5;

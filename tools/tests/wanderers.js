@@ -4,11 +4,11 @@ const { openGame, report } = require('./harness');
 const minutes = +(process.argv[2] || 3);
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
-  await page.evaluate(async () => { const { G, game } = window.VELSCOUR; await game.newChar('ranger', 'Walker'); document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; });
+  await page.evaluate(async () => { const { G, game } = window.DAGYR; await game.newChar('ranger', 'Walker'); document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; });
   const fails = [];
   for (const id of ['overworld', 'castle', 'sea_of_sand']) {
     const r = await page.evaluate(async ([id, minutes]) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { Auto } = await import('/src/game/autoplay.js');
       if (id === 'castle') await (await import('/src/gfx/castle.js')).loadCastlePack();
@@ -28,8 +28,10 @@ const minutes = +(process.argv[2] || 3);
         if (s % 300 === 0) await new Promise((r) => setTimeout(r, 0));
       }
       Auto.toggle(false); game.render();
-      return { id, wanderers: wn.length, moved: wn.filter((n, i) => Math.hypot(n.x - start[i][0], n.y - start[i][1]) > 2).length, sheets: wn.every((n) => n.townsfolkSpriteId), bothWays: flips.size === 2,
-        bounties: wn.filter((n) => n.bounty).map((n) => `${n.bounty.kind}:${n.bounty.state}`).join(' ') };
+      return {
+        id, wanderers: wn.length, moved: wn.filter((n, i) => Math.hypot(n.x - start[i][0], n.y - start[i][1]) > 2).length, sheets: wn.every((n) => n.townsfolkSpriteId), bothWays: flips.size === 2,
+        bounties: wn.filter((n) => n.bounty).map((n) => `${n.bounty.kind}:${n.bounty.state}`).join(' ')
+      };
     }, [id, minutes]);
     console.log(JSON.stringify(r));
     await shot('wanderers_' + id);

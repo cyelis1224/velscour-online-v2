@@ -195,7 +195,7 @@ export function castSkill(p, sk, L, tx, ty, opts = {}) {
           w.addHazard(new Projectile({ world: w, src: p, x: mx, y: my, ang: a, speed, range, fx, el, dmg: dmg.map((v) => v * 0.3), o, pierce: m.pierce ? 99 : 0, home: 1, size: 0.8 * (m.r ?? 1) * vis, r: 0.3 * (m.r ?? 1), ret: m.ret, exp: m.exp ? 1.1 * (m.r ?? 1) * area : 0, pull: m.pull }));
         }
       }
-      sfx(fx === 'arrow' || fx === 'javelin' ? 'bow' : fx === 'bullet' || fx === 'rocket' ? 'shoot' : fx === 'note' || bard >= 0 ? 'note' : fx === 'rang' || fx === 'blade' || fx === 'axe' ? 'swing' : E.sfx, 0.7);
+      if (p.classId !== 'bard') sfx(fx === 'arrow' || fx === 'javelin' ? 'bow' : fx === 'bullet' || fx === 'rocket' ? 'shoot' : fx === 'note' || bard >= 0 ? 'note' : fx === 'rang' || fx === 'blade' || fx === 'axe' ? 'swing' : E.sfx, 0.7);
       p.lunge = 0.6;
       break;
     }
@@ -371,10 +371,11 @@ export function castSkill(p, sk, L, tx, ty, opts = {}) {
       const buff = p.addBuff({ id: sk.id, name: sk.name, el, fx, stats, t: dur, max: dur, pulse: m.pulse ? { dmg, acc: 0 } : null, transform: m.transform, slowPulse: m.slow });
       if (m.party) for (const c of w.creatures) if (c.summon && c.owner === p && !c.dead) c.partyBuff = { stats, t: dur };
       w.addHazard(new AuraFx({ world: w, src: p, el, buff, transform: m.transform }));
-      burst(p.x, p.y, 20, el, 24, 3, { up: 1.5 });
-      addEffect(new Ring(p.x, p.y, 0.2, 1.6, 0.5, E.glow, 4));
+      const isShieldBuff = sk.classId === 'lancer' || fx === 'shield';
+      burst(p.x, p.y, 20, el, isShieldBuff ? 6 : 24, isShieldBuff ? 1.5 : 3, { up: isShieldBuff ? 0.8 : 1.5 });
+      if (!isShieldBuff) addEffect(new Ring(p.x, p.y, 0.2, 1.6, 0.5, E.glow, 4));
       if (m.transform) { addEffect(new Column(p.x, p.y, E.glow, 0.6, 30, 200)); sfx('roar'); }
-      sfx(fx === 'shout' ? 'roar' : fx === 'note' || bard >= 0 ? 'note' : 'buff');
+      if (p.classId !== 'bard') sfx(fx === 'shout' ? 'roar' : fx === 'note' || bard >= 0 ? 'note' : 'buff');
       break;
     }
     case 'curse': {
@@ -389,7 +390,7 @@ export function castSkill(p, sk, L, tx, ty, opts = {}) {
       if (fx === 'shout') { addEffect(new Ring(x, y, 0.1, r * 1.2, 0.4, '#ffffff', 3)); sfx('roar'); }
       else if (fx === 'flash') { G.flash = 0.35; sfx('explode', 0.5); }
       else if (fx === 'smoke') smoke(x, y, 6, '#3a3640', 14, 16);
-      else sfx(fx === 'note' || bard >= 0 ? 'note' : 'shadow');
+      else if (p.classId !== 'bard') sfx(fx === 'note' || bard >= 0 ? 'note' : 'shadow');
       if (!targets.length && !self) floatText(x, y, 30, 'Cursed ground', E.glow, 11);
       break;
     }

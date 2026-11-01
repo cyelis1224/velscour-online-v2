@@ -16,6 +16,18 @@ import { RARITY, shownEquip } from '../data/items.js';
 import { FILTER_ROWS, lootFilter } from '../game/lootfilter.js';
 import { Cloud } from '../game/cloud.js';
 import { initTitleUpdater, checkForUpdates, showUpdateDialog, compareVersions, CLIENT_VERSION, getClientVersion, hardReload } from './updater.js';
+import {
+  getOnlineAccount,
+  getOnlineCharacters,
+  isOnlineLoggedIn,
+  registerOnlineAccount,
+  loginOnlineAccount,
+  logoutOnlineAccount,
+  fetchOnlineSession,
+  checkOnlineCharName,
+  createOnlineCharacter,
+  deleteOnlineCharacter,
+} from '../net/online.js';
 export { hardReload };
 
 let current = null;
@@ -26,7 +38,7 @@ function goFullscreen() {
   const de = document.documentElement;
   const req = de.requestFullscreen || de.webkitRequestFullscreen;
   if (!req) return;
-  try { const p = req.call(de, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => {}); } catch (e) { /* not allowed - fine */ }
+  try { const p = req.call(de, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => { }); } catch (e) { /* not allowed - fine */ }
 }
 function show(node) {
   hide();
@@ -39,7 +51,7 @@ export function titleScreen() {
   G.mode = 'title';
   const s = el('div', 'screen');
   s.classList.add('title-screen');
-  s.innerHTML = `<img class="title-logo intro" src="assets/ui/logo.webp" alt="VELSCOUR"><div class="title-tag">A world built upon something that should have stayed dead.</div>`;
+  s.innerHTML = `<img class="title-logo intro" src="assets/ui/logo.webp" alt="DAGYR ONLINE"><div class="title-tag">A world built upon something that should have stayed dead.</div>`;
 
   // Update button in top right corner - ONLY shown when an update is available from server
   const updateBtn = el('button', 'title-update-btn hidden');
@@ -66,19 +78,19 @@ export function titleScreen() {
     const activeSaves = listSaves().filter((c) => ACTIVE_CLASS_IDS.includes(c.classId));
     const last = activeSaves[0];
     const used = Object.keys(heroesByClass()).filter((id) => ACTIVE_CLASS_IDS.includes(id)).length;
-    if (last) {
-      const clsName = CLASSES[last.classId]?.name || '';
-      const nameStr = (last.name || '').trim();
-      const alreadyHasClass = nameStr.toLowerCase().includes(clsName.toLowerCase());
-      const classTag = alreadyHasClass ? '' : ` ${clsName}`;
-      add(`Continue<br><span style="font-size:13px;color:#a8977c">${escapeHtml(nameStr || clsName)} · Lv ${last.level}${classTag} · Depth ${last.depth}</span>`, async () => {
-        await Cloud.settle();
-        const c = listSaves().find((x) => ACTIVE_CLASS_IDS.includes(x.classId));
-        if (c) gameModeScreen(c, false, titleScreen);
-      });
-    }
-    add(`Heroes <span style="font-size:13px;color:#a8977c">· ${used}/${ACTIVE_CLASS_IDS.length}</span>`, () => classSelect(last ? last.classId : 'paladin'));
-    add('VELSCOUR DEFENSE', () => { location.href = 'defense/index.html'; }, 'btn blue'); // the Riftgate's game (defense/), from the title too
+    const spSub = used > 0
+      ? ` <span style="font-size:13px;color:#a8977c">· ${used}/${ACTIVE_CLASS_IDS.length}</span>`
+      : '';
+    const spBtn = add(`Single Player${spSub}`, () => classSelect(last ? last.classId : 'paladin', titleScreen));
+    spBtn.id = 'title-singleplayer-btn';
+
+    const onlineAcc = getOnlineAccount();
+    const onlineSub = onlineAcc && onlineAcc.email
+      ? `<br><span style="font-size:12px;color:#a8977c">${escapeHtml(onlineAcc.email)}</span>`
+      : '';
+    const onlineBtn = add(`Online${onlineSub}`, () => onlineEntryScreen(titleScreen));
+    onlineBtn.id = 'title-online-btn';
+
     add('Settings', settingsDialog, 'btn');
     add('Credits', () => creditsScreen(titleScreen), 'btn');
     add('How to Play', helpDialog, 'btn');
@@ -99,11 +111,11 @@ export function titleScreen() {
   if (Cloud.conflicts.size) conflictDialogs();
   if (!unreadableNoted && !savesReadable()) {
     unreadableNoted = true;
-    UI.dialog({ title: 'Saved heroes unreadable', html: `<p>The heroes saved in this browser could not be read. VELSCOUR will not write over them: before anything new is saved, the old data is set aside.</p><p class="dim">Settings &gt; Hero backups can download it, so it can be recovered.${Cloud.signedIn ? ' Heroes in your Google cloud save come back on their own once the next save is made.' : ''}</p>`, buttons: [{ label: 'OK' }] });
+    UI.dialog({ title: 'Saved heroes unreadable', html: `<p>The heroes saved in this browser could not be read. DAGYR ONLINE will not write over them: before anything new is saved, the old data is set aside.</p><p class="dim">Settings &gt; Hero backups can download it, so it can be recovered.${Cloud.signedIn ? ' Heroes in your Google cloud save come back on their own once the next save is made.' : ''}</p>`, buttons: [{ label: 'OK' }] });
   }
 }
 let unreadableNoted = false;
-if (typeof addEventListener === 'function') addEventListener('velscour-save-blocked', () => {
+if (typeof addEventListener === 'function') addEventListener('Dagyr-save-blocked', () => {
   UI.dialog({ title: 'Not saving', html: '<p>The heroes saved in this browser could not be read, and there was no room to set them aside, so the game is not saving over them. Free some browser storage (or use another browser) and reload.</p>', buttons: [{ label: 'OK' }] });
 });
 
@@ -169,7 +181,7 @@ export function backupsDialog() {
         sfx('ui');
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([r.text], { type: 'application/json' }));
-        a.download = `velscour-unreadable-saves-${new Date(r.at).toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+        a.download = `Dagyr-unreadable-saves-${new Date(r.at).toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 10000);
       };
@@ -247,7 +259,6 @@ export function classSelect(sel = 'paladin', back = titleScreen) {
   const bigBox = el('div', 'class-big');
   const big = heroCanvas(sel, 'hero-cv');
   bigBox.appendChild(big.canvas);
-  excitable(bigBox, big);
   const text = el('div', 'class-text');
   info.append(bigBox, text);
   const cards = {};
@@ -298,10 +309,9 @@ export function classSelect(sel = 'paladin', back = titleScreen) {
     if (h) card.insertAdjacentHTML('beforeend', `<div class="card-lv">Lv ${h.level}</div>`);
     card.insertAdjacentHTML('beforeend', plaque(h ? h.name : CLASSES[id].name));
     card.dataset.id = id;
-    excitable(card, anim);
     card.onclick = () => {
       if (delMode && heroes[id]) { sfx('ui'); delHero(id); return; }
-      if (sel !== id) { sel = id; sfx('ui'); renderInfo(); } anim.burst(1.2); big.burst(1.4);
+      if (sel !== id) { sel = id; sfx('ui'); renderInfo(); }
     };
     card.ondblclick = () => { if (!delMode) start(); };
     grid.appendChild(card);
@@ -326,8 +336,8 @@ export function classSelect(sel = 'paladin', back = titleScreen) {
     sfx('ui');
     await Cloud.settle();
     const h = heroesByClass()[sel];   // fresh: the cloud may have brought this class's hero in
-    if (h) gameModeScreen(h, false, () => classSelect(sel, back));
-    else gameModeScreen({ classId: sel, name: name.value.trim() || CLASSES[sel].name }, true, () => classSelect(sel, back));
+    if (h) G.game.startSinglePlayer(h, false);
+    else G.game.startSinglePlayer({ classId: sel, name: name.value.trim() || CLASSES[sel].name }, true);
   };
   go.onclick = start;
   name.onkeydown = (e) => { if (e.key === 'Enter') start(); };
@@ -338,8 +348,539 @@ export function classSelect(sel = 'paladin', back = titleScreen) {
   s.refresh = () => classSelect(sel, back);
 }
 
+/**
+ * Entry point when choosing Online from the title screen:
+ * Verifies client version, then opens the Login/Register panel (or Character Roster if already authenticated).
+ */
+export async function onlineEntryScreen(back = titleScreen) {
+  try {
+    const updateInfo = await checkForUpdates({ force: true });
+    const currentVer = getClientVersion();
+    const serverVer = updateInfo?.serverVersion;
+    const isOutdated = !!(updateInfo && (updateInfo.hasUpdate || (serverVer && compareVersions(serverVer, currentVer) > 0)));
+    if (isOutdated) {
+      showUpdateDialog(updateInfo);
+      return;
+    }
+  } catch (e) {
+    // Allow continuing to login screen
+  }
+
+  if (isOnlineLoggedIn()) {
+    const session = await fetchOnlineSession();
+    if (session && session.account) {
+      onlineCharSelectScreen(null, back);
+      return;
+    }
+  }
+  onlineAuthScreen('login', back);
+}
+
+/**
+ * Online Account Login & Registration Panel.
+ * Users register using their email address and password, or sign into an existing account.
+ */
+export function onlineAuthScreen(initialTab = 'login', back = titleScreen) {
+  let mode = initialTab === 'register' ? 'register' : 'login';
+  let busy = false;
+
+  const s = el('div', 'screen online-auth-screen');
+
+  const panel = el('div', 'online-auth-panel');
+  panel.innerHTML = `
+    <div class="online-auth-header">
+      <div class="online-auth-badge">DAGYR ONLINE REALM</div>
+      <h2 class="online-auth-title" id="online-auth-title">ACCOUNT LOGIN</h2>
+      <p class="online-auth-sub" id="online-auth-sub">Sign in with your email to access your server-saved online characters</p>
+    </div>
+    <div class="online-auth-tabs" role="tablist">
+      <button type="button" class="online-auth-tab active" data-tab="login" id="online-tab-login">Sign In</button>
+      <button type="button" class="online-auth-tab" data-tab="register" id="online-tab-register">Create Account</button>
+    </div>
+    <form class="online-auth-form" id="online-auth-form" autocomplete="on">
+      <label class="online-auth-field">
+        <span class="online-auth-label">Email Address</span>
+        <input type="email" class="online-auth-input" id="online-auth-email" placeholder="adventurer@example.com" autocomplete="email" required />
+      </label>
+      <label class="online-auth-field">
+        <span class="online-auth-label">Password</span>
+        <input type="password" class="online-auth-input" id="online-auth-password" placeholder="At least 6 characters" autocomplete="current-password" required />
+      </label>
+      <label class="online-auth-field hidden" id="online-auth-confirm-wrap">
+        <span class="online-auth-label">Confirm Password</span>
+        <input type="password" class="online-auth-input" id="online-auth-confirm" placeholder="Re-enter password" autocomplete="new-password" />
+      </label>
+      <div class="online-auth-error hidden" id="online-auth-error" role="alert"></div>
+      <div class="online-auth-actions">
+        <button type="button" class="btn" id="online-auth-back">Back</button>
+        <button type="submit" class="btn big" id="online-auth-submit">Sign In</button>
+      </div>
+      <div class="online-auth-switch">
+        <button type="button" class="online-auth-link" id="online-auth-toggle-link">Need an account? Register with your email</button>
+      </div>
+    </form>
+  `;
+  s.appendChild(panel);
+
+  const titleEl = panel.querySelector('#online-auth-title');
+  const subEl = panel.querySelector('#online-auth-sub');
+  const tabLogin = panel.querySelector('#online-tab-login');
+  const tabRegister = panel.querySelector('#online-tab-register');
+  const emailInput = panel.querySelector('#online-auth-email');
+  const passInput = panel.querySelector('#online-auth-password');
+  const confirmWrap = panel.querySelector('#online-auth-confirm-wrap');
+  const confirmInput = panel.querySelector('#online-auth-confirm');
+  const errEl = panel.querySelector('#online-auth-error');
+  const backBtn = panel.querySelector('#online-auth-back');
+  const submitBtn = panel.querySelector('#online-auth-submit');
+  const toggleLink = panel.querySelector('#online-auth-toggle-link');
+  const form = panel.querySelector('#online-auth-form');
+
+  const showError = (msg) => {
+    if (!msg) {
+      errEl.textContent = '';
+      errEl.classList.add('hidden');
+    } else {
+      errEl.textContent = msg;
+      errEl.classList.remove('hidden');
+    }
+  };
+
+  const syncMode = () => {
+    const isReg = mode === 'register';
+    tabLogin.classList.toggle('active', !isReg);
+    tabRegister.classList.toggle('active', isReg);
+    titleEl.textContent = isReg ? 'CREATE ONLINE ACCOUNT' : 'ACCOUNT LOGIN';
+    subEl.textContent = isReg
+      ? 'Register with your email to store and manage your online characters on the server'
+      : 'Sign in with your email to access your server-saved online characters';
+    confirmWrap.classList.toggle('hidden', !isReg);
+    passInput.setAttribute('autocomplete', isReg ? 'new-password' : 'current-password');
+    submitBtn.textContent = busy
+      ? (isReg ? 'Creating Account…' : 'Signing In…')
+      : (isReg ? 'Create Account' : 'Sign In');
+    toggleLink.textContent = isReg
+      ? 'Already have an account? Sign In'
+      : 'Need an account? Register with your email';
+    showError('');
+  };
+
+  tabLogin.onclick = () => { if (busy) return; sfx('ui'); mode = 'login'; syncMode(); };
+  tabRegister.onclick = () => { if (busy) return; sfx('ui'); mode = 'register'; syncMode(); };
+  toggleLink.onclick = () => { if (busy) return; sfx('ui'); mode = mode === 'login' ? 'register' : 'login'; syncMode(); };
+  backBtn.onclick = () => { if (busy) return; sfx('ui'); back(); };
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    sfx('ui');
+    const email = emailInput.value.trim();
+    const pass = passInput.value;
+    const confirm = confirmInput.value;
+
+    if (!email || !email.includes('@')) {
+      showError('Please enter a valid email address.');
+      return;
+    }
+    if (!pass || pass.length < 6) {
+      showError('Password must be at least 6 characters.');
+      return;
+    }
+    if (mode === 'register' && pass !== confirm) {
+      showError('Passwords do not match.');
+      return;
+    }
+
+    busy = true;
+    submitBtn.disabled = true;
+    syncMode();
+    try {
+      if (mode === 'register') {
+        await registerOnlineAccount(email, pass);
+      } else {
+        await loginOnlineAccount(email, pass);
+      }
+      busy = false;
+      onlineCharSelectScreen(null, back);
+    } catch (err) {
+      busy = false;
+      submitBtn.disabled = false;
+      syncMode();
+      showError(err.message || 'Authentication failed. Please try again.');
+    }
+  };
+
+  syncMode();
+  show(s);
+  setTimeout(() => { if (emailInput.isConnected) emailInput.focus(); }, 40);
+}
+
+/**
+ * Online Character Roster Screen:
+ * Shows all characters belonging to the logged-in account (supporting multiple characters per class),
+ * with options to Create, Delete, or Enter Lobby with the selected character.
+ */
+export function onlineCharSelectScreen(selectedCharId = null, back = titleScreen) {
+  if (!isOnlineLoggedIn()) {
+    onlineAuthScreen('login', back);
+    return;
+  }
+
+  preloadPortraits(ACTIVE_CLASS_IDS);
+  const acc = getOnlineAccount();
+  let chars = getOnlineCharacters().filter(c => c && ACTIVE_CLASS_IDS.includes(c.classId));
+  let selId = selectedCharId && chars.some(c => c.id === selectedCharId)
+    ? selectedCharId
+    : (chars[0] ? chars[0].id : null);
+
+  const s = el('div', 'screen class-screen online-char-screen');
+
+  // Top Header with Account Info & Logout
+  const topBar = el('div', 'online-roster-topbar');
+  topBar.innerHTML = `
+    <div class="online-roster-heading">
+      <h2 class="screen-title">ONLINE CHARACTERS <small id="online-char-count">${chars.length} ${chars.length === 1 ? 'Hero' : 'Heroes'}</small></h2>
+    </div>
+    <div class="online-account-bar">
+      <span class="online-account-email" title="Logged in account">Account: <b>${escapeHtml(acc ? acc.email : '')}</b></span>
+      <button type="button" class="btn small" id="online-logout-btn">Log Out</button>
+    </div>
+  `;
+  s.appendChild(topBar);
+
+  const logoutBtn = topBar.querySelector('#online-logout-btn');
+  logoutBtn.onclick = async () => {
+    sfx('ui');
+    await logoutOnlineAccount();
+    onlineAuthScreen('login', back);
+  };
+
+  const grid = el('div', 'class-grid online-char-grid');
+  const info = el('div', 'class-info');
+  const bigBox = el('div', 'class-big');
+  const initialClass = (chars.find(c => c.id === selId)?.classId) || 'paladin';
+  const big = heroCanvas(initialClass, 'hero-cv');
+  bigBox.appendChild(big.canvas);
+  const text = el('div', 'class-text');
+  info.append(bigBox, text);
+
+  const row = el('div', 'row online-roster-actions');
+  row.style.justifyContent = 'center';
+  row.style.margin = '6px 0 14px';
+
+  const backBtn = el('button', 'btn', 'Back');
+  backBtn.id = 'online-roster-back-btn';
+  const createBtn = el('button', 'btn', '+ Create Character');
+  createBtn.id = 'online-create-char-btn';
+  const delBtn = el('button', 'btn red', 'Delete Character');
+  delBtn.id = 'online-delete-char-btn';
+  const playBtn = el('button', 'btn big', 'Enter Lobby');
+  playBtn.id = 'online-enter-lobby-btn';
+
+  const showCharGear = (charObj, anim) => {
+    if (!charObj || !charObj.equip) return;
+    const look = shownEquip(charObj);
+    savedGearPreview(charObj.classId, look.body, look.head, look.weapon, look.offhand).then(art => {
+      if (!art || !s.isConnected || anim.id !== charObj.classId) return;
+      anim.setArt(art);
+      anim.canvas.dataset.gearPreview = 'ready';
+    });
+  };
+
+  const cards = new Map();
+
+  const renderRoster = () => {
+    grid.textContent = '';
+    cards.clear();
+    const countEl = topBar.querySelector('#online-char-count');
+    if (countEl) countEl.textContent = `${chars.length} ${chars.length === 1 ? 'Hero' : 'Heroes'}`;
+
+    if (selId && !chars.some(c => c.id === selId)) {
+      selId = chars[0] ? chars[0].id : null;
+    }
+
+    for (const c of chars) {
+      const C = CLASSES[c.classId] || CLASSES.paladin;
+      const card = el('div', 'class-card has-hero online-char-card' + (c.id === selId ? ' sel' : ''));
+      card.dataset.charId = c.id;
+      card.dataset.classId = c.classId;
+      const anim = heroCanvas(c.classId);
+      card.appendChild(anim.canvas);
+      showCharGear(c, anim);
+      card.insertAdjacentHTML('beforeend', `<div class="card-lv">Lv ${c.level || 1} · ${escapeHtml(C.name)}</div>`);
+      card.insertAdjacentHTML('beforeend', plaque(c.name || C.name));
+      card.onclick = () => {
+        if (selId !== c.id) {
+          selId = c.id;
+          sfx('ui');
+          renderDetails();
+        }
+      };
+      card.ondblclick = () => enterSelectedLobby();
+      grid.appendChild(card);
+      cards.set(c.id, card);
+    }
+
+    // "+ Create New Character" card in the grid
+    const createCard = el('div', 'class-card online-create-card');
+    createCard.id = 'online-create-card';
+    createCard.innerHTML = `
+      <div class="online-create-card-inner">
+        <div class="online-create-plus">+</div>
+        <div class="online-create-label">New Character</div>
+      </div>
+      ${plaque('Create Hero')}
+    `;
+    createCard.onclick = () => {
+      sfx('ui');
+      onlineCreateCharScreen(() => onlineCharSelectScreen(selId, back));
+    };
+    grid.appendChild(createCard);
+
+    renderDetails();
+  };
+
+  const renderDetails = () => {
+    for (const [id, card] of cards.entries()) {
+      card.classList.toggle('sel', id === selId);
+    }
+    const selChar = chars.find(c => c.id === selId) || null;
+    if (!selChar) {
+      bigBox.style.display = 'none';
+      text.innerHTML = `
+        <h2>No Online Characters Yet</h2>
+        <p>Your account currently has no characters on the realm. Click <b>+ Create Character</b> to forge a new hero and claim your unique character name.</p>
+        <p class="dim">You can create multiple characters of any class, all stored and protected on the server under your account.</p>
+      `;
+      delBtn.disabled = true;
+      playBtn.disabled = true;
+      return;
+    }
+
+    bigBox.style.display = '';
+    const C = CLASSES[selChar.classId] || CLASSES.paladin;
+    big.setId(selChar.classId);
+    showCharGear(selChar, big);
+    const slots = { weapon: 'Weapon', offhand: 'Offhand', body: 'Armor', head: 'Helm', hands: 'Gloves', legs: 'Legs', feet: 'Boots', ring1: 'Ring I', ring2: 'Ring II', ring3: 'Ring III', ring4: 'Ring IV' };
+    const gear = selChar.equip ? Object.entries(slots).filter(([slot]) => selChar.equip[slot])
+      .map(([slot, label]) => '<span><b>' + label + ':</b> ' + escapeHtml(selChar.equip[slot].name || selChar.equip[slot].base || 'Equipped') + '</span>').join('') : '';
+
+    text.innerHTML = `
+      <h2>${escapeHtml(selChar.name)}</h2>
+      <p><b style="color:#ffd34a">Level ${selChar.level || 1} ${escapeHtml(C.name)}</b> · Depth ${selChar.depth || 1} · Deepest ${selChar.deepest || 0} · ${fmtInt(selChar.gold || 0)} gold</p>
+      <p>${escapeHtml(C.desc)}</p>
+      <p class="dim">Skill trees: <b style="color:#e9dcc4">${C.trees.join(' · ')}</b><br>Primary attribute: <b style="color:#ffd34a">${ATTRS[C.primary].name}</b> · Life ${C.life} · Mana ${C.mana}</p>
+      ${gear ? '<div class="class-gear-summary" aria-label="Saved equipped gear">' + gear + '</div>' : ''}
+    `;
+    delBtn.disabled = false;
+    playBtn.disabled = false;
+  };
+
+  const enterSelectedLobby = () => {
+    const selChar = chars.find(c => c.id === selId);
+    if (!selChar) return;
+    sfx('ui');
+    G.game.selectAndEnterLobby(selChar, false, () => onlineCharSelectScreen(selChar.id, back));
+  };
+
+  backBtn.onclick = () => { sfx('ui'); back(); };
+  createBtn.onclick = () => {
+    sfx('ui');
+    onlineCreateCharScreen(() => onlineCharSelectScreen(selId, back));
+  };
+  delBtn.onclick = () => {
+    const selChar = chars.find(c => c.id === selId);
+    if (!selChar) return;
+    sfx('ui');
+    const C = CLASSES[selChar.classId] || { name: 'Hero' };
+    UI.confirm(
+      'Delete Online Character?',
+      `Permanently delete <b>${escapeHtml(selChar.name)}</b> (Level ${selChar.level || 1} ${escapeHtml(C.name)}) from your account? This frees the name "${escapeHtml(selChar.name)}" and cannot be undone.`,
+      async () => {
+        try {
+          const res = await deleteOnlineCharacter(selChar.id);
+          chars = res.characters.filter(c => c && ACTIVE_CLASS_IDS.includes(c.classId));
+          selId = chars[0] ? chars[0].id : null;
+          renderRoster();
+        } catch (err) {
+          UI.dialog({ title: 'Delete Failed', html: `<p>${escapeHtml(err.message || 'Could not delete character.')}</p>`, buttons: [{ label: 'OK' }] });
+        }
+      },
+      'Delete'
+    );
+  };
+  playBtn.onclick = enterSelectedLobby;
+
+  row.append(backBtn, createBtn, delBtn, playBtn);
+  s.append(grid, info, row);
+  renderRoster();
+  show(s);
+
+  // Refresh latest character list from server in background
+  fetchOnlineSession().then(sess => {
+    if (!s.isConnected) return;
+    if (!sess || !sess.account) {
+      onlineAuthScreen('login', back);
+      return;
+    }
+    chars = sess.characters.filter(c => c && ACTIVE_CLASS_IDS.includes(c.classId));
+    renderRoster();
+  });
+}
+
+/**
+ * Online Character Creation Screen:
+ * Lets the player pick any class (even if they already have characters of that class)
+ * and checks the server to ensure the character name is globally unique.
+ */
+export function onlineCreateCharScreen(onCancel = () => onlineCharSelectScreen()) {
+  let sel = 'paladin';
+  let creating = false;
+  let nameTimer = null;
+  let lastCheckedName = '';
+
+  preloadPortraits(ACTIVE_CLASS_IDS);
+  const s = el('div', 'screen class-screen online-create-screen');
+  s.appendChild(el('h2', 'screen-title', `CREATE ONLINE CHARACTER <small>Pick any class · Choose a unique name</small>`));
+
+  const grid = el('div', 'class-grid');
+  const info = el('div', 'class-info');
+  const bigBox = el('div', 'class-big');
+  const big = heroCanvas(sel, 'hero-cv');
+  bigBox.appendChild(big.canvas);
+  const text = el('div', 'class-text');
+  info.append(bigBox, text);
+
+  const cards = {};
+  for (const id of ACTIVE_CLASS_IDS) {
+    const card = el('div', 'class-card');
+    const anim = heroCanvas(id);
+    card.appendChild(anim.canvas);
+    card.insertAdjacentHTML('beforeend', plaque(CLASSES[id].name));
+    card.dataset.id = id;
+    card.onclick = () => {
+      if (sel !== id) {
+        sel = id;
+        sfx('ui');
+        renderClassInfo();
+      }
+    };
+    grid.appendChild(card);
+    cards[id] = card;
+  }
+
+  const renderClassInfo = () => {
+    const C = CLASSES[sel];
+    big.setId(sel);
+    text.innerHTML = `
+      <h2>${escapeHtml(C.name)}</h2>
+      <p>${escapeHtml(C.desc)}</p>
+      <p class="dim">Skill trees: <b style="color:#e9dcc4">${C.trees.join(' · ')}</b><br>Primary attribute: <b style="color:#ffd34a">${ATTRS[C.primary].name}</b> · Life ${C.life} · Mana ${C.mana}</p>
+    `;
+    for (const id in cards) {
+      cards[id].classList.toggle('sel', id === sel);
+    }
+  };
+
+  const nameRow = el('div', 'online-create-name-wrap');
+  const nameInput = el('input', 'name-input');
+  nameInput.id = 'online-char-name-input';
+  nameInput.placeholder = 'Unique character name';
+  nameInput.maxLength = 18;
+  nameInput.autocomplete = 'off';
+
+  const statusEl = el('div', 'online-name-status dim', 'Enter a unique name (2–18 characters)');
+  statusEl.id = 'online-name-status';
+  nameRow.append(nameInput, statusEl);
+
+  const setStatus = (state, msg) => {
+    statusEl.className = 'online-name-status ' + state;
+    statusEl.textContent = msg;
+  };
+
+  const triggerNameCheck = async (rawVal) => {
+    const trimmed = String(rawVal || '').trim();
+    if (!trimmed) {
+      setStatus('dim', 'Enter a unique name (2–18 characters)');
+      return;
+    }
+    if (trimmed.length < 2) {
+      setStatus('bad', 'Character name must be at least 2 characters.');
+      return;
+    }
+    setStatus('checking', `Checking "${trimmed}"…`);
+    lastCheckedName = trimmed;
+    try {
+      const res = await checkOnlineCharName(trimmed);
+      if (nameInput.value.trim() !== trimmed) return;
+      if (res.available) {
+        setStatus('ok', `✓ "${res.name}" is available`);
+      } else {
+        setStatus('bad', `✕ ${res.error || 'That character name is already taken.'}`);
+      }
+    } catch (e) {
+      if (nameInput.value.trim() !== trimmed) return;
+      setStatus('bad', e.message || 'Could not check name availability.');
+    }
+  };
+
+  nameInput.oninput = () => {
+    if (nameTimer) clearTimeout(nameTimer);
+    const val = nameInput.value;
+    if (!val.trim()) {
+      setStatus('dim', 'Enter a unique name (2–18 characters)');
+      return;
+    }
+    nameTimer = setTimeout(() => triggerNameCheck(val), 220);
+  };
+
+  const row = el('div', 'row');
+  row.style.justifyContent = 'center';
+  row.style.margin = '6px 0 14px';
+
+  const cancelBtn = el('button', 'btn', 'Back');
+  cancelBtn.id = 'online-cancel-create-btn';
+  cancelBtn.onclick = () => { if (!creating) { sfx('ui'); onCancel(); } };
+
+  const confirmBtn = el('button', 'btn big', 'Create Character');
+  confirmBtn.id = 'online-confirm-create-btn';
+
+  const submitCreate = async () => {
+    if (creating) return;
+    sfx('ui');
+    const trimmed = nameInput.value.trim();
+    if (!trimmed) {
+      setStatus('bad', 'Please enter a character name.');
+      nameInput.focus();
+      return;
+    }
+    creating = true;
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Creating…';
+    try {
+      const res = await createOnlineCharacter(sel, trimmed);
+      creating = false;
+      onlineCharSelectScreen(res.character.id);
+    } catch (err) {
+      creating = false;
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = 'Create Character';
+      setStatus('bad', `✕ ${err.message || 'Could not create character.'}`);
+    }
+  };
+
+  confirmBtn.onclick = submitCreate;
+  nameInput.onkeydown = (e) => { if (e.key === 'Enter') submitCreate(); };
+
+  row.append(cancelBtn, confirmBtn);
+  s.append(grid, info, nameRow, row);
+  renderClassInfo();
+  show(s);
+  setTimeout(() => { if (nameInput.isConnected) nameInput.focus(); }, 40);
+}
+
 /** Game mode select screen: choose between Single Player (offline/solo) and Online (Diablo II Battle.net tavern lobby). */
-export function gameModeScreen(charInfo, fresh = false, onBack = () => {}) {
+export function gameModeScreen(charInfo, fresh = false, onBack = () => { }) {
   const C = CLASSES[charInfo.classId] || { name: 'Hero' };
   const s = el('div', 'screen gamemode-screen');
 
@@ -370,7 +911,7 @@ export function gameModeScreen(charInfo, fresh = false, onBack = () => {}) {
   s.appendChild(heroBox);
 
   s.appendChild(el('h1', 'gamemode-title', 'CHOOSE GAME MODE'));
-  s.appendChild(el('p', 'gamemode-subtitle', 'Select your path into the depths of Velscour'));
+  s.appendChild(el('p', 'gamemode-subtitle', 'Select your path into the depths of Dagyr Online'));
 
   const grid = el('div', 'gamemode-grid');
 
@@ -502,7 +1043,7 @@ export function deathScreen(depth, killer, onReturn, o = {}) {
 export function victoryScreen(onContinue) {
   const c = G.char;
   const s = el('div', 'screen');
-  s.innerHTML = `<img class="title-logo" src="assets/ui/logo.webp" style="max-height:28vh"><div class="death-title" style="color:#ffb030;text-shadow:0 0 30px #f80">VELSCOUR HAS FALLEN</div>
+  s.innerHTML = `<img class="title-logo" src="assets/ui/logo.webp" style="max-height:28vh"><div class="death-title" style="color:#ffb030;text-shadow:0 0 30px #f80">DAGYR HAS FALLEN</div>
   <p style="font-size:18px;text-align:center;max-width:620px;padding:0 12px">${escapeHtml(c.name)} the ${CLASSES[c.classId].name} has slain the Demon Lord at the bottom of the world.</p>
   <p class="dim">Level ${c.level} · ${fmtInt(c.kills || 0)} kills · ${c.deaths || 0} deaths</p>
   <p class="dim" style="text-align:center;max-width:560px">The abyss stirs still. Endless Torment depths beyond 500 now await the truly mad.</p>`;
@@ -557,6 +1098,7 @@ export function settingsDialog() {
       <label>Damage numbers</label><input type="checkbox" data-k="dmgNumbers" ${st.dmgNumbers ? 'checked' : ''}>
       <label title="Off: a bar shows only for a moment over a monster you hit, and never over bosses">Life bars over every enemy (bosses too)</label><input type="checkbox" data-k="lifeBars" ${st.lifeBars !== false ? 'checked' : ''}>
       <label>Hero stats plaque (Battle Ledger)</label><input type="checkbox" data-k="showHeroStats" ${st.showHeroStats !== false ? 'checked' : ''}>
+      <label title="Online: keep the party list on screen. Off: it shows with the automap (Tab / M)">Always show party list</label><input type="checkbox" data-k="alwaysShowParty" ${st.alwaysShowParty ? 'checked' : ''}>
       <label>Target info box</label><input type="checkbox" data-k="showTargetBox" ${st.showTargetBox !== false ? 'checked' : ''}>
       <label>Target portrait sprite</label><input type="checkbox" data-k="showTargetSprite" ${st.showTargetSprite !== false ? 'checked' : ''}>
       <label>Player chat bubbles</label><input type="checkbox" data-k="showChatBubbles" ${st.showChatBubbles !== false ? 'checked' : ''}>
@@ -609,8 +1151,8 @@ export function settingsDialog() {
         showUpdateDialog(info);
       } else {
         UI.dialog({
-          title: 'Velscour Updater',
-          html: `<p style="text-align:center;padding:12px 0;line-height:1.5;">You are running the latest version of Velscour (<strong>v${getClientVersion()}</strong>).</p>`,
+          title: 'Dagyr Online Updater',
+          html: `<p style="text-align:center;padding:12px 0;line-height:1.5;">You are running the latest version of Dagyr Online (<strong>v${getClientVersion()}</strong>).</p>`,
           buttons: [{ label: 'OK' }]
         });
       }
@@ -624,7 +1166,7 @@ export function settingsDialog() {
   };
   cloudRow();
   // the SDK loads as the pointer reaches the button, so the popup can open inside the tap (only sign-ins load it)
-  const warm = () => { if (!Cloud.signedIn) Cloud.preload().catch(() => {}); };
+  const warm = () => { if (!Cloud.signedIn) Cloud.preload().catch(() => { }); };
   cb.onpointerenter = cb.onpointerdown = cb.onfocus = warm;
   cb.onclick = () => {
     sfx('ui');
@@ -689,7 +1231,7 @@ export function helpDialog() {
     <div><kbd>I</kbd> inventory · <kbd>K</kbd> skill tree · <kbd>T</kbd> passive talent tree · <kbd>B</kbd> skill book · <kbd>Q</kbd> quest log</div>
     <div><kbd>Tab</kbd>/<kbd>M</kbd> map · <kbd>Esc</kbd> menu · wheel zoom</div>
     <div><kbd>Alt</kbd>+<kbd>P</kbd> or the <b>Auto</b> button: auto-play (the hero fights, loots, shops and delves on autopilot)</div>
-    <div><kbd>G</kbd> MADNESS · <kbd>F</kbd> SMITE, then click where it should strike (both fill as you fight)</div>
+    <div><kbd>G</kbd> MADNESS · <kbd>F</kbd> CLASS ULTIMATE (Smite, Cataclysm, Supernova, etc.), then click where it should strike (both fill as you fight)</div>
     <div><b style="color:#ffe2a0">While the hero plays</b></div>
     <div>Click or tap <b style="color:#ffd040">gilded critters</b> before they get away (follow the red arrows): each is worth a big sum of experience (a Golden Scarab, a pile of gold). Auto-play leaves them to you.</div>
     <div>Now and then an Epic or better drops <b style="color:#ffdf8a">sealed</b>: break the seals from the SEALED button or the inventory. Auto-play waits in town when the bag is full of what it can't sell, until a slot is free.</div>
@@ -705,7 +1247,7 @@ export function helpDialog() {
     <div><b style="color:#ffe2a0">Goal</b></div>
     <div>Enter the portal in town. Find the exit of each depth — it is sealed until its guardian falls.</div>
     <div>Die and you restart a few depths back (the start of the previous five), keeping everything else.</div>
-    <div>Reach Depth 500 and slay Demon Lord Velscour.</div>
+    <div>Reach Depth 500 and slay Demon Lord Dagyr.</div>
     <div><b style="color:#ffe2a0">Growing stronger</b></div>
     <div><b>Rings</b> (four slots): each carries augments that change a skill, a kind of skill or every skill — burning or venomous hits, chain lightning, a storm tether to your orbiting weapons, meteors, extra projectiles and more. The Jeweler sells them; guardians drop them.</div>
     <div><b>Skill mastery</b>: every skill levels from 1 to 1000 as you use it and kill with it, growing stronger and its effects bigger.</div>
@@ -715,7 +1257,7 @@ export function helpDialog() {
 }
 
 export function pauseMenu() {
-  const isOnline = !!G.room;
+  const isOnline = !!G.room || !!G.char?.isOnline;
   const d = UI.dialog({
     title: isOnline ? 'Game Menu (Live)' : 'Paused',
     html: `<p class="dim">${escapeHtml(G.char.name)} · Level ${G.char.level} · Depth ${G.char.depth}</p>${isOnline ? '<p style="color:#ffb060;font-size:12px;margin-top:6px">Game continues in real time while playing online.</p>' : ''}`,
@@ -724,7 +1266,23 @@ export function pauseMenu() {
       { label: 'Settings', fn: settingsDialog },
       { label: 'Macros', fn: () => G.ui.macros.open() },
       { label: 'How to Play', fn: helpDialog },
-      { label: 'Save & Quit', cls: 'red', fn: () => G.game.quitToTitle() },
+      {
+        label: 'Save & Quit',
+        cls: 'red',
+        keepOpen: true,
+        fn: async (close) => {
+          const btn = d.box.querySelector('button.red');
+          if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+          }
+          try {
+            await G.game.quitToTitle();
+          } finally {
+            close();
+          }
+        },
+      },
     ],
   });
   return d;

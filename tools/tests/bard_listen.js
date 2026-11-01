@@ -17,7 +17,7 @@ const BAR = ['bard.0.0', 'bard.1.0', 'bard.2.0', 'bard.2.1', 'bard.1.11', 'bard.
 (async () => {
   const { browser, page, errors } = await openGame();
   const log = await page.evaluate(async ({ minutes, BAR }) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('bard', 'Listener');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
     const { initAudio } = await import('/src/core/audio.js');
@@ -105,8 +105,10 @@ const BAR = ['bard.0.0', 'bard.1.0', 'bard.2.0', 'bard.2.1', 'bard.1.11', 'bard.
     casts: Object.fromEntries(Object.entries(log.casts).sort((a, b) => b[1] - a[1])),
   };
   console.log('listen', JSON.stringify(res));
-  if (process.env.SPANS) { const sp = {}; for (const n of notes) if (n.tag && n.tag.kind === 'perf') { const k = n.tag.bar, o = sp[k] || (sp[k] = { a: 1e9, b: 0, e: 0 }); o.a = Math.min(o.a, n.t); o.b = Math.max(o.b, n.t + n.dur); o.e = Math.max(o.e, n.end); }
-    console.log(Object.entries(sp).slice(0, 12).map(([k, o]) => `${k}: ${o.a.toFixed(2)}-${o.b.toFixed(2)} (ring ${o.e.toFixed(2)})`).join(' | ')); }
+  if (process.env.SPANS) {
+    const sp = {}; for (const n of notes) if (n.tag && n.tag.kind === 'perf') { const k = n.tag.bar, o = sp[k] || (sp[k] = { a: 1e9, b: 0, e: 0 }); o.a = Math.min(o.a, n.t); o.b = Math.max(o.b, n.t + n.dur); o.e = Math.max(o.e, n.end); }
+    console.log(Object.entries(sp).slice(0, 12).map(([k, o]) => `${k}: ${o.a.toFixed(2)}-${o.b.toFixed(2)} (ring ${o.e.toFixed(2)})`).join(' | '));
+  }
   if (overlaps) fail(`${overlaps} times two bars sounded together (${res.overlapSec}s)`);
   if (res.clashPct > 6) fail(`harsh intervals ${res.clashPct}% of the time`);
   if (res.fastFigurePct > 10) fail(`${res.fastFigurePct}% of written notes are 16th/32nd figures`);

@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const BASE_URL = 'http://localhost:8123';
+const BASE_URL = 'http://localhost:8124';
 const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
 
 (async () => {
@@ -21,7 +21,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     const p3 = await ctx3.newPage();
 
     for (const p of [p1, p2, p3]) {
-      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
     }
 
     console.log('Navigating players to game...');
@@ -29,9 +29,9 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.goto(BASE_URL + '/index.html');
     await p3.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
-    await p3.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p3.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Inject saves: P1 is Paladin (HostP1), P2 is Ranger (GuestP2), P3 is Necromancer (LobbyP3)
     await p1.evaluate(async () => {
@@ -83,7 +83,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
     // Wait for P1 to be in game
-    await p1.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
+    await p1.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
     console.log('P1 in game room as host.');
 
     // P2 joins game room
@@ -95,7 +95,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
+    await p2.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
     console.log('P2 in game room as guest.');
 
     // P3 stays in lobby!
@@ -142,7 +142,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // Verify P2 received whisper in whisper tab or all
     const p2WhisperReceived = await p2.evaluate((msg) => {
-      const chat = window.VELSCOUR.G.gameChat;
+      const chat = window.DAGYR.G.gameChat;
       const found = chat.messages.find(m => m.tab === 'whisper' && m.text.includes(msg));
       return { found: !!found, from: found?.from, lastWhisperFrom: chat.lastWhisperFrom };
     }, whisperMsg1);
@@ -160,7 +160,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.waitForTimeout(800);
 
     const p1ReplyReceived = await p1.evaluate((msg) => {
-      const chat = window.VELSCOUR.G.gameChat;
+      const chat = window.DAGYR.G.gameChat;
       const found = chat.messages.find(m => m.tab === 'whisper' && m.text.includes(msg));
       return { found: !!found, from: found?.from, lastWhisperFrom: chat.lastWhisperFrom };
     }, replyMsg1);
@@ -180,7 +180,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.waitForTimeout(800);
 
     const p1LobbyWhisperReceived = await p1.evaluate((msg) => {
-      const chat = window.VELSCOUR.G.gameChat;
+      const chat = window.DAGYR.G.gameChat;
       const found = chat.messages.find(m => m.tab === 'whisper' && m.text.includes(msg));
       return { found: !!found, from: found?.from, lastWhisperFrom: chat.lastWhisperFrom };
     }, lobbyWhisper);

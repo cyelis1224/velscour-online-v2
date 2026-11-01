@@ -7,7 +7,7 @@ import { TAB_SLOTS } from '../data/tabs.js';
 import { newMacros, migrateMacros } from '../data/macros.js';
 import { stashRaw, listRaw } from './herobackup.js';
 
-const KEY = 'velscour_saves_v1';
+const KEY = 'Dagyr_saves_v1';
 const ASIDE = KEY + '_unreadable_';   // + time: save data that couldn't be read, set aside before anything replaced it
 const watchers = [];
 /** fn(classId, deletedIds) after a hero of that class is saved, or deleted by the player (game/cloud.js syncs it). */
@@ -17,9 +17,12 @@ const changed = (classId, deleted) => { for (const fn of watchers) try { fn(clas
 let unreadable = false;   // the saves are there but don't parse: cloud sync must not touch them
 function readAll() {
   let list;
-  const raw = localStorage.getItem(KEY);
+  const raw = localStorage.getItem(KEY) || localStorage.getItem('Dagyr_saves_v1');
   try { list = JSON.parse(raw || '[]'); } catch (e) { unreadable = true; return []; }
   unreadable = !Array.isArray(list);
+  if (!unreadable && !localStorage.getItem(KEY) && raw) {
+    try { localStorage.setItem(KEY, raw); } catch (e) { }
+  }
   return unreadable ? [] : list;
 }
 /** False when this device's saves exist but can't be read (cloud.js then changes nothing). */
@@ -52,7 +55,7 @@ let blockedOnce = false;
 function saveBlocked() {
   if (blockedOnce || typeof dispatchEvent !== 'function') return;
   blockedOnce = true;
-  dispatchEvent(new CustomEvent('velscour-save-blocked'));
+  dispatchEvent(new CustomEvent('Dagyr-save-blocked'));
 }
 /** Unreadable save data that was set aside: [{ at, text }], newest first. */
 export async function unreadableSaves() {
@@ -73,6 +76,7 @@ export function listSaves() {
 // text per hero; while the stored data is still exactly that, only the hero being saved is encoded again.
 let memo = null;   // { raw, parts: Map(id -> JSON) }
 export function writeSave(char) {
+  if (!char || char.isOnline) return false; // Never write online characters to local single-player storage
   char.lastPlayed = Date.now();
   const raw = localStorage.getItem(KEY);
   let ok;
@@ -129,7 +133,7 @@ export function newCharData(classId, name) {
   const c = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     version: 1, name, classId, level: 1, xp: 0,
-    attrs: { ...C.base }, statPoints: 0, skillPoints: 1,
+    attrs: { ...C.base }, statPoints: 0, skillPoints: 1, talentPoints: 0,
     skills: {}, talents: {}, granted: {}, bar: Array(BAR_SIZE).fill(null),
     equip: { weapon: null, offhand: null, head: null, body: null, hands: null, legs: null, feet: null, ring1: null, ring2: null, ring3: null, ring4: null },
     vanity: { head: null, body: null }, hideHelm: false,
@@ -160,13 +164,42 @@ export function migrate(c) {
   c.seaOfSandRuns = c.seaOfSandRuns || {};
   c.darkForestRuns = c.darkForestRuns || {};
   c.breach = Object.assign({ best: 0, cleared: {} }, c.breach); // THE ETERNAL BREACH: best floor beaten, clears per floor
-  // the Endgame (docs/ENDGAME.md): Heresies on, Abyssal Rifts, Abyssal Keys, Velscour Unbound
+  // the Endgame (docs/ENDGAME.md): Heresies on, Abyssal Rifts, Abyssal Keys, Dagyr Unbound
   c.heresy = Object.assign({ on: [] }, c.heresy); if (!Array.isArray(c.heresy.on)) c.heresy.on = [];
   c.rifts = Object.assign({ open: 1, best: 0, cleared: {}, bestTime: {}, runs: 0, fails: 0, deaths: 0 }, c.rifts); c.rifts.open = Math.max(1, c.rifts.open | 0);
   c.keys = Math.max(0, c.keys | 0);
   c.unbound = Object.assign({ wins: 0, best: 0 }, c.unbound);
+  if (c.marks && typeof c.marks === 'object') {
+    c.marks = {
+      pts: Math.max(0, Math.floor(Number(c.marks.pts) || 0)),
+      xp: Math.max(0, Number(c.marks.xp) || 0),
+      spent: {
+        life: Math.max(0, Math.floor(Number(c.marks.spent?.life) || 0)),
+        crit: Math.max(0, Math.floor(Number(c.marks.spent?.crit) || 0)),
+        mf: Math.max(0, Math.floor(Number(c.marks.spent?.mf) || 0)),
+        rift: Math.max(0, Math.floor(Number(c.marks.spent?.rift) || 0)),
+      }
+    };
+  }
   c.granted = c.granted || {};
   c.talents = c.talents || {};
+  if (!Number.isInteger(c.talentPoints)) {
+    const earnedTalents = Math.floor((c.level || 1) / 5);
+    const spentTalents = Object.values(c.talents).reduce((acc, v) => acc + (Number(v) || 0), 0);
+    if (spentTalents <= earnedTalents) {
+      const unspent = earnedTalents - spentTalents;
+      const moveFromSkillPts = Math.min(Math.max(0, c.skillPoints | 0), unspent);
+      c.skillPoints = Math.max(0, (c.skillPoints | 0) - moveFromSkillPts);
+      c.talentPoints = unspent;
+    } else {
+      // Refund any excess skill points previously spent in talents beyond 1 per 5 levels
+      const excessSkillPts = spentTalents - earnedTalents;
+      c.talents = {};
+      c.skillPoints = Math.max(0, (c.skillPoints | 0) + excessSkillPts);
+      c.talentPoints = earnedTalents;
+    }
+  }
+  c.talentPoints = Math.max(0, c.talentPoints | 0);
   c.tips = c.tips || {};
   if (c.classId === 'barbarian') c.rage = Math.max(0, Math.min(100, Number(c.rage) || 0));
   c.homunculus = c.homunculus || { talks: 0, chapter: 0, told: [], recap: [] }; // the blacksmith's axe story (game/homunculus.js)

@@ -12,14 +12,14 @@ const { openGame, report, OUT_DIR } = require('./harness');
 
   try {
     const res = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { newCharData } = await import('/src/game/save.js');
       const { rollItem, shownEquip } = await import('/src/data/items.js');
       const { openLobby } = await import('/src/ui/lobby.js');
 
       // Create a character
       const char = newCharData('paladin', 'VanityLobbyHero');
-      
+
       // Equip basic real gear
       const realHelm = rollItem(1, { slot: 'head', rarity: 0 });
       const realArmor = rollItem(1, { slot: 'body', rarity: 0 });

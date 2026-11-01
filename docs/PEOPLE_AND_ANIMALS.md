@@ -1,6 +1,6 @@
 # People and Animals
 
-The user's `VELSCOUR_People_and_Animals.zip` (47 people sheets, 10 animal sheets) replaces every townsperson,
+The user's `DAGYR_People_and_Animals.zip` (47 people sheets, 10 animal sheets) replaces every townsperson,
 royal, NPC knight, guard and scenario civilian. Vendors keep their own painted `npc_<vendor id>` art and shops, and
 pets and monsters are unchanged.
 

@@ -6,7 +6,7 @@ const { openGame, report } = require('./harness');
 (async () => {
   const { browser, page, errors } = await openGame();
   const r = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('paladin', 'Locksmith');
     const { Vendor } = await import('/src/ui/vendor.js');
     const { Auto } = await import('/src/game/autoplay.js');
@@ -18,7 +18,7 @@ const { openGame, report } = require('./harness');
     const { catchCritter, CRITTERS } = await import('/src/game/critters.js');
     const { CLASSES } = await import('/src/data/classes.js');
     const c = G.char, p = G.player, out = {};
-    G.ui.log = () => {}; G.ui.centerMsg = () => {};
+    G.ui.log = () => { }; G.ui.centerMsg = () => { };
     const gear = (lvl, slot, rarity) => rollItem(lvl, { slot, cls: 'paladin', rarity });
     c.level = 60; c.depth = 60;
 

@@ -10,7 +10,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE_URL || 'http://localhost:8123';
+const BASE = process.env.BASE_URL || 'http://localhost:8124';
 const MODELS = process.env.MODELS_OUT || path.join(__dirname, '..', 'assets', 'models', 'held');
 const OUT = process.env.HELD_OUT || path.join(__dirname, '..', 'assets', 'sprites', 'held'); // HELD_OUT: bake elsewhere, swap in when done
 (async () => {

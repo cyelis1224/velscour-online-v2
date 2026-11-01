@@ -65,7 +65,8 @@ function setup() {
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 0.1, 100);
   camera.position.set(0, 0, 10);
   // the rift behind everything: a swirling blue-black vortex on a big plane
-  const riftMat = new THREE.ShaderMaterial({ uniforms: { time: { value: 0 }, flash: { value: 0 }, tint: { value: new THREE.Color('#3a6cff') } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }',
+  const riftMat = new THREE.ShaderMaterial({
+    uniforms: { time: { value: 0 }, flash: { value: 0 }, tint: { value: new THREE.Color('#3a6cff') } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }',
     fragmentShader: `uniform float time; uniform float flash; uniform vec3 tint; varying vec2 vUv;
       void main(){ vec2 p = vUv - 0.5; p.x *= 1.8; float r = length(p), a = atan(p.y, p.x);
         float sw = sin(a * 5.0 + r * 18.0 - time * 1.4) * 0.5 + 0.5, sw2 = sin(a * 3.0 - r * 11.0 + time * 0.9) * 0.5 + 0.5;
@@ -116,12 +117,14 @@ export function closeOverlay() {
 }
 const ease = { out: (k) => 1 - Math.pow(1 - k, 3), inOut: (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2), back: (k) => 1 + 2.7 * Math.pow(k - 1, 3) + 1.7 * Math.pow(k - 1, 2) };
 const tween = (dur, fn, done, e = ease.out) => R.tweens.push({ t: 0, dur, fn, done, ease: e });
-const wait = (s) => new Promise((r) => tween(s, () => {}, r));
+const wait = (s) => new Promise((r) => tween(s, () => { }, r));
 
 function foilMaterial(tex, foil, galaxy = 0) {
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-  return new THREE.ShaderMaterial({ uniforms: { map: { value: tex }, foil: { value: foil }, galaxy: { value: galaxy }, time: { value: 0 }, light: { value: new THREE.Vector3() }, corner: { value: 0.045 }, back: { value: 0 } },
-    vertexShader: VERT, fragmentShader: FRAG });
+  return new THREE.ShaderMaterial({
+    uniforms: { map: { value: tex }, foil: { value: foil }, galaxy: { value: galaxy }, time: { value: 0 }, light: { value: new THREE.Vector3() }, corner: { value: 0.045 }, back: { value: 0 } },
+    vertexShader: VERT, fragmentShader: FRAG
+  });
 }
 /** A card: two faces back to back. Front foil by rarity (foil cards always shine). */
 function cardMesh(card, entry, stats) {
@@ -159,7 +162,7 @@ async function packTexture(pack) {
   try { await loadHeroArt(cls); const img = heroCanvas(heroBaseLook(hero), 3); if (img) { const k = 620 / (img.feet - img.headTop * 0.7); x.globalAlpha = 0.95; x.drawImage(img, 300 - img.width * k / 2, 860 - img.feet * k, img.width * k, img.height * k); x.globalAlpha = 1; } } catch { /* art optional */ }
   const v = x.createLinearGradient(0, 520, 0, 900); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.85)'); x.fillStyle = v; x.fillRect(0, 520, 600, 380);
   x.textAlign = 'center'; x.fillStyle = '#fff'; x.shadowColor = col; x.shadowBlur = 20;
-  x.font = '900 34px Cinzel, serif'; x.fillText('VELSCOUR DEFENSE', 300, 100);
+  x.font = '900 34px Cinzel, serif'; x.fillText('DAGYR DEFENSE', 300, 100);
   x.font = '900 54px Cinzel, serif'; x.fillText(pack.name.toUpperCase(), 300, 760);
   x.shadowBlur = 0; x.font = '600 26px "Alegreya Sans", sans-serif'; x.fillStyle = '#e8e0f0'; x.fillText(pack.sub, 300, 806);
   x.font = '800 24px "Alegreya Sans", sans-serif'; x.fillText(pack.kind === 'hero' ? '1 RIFT CARD' : `${pack.count} RIFT CARDS`, 300, 846);
@@ -184,7 +187,7 @@ function ui(html) { const d = document.createElement('div'); d.innerHTML = html;
 export async function openPack3D(pack, results, opts = {}) {
   await ensureThree();
   await document.fonts?.ready;
-  await Promise.all(results.map((r) => ensureCardArt(r.card).catch(() => {})));
+  await Promise.all(results.map((r) => ensureCardArt(r.card).catch(() => { })));
   setup();
   R.riftMat.uniforms.tint.value.set(pack.color);
   const hint = ui(`<div class="p3-hint">Tap the pack to tear it open</div><div class="p3-name"></div><div class="p3-ui"><button class="btn ghost" data-k="skip">Reveal all ⏭</button></div>`);
@@ -214,8 +217,10 @@ export async function openPack3D(pack, results, opts = {}) {
     let best = null;
     for (let cols = 1; cols <= n; cols++) { const rows = Math.ceil(n / cols), s = Math.min(0.72, aw / cols / (CW * 1.06), ah / rows / (CH * 1.06)); if (!best || s > best.s + 1e-6) best = { cols, rows, s }; }
     const { cols, rows, s } = best, gx = CW * s * 1.06, gy = CH * s * 1.06;
-    return cards.map((_, i) => { const c = i % cols, r = Math.floor(i / cols), inRow = r === rows - 1 ? n - cols * (rows - 1) : cols;
-      return { x: (c - (inRow - 1) / 2) * gx, y: -0.3 + ((rows - 1) / 2 - r) * gy, s, rz: rows === 1 ? (c - (cols - 1) / 2) * -0.04 : 0 }; });
+    return cards.map((_, i) => {
+      const c = i % cols, r = Math.floor(i / cols), inRow = r === rows - 1 ? n - cols * (rows - 1) : cols;
+      return { x: (c - (inRow - 1) / 2) * gx, y: -0.3 + ((rows - 1) / 2 - r) * gy, s, rz: rows === 1 ? (c - (cols - 1) / 2) * -0.04 : 0 };
+    });
   };
   const tear = async () => {
     state = 'tearing'; busy = true; hintEl.textContent = '';
@@ -289,7 +294,7 @@ export async function openPack3D(pack, results, opts = {}) {
 export async function inspectCard(card, entry, stats) {
   await ensureThree();
   await document.fonts?.ready;
-  await ensureCardArt(card).catch(() => {});
+  await ensureCardArt(card).catch(() => { });
   setup();
   R.riftMat.uniforms.tint.value.set(RARITIES[card.rarity].color);
   const m = cardMesh(card, entry, stats);

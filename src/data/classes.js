@@ -2,8 +2,8 @@ import { TREE4_NAMES } from './skilltrees4.js';
 
 // The 9 active playable classes on the Character Select screen (the 7 legacy classes remain in CLASSES with disabled: true).
 export const ACTIVE_CLASS_IDS = [
-  'paladin', 'ranger', 'wizard', 'necromancer',
-  'barbarian', 'carrion_witch', 'bard', 'lancer', 'gunner',
+  'paladin', 'ranger', 'wizard', 'barbarian',
+  'gunner', 'necromancer', 'lancer', 'bard', 'carrion_witch',
 ];
 export const DISABLED_CLASS_IDS = [
   'dragoon', 'totem_master', 'death_knight', 'arcane_sorcerer',

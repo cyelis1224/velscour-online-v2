@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE_URL || 'http://localhost:8123';
+const BASE = process.env.BASE_URL || 'http://localhost:8124';
 const OUT = process.env.OUT_DIR || path.join(__dirname, '..', 'art-review', 'weapons');
 const data = (u) => Buffer.from(u.split(',')[1], 'base64');
 (async () => {

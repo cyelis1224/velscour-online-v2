@@ -1,14 +1,14 @@
-// Velscour Unbound (docs/ENDGAME.md): the rematch three Abyssal Keys open. The keys (c.keys) drop from BOSS ROOM bosses
+// Dagyr Unbound (docs/ENDGAME.md): the rematch three Abyssal Keys open. The keys (c.keys) drop from BOSS ROOM bosses
 // past depth 600 under Heresy rank 10 and from Abyssal Rift Guardians from tier 10 (keyChance, read by loot.dropLoot).
-// The fight itself is Velscour's five phases (game/velscour.js) with the Court of the Abyss, the Pact, the Abyssal Crown
-// and the Unbound Chains on top (setupUnbound, called by setupVelscour when world.unbound). game.enterUnbound builds it.
+// The fight itself is Dagyr's five phases (game/dagyr.js) with the Court of the Abyss, the Pact, the Abyssal Crown
+// and the Unbound Chains on top (setupUnbound, called by setupDagyr when world.unbound). game.enterUnbound builds it.
 //   The Court: two signature raid bosses (never the same two, nor last fight's pair; not the Pipe Organ), 0.8x a BOSS
 //   ROOM's life and 0.65x its hits in three phases, their self-healing at 35%; the first at the east guard post when he rises, the second out of
 //   phase 3's first hellgate. Their own Raid loop runs without its seal, its execute clock or its enrage (his 20-minute
 //   clock is the only one), casting at 1/1.6 its pace while he fights too.
 //   The Pact: for two minutes after each of them steps in (while it lives) he takes 40% of every hit (m.ward) and his
 //   damage cap fills at 40% of its pace; then that courtier's Pact wanes.
-//   Abyssal Crown and Unbound Chains: velscour.js.
+//   Abyssal Crown and Unbound Chains: dagyr.js.
 import { G } from '../state.js';
 import { clamp, chance, pick, shuffle, angleTo } from '../core/util.js';
 import { sfx } from '../core/audio.js';
@@ -24,7 +24,7 @@ import { KEYS_RANK, worldRank } from './heresies.js';
 import { endgameUnlocked, endgame, saveEndgame } from './endgame.js';
 import { makeRaidBoss, RAID_BOSSES } from './raid.js';
 import { dropLoot } from './loot.js';
-import { DMG_MUL, PACE, inArena } from './velscour.js';
+import { DMG_MUL, PACE, inArena } from './dagyr.js';
 
 export const UNBOUND_KEYS = 3;
 /** The rematch's dials, tuned with tools/tests/unbound.js (auto-play, depth-500 gear: 6.2-13.5 minutes, mean 8.3; the
@@ -61,13 +61,13 @@ export function spendKeys(c = G.char) {
 }
 
 // ---------------------------------------------------------------- the fight
-/** The rematch on top of Velscour's fight V (game/velscour.js VelscourFight): his dials and his court's choice. */
+/** The rematch on top of Dagyr's fight V (game/dagyr.js DagyrFight): his dials and his court's choice. */
 export function setupUnbound(V) {
   const m = V.m, c = G.char;
   V.unbound = true; V.court = []; V.enrageT = UNBOUND.enrage;
   m.maxHp *= UNBOUND.hp; m.hp = m.maxHp; V.lastHp = m.hp;
   m.dmg *= UNBOUND.dmg / DMG_MUL;
-  m.name = 'Velscour Unbound';
+  m.name = 'Dagyr Unbound';
   // two signature bosses, never the same two and never last fight's pair
   const last = (c && c.unbound && c.unbound.court) || [];
   let two;
@@ -88,13 +88,13 @@ function summonCourt(V, i, x, y) {
   b.awake = true; b.post = [b.x, b.y]; b.bornT = V.t;
   const heal = b.heal.bind(b); b.heal = (n) => heal(n * UNBOUND.courtHeal); // their wards, orbs and drains mend them a third as much: with him in the fight a hero can't play every mechanic, and Ysol outhealed a wizard for 20 minutes
   const R = b.raid;
-  R.execT = Infinity; R.enrage = () => {}; // (Raid.update reads both; enraged stays false so it casts at its own pace)
+  R.execT = Infinity; R.enrage = () => { }; // (Raid.update reads both; enraged stays false so it casts at its own pace)
   R.onDeath = () => courtDeath(V, b);
   if (R.phases.length > 3) { R.phases = [R.phases[0], R.phases[1], R.phases[R.phases.length - 1]]; R.marks = [0.66, 0.33]; } // three phases (the last its own finale): two ward interludes
   w.add(b); V.court.push(b);
   addEffect(new Ring(b.x, b.y, 0.3, 5, 1, R.E.glow, 6)); smoke(b.x, b.y, 0, '#200808', 8, 12);
   floatText(b.x, b.y, 170, R.tpl.name.toUpperCase(), '#ff9070', 16, { life: 2 });
-  UI.log(`<b style="color:#ff6040">${R.tpl.name}, ${R.tpl.title}</b> of the Court of the Abyss fights for him. <b>The Pact</b>: while his court lives, Velscour takes 60% less damage.`, '#ffc0a0');
+  UI.log(`<b style="color:#ff6040">${R.tpl.name}, ${R.tpl.title}</b> of the Court of the Abyss fights for him. <b>The Pact</b>: while his court lives, Dagyr takes 60% less damage.`, '#ffc0a0');
   sfx('roar'); sfx('boss');
   return b;
 }
@@ -111,7 +111,7 @@ function courtDeath(V, b, loot = true) {
   explosionFx(b.x, b.y, 4, R.tpl.el === 'phys' ? 'fire' : R.tpl.el, 'eruption', { shake: 14 });
   if (!m.dead && V.court.every((c) => c.dead || c === b) && V.court.length) {
     m.ward = 1;
-    UI.centerMsg('THE PACT IS BROKEN', V.gate2 ? 'Velscour stands alone' : 'His court will answer again', 2.6);
+    UI.centerMsg('THE PACT IS BROKEN', V.gate2 ? 'Dagyr stands alone' : 'His court will answer again', 2.6);
     addEffect(new Ring(m.x, m.y, 0.3, 5, 0.8, '#20e0ff', 6));
   }
 }
@@ -129,12 +129,15 @@ export function courtGate(V) {
   floatText(m.x, m.y, 160, 'MY COURT, TO ME', '#ff5020', 16, { life: 1.6 });
   UI.log('<b style="color:#ff5020">A hellgate tears open</b>: the second of the Court of the Abyss climbs out!', '#ffb090');
   sfx('roar', 0.7);
-  w.addHazard({ t: 1.6, team: 'enemy', update(dt) {
-    this.t -= dt; if (this.t > 0) return true;
-    if (m.dead) return false;
-    explosionFx(gx, gy, 2.6, 'fire', 'eruption', { shake: 10 }); addEffect(new Ring(gx, gy, 0.2, 2.6, 0.6, '#ff3010', 5));
-    summonCourt(V, 1, gx, gy);
-    return false; }, draw() {} });
+  w.addHazard({
+    t: 1.6, team: 'enemy', update(dt) {
+      this.t -= dt; if (this.t > 0) return true;
+      if (m.dead) return false;
+      explosionFx(gx, gy, 2.6, 'fire', 'eruption', { shake: 10 }); addEffect(new Ring(gx, gy, 0.2, 2.6, 0.6, '#ff3010', 5));
+      summonCourt(V, 1, gx, gy);
+      return false;
+    }, draw() { }
+  });
   return true;
 }
 /** Every frame of the fight: the Pact's ward and tethers, the dark of the abyss held, the court kept in the arena (and out
@@ -147,7 +150,7 @@ export function unboundTick(V, dt) {
   const binding = alive.filter((b) => V.t - (b.bornT ?? V.t) < UNBOUND.pactFor);
   for (const b of alive) if (!b.waned && !binding.includes(b)) { b.waned = true; UI.centerMsg('THE PACT WANES', `${b.raid.tpl.name} no longer shields him`, 2.4); addEffect(new Ring(m.x, m.y, 0.3, 4, 0.8, '#20e0ff', 5)); }
   m.ward = binding.length ? UNBOUND.pact : 1;
-  // the Pact holds for every hero: of the damage cap's refill (VelscourFight.pace) only the ward's share stays, so a hero
+  // the Pact holds for every hero: of the damage cap's refill (DagyrFight.pace) only the ward's share stays, so a hero
   // far over the cap (whose 40% would still fill it) loses the same 60% of his pace as one under it
   if (binding.length && V.phase) V.bank = Math.max(0, V.bank - m.maxHp * PACE * dt * (1 - UNBOUND.pact));
   // the timed objectives (seals: two minutes, shards: the abyss) come before the court for auto-play: the court gives up its
@@ -184,8 +187,8 @@ export function unboundSpoils(V, lvl, drop) {
   if (crown) drop(open(makeHeirloom(lvl, { id: 'crown_demon' })));
   const rar = rarityAt(lvl, ABYSSAL);
   for (let i = 0; i < UNBOUND.abyssal; i++) drop(open(rollItem(lvl, { rarity: rar, mf: p ? p.st.magicFind : 0 })));
-  grantMarks(UNBOUND.marks, 'for Velscour Unbound');
-  UI.log(`<b style="color:#20e0ff">Velscour Unbound's spoils</b>: ${heir ? `<b>${itemName(heir)}</b>, ` : ''}${crown ? '<b>the Crown of the Demon Lord</b>, ' : ''}${UNBOUND.abyssal} <b style="color:${RARITY[rar].color}">${RARITY[rar].name}</b> items, a Heirloom, a Covenant piece, two Sigil Stones and ${UNBOUND.marks} Infernal Marks.`, '#a0f0ff');
+  grantMarks(UNBOUND.marks, 'for Dagyr Unbound');
+  UI.log(`<b style="color:#20e0ff">Dagyr Unbound's spoils</b>: ${heir ? `<b>${itemName(heir)}</b>, ` : ''}${crown ? '<b>the Crown of the Demon Lord</b>, ' : ''}${UNBOUND.abyssal} <b style="color:${RARITY[rar].color}">${RARITY[rar].name}</b> items, a Heirloom, a Covenant piece, two Sigil Stones and ${UNBOUND.marks} Infernal Marks.`, '#a0f0ff');
   const E = endgame(); E.unboundWins++; saveEndgame();
   const secs = Math.round(V.t);
   c.unbound.best = c.unbound.best ? Math.min(c.unbound.best, secs) : secs;

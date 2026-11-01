@@ -14,19 +14,19 @@ const FLOOR = +(process.argv[3] || 3);
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1366, height: 860 });
   const enter = async (floor, seed) => {
-    await page.evaluate(([floor, seed]) => { const { G, game } = window.VELSCOUR; G.breachSeed = seed; G.char.breach.best = Math.max(G.char.breach.best, floor - 1); game.enterBreach(floor); }, [floor, seed]);
-    await page.waitForFunction((f) => window.VELSCOUR.G.world?.breach?.floor === f && document.querySelector('#loading').classList.contains('hidden'), floor, { timeout: 60000 });
+    await page.evaluate(([floor, seed]) => { const { G, game } = window.DAGYR; G.breachSeed = seed; G.char.breach.best = Math.max(G.char.breach.best, floor - 1); game.enterBreach(floor); }, [floor, seed]);
+    await page.waitForFunction((f) => window.DAGYR.G.world?.breach?.floor === f && document.querySelector('#loading').classList.contains('hidden'), floor, { timeout: 60000 });
     await page.waitForFunction(async () => (await import('/src/gfx/breachdragon.js')).wyrmReady(), null, { timeout: 20000 });
   };
   // step the game n seconds at 30 fps (yielding now and then); returns what `probe` collected
   const STEP = null;
-  const installStep = () => page.evaluate(() => { window.__step = async (secs, each) => { const { G, game } = window.VELSCOUR; for (let t = 0; t < secs; t += 1 / 30) { G.dt = 1 / 30; G.time += G.dt; G.frame++; game.update(1 / 30); if (each && each(t) === false) return t; if ((G.frame & 63) === 0) await new Promise((r) => setTimeout(r, 0)); } return secs; }; });
+  const installStep = () => page.evaluate(() => { window.__step = async (secs, each) => { const { G, game } = window.DAGYR; for (let t = 0; t < secs; t += 1 / 30) { G.dt = 1 / 30; G.time += G.dt; G.frame++; game.update(1 / 30); if (each && each(t) === false) return t; if ((G.frame & 63) === 0) await new Promise((r) => setTimeout(r, 0)); } return secs; }; });
   try {
-    await page.evaluate(async () => { await window.VELSCOUR.game.newChar('paladin', 'Wyrmslayer'); });
+    await page.evaluate(async () => { await window.DAGYR.game.newChar('paladin', 'Wyrmslayer'); });
     await page.waitForTimeout(300);
     await enter(FLOOR, 4242);
     await installStep();
-    const clearFoes = () => page.evaluate(() => { const { G } = window.VELSCOUR; for (const m of G.world.creatures) if (m.team === 'enemy' && !m.wyrm) m.dead = true; });
+    const clearFoes = () => page.evaluate(() => { const { G } = window.DAGYR; for (const m of G.world.creatures) if (m.team === 'enemy' && !m.wyrm) m.dead = true; });
 
     // ------------------------------------------------ the seven looks
     if (PARTS.includes('looks')) {
@@ -35,7 +35,7 @@ const FLOOR = +(process.argv[3] || 3);
       for (const id of ids) {
         await clearFoes();
         await page.evaluate(async (id) => {
-          const { G, game } = window.VELSCOUR, { WYRM_VARIANTS } = await import('/src/data/breach.js');
+          const { G, game } = window.DAGYR, { WYRM_VARIANTS } = await import('/src/data/breach.js');
           const run = G.world.overworldScenario, W = run.wyrm, v = WYRM_VARIANTS.find((q) => q.id === id);
           G.godMode = true;
           Object.assign(W.w, { variant: v, head: v.heads[v.heads.length > 1 && id === 'white' ? 1 : 0], claw: v.claw, name: `the ${v.name} Wyrm` });
@@ -54,7 +54,7 @@ const FLOOR = +(process.argv[3] || 3);
       await clearFoes();
       const r = await page.evaluate(async (STEP) => {
         const step = window.__step;
-        const { G, game } = window.VELSCOUR, W = G.world.overworldScenario.wyrm, P = G.player;
+        const { G, game } = window.DAGYR, W = G.world.overworldScenario.wyrm, P = G.player;
         G.godMode = false; P.hp = P.maxHp = 1e9;
         W.force.pass();
         let hits = 0, last = P.hp, near = 1e9, states = new Set(), shotAt = -1;
@@ -71,7 +71,7 @@ const FLOOR = +(process.argv[3] || 3);
       await shot('wyrm_pass_over_hero');
       await page.evaluate(async (STEP) => {
         const step = window.__step;
-        const { G, game } = window.VELSCOUR, W = G.world.overworldScenario.wyrm, P = G.player;
+        const { G, game } = window.DAGYR, W = G.world.overworldScenario.wyrm, P = G.player;
         let hits = 0, last = P.hp, states = new Set(), shot2 = false;
         await step(24, (t) => { states.add(W.force.state); if (P.hp < last) hits++; last = P.hp; if (!shot2 && t > 1 && W.force.state === 'pass' && Math.hypot(W.w.segs[6].x - P.x, W.w.segs[6].y - P.y) < 3.5) { shot2 = true; return false; } });
         game.render();
@@ -79,7 +79,7 @@ const FLOOR = +(process.argv[3] || 3);
       }, STEP);
       await shot('wyrm_pass_turning');
       const r2b = await page.evaluate(async () => {
-        const step = window.__step, { G } = window.VELSCOUR, W = G.world.overworldScenario.wyrm, P = G.player, o = window.__pass, states = new Set(o.states);
+        const step = window.__step, { G } = window.DAGYR, W = G.world.overworldScenario.wyrm, P = G.player, o = window.__pass, states = new Set(o.states);
         let hits = o.hits, last = o.last;
         await step(30, () => { states.add(W.force.state); if (P.hp < last) hits++; last = P.hp; });
         return { hits, states: [...states], layer: W.w.layer };
@@ -88,7 +88,7 @@ const FLOOR = +(process.argv[3] || 3);
       console.log('pass', JSON.stringify(r), JSON.stringify(r2));
       if (r.hits + r2.hits < 1) errors.push('[pass] it never touched the hero');
       if (!r2.states.includes('leave') && !r2.states.includes('away')) errors.push('[pass] it never left: ' + r2.states.join(','));
-      await page.evaluate(() => { const P = window.VELSCOUR.G.player; P.maxHp = P.st?.maxHp || 500; P.hp = P.maxHp; window.VELSCOUR.G.godMode = true; });
+      await page.evaluate(() => { const P = window.DAGYR.G.player; P.maxHp = P.st?.maxHp || 500; P.hp = P.maxHp; window.DAGYR.G.godMode = true; });
     }
 
     // ------------------------------------------------ on a walkway, it comes
@@ -96,7 +96,7 @@ const FLOOR = +(process.argv[3] || 3);
       await clearFoes();
       const r = await page.evaluate(async (STEP) => {
         const step = window.__step;
-        const { G } = window.VELSCOUR, Wd = G.world, W = Wd.overworldScenario.wyrm, P = G.player, map = Wd.map;
+        const { G } = window.DAGYR, Wd = G.world, W = Wd.overworldScenario.wyrm, P = G.player, map = Wd.map;
         G.godMode = true;
         // a walkway tile the hero may stand on (one with no ward on it)
         // a walkway off the start island, a few tiles out (short of any ward on it)
@@ -109,7 +109,7 @@ const FLOOR = +(process.argv[3] || 3);
       }, STEP);
       console.log('bridge', JSON.stringify(r));
       if (r.came < 0) errors.push('[bridge] it never came for the hero on the walkway');
-      await page.evaluate(async (STEP) => { const step = window.__step; const W = window.VELSCOUR.G.world.overworldScenario.wyrm; const P = window.VELSCOUR.G.player; await step(25, () => !(W.force.state === 'pass' && Math.hypot(W.w.x - P.x, W.w.y - P.y) < 4)); window.VELSCOUR.game.render(); }, STEP);
+      await page.evaluate(async (STEP) => { const step = window.__step; const W = window.DAGYR.G.world.overworldScenario.wyrm; const P = window.DAGYR.G.player; await step(25, () => !(W.force.state === 'pass' && Math.hypot(W.w.x - P.x, W.w.y - P.y) < 4)); window.DAGYR.game.render(); }, STEP);
       await shot('wyrm_on_the_bridge');
     }
 
@@ -117,7 +117,7 @@ const FLOOR = +(process.argv[3] || 3);
     if (PARTS.includes('void')) {
       await page.evaluate(async (STEP) => {
         const step = window.__step;
-        const { G, game } = window.VELSCOUR, W = G.world.overworldScenario.wyrm, P = G.player;
+        const { G, game } = window.DAGYR, W = G.world.overworldScenario.wyrm, P = G.player;
         // let it go home, then bring it under the hero's view
         await step(40, () => W.force.state !== 'away');
         W.w.layer = 'void';
@@ -132,7 +132,7 @@ const FLOOR = +(process.argv[3] || 3);
     if (PARTS.includes('fight')) {
       // geared for the floor like tools/tests/breach.js (auto)
       await page.evaluate(async (FLOOR) => {
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         const { Auto } = await import('/src/game/autoplay.js');
         const { breachLevel } = await import('/src/data/breach.js');
         const { rollItem, rollGem } = await import('/src/data/items.js');
@@ -155,10 +155,10 @@ const FLOOR = +(process.argv[3] || 3);
       await page.waitForFunction(() => document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 60000 });
       await enter(FLOOR, 777);
       await clearFoes();
-      await page.evaluate(() => { const P = window.VELSCOUR.G.player; P.path = null; P.moveTarget = null; });
+      await page.evaluate(() => { const P = window.DAGYR.G.player; P.path = null; P.moveTarget = null; });
       const r = await page.evaluate(async (STEP) => {
         const step = window.__step;
-        const { G } = window.VELSCOUR, Wd = G.world, run = Wd.overworldScenario, W = run.wyrm, P = G.player;
+        const { G } = window.DAGYR, Wd = G.world, run = Wd.overworldScenario, W = run.wyrm, P = G.player;
         G.godMode = true;
         // two thirds of the shrines won, the hero on a large island that isn't the Heart
         const others = run.scenarios.filter((S) => S !== run.heart && !S.wyrm);
@@ -183,12 +183,12 @@ const FLOOR = +(process.argv[3] || 3);
       if (r.came < 0) errors.push('[fight] it never came down to fight');
       if (r.locks < r.bridges) errors.push(`[fight] ${r.locks}/${r.bridges} walkways locked`);
       if (!r.heartRefused) errors.push('[fight] the Heart answered while the wyrm lives');
-      await page.evaluate(async (STEP) => { const step = window.__step; await step(3); window.VELSCOUR.game.render(); }, STEP);
+      await page.evaluate(async (STEP) => { const step = window.__step; await step(3); window.DAGYR.game.render(); }, STEP);
       await shot('wyrm_fight_coils');
       // auto-play fights it
       const f = await page.evaluate(async (STEP) => {
         const step = window.__step;
-        const { G, game } = window.VELSCOUR, W = G.world.overworldScenario.wyrm, P = G.player;
+        const { G, game } = window.DAGYR, W = G.world.overworldScenario.wyrm, P = G.player;
         const { Auto } = await import('/src/game/autoplay.js');
         Auto.toggle(true);
         let hitbox = 0, frames = 0, shot = false;
@@ -200,7 +200,7 @@ const FLOOR = +(process.argv[3] || 3);
       if (f.mid) {
         await shot('wyrm_fight_close');
         Object.assign(f, await page.evaluate(async () => {
-          const step = window.__step, { G } = window.VELSCOUR, W = G.world.overworldScenario.wyrm;
+          const step = window.__step, { G } = window.DAGYR, W = G.world.overworldScenario.wyrm;
           const { Auto } = await import('/src/game/autoplay.js');
           let hitbox = 0, frames = 0;
           const t = await step(300, () => { frames++; if (W.m.targetable) hitbox++; if (W.slain) return false; });
@@ -210,11 +210,11 @@ const FLOOR = +(process.argv[3] || 3);
       }
       console.log('fight', JSON.stringify(f));
       if (!f.slain) errors.push(`[fight] auto-play didn't kill it in 300 s (life left ${f.life}, hitbox reachable ${f.hitboxShare})`);
-      await page.evaluate(async (STEP) => { const step = window.__step; await step(1); window.VELSCOUR.game.render(); }, STEP);
+      await page.evaluate(async (STEP) => { const step = window.__step; await step(1); window.DAGYR.game.render(); }, STEP);
       await shot('wyrm_slain');
       const after = await page.evaluate(async (STEP) => {
         const step = window.__step;
-        const { G } = window.VELSCOUR, run = G.world.overworldScenario, W = run.wyrm;
+        const { G } = window.DAGYR, run = G.world.overworldScenario, W = run.wyrm;
         await step(3);
         const P = G.player; P.x = run.heart.C[0]; P.y = run.heart.C[1] + 1.6; await step(0.2); run.heart.start();
         return { gone: !!W.w.gone, locks: W.S.locks.filter((l) => l.closed).length, loot: G.world.loot ? G.world.loot.filter((l) => l.kind === 'item').length : -1, won: run.won, heartOpens: run.heart.active };

@@ -10,7 +10,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
   const { browser, page, errors } = await openGame({ width: 1000, height: 700 });
   try {
     const err = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       await game.newChar('lancer', 'Banner');
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -46,13 +46,13 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
     const step = async (n) => { await page.evaluate((k) => { window.__step = k; }, n); await page.waitForFunction(() => window.__step === 0); };
     // trail: the bottom-centre node relative to the crossbar centre, in physics a/b/h px
     const probe = () => page.evaluate(() => {
-      const cl = window.VELSCOUR.G.player.sig.s.cloth; if (!cl) return null;
+      const cl = window.DAGYR.G.player.sig.s.cloth; if (!cl) return null;
       const P = cl.pos, C = 5, R = 9, top = 2 * 3, bot = ((R - 1) * C + 2) * 3;
       if (![...P].every(Number.isFinite)) return { nan: true };
       return { da: P[bot] - P[top], db: P[bot + 1] - P[top + 1], dh: P[bot + 2] - P[top + 2], th: cl.th };
     });
     const setCase = (valor, vel) => page.evaluate(([valor, vel]) => {
-      const { G } = window.VELSCOUR, p = G.player; p.x = window.__home[0]; p.y = window.__home[1];
+      const { G } = window.DAGYR, p = G.player; p.x = window.__home[0]; p.y = window.__home[1];
       p.sig.s.valor = valor; p.sig.s.busy = 9; p.sig.s.cloth = null; window.__vel = vel;
     }, [valor, vel]);
     const clip = { x: 300, y: 120, width: 400, height: 380 };
@@ -79,11 +79,11 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
     const q = await probe();
     if (!q || q.nan || Math.abs(q.da) > 4) fail('did not settle after stopping: ' + JSON.stringify(q));
     // a blink: 20 tiles in one frame resets the cloth instead of stretching it
-    await page.evaluate(() => { window.VELSCOUR.G.player.x += 20; }); await step(2);
+    await page.evaluate(() => { window.DAGYR.G.player.x += 20; }); await step(2);
     const b = await probe();
     if (!b || b.nan || Math.hypot(b.da, b.db, b.dh) > 60) fail('blink stretched the cloth: ' + JSON.stringify(b));
     const cost = await page.evaluate(async () => {
-      const { G } = window.VELSCOUR, p = G.player, s = p.sig.s, m = await import('/src/gfx/lancerbanner.js');
+      const { G } = window.DAGYR, p = G.player, s = p.sig.s, m = await import('/src/gfx/lancerbanner.js');
       const c = document.createElement('canvas'); c.width = 400; c.height = 400; const g = c.getContext('2d');
       g.setTransform(3, 0, 0, 3, -((p.x - p.y) * 32) * 3 + 200, -((p.x + p.y) * 16) * 3 + 300);
       const t0 = performance.now(); for (let i = 0; i < 200; i++) { m.stepBanner(p, s, 1 / 60, 1, true); m.drawBanner(g, p, s); }

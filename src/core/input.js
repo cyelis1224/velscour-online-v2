@@ -113,8 +113,9 @@ export function initInput(canvas) {
       return;
     }
 
-    const leftZone = e.clientX < G.W * 0.42;
-    if (leftZone && !input.joy.active) {
+    const isPortrait = G.H > G.W || (typeof window !== 'undefined' && window.innerHeight > window.innerWidth);
+    const inJoyZone = isPortrait ? (e.clientY >= G.H * 0.5) : (e.clientX < G.W * 0.42);
+    if (inJoyZone && !input.joy.active) {
       const j = input.joy;
       j.active = true; j.id = e.pointerId; j.ox = e.clientX; j.oy = e.clientY; j.vx = 0; j.vy = 0;
       base.style.left = e.clientX + 'px'; base.style.top = e.clientY + 'px';

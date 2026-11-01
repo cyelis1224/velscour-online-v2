@@ -96,27 +96,35 @@ export const Vendor = {
           key: 'shop:' + i,
           data: () => (list[i] ? { type: 'shop', list, i } : null),
           icon: () => d.querySelector('img') && d.querySelector('img').src,
-          onClick: () => { this.shopSel = i; sfx('ui'); UI.refresh(); },
+          onClick: () => {
+            this.shopSel = i;
+            sfx('ui');
+            grid.querySelectorAll('.sslot.sel').forEach(s => s.classList.remove('sel'));
+            d.classList.add('sel');
+          },
           onDouble: () => this.buy({ type: 'shop', list, i }),
           onRight: () => this.buy({ type: 'shop', list, i }),
         });
-        UI.tip(d, () => itemTooltip(list[i], { price: itemValue(list[i]), compare: list[i].slot ? G.char.equip[slotFor(G.char.equip, list[i])] : null, hint: 'Right-click or double-click to buy' }));
+        UI.tip(d, () => {
+          const acts = [{
+            label: `Buy for ${fmtInt(itemValue(list[i]))}g`,
+            fn: () => this.buy({ type: 'shop', list, i }),
+            cls: G.char.gold >= itemValue(list[i]) ? 'small' : 'small disabled',
+          }];
+          return {
+            html: itemTooltip(list[i], {
+              price: itemValue(list[i]),
+              compare: list[i].slot ? G.char.equip[slotFor(G.char.equip, list[i])] : null,
+              hint: 'Right-click or double-tap to buy',
+              actions: acts,
+            }),
+            actions: acts,
+          };
+        });
       }
       grid.appendChild(d);
     });
     body.appendChild(grid);
-    const sel = this.shopSel !== null ? list[this.shopSel] : null;
-    if (sel) {
-      const box = el('div', 'item-detail');
-      box.style.width = 'auto';
-      box.style.marginTop = '8px';
-      box.innerHTML = itemTooltip(sel, { price: itemValue(sel), compare: sel.slot ? G.char.equip[slotFor(G.char.equip, sel)] : null });
-      const b = el('button', 'btn small', `Buy for ${fmtInt(itemValue(sel))}g`);
-      b.disabled = G.char.gold < itemValue(sel);
-      b.onclick = () => this.buy({ type: 'shop', list, i: this.shopSel });
-      box.appendChild(b);
-      body.appendChild(box);
-    }
   },
 
   buy(data, toIdx) {

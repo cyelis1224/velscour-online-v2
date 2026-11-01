@@ -1,6 +1,6 @@
 {
-  "appId": "com.velscour.game",
-  "appName": "Velscour",
+  "appId": "com.Dagyr.game",
+  "appName": "Dagyr Online",
   "webDir": "www",
   "bundledWebRuntime": false,
   "server": {

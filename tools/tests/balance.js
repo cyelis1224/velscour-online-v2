@@ -23,7 +23,7 @@ const stances = (process.env.BAL_STANCE || 'balanced').split(',');
   const rows = [];
   for (const cls of classes) for (const D of depths) for (const stance of stances) {
     await page.evaluate(async ({ cls, D, god, rounds, stance, raidGate, biomeId }) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { Auto } = await import('/src/game/autoplay.js');
       const { depthLevel } = await import('/src/data/depth.js');
       const { rollItem, rollGem, RING_SLOTS } = await import('/src/data/items.js');
@@ -76,7 +76,7 @@ const stances = (process.env.BAL_STANCE || 'balanced').split(',');
     let last = null;
     for (let min = 1; min <= minutes; min++) {
       last = await page.evaluate(async () => {
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         const { Auto } = await import('/src/game/autoplay.js');
         const { Meter } = await import('/src/game/dpsmeter.js');
         const B = window.__bal, t0 = performance.now();
@@ -100,9 +100,11 @@ const stances = (process.env.BAL_STANCE || 'balanced').split(',');
         }
         const c = G.char, p = G.player, w = G.world;
         const raids = (G.raidLog || []).splice(0).map((r) => `${r.boss}@D${r.depth} ${r.secs}s`).join('; ');
-        return { dps: Math.round(Meter.avg()), raids, where: w ? (w.kind === 'town' ? 'town' : `D${w.depth}`) : '-', depth: c.depth, deepest: c.deepest, lvl: c.level, kills: c.kills, deaths: c.deaths,
+        return {
+          dps: Math.round(Meter.avg()), raids, where: w ? (w.kind === 'town' ? 'town' : `D${w.depth}`) : '-', depth: c.depth, deepest: c.deepest, lvl: c.level, kills: c.kills, deaths: c.deaths,
           hp: `${Math.round(p.hp)}/${p.maxHp}`, armor: p.st.armor, pots: Object.values(c.potions).join('/'), status: Auto.status, maxDepth: B.maxDepth, deathsAt: B.deathsAt.join(','), drunk: B.pots, lost: B.lost, kite: B.kiteT / Math.max(1, B.t), spk: B.t / Math.max(1, c.kills),
-          boss: w && w.boss ? `${w.boss.name} ${Math.round(w.boss.hp)}/${Math.round(w.boss.maxHp)}` : '' };
+          boss: w && w.boss ? `${w.boss.name} ${Math.round(w.boss.hp)}/${Math.round(w.boss.maxHp)}` : ''
+        };
       });
       console.log(`[${cls} D${D} ${stance} ${min}m] ${last.where} lvl=${last.lvl} kills=${last.kills} deaths=${last.deaths} deepest=${last.deepest} hp=${last.hp} arm=${last.armor} pots=${last.pots} dps=${last.dps} ${last.boss} | ${last.status}`);
       if (last.raids) console.log(`   RAID KILLED: ${last.raids}`);

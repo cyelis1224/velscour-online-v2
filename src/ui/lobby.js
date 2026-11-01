@@ -1,4 +1,4 @@
-// Diablo II Battle.net Style Lobby UI for VELSCOUR Online
+// Diablo II Battle.net Style Lobby UI for DAGYR ONLINE
 import { G } from '../state.js';
 import { el, escapeHtml } from '../core/util.js';
 import { sfx } from '../core/audio.js';
@@ -9,12 +9,18 @@ import { CLASSES } from '../data/classes.js';
 import { BIOMES } from '../data/biomes.js';
 import { shownEquip } from '../data/items.js';
 import { net } from '../net/network.js';
+import { saveOnlineCharacter } from '../net/online.js';
+import { toggleFriends } from './friends.js';
+import { endgame } from '../game/endgame.js';
 
 let lobbyEl = null;
 let activeLobbyListeners = null;
 
 function detachLobbyListeners() {
   if (activeLobbyListeners) {
+    if (activeLobbyListeners.saveInterval) {
+      clearInterval(activeLobbyListeners.saveInterval);
+    }
     net.off('chat', activeLobbyListeners.onChat);
     net.off('lobby_update', activeLobbyListeners.onLobbyUpdate);
     net.off('room_error', activeLobbyListeners.onRoomError);
@@ -23,6 +29,9 @@ function detachLobbyListeners() {
     net.off('disconnected', activeLobbyListeners.onDisconnected);
     if (activeLobbyListeners.onReconnecting) {
       net.off('reconnecting', activeLobbyListeners.onReconnecting);
+    }
+    if (activeLobbyListeners.onSessionKicked) {
+      net.off('session_kicked', activeLobbyListeners.onSessionKicked);
     }
     activeLobbyListeners = null;
   }
@@ -44,13 +53,14 @@ export function openLobby(char, onBack) {
   const header = el('div', 'd2-header');
   header.innerHTML = `
     <div class="d2-logo-wrap">
-      <img class="d2-logo-img" src="assets/ui/logo.webp" alt="VELSCOUR">
+      <img class="d2-logo-img" src="assets/ui/logo.webp" alt="DAGYR ONLINE">
     </div>
     <div class="d2-title-center">
-      <div class="d2-channel-title" id="d2-channel-display">VELSCOUR SANCTUARY (En-1)</div>
+      <div class="d2-channel-title" id="d2-channel-display">DAGYR ONLINE (En-1)</div>
       <div class="d2-channel-sub" id="d2-channel-sub">Connecting...</div>
     </div>
     <div class="d2-header-right">
+      <button class="d2-btn-classic" id="d2-header-friends">FRIENDS</button>
       <button class="d2-btn-classic d2-btn-quit" id="d2-header-quit">QUIT</button>
     </div>
   `;
@@ -213,10 +223,27 @@ export function openLobby(char, onBack) {
   };
   cancelCreateBtn.onclick = () => tabJoin.click();
 
+  const headerFriends = header.querySelector('#d2-header-friends');
+  if (headerFriends) {
+    headerFriends.onclick = () => {
+      sfx('ui');
+      toggleFriends();
+    };
+  }
+
   const headerQuit = header.querySelector('#d2-header-quit');
   if (headerQuit) {
-    headerQuit.onclick = () => {
+    headerQuit.onclick = async () => {
       sfx('ui');
+      headerQuit.disabled = true;
+      headerQuit.textContent = 'SAVING...';
+      try {
+        if (char && char.isOnline) {
+          await saveOnlineCharacter(char);
+        }
+      } catch (e) {
+        console.warn('[Dagyr Online] Error saving character on lobby quit:', e);
+      }
       detachLobbyListeners();
       net.leaveRoom();
       net.disconnect();
@@ -523,11 +550,9 @@ export function openLobby(char, onBack) {
       const weapon = toItem(rawWeapon, 'weapon');
       const offhand = toItem(rawOffhand, 'offhand');
 
-      if (body || head || weapon || offhand) {
-        savedGearPreview(p.classId, body, head, weapon, offhand).then(art => {
-          if (art && anim.canvas.isConnected) anim.setArt(art);
-        }).catch(() => {});
-      }
+      savedGearPreview(p.classId, body, head, weapon, offhand).then(art => {
+        if (art && anim.canvas.isConnected) anim.setArt(art);
+      }).catch(() => { });
 
       excitable(pod, anim);
 
@@ -553,7 +578,7 @@ export function openLobby(char, onBack) {
   function updateConnectionBadge() {
     const sub = $('#d2-channel-sub');
     if (!sub) return;
-    const hostLabel = (net && net.targetHost) || 'velscour.dagyr.me:8123';
+    const hostLabel = (net && net.targetHost) || 'mmo.dagyr.me:8124';
     if (net.connected) {
       sub.innerHTML = `<span style="color:#48e868;font-weight:700">&#9679; ONLINE</span> &middot; Multiplayer Realm &middot; <span style="color:#a8977c">Host: ${hostLabel}</span>`;
     } else if (net.shouldReconnect) {
@@ -574,7 +599,7 @@ export function openLobby(char, onBack) {
     renderPedestal(data.players || []);
     renderRoomList(data.rooms || []);
     const disp = $('#d2-channel-display');
-    if (disp) disp.textContent = `VELSCOUR SANCTUARY (${data.channel || 'En-1'})`;
+    if (disp) disp.textContent = `DAGYR ONLINE SANCTUARY (${data.channel || 'En-1'})`;
     updateConnectionBadge();
   };
 
@@ -596,8 +621,30 @@ export function openLobby(char, onBack) {
   const onConnected = () => updateConnectionBadge();
   const onDisconnected = () => updateConnectionBadge();
   const onReconnecting = () => updateConnectionBadge();
+  const onSessionKicked = (msg) => {
+    detachLobbyListeners();
+    if (lobbyEl) {
+      lobbyEl.remove();
+      lobbyEl = null;
+    }
+    onBack();
+    UI.dialog({
+      title: 'Disconnected — Signed In Elsewhere',
+      html: `<p>${escapeHtml((msg && msg.message) || 'This character was logged into from another device. Your previous session has been disconnected.')}</p>`,
+      buttons: [{ label: 'OK' }],
+    });
+  };
 
-  activeLobbyListeners = { onChat, onLobbyUpdate, onRoomError, onRoomJoined, onConnected, onDisconnected, onReconnecting };
+  const saveInterval = setInterval(() => {
+    if (char && char.isOnline) {
+      try {
+        char.marks = JSON.parse(JSON.stringify(endgame().marks));
+      } catch (e) { }
+      saveOnlineCharacter(char).catch(() => { });
+    }
+  }, 60000);
+
+  activeLobbyListeners = { saveInterval, onChat, onLobbyUpdate, onRoomError, onRoomJoined, onConnected, onDisconnected, onReconnecting, onSessionKicked };
   net.on('chat', onChat);
   net.on('lobby_update', onLobbyUpdate);
   net.on('room_error', onRoomError);
@@ -605,6 +652,7 @@ export function openLobby(char, onBack) {
   net.on('connected', onConnected);
   net.on('disconnected', onDisconnected);
   net.on('reconnecting', onReconnecting);
+  net.on('session_kicked', onSessionKicked);
 
   // Initial render
   updateConnectionBadge();

@@ -1,4 +1,4 @@
-# VELSCOUR style lock for the Runeblade 3D texture ("Grim Nocturne")
+# DAGYR style lock for the Runeblade 3D texture ("Grim Nocturne")
 
 This is the game's art bible, cut down to what a 3D-mapped sword texture needs. The rules are locked: the heroes and
 their armor, helmets and summons are all drawn by them. The Runeblade has to look as if the same artist painted it on

@@ -22,8 +22,8 @@ const MOBILE = process.argv.includes('mobile');
       if (!T.totem3DReady()) return { gl: false };
       const F = ['bear', 'wolf', 'eagle', 'serpent'];
       const states = [['buried', { rise: 0, fold: 1 }], ['rising 25%', { rise: 0.25, fold: 1, rim: 1 }], ['rising 60%', { rise: 0.6, fold: 1, rim: 1 }],
-        ['wings folded', { rise: 1, fold: 1 }], ['half open', { rise: 1, fold: 0.5 }], ['standing', { rise: 1 }],
-        ['eyes lit', { rise: 1, glow: [1, 1, 1, 1], rune: 1 }], ['blast flash', { rise: 1, flash: 0.6, rune: 1 }]];
+      ['wings folded', { rise: 1, fold: 1 }], ['half open', { rise: 1, fold: 0.5 }], ['standing', { rise: 1 }],
+      ['eyes lit', { rise: 1, glow: [1, 1, 1, 1], rune: 1 }], ['blast flash', { rise: 1, flash: 0.6, rune: 1 }]];
       const CW = 230, CH = 330, c = document.createElement('canvas'); c.width = CW * states.length; c.height = CH;
       const g = c.getContext('2d'); g.fillStyle = '#2a3020'; g.fillRect(0, 0, c.width, c.height);
       g.font = '13px monospace'; let drawn = 0;
@@ -36,7 +36,7 @@ const MOBILE = process.argv.includes('mobile');
       });
       // the buried state draws nothing; standing draws plenty; the inside never shows on a standing totem
       const px = (x0, x1) => { const d = g.getImageData(x0, 24, x1 - x0, CH - 24).data; let k = 0; for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x2a) + Math.abs(d[i + 1] - 0x30) + Math.abs(d[i + 2] - 0x20) > 40) k++; return k; };
-      const buried = px(0, CW) , standing = px(CW * 5, CW * 6);
+      const buried = px(0, CW), standing = px(CW * 5, CW * 6);
       const o2 = document.createElement('canvas'); o2.width = 4 * 260; o2.height = CH; const h = o2.getContext('2d'); h.fillStyle = '#2a3020'; h.fillRect(0, 0, o2.width, o2.height);
       const orders = [F, ['serpent', 'eagle', 'wolf', 'bear'], ['eagle', 'eagle', 'bear', 'bear'], ['wolf', 'serpent', 'wolf', 'serpent']];
       orders.forEach((f, i) => { h.save(); h.translate(i * 260 + 130, CH - 40); h.scale(1.6, 1.6); if (T.drawTotem3D(h, 0, 0, f, { k: 1, glow: [0.4, 0.4, 0.4, 0.4] })) drawn++; h.restore(); });
@@ -54,7 +54,7 @@ const MOBILE = process.argv.includes('mobile');
     }
     // 2. in play, stepped frame by frame
     await page.evaluate(async (MOBILE) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       await game.newChar('totem_master', 'Totemic');
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -88,7 +88,7 @@ const MOBILE = process.argv.includes('mobile');
     }, MOBILE);
     const step = async (k) => { await page.evaluate((k) => { window.__step = k; }, k); await page.waitForFunction(() => window.__step === 0); };
     const at = async () => page.evaluate(async () => {
-      const { G } = window.VELSCOUR, h = G.world.hazards.find((q) => q.constructor.name === 'GreatTotem');
+      const { G } = window.DAGYR, h = G.world.hazards.find((q) => q.constructor.name === 'GreatTotem');
       const { camera } = await import('/src/core/view.js');
       const q = h && camera.tileToScreen(h.x, h.y, 0), r = document.querySelector('canvas').getBoundingClientRect(), f = r.width / G.W;   // the page may be scaled (phones)
       return h ? { t: h.t, xy: [r.left + q[0] * f, r.top + q[1] * f] } : null;
@@ -117,9 +117,9 @@ const MOBILE = process.argv.includes('mobile');
     }, [shots, cw, ch]);
     save('totem_rise' + (MOBILE ? '_mobile' : ''), sheet);
     await step(80);
-    const gone = await page.evaluate(() => window.VELSCOUR.G.world.hazards.some((q) => q.constructor.name === 'GreatTotem'));
+    const gone = await page.evaluate(() => window.DAGYR.G.world.hazards.some((q) => q.constructor.name === 'GreatTotem'));
     ok(!gone, 'the totem has sunk away after its 8.7 s');
-    const fx = await page.evaluate(() => (window.VELSCOUR.G.sigStats || {}).totem_master || {});
+    const fx = await page.evaluate(() => (window.DAGYR.G.sigStats || {}).totem_master || {});
     ok(fx.fire === 1, 'the signature fired once');
   } catch (e) { console.log('FAIL ' + e.stack); process.exitCode = 1; }
   report(errors);

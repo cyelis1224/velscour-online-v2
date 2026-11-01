@@ -12,7 +12,7 @@
 Serve from the repo root and run:
 
 ```bash
-python3 -m http.server 8123
+python3 -m http.server 8124
 node tools/tests/data_check.mjs
 node tools/tests/select.js
 node tools/tests/select.js mobile

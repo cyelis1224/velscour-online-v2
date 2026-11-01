@@ -46,8 +46,14 @@ export const riftMarks = (tier) => Math.max(1, Math.ceil(tier / 10)); // (was ti
 
 function changed() {
   saveEndgame();
+  if (G.char) {
+    G.char.marks = JSON.parse(JSON.stringify(endgame().marks));
+  }
   if (G.player) G.player.recompute();
   if (G.ui && G.ui.refresh) G.ui.refresh();
+  if (G.char && G.char.isOnline && G.game && G.game.autosave) {
+    G.game.autosave();
+  }
 }
 let xpDirty = false, xpSaved = 0;
 /** XP earned at the level cap: Marks when it adds up (saved at once), else saved at most every 5 s and on autosave. */

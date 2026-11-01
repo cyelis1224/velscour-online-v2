@@ -83,7 +83,7 @@ freestanding lanterns; their objects use a different ground-pivot system.
 ## Validation
 
 ```bash
-python3 -m http.server 8123
+python3 -m http.server 8124
 node tools/tests/wall_torches.js
 node tools/tests/data_check.mjs
 node tools/tests/walls.js hell

@@ -2,7 +2,7 @@
 // frames, every look paints, bursts deal skulls/rib cages at most once, then shots: a magnified sheet of every bone in
 // every look and colour (bonegibs_sheet.png), and monsters of each gore type killed in a dungeon room, the bones in
 // flight and lying on the floor at the usual zoom (bonegibs_air.png, bonegibs_floor.png) and close up (_close).
-// From repo root: python3 -m http.server 8123; node tools/tests/bonegibs.js
+// From repo root: python3 -m http.server 8124; node tools/tests/bonegibs.js
 const fs = require('fs');
 const path = require('path');
 const { openGame, report, OUT_DIR } = require('./harness');
@@ -12,7 +12,7 @@ const { openGame, report, OUT_DIR } = require('./harness');
   try {
     const res = await page.evaluate(async () => {
       const problems = [];
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { A } = await import('/src/core/assets.js');
       const BG = await import('/src/gfx/bonegibs.js');
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -104,8 +104,10 @@ const { openGame, report, OUT_DIR } = require('./harness');
     const live = await page.evaluate(async () => {
       const { particles } = await import('/src/gfx/vfx.js');
       const gibs = particles.filter((q) => q.type === 'gib' && q.life > 0);
-      return { bones: gibs.filter((q) => q.bone).length, rects: gibs.filter((q) => !q.bone && !q.spr).length, lying: gibs.filter((q) => q.bone && q.z <= 0 && q.vr === 0).length,
-        kinds: [...new Set(gibs.filter((q) => q.bone).map((q) => q.bone))].join(','), looks: [0, 1, 2, 3].map((l) => gibs.filter((q) => q.bone && q.look === l).length).join('/') };
+      return {
+        bones: gibs.filter((q) => q.bone).length, rects: gibs.filter((q) => !q.bone && !q.spr).length, lying: gibs.filter((q) => q.bone && q.z <= 0 && q.vr === 0).length,
+        kinds: [...new Set(gibs.filter((q) => q.bone).map((q) => q.bone))].join(','), looks: [0, 1, 2, 3].map((l) => gibs.filter((q) => q.bone && q.look === l).length).join('/')
+      };
     });
     console.log('on the floor', JSON.stringify(live));
     if (!live.bones) errors.push('no bone gibs from the kills');

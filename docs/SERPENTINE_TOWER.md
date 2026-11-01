@@ -6,8 +6,8 @@ door opens onto the roof, where three waves of bosses come, then the last boss f
 opens a portal out.
 
 It is an overworld biome (`serpentine_tower` in `src/data/biomes.js`, `overworld: true, tower: true`), so it is in
-the regular draw and the overworld guarantee. Velscour's skull also reaches it: send the message `tower`, or pick it
-on the HAIL VELSCOUR! list.
+the regular draw and the overworld guarantee. Dagyr's skull also reaches it: send the message `tower`, or pick it
+on the HAIL DAGYR! list.
 
 | File | What |
 |---|---|

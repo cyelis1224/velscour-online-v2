@@ -16,7 +16,7 @@ const FX_SHOTS = process.argv[3] !== 'nofx';
   for (const cls of CLASSES) {
     // contact sheet: rows = rarities, columns = designs across the band; odd columns wear a helm
     const info = await page.evaluate(async (cls) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       if (G.char) game.quitToTitle && game.quitToTitle();
       await game.newChar(cls, 'Gear');
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
@@ -56,7 +56,7 @@ const FX_SHOTS = process.argv[3] !== 'nofx';
   // inventory + in-world look for the first class
   const cls = CLASSES[0];
   await page.evaluate(async (cls) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar(cls, 'Gear');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
     const { rollItem } = await import('/src/data/items.js');
@@ -72,7 +72,7 @@ const FX_SHOTS = process.argv[3] !== 'nofx';
 
   if (FX_SHOTS) {
     const n = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { camera } = await import('/src/core/view.js');
       G.godMode = true;
@@ -85,7 +85,7 @@ const FX_SHOTS = process.argv[3] !== 'nofx';
     });
     for (let i = 0; i < n; i++) {
       const name = await page.evaluate(async (i) => {
-        const { G } = window.VELSCOUR;
+        const { G } = window.DAGYR;
         const { rollItem } = await import('/src/data/items.js');
         const { GEAR_FX } = await import('/src/data/gear.js');
         const { itemLook } = await import('/src/core/gearart.js');
@@ -99,7 +99,7 @@ const FX_SHOTS = process.argv[3] !== 'nofx';
       }, i);
       await page.waitForTimeout(900); // particles build up
       const clip = await page.evaluate(async () => {
-        const { G } = window.VELSCOUR; const { camera } = await import('/src/core/view.js');
+        const { G } = window.DAGYR; const { camera } = await import('/src/core/view.js');
         const [x, y] = camera.tileToScreen(G.player.x, G.player.y, 0);
         return { x: Math.max(0, x - 150), y: Math.max(0, y - 230), width: 300, height: 290 };
       });

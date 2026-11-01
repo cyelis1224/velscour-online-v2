@@ -15,11 +15,11 @@ const mobile = process.argv[2] === 'mobile';
   const { browser, page, errors, shot } = await openGame(mobile ? { width: 844, height: 390, mobile: true } : { width: 1440, height: 810 });
   let fails = 0;
   const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };
-  await page.evaluate(async () => { await window.VELSCOUR.game.newChar('paladin', 'Gearbot'); window.VELSCOUR.G.autoDest = 'standard'; });
+  await page.evaluate(async () => { await window.DAGYR.game.newChar('paladin', 'Gearbot'); window.DAGYR.G.autoDest = 'standard'; });
   await page.waitForTimeout(800);
   // a town round with auto-play on: the statuses it showed (errands only) and where it ended up
   const townRound = async (secs, opts = {}) => page.evaluate(async ({ secs, freeAt }) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { Auto } = await import('/src/game/autoplay.js');
     const seen = new Set();
     let waited = false;
@@ -36,7 +36,7 @@ const mobile = process.argv[2] === 'mobile';
 
   // ---- 1. hands off
   const off = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const items = await import('/src/data/items.js');
     const { addToBag } = await import('/src/game/player.js');
     const { Auto } = await import('/src/game/autoplay.js');
@@ -52,7 +52,7 @@ const mobile = process.argv[2] === 'mobile';
   });
   const offTown = await townRound(120);
   const off2 = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const items = await import('/src/data/items.js');
     const { Auto } = await import('/src/game/autoplay.js');
     const c = G.char, out = { untouched: window.uids() === window.before, pots: c.potions.hp };
@@ -82,7 +82,7 @@ const mobile = process.argv[2] === 'mobile';
 
   // ---- 2. hands on: what it buys, it wears
   const on = await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { Auto } = await import('/src/game/autoplay.js');
     const { Vendor } = await import('/src/ui/vendor.js');
     if (G.world.kind !== 'town') { game.enterTown(); await new Promise((r) => setTimeout(r, 1500)); }
@@ -110,7 +110,7 @@ const mobile = process.argv[2] === 'mobile';
 
   // ---- 2b. hands on: +N gear goes to the storage chest, never to a vendor or the floor
   const plus0 = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const items = await import('/src/data/items.js');
     const { addToBag } = await import('/src/game/player.js');
     const { Auto } = await import('/src/game/autoplay.js');
@@ -127,7 +127,7 @@ const mobile = process.argv[2] === 'mobile';
   });
   const plusTown = await townRound(150);
   const plus = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const items = await import('/src/data/items.js');
     const { addToBag } = await import('/src/game/player.js');
     const { Auto } = await import('/src/game/autoplay.js');
@@ -153,7 +153,7 @@ const mobile = process.argv[2] === 'mobile';
 
   // ---- 3. Sell all
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     if (G.world.kind !== 'town') { game.enterTown(); await new Promise((r) => setTimeout(r, 1500)); }
     const items = await import('/src/data/items.js');
     const { addToBag } = await import('/src/game/player.js');
@@ -166,7 +166,7 @@ const mobile = process.argv[2] === 'mobile';
     G.ui.vendor.open('weapons');
   });
   await page.waitForTimeout(400);
-  const pre = await page.evaluate(() => { const c = window.VELSCOUR.G.char; return { gold: c.gold, gear: c.bag.filter((b) => b && b.type === 'gear' && !b.sealed).length, equip: Object.values(c.equip).filter(Boolean).map((b) => b.uid).join() }; });
+  const pre = await page.evaluate(() => { const c = window.DAGYR.G.char; return { gold: c.gold, gear: c.bag.filter((b) => b && b.type === 'gear' && !b.sealed).length, equip: Object.values(c.equip).filter(Boolean).map((b) => b.uid).join() }; });
   const btn = page.locator('.btn', { hasText: /^Sell all$/ }).first();
   await btn.scrollIntoViewIfNeeded();
   check(await btn.isVisible(), 'Sell all button shows in the inventory at a vendor');
@@ -175,12 +175,12 @@ const mobile = process.argv[2] === 'mobile';
   await page.waitForTimeout(200);
   await shot(`autogear_sellall_confirm${mobile ? '_mobile' : ''}`);
   await page.locator('.dialog-box button', { hasText: 'Cancel' }).click();
-  const cancelled = await page.evaluate(() => window.VELSCOUR.G.char.bag.filter((b) => b && b.type === 'gear' && !b.sealed).length);
+  const cancelled = await page.evaluate(() => window.DAGYR.G.char.bag.filter((b) => b && b.type === 'gear' && !b.sealed).length);
   check(cancelled === pre.gear, `Cancel sells nothing (${cancelled}/${pre.gear} gear left)`);
   await btn.click();
   await page.locator('.dialog-box button', { hasText: 'Sell all' }).click();
   await page.waitForTimeout(200);
-  const post = await page.evaluate(() => { const c = window.VELSCOUR.G.char; return { gold: c.gold, gear: c.bag.filter((b) => b && b.type === 'gear' && !b.sealed).length, sealed: c.bag.filter((b) => b && b.sealed).length, gems: c.bag.filter((b) => b && b.type === 'gem').map((b) => b.count || 1), equip: Object.values(c.equip).filter(Boolean).map((b) => b.uid).join(), disabled: [...document.querySelectorAll('.btn')].find((b) => b.textContent === 'Sell all')?.disabled, dialogs: document.querySelectorAll('.dialog-box').length }; });
+  const post = await page.evaluate(() => { const c = window.DAGYR.G.char; return { gold: c.gold, gear: c.bag.filter((b) => b && b.type === 'gear' && !b.sealed).length, sealed: c.bag.filter((b) => b && b.sealed).length, gems: c.bag.filter((b) => b && b.type === 'gem').map((b) => b.count || 1), equip: Object.values(c.equip).filter(Boolean).map((b) => b.uid).join(), disabled: [...document.querySelectorAll('.btn')].find((b) => b.textContent === 'Sell all')?.disabled, dialogs: document.querySelectorAll('.dialog-box').length }; });
   console.log(JSON.stringify({ pre, post }));
   check(post.gear === 0 && post.gold > pre.gold, `one confirmation sold ${pre.gear} pieces for ${post.gold - pre.gold} gold`);
   check(post.gems.join() === '4' && post.sealed === 1, 'gems and the sealed treasure are kept');
@@ -188,7 +188,7 @@ const mobile = process.argv[2] === 'mobile';
   check(post.disabled === true && post.dialogs === 0, 'the button greys out with no gear left, dialog closed');
   await shot(`autogear_sellall_done${mobile ? '_mobile' : ''}`);
   // no Sell all away from a vendor
-  await page.evaluate(async () => { window.VELSCOUR.G.ui.closeAll(); (await import('/src/ui/inventory.js')).toggleInventory(); });
+  await page.evaluate(async () => { window.DAGYR.G.ui.closeAll(); (await import('/src/ui/inventory.js')).toggleInventory(); });
   await page.waitForTimeout(300);
   check(!(await page.locator('.btn', { hasText: /^Sell all$/ }).count()), 'no Sell all button away from a vendor');
 

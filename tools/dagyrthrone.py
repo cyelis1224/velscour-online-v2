@@ -1,9 +1,9 @@
-"""Velscour's throne: the Castle pack's throne dais (furniture_01_throne_dais), recoloured to match him and scaled for
-a 2 x 2 tile footprint in his throne room (world/dungeon.js generateThrone, gfx/velscourthrone.js).
+"""Dagyr's throne: the Castle pack's throne dais (furniture_01_throne_dais), recoloured to match him and scaled for
+a 2 x 2 tile footprint in his throne room (world/dungeon.js generateThrone, gfx/Dagyrthrone.js).
 
-  python tools/velscourthrone.py
+  python tools/Dagyrthrone.py
 
-Reads assets/tiles/castle/furniture.webp + pack.json; writes assets/tiles/throne/velscour_throne.webp and .json
+Reads assets/tiles/castle/furniture.webp + pack.json; writes assets/tiles/throne/Dagyr_throne.webp and .json
 (w, h, ox, oy: the ground pivot, the front corner of the dais, in the written image's pixels).
 Recolour by hue: blood-red velvet stays red but deeper; brass and gilt trim become bone-gold (his horns and spikes);
 the oak frame becomes blackened iron with an ember cast; the pale dais stone becomes charcoal shot with red.
@@ -72,10 +72,10 @@ def main():
     w, hh = round(f['w'] * k), round(f['h'] * k)
     res = res.resize((w, hh), Image.LANCZOS)
     os.makedirs(OUT, exist_ok=True)
-    res.save(os.path.join(OUT, 'velscour_throne.webp'), quality=92, method=6)
+    res.save(os.path.join(OUT, 'Dagyr_throne.webp'), quality=92, method=6)
     px, py = f['pivot']
     json.dump({'w': w, 'h': hh, 'ox': -round(px * k), 'oy': -round(py * k), 'over': OVER, 'source': ID},
-              open(os.path.join(OUT, 'velscour_throne.json'), 'w'))
+              open(os.path.join(OUT, 'Dagyr_throne.json'), 'w'))
     print('wrote', w, 'x', hh, 'pivot', round(px * k), round(py * k))
 
 

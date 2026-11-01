@@ -23,7 +23,7 @@ const MOBILE = process.argv.includes('mobile'), VIDEO = process.argv.includes('v
       const T = await import('/src/gfx/gunner3d.js');
       T.preloadGunner3D();
       const kinds = [...T.TURRET3D];
-      const fake = (k, yaw) => ({ summonKey: k, x: 0, y: 0, z: 0, animT: 5, spawnT: 9, attackAnimT: 0, facing: yaw, target: { x: Math.cos(yaw) * 3, y: Math.sin(yaw) * 3 }, flash: 0, drawRim() {}, drawOverhead() {} });
+      const fake = (k, yaw) => ({ summonKey: k, x: 0, y: 0, z: 0, animT: 5, spawnT: 9, attackAnimT: 0, facing: yaw, target: { x: Math.cos(yaw) * 3, y: Math.sin(yaw) * 3 }, flash: 0, drawRim() { }, drawOverhead() { } });
       for (let i = 0; i < 100 && !T.drawTurret3D(document.createElement('canvas').getContext('2d'), fake('cryoturret', 0)); i++) await new Promise((r) => setTimeout(r, 100));
       await new Promise((r) => setTimeout(r, 500));
       const metas = await Promise.all([...kinds, 'biplane'].map((k) => fetch(`/assets/sprites/gunner/${k}.json`).then((r) => r.json())));
@@ -31,11 +31,13 @@ const MOBILE = process.argv.includes('mobile'), VIDEO = process.argv.includes('v
       const g = c.getContext('2d'); g.fillStyle = '#3a3428'; g.fillRect(0, 0, c.width, c.height);
       let drawn = 0, empty = 0;
       const ink = (x, y) => { const d = g.getImageData(x, y, CW, CH).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] !== 0x3a || d[i + 1] !== 0x34) n++; return n; };
-      kinds.forEach((k, r) => { for (let i = 0; i < 8; i++) {
-        const yaw = (i / 8) * Math.PI * 2, m = fake(k, yaw); m._t3 = { yaw, base: yaw, t: 5, spin: 0 };
-        g.save(); g.translate(i * CW + CW / 2, r * CH + 88); g.scale(1.5, 1.5); if (T.drawTurret3D(g, Object.assign(m, { x: 0, y: 0 }))) drawn++; g.restore();
-        if (ink(i * CW, r * CH) < 400) empty++;
-      } });
+      kinds.forEach((k, r) => {
+        for (let i = 0; i < 8; i++) {
+          const yaw = (i / 8) * Math.PI * 2, m = fake(k, yaw); m._t3 = { yaw, base: yaw, t: 5, spin: 0 };
+          g.save(); g.translate(i * CW + CW / 2, r * CH + 88); g.scale(1.5, 1.5); if (T.drawTurret3D(g, Object.assign(m, { x: 0, y: 0 }))) drawn++; g.restore();
+          if (ink(i * CW, r * CH) < 400) empty++;
+        }
+      });
       for (let i = 0; i < 8; i++) { g.save(); g.translate(i * CW + CW / 2, 4 * CH + 60); if (T.drawBiplane3D(g, 0, 0, 0, (i / 8) * Math.PI * 2, 0, 0.9)) drawn++; g.restore(); }
       return { drawn, empty, metas, url: c.toDataURL() };
     });
@@ -46,7 +48,7 @@ const MOBILE = process.argv.includes('mobile'), VIDEO = process.argv.includes('v
 
     // 2. in play
     await page.evaluate(async ([MOBILE, BIOME]) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       await game.newChar('gunner', 'Turretwright');
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -81,7 +83,7 @@ const MOBILE = process.argv.includes('mobile'), VIDEO = process.argv.includes('v
     }, [MOBILE, BIOME]);
     const step = async (k) => { await page.evaluate((k) => { window.__step = k; }, k); await page.waitForFunction(() => window.__step === 0); await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))); };
     const dummies = (n, speed) => page.evaluate(async ([n, speed]) => {
-      const { G } = window.VELSCOUR, w = G.world, p = G.player;
+      const { G } = window.DAGYR, w = G.world, p = G.player;
       const { makeMonster } = await import('/src/game/monster.js');
       const roster = w.biome.roster || ['skeleton'], out = [];
       for (let k = 0; k < n; k++) {
@@ -91,7 +93,7 @@ const MOBILE = process.argv.includes('mobile'), VIDEO = process.argv.includes('v
         m.maxHp = m.hp = speed ? window.__turrets[0].dmg * 18 : 1e9; if (!speed) m.speed = 0; m.awake = true; w.add(m); out.push(m);
       }
       w.rebuildGrid();
-      await window.VELSCOUR.game.warmArt();   // their sprites, not the loading placeholders
+      await window.DAGYR.game.warmArt();   // their sprites, not the loading placeholders
       return out.length;
     }, [n, speed]);
     ok((await dummies(6, 0)) >= 4, 'dummies placed round the turrets');
@@ -113,7 +115,7 @@ const MOBILE = process.argv.includes('mobile'), VIDEO = process.argv.includes('v
     const vp = page.viewportSize(), cw = MOBILE ? 420 : 560, ch = MOBILE ? 330 : 420;
     const clipNow = async () => {
       const xy = await page.evaluate(async () => {
-        const { G } = window.VELSCOUR, { camera } = await import('/src/core/view.js'), q = camera.tileToScreen(G.player.x + 2.4, G.player.y, 0);
+        const { G } = window.DAGYR, { camera } = await import('/src/core/view.js'), q = camera.tileToScreen(G.player.x + 2.4, G.player.y, 0);
         const r = document.querySelector('canvas').getBoundingClientRect(), f = r.width / G.W; return [r.left + q[0] * f, r.top + q[1] * f];
       });
       return { x: Math.max(0, Math.min(vp.width - cw, xy[0] - cw / 2)), y: Math.max(0, Math.min(vp.height - ch, xy[1] - ch / 2)), width: cw, height: ch };
@@ -122,7 +124,7 @@ const MOBILE = process.argv.includes('mobile'), VIDEO = process.argv.includes('v
 
     // 3. walking through each turret, in a straight line
     const walk = await page.evaluate(async () => {
-      const { G } = window.VELSCOUR, p = G.player, w = G.world, out = [];
+      const { G } = window.DAGYR, p = G.player, w = G.world, out = [];
       for (const c of w.creatures) if (!c.isPlayer && !c.summon) c.dead = true;
       for (const t of window.__turrets) {
         const y = t.y, x0 = t.x - 1.6, x1 = t.x + 1.6;
@@ -140,18 +142,18 @@ const MOBILE = process.argv.includes('mobile'), VIDEO = process.argv.includes('v
     // 4. the Bombing Run
     await dummies(8, 1);
     await page.evaluate(async () => {
-      const { G } = window.VELSCOUR, p = G.player, s = p.sig.s;
+      const { G } = window.DAGYR, p = G.player, s = p.sig.s;
       s.marks = 10; s.locks = G.world.creatures.filter((c) => c.team === 'enemy' && !c.dead).slice(0, 8);
       G.sigStats = {};
     });
     let flew = 0, bombs = 0;
     for (let i = 0; i < 8; i++) {
       await step(i ? 14 : 22);
-      const q = await page.evaluate(() => { const h = window.VELSCOUR.G.world.hazards; return { run: h.some((x) => x.constructor.name === 'Run'), bombs: h.filter((x) => x.constructor.name === 'Bomb').length }; });
+      const q = await page.evaluate(() => { const h = window.DAGYR.G.world.hazards; return { run: h.some((x) => x.constructor.name === 'Run'), bombs: h.filter((x) => x.constructor.name === 'Bomb').length }; });
       flew += q.run; bombs += q.bombs;
       if (i < 5) shotsAt.push({ label: `bombing run ${i}`, png: (await page.screenshot({ clip: await clipNow() })).toString('base64') });
     }
-    const st = await page.evaluate(() => (window.VELSCOUR.G.sigStats || {}).gunner || {});
+    const st = await page.evaluate(() => (window.DAGYR.G.sigStats || {}).gunner || {});
     ok(st.fire === 1, 'the Bombing Run was called in');
     ok(flew >= 3 && bombs > 0, `the biplane flew over (${flew} frames) and dropped bombs (${bombs} seen falling)`);
     const sheet = await page.evaluate(async ([shots, cw, ch]) => {
@@ -172,18 +174,20 @@ const MOBILE = process.argv.includes('mobile'), VIDEO = process.argv.includes('v
       let n = 0;
       // a close crop round the turrets (the camera follows the hero, so it is placed every frame)
       const FW = Math.min(vp.width, 1100), FH = vp.height;
-      const film = async (frames, k = 2) => { for (let i = 0; i < frames; i++) {   // k game frames (1/60 s) per film frame at 30 fps
-        await step(k);
-        const xy = await page.evaluate(async () => {
-          const { G } = window.VELSCOUR, { camera } = await import('/src/core/view.js'), T = window.__turrets;
-          const q = camera.tileToScreen(T.reduce((a, t) => a + t.x, 0) / T.length + 1.2, T.reduce((a, t) => a + t.y, 0) / T.length - 0.6, 0);
-          const r = document.querySelector('canvas').getBoundingClientRect(), f = r.width / G.W; return [r.left + q[0] * f, r.top + q[1] * f];
-        });
-        const clip = { x: Math.max(0, Math.min(vp.width - FW, Math.round(xy[0] - FW / 2))), y: 0, width: FW, height: FH };
-        fs.writeFileSync(path.join(dir, `f${String(n++).padStart(4, '0')}.png`), await page.screenshot({ clip }));
-      } };
+      const film = async (frames, k = 2) => {
+        for (let i = 0; i < frames; i++) {   // k game frames (1/60 s) per film frame at 30 fps
+          await step(k);
+          const xy = await page.evaluate(async () => {
+            const { G } = window.DAGYR, { camera } = await import('/src/core/view.js'), T = window.__turrets;
+            const q = camera.tileToScreen(T.reduce((a, t) => a + t.x, 0) / T.length + 1.2, T.reduce((a, t) => a + t.y, 0) / T.length - 0.6, 0);
+            const r = document.querySelector('canvas').getBoundingClientRect(), f = r.width / G.W; return [r.left + q[0] * f, r.top + q[1] * f];
+          });
+          const clip = { x: Math.max(0, Math.min(vp.width - FW, Math.round(xy[0] - FW / 2))), y: 0, width: FW, height: FH };
+          fs.writeFileSync(path.join(dir, `f${String(n++).padStart(4, '0')}.png`), await page.screenshot({ clip }));
+        }
+      };
       await page.evaluate(async () => {
-        const { G } = window.VELSCOUR, p = G.player, w = G.world, { camera } = await import('/src/core/view.js');
+        const { G } = window.DAGYR, p = G.player, w = G.world, { camera } = await import('/src/core/view.js');
         G.settings.zoom = 2.1; camera.computeZoom();
         const hud = document.getElementById('hud'); if (hud) hud.style.visibility = 'hidden';   // the film shows the field only
         for (const c of w.creatures) if (!c.isPlayer && !c.summon) c.dead = true;
@@ -194,15 +198,15 @@ const MOBILE = process.argv.includes('mobile'), VIDEO = process.argv.includes('v
       await film(30);
       await dummies(6, 1);
       await film(150);
-      await page.evaluate(() => { const { G } = window.VELSCOUR, p = G.player, t = window.__turrets[2]; p.setMoveTarget(t.x + 2.2, t.y + 0.1); });
+      await page.evaluate(() => { const { G } = window.DAGYR, p = G.player, t = window.__turrets[2]; p.setMoveTarget(t.x + 2.2, t.y + 0.1); });
       await film(60);
       await page.evaluate(async () => {   // a clear field and a wider view for the plane
-        const { G } = window.VELSCOUR, { camera } = await import('/src/core/view.js');
+        const { G } = window.DAGYR, { camera } = await import('/src/core/view.js');
         for (const c of G.world.creatures) if (c.team === 'enemy') c.dead = true;
         G.settings.zoom = 1.5; camera.computeZoom();
       });
       await dummies(7, 1);
-      await page.evaluate(() => { const { G } = window.VELSCOUR, s = G.player.sig.s; s.busy = 0; s.marks = 10; s.locks = G.world.creatures.filter((c) => c.team === 'enemy' && !c.dead).slice(0, 8); });
+      await page.evaluate(() => { const { G } = window.DAGYR, s = G.player.sig.s; s.busy = 0; s.marks = 10; s.locks = G.world.creatures.filter((c) => c.team === 'enemy' && !c.dead).slice(0, 8); });
       await film(150, 1);   // the Bombing Run at half speed
       const mp4 = path.join(OUT_DIR, 'gunner3d_action.mp4'), gif = path.join(OUT_DIR, 'gunner3d_action.gif');
       try {

@@ -17,7 +17,7 @@ async function run() {
     if (msg.type() === 'error') console.error('Browser error:', msg.text());
   });
 
-  await page.goto('http://localhost:8123/?test=1&client_version=1.0.1');
+  await page.goto('http://localhost:8124/?test=1&client_version=1.0.1');
   await page.waitForTimeout(2000);
 
   // Check UI and log

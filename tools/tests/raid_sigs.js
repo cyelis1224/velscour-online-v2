@@ -6,7 +6,7 @@ const only = (process.argv[2] || '').split(',').filter(Boolean), secs = +(proces
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
   await page.evaluate(async (cls) => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar(cls, 'Raider');
     document.querySelectorAll('.screen').forEach((s) => s.remove());
     G.ui.modalCount = 0;
@@ -24,7 +24,7 @@ const only = (process.argv[2] || '').split(',').filter(Boolean), secs = +(proces
   const fails = [];
   for (const id of ids) {
     const r = await page.evaluate(async (id) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { RAID_BOSSES } = await import('/src/game/raid.js');
       const { loadArtFor } = await import('/src/core/enemyart.js');
@@ -34,7 +34,7 @@ const only = (process.argv[2] || '').split(',').filter(Boolean), secs = +(proces
       game.buildDungeon(25, BIOME_BY_ID.cathedral);
       RAID_BOSSES.splice(0, RAID_BOSSES.length, ...keep);
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
-      await loadArtFor([G.world.boss.art]).catch(() => {});
+      await loadArtFor([G.world.boss.art]).catch(() => { });
       const w = G.world, p = G.player, b = w.boss, R = w.raid;
       for (const c of w.creatures) if (c.team === 'enemy' && c !== b) c.dead = true;
       G.godMode = true;
@@ -52,7 +52,7 @@ const only = (process.argv[2] || '').split(',').filter(Boolean), secs = +(proces
     await shot(`raidsig_${id}`);
     // auto-play fights it: a hero a little over the depth, no god mode
     const f = await page.evaluate(async ([id, secs]) => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { RAID_BOSSES } = await import('/src/game/raid.js');
       const { Auto } = await import('/src/game/autoplay.js');
@@ -71,9 +71,11 @@ const only = (process.argv[2] || '').split(',').filter(Boolean), secs = +(proces
       let t = 0, minHp = 1, dead = false, lastHp = p.hp;
       const hits = {}, statuses = {};
       while (t < secs) {
-        for (let i = 0; i < 30; i++) { if (G.mode !== 'game' || G.world !== w) break; G.dt = 1 / 30; G.time += G.dt; G.frame++; game.update(1 / 30); t += 1 / 30; minHp = Math.min(minHp, p.hp / p.maxHp); if (p.dead) dead = true;
+        for (let i = 0; i < 30; i++) {
+          if (G.mode !== 'game' || G.world !== w) break; G.dt = 1 / 30; G.time += G.dt; G.frame++; game.update(1 / 30); t += 1 / 30; minHp = Math.min(minHp, p.hp / p.maxHp); if (p.dead) dead = true;
           const lost = lastHp - p.hp; lastHp = p.hp; statuses[Auto.status] = (statuses[Auto.status] || 0) + 1 / 30;
-          if (lost > 0) { const k = (R.m.action && R.m.action.sig) || (R.m.action && R.m.action.kind) || 'other'; hits[k] = (hits[k] || 0) + lost / p.maxHp; } }
+          if (lost > 0) { const k = (R.m.action && R.m.action.sig) || (R.m.action && R.m.action.kind) || 'other'; hits[k] = (hits[k] || 0) + lost / p.maxHp; }
+        }
         if (dead || b.dead || G.world !== w) break;
         await new Promise((r) => setTimeout(r, 0));
       }
@@ -89,7 +91,7 @@ const only = (process.argv[2] || '').split(',').filter(Boolean), secs = +(proces
     if (r.bad.length) fails.push(`${id}: ${r.bad.join(',')}`);
     // reset the hero for the next one (the death screen shows 1.7 s after a death)
     await page.waitForTimeout(2200);
-    await page.evaluate(async () => { const { G, game } = window.VELSCOUR; if (G.player.dead) { G.player.dead = false; G.player.hp = G.player.maxHp; } document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; });
+    await page.evaluate(async () => { const { G, game } = window.DAGYR; if (G.player.dead) { G.player.dead = false; G.player.hp = G.player.maxHp; } document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; });
   }
   console.log(fails.length ? 'FAIL\n' + fails.join('\n') : 'PASS');
   if (fails.length) process.exitCode = 1;

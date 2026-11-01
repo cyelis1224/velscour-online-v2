@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const BASE_URL = 'http://localhost:8123';
+const BASE_URL = 'http://localhost:8124';
 const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
 
 (async () => {
@@ -22,15 +22,15 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     p2.on('console', m => console.log('[P2 browser]', m.text()));
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
     }
 
     console.log('Navigating players to game...');
     await p1.goto(BASE_URL + '/index.html');
     await p2.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Inject hero saves
     await p1.evaluate(async () => {
@@ -76,7 +76,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.fill('#d2-create-name', roomName);
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
-    await p1.waitForFunction(() => window.VELSCOUR.G.mode === 'game' && window.VELSCOUR.G.world?.kind === 'town');
+    await p1.waitForFunction(() => window.DAGYR.G.mode === 'game' && window.DAGYR.G.world?.kind === 'town');
     console.log('P1 created and entered game in town.');
 
     // P2 joins room
@@ -91,7 +91,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.VELSCOUR.G.mode === 'game' && window.VELSCOUR.G.world?.kind === 'town');
+    await p2.waitForFunction(() => window.DAGYR.G.mode === 'game' && window.DAGYR.G.world?.kind === 'town');
     console.log('P2 successfully joined room and entered town.');
 
     await p1.waitForTimeout(1000);
@@ -101,32 +101,32 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     console.log('\n--- TEST 1: Both in dungeon, P1 kills champion far away from P2 ---');
     // Position both players at town portal
     await p1.evaluate(() => {
-      const portal = window.VELSCOUR.G.world.portals[0];
-      window.VELSCOUR.G.player.x = portal.x;
-      window.VELSCOUR.G.player.y = portal.y;
-      window.VELSCOUR.G.char.nextBiome = 'catacombs';
+      const portal = window.DAGYR.G.world.portals[0];
+      window.DAGYR.G.player.x = portal.x;
+      window.DAGYR.G.player.y = portal.y;
+      window.DAGYR.G.char.nextBiome = 'catacombs';
     });
     await p2.evaluate(() => {
-      const portal = window.VELSCOUR.G.world.portals[0];
-      window.VELSCOUR.G.player.x = portal.x;
-      window.VELSCOUR.G.player.y = portal.y;
+      const portal = window.DAGYR.G.world.portals[0];
+      window.DAGYR.G.player.x = portal.x;
+      window.DAGYR.G.player.y = portal.y;
     });
 
-    await p1.evaluate(() => window.VELSCOUR.game.enterDungeon());
-    await p2.waitForFunction(() => window.VELSCOUR.G.room?.biome === 'catacombs', null, { timeout: 5000 });
-    await p2.evaluate(() => window.VELSCOUR.game.enterDungeon());
+    await p1.evaluate(() => window.DAGYR.game.enterDungeon());
+    await p2.waitForFunction(() => window.DAGYR.G.room?.biome === 'catacombs', null, { timeout: 5000 });
+    await p2.evaluate(() => window.DAGYR.game.enterDungeon());
 
-    await p1.waitForFunction(() => window.VELSCOUR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
-    await p2.waitForFunction(() => window.VELSCOUR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
+    await p1.waitForFunction(() => window.DAGYR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
+    await p2.waitForFunction(() => window.DAGYR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
     console.log('Both players entered dungeon Depth 1.');
 
     // Verify exit portal starts sealed on both
     const p1ExitInitial = await p1.evaluate(() => {
-      const exit = window.VELSCOUR.G.world.portals.find(p => p.type === 'exit');
+      const exit = window.DAGYR.G.world.portals.find(p => p.type === 'exit');
       return { active: exit.active, label: exit.label };
     });
     const p2ExitInitial = await p2.evaluate(() => {
-      const exit = window.VELSCOUR.G.world.portals.find(p => p.type === 'exit');
+      const exit = window.DAGYR.G.world.portals.find(p => p.type === 'exit');
       return { active: exit.active, label: exit.label };
     });
     console.log('Initial exit portal P1:', p1ExitInitial, 'P2:', p2ExitInitial);
@@ -135,19 +135,19 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // P2 stays at entrance while P1 slays the boss
     await p1.evaluate(async () => {
       const { hit } = await import('/src/game/combat.js');
-      const boss = window.VELSCOUR.G.world.boss;
+      const boss = window.DAGYR.G.world.boss;
       console.log('P1 slaying boss:', boss?.name, boss?.netId);
-      hit(window.VELSCOUR.G.player, boss, 999999, 'phys');
+      hit(window.DAGYR.G.player, boss, 999999, 'phys');
     });
 
     // Wait for network propagation
     await p2.waitForFunction(() => {
-      const exit = window.VELSCOUR.G.world.portals.find(p => p.type === 'exit');
+      const exit = window.DAGYR.G.world.portals.find(p => p.type === 'exit');
       return exit && exit.active === true;
     }, null, { timeout: 5000 });
 
     const p2ExitAfterKill = await p2.evaluate(() => {
-      const exit = window.VELSCOUR.G.world.portals.find(p => p.type === 'exit');
+      const exit = window.DAGYR.G.world.portals.find(p => p.type === 'exit');
       return { active: exit.active, label: exit.label, color: exit.color };
     });
     console.log('P2 exit portal after P1 killed boss:', p2ExitAfterKill);
@@ -158,20 +158,20 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     console.log('\n--- TEST 2: Player enters floor AFTER champion is already slain ---');
     // P2 returns to town
     await p2.evaluate(() => {
-      window.VELSCOUR.game.enterTown();
+      window.DAGYR.game.enterTown();
     });
-    await p2.waitForFunction(() => window.VELSCOUR.G.world?.kind === 'town', null, { timeout: 10000 });
+    await p2.waitForFunction(() => window.DAGYR.G.world?.kind === 'town', null, { timeout: 10000 });
     console.log('P2 returned to town.');
 
     // Now P2 re-enters dungeon Depth 1 from town portal
     await p2.evaluate(() => {
-      window.VELSCOUR.game.enterDungeon(1);
+      window.DAGYR.game.enterDungeon(1);
     });
-    await p2.waitForFunction(() => window.VELSCOUR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
+    await p2.waitForFunction(() => window.DAGYR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
     console.log('P2 re-entered dungeon Depth 1 after champion was already dead.');
 
     const p2ExitOnReentry = await p2.evaluate(() => {
-      const exit = window.VELSCOUR.G.world.portals.find(p => p.type === 'exit');
+      const exit = window.DAGYR.G.world.portals.find(p => p.type === 'exit');
       return { active: exit.active, label: exit.label, color: exit.color };
     });
     console.log('P2 exit portal state upon floor entry:', p2ExitOnReentry);
@@ -183,8 +183,8 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // TEST 3: Interacting with exit portal works and doesn't get blocked
     console.log('\n--- TEST 3: Interacting with exit portal ---');
     const portalChoiceDialogOpened = await p2.evaluate(() => {
-      const exit = window.VELSCOUR.G.world.portals.find(p => p.type === 'exit');
-      window.VELSCOUR.game.useExit(window.VELSCOUR.G.world, exit);
+      const exit = window.DAGYR.G.world.portals.find(p => p.type === 'exit');
+      window.DAGYR.game.useExit(window.DAGYR.G.world, exit);
       return !!document.querySelector('.portal-choice, .ui-dialog');
     });
     console.log('Portal choice dialog opened:', portalChoiceDialogOpened);

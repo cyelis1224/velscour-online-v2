@@ -33,7 +33,7 @@ console.log('example', s.name, 'dmg L1', skillBaseDamage(s, 1), 'dmg L20', skill
 const { BESTIARY, SUMMON_ART, FAMILIAR_ART, ART_BY_ID, artPool, rollLooks } = await import(new URL('../../src/data/bestiary.js', import.meta.url));
 const { ARCH } = await import(new URL('../../src/data/enemies.js', import.meta.url));
 const { HEAVENLY_MONSTERS } = await import(new URL('../../src/data/heavenly.js', import.meta.url));
-if (HEAVENLY_MONSTERS.length !== 60 || new Set(HEAVENLY_MONSTERS.map(m=>m.id)).size !== 60) bad.push('Expected 60 distinct Heavenly monsters');
+if (HEAVENLY_MONSTERS.length !== 60 || new Set(HEAVENLY_MONSTERS.map(m => m.id)).size !== 60) bad.push('Expected 60 distinct Heavenly monsters');
 const { BIOMES, drawBiome, mixPartner } = await import(new URL('../../src/data/biomes.js', import.meta.url));
 const { SET3 } = await import(new URL('../../src/data/bestiary3.js', import.meta.url));
 if (SET3.length !== 260) bad.push('Expected the 260 monsters of enemy set 3');
@@ -44,17 +44,17 @@ const ids = new Set(), cells = new Set();
 for (const a of BESTIARY) {
   if (ids.has(a.id)) bad.push(`duplicate monster art id ${a.id}`);
   ids.add(a.id);
-  if(a.sheet==='sea_of_sand'){
-    if(!a.seaOfSand||!a.id.startsWith('ss_')||!ARCH[a.arch]||!(a.h>20&&a.h<120))
-      bad.push('Invalid Sea of Sand monster art '+a.id);
-    if(cells.has(a.sheet+a.i))bad.push(`monster art ${a.id}: cell ${a.sheet}#${a.i} used twice`);
-    cells.add(a.sheet+a.i);
+  if (a.sheet === 'sea_of_sand') {
+    if (!a.seaOfSand || !a.id.startsWith('ss_') || !ARCH[a.arch] || !(a.h > 20 && a.h < 120))
+      bad.push('Invalid Sea of Sand monster art ' + a.id);
+    if (cells.has(a.sheet + a.i)) bad.push(`monster art ${a.id}: cell ${a.sheet}#${a.i} used twice`);
+    cells.add(a.sheet + a.i);
     continue; // atlas frames are validated from the generated runtime pack below
   }
   if (a.sheet === 'heavenly/generated') {
     if (!a.id.startsWith('hv_') || !a.name || !ARCH[a.arch] ||
-        !ELEMENTS.includes(a.el) || !(a.h > 20 && a.h < 120))
-      bad.push('invalid Heavenly monster '+a.id);
+      !ELEMENTS.includes(a.el) || !(a.h > 20 && a.h < 120))
+      bad.push('invalid Heavenly monster ' + a.id);
     continue; // cut from the painted Heavenly sheets (gfx/heavenlymonsters.js), no enemies.json cell
   }
   if (!meta[a.sheet] || !meta[a.sheet].cells[a.i]) bad.push(`monster art ${a.id}: no cell ${a.sheet}#${a.i}`);
@@ -79,7 +79,7 @@ for (const [k, d] of Object.entries(SUMMONS)) {
   for (const A of [d.atk, d.spell]) if (A && A.type === 'spawn' && !SUMMONS[A.what]) bad.push(`summon ${k}: spawns unknown ${A.what}`);
 }
 for (const [k, s] of Object.entries(meta)) s.cells.forEach((c, i) => { if (c && !cells.has(k + i)) console.log(`note: ${k}#${i} has no bestiary entry yet`); });
-for (const k of Object.keys(ARCH)) if (k !== 'velscour' && !artPool(k).length) bad.push(`archetype ${k} has no monster art`);
+for (const k of Object.keys(ARCH)) if (k !== 'Dagyr' && !artPool(k).length) bad.push(`archetype ${k} has no monster art`);
 for (const b of BIOMES) {
   const looks = rollLooks(b);
   for (const k of b.roster) if (!looks.pick(k)) bad.push(`biome ${b.id}: no look for ${k}`);
@@ -89,27 +89,27 @@ for (const b of BIOMES) {
 // every biome's pack exists and is complete: all 16 wall connection masks per family, with an arm for each
 // connection, arches and doors in 4 directions (doors open and closed), self-seamless floors, chest art
 const { readFileSync, existsSync } = await import('node:fs');
-const sandPack=JSON.parse(readFileSync(new URL('../../assets/tiles/sea_of_sand/pack.json',import.meta.url)));
-for(const [kind,count] of Object.entries({floor:60,scatter:40,tree:18,monster:60,boss:10,cliff:216}))
-  if(sandPack.atlases[kind]?.length!==count)bad.push(`Sea of Sand ${kind} atlas expected ${count} frames`);
+const sandPack = JSON.parse(readFileSync(new URL('../../assets/tiles/sea_of_sand/pack.json', import.meta.url)));
+for (const [kind, count] of Object.entries({ floor: 60, scatter: 40, tree: 18, monster: 60, boss: 10, cliff: 216 }))
+  if (sandPack.atlases[kind]?.length !== count) bad.push(`Sea of Sand ${kind} atlas expected ${count} frames`);
 const asset = (f) => new URL('../../assets/' + f, import.meta.url);
 const packs = {};
 for (const b of BIOMES) {
   if (!b.pack) { bad.push(`biome ${b.id}: no pack`); continue; }
   if (b.overworld) {
-    if(b.id==='sea_of_sand'){
-      if(b.pack!=='sea_of_sand')bad.push('Sea of Sand must use its native art pack');
-      for(const f of ['pack.json','floor.webp','scatter.webp','tree.webp','monster.webp','boss.webp','cliff.webp'])
-        if(!existsSync(asset(`tiles/sea_of_sand/${f}`)))bad.push(`Sea of Sand: missing tiles/sea_of_sand/${f}`);
-    }else if(b.id==='castle'){
-      if(b.pack!=='castle')bad.push('Castle must use its native art pack');
-      for(const f of ['pack.json','floors.webp','walls.webp','castle_bridges.webp','wall_hangings.webp'])
-        if(!existsSync(asset(`tiles/castle/${f}`)))bad.push(`Castle: missing tiles/castle/${f}`);
-    }else if(b.id==='dark_forest'){
-      if(b.pack!=='dark_forest'||!b.packArt)bad.push('Dark Forest must load its own biome pack (packArt)');
-      for(const f of ['pack.json','floors.webp','walls.webp','scatter.webp','trees.webp','trees.json'])
-        if(!existsSync(asset(`tiles/dark_forest/${f}`)))bad.push(`Dark Forest: missing tiles/dark_forest/${f}`);
-    }else{
+    if (b.id === 'sea_of_sand') {
+      if (b.pack !== 'sea_of_sand') bad.push('Sea of Sand must use its native art pack');
+      for (const f of ['pack.json', 'floor.webp', 'scatter.webp', 'tree.webp', 'monster.webp', 'boss.webp', 'cliff.webp'])
+        if (!existsSync(asset(`tiles/sea_of_sand/${f}`))) bad.push(`Sea of Sand: missing tiles/sea_of_sand/${f}`);
+    } else if (b.id === 'castle') {
+      if (b.pack !== 'castle') bad.push('Castle must use its native art pack');
+      for (const f of ['pack.json', 'floors.webp', 'walls.webp', 'castle_bridges.webp', 'wall_hangings.webp'])
+        if (!existsSync(asset(`tiles/castle/${f}`))) bad.push(`Castle: missing tiles/castle/${f}`);
+    } else if (b.id === 'dark_forest') {
+      if (b.pack !== 'dark_forest' || !b.packArt) bad.push('Dark Forest must load its own biome pack (packArt)');
+      for (const f of ['pack.json', 'floors.webp', 'walls.webp', 'scatter.webp', 'trees.webp', 'trees.json'])
+        if (!existsSync(asset(`tiles/dark_forest/${f}`))) bad.push(`Dark Forest: missing tiles/dark_forest/${f}`);
+    } else {
       if (b.pack !== 'town') bad.push(`overworld ${b.id}: expected town art pack`);
       for (const f of ['town.json', 'ground.webp', 'objects.webp']) if (!existsSync(asset(`tiles/town/${f}`))) bad.push(`overworld: missing tiles/town/${f}`);
     }
@@ -165,7 +165,7 @@ let mixes = 0;
 for (let i = 0; i < 200; i++) { const m = mixPartner(BIOMES[0]); if (m) { mixes++; if (m.family !== BIOMES[0].family || m.id === BIOMES[0].id) bad.push('bad mix partner ' + m.id); } }
 console.log('monster art', BESTIARY.length, 'looks; biome order sample', seq.slice(0, 6).join(' '), '; mixed levels', mixes, '/ 200');
 
-// ---- Velscour's level-up lines (src/data/taunts.js): 2,000 unique two-line taunts that fit the banner, a mood never twice in a row
+// ---- Dagyr's level-up lines (src/data/taunts.js): 2,000 unique two-line taunts that fit the banner, a mood never twice in a row
 const { TAUNTS, CLASS_TAUNTS, MILESTONES, pickTaunt } = await import(new URL('../../src/data/taunts.js', import.meta.url));
 const MAXLEN = 40, worst = (s) => s.replace(/\{name\}/g, 'N'.repeat(18)).replace(/\{class\}/g, 'C'.repeat(16)).replace(/\{level\}/g, '100');
 const allT = [...Object.values(TAUNTS).flat(), ...Object.values(CLASS_TAUNTS).flat().map((t) => t[1]), ...Object.values(MILESTONES).map((t) => t[1])];

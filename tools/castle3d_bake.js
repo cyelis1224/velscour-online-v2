@@ -1,7 +1,7 @@
 // Bake the 3D castle (tools/castle3d.html, layout in src/world/castle3d.js) into per-tile pieces, roofs and frames:
 // assets/source/castle3d/out/[<dir>/] (PNG pages + index.json); then `python tools/castle3d.py pack [ids]` writes
 // assets/tiles/castle3d/[<dir>/]. One bake per castle variant (src/data/castles.js; `dir` is its look.dir, '' for the
-// first castle). Needs the repo served (python -m http.server 8123) and jsDelivr (three.js, for this tool only). On
+// first castle). Needs the repo served (python -m http.server 8124) and jsDelivr (three.js, for this tool only). On
 // Windows a GPU helps: CHROMIUM_ARGS="--use-angle=d3d11 --enable-gpu --ignore-gpu-blocklist".
 //   node tools/castle3d_bake.js [ids|all]                 # bake (default: the first castle)
 //   node tools/castle3d_bake.js preview x,y[,w,h] [id]    # one framed view -> tools/tests/out/castle3d_preview_<id>_<x>_<y>.png
@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE_URL || 'http://localhost:8123';
+const BASE = process.env.BASE_URL || 'http://localhost:8124';
 const ROOT = path.resolve(__dirname, '..');
 const png = (u) => Buffer.from(u.split(',')[1], 'base64');
 (async () => {

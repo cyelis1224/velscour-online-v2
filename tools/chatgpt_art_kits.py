@@ -289,7 +289,7 @@ def armor_overview():
 
 
 # ---------------------------------------------------------------- READMEs
-STYLE = '''We are making art for VELSCOUR, a retro isometric pixel-art action RPG in the style of Diablo II
+STYLE = '''We are making art for DAGYR, a retro isometric pixel-art action RPG in the style of Diablo II
 (dark fantasy, grimdark, gothic). Everything is seen from the game's 3/4 isometric camera, slightly from above.
 
 Rules for every image I ask for:
@@ -306,7 +306,7 @@ Reply "ready" and wait for the first sheet.'''
 
 
 def readme(kind):
-    head = '# VELSCOUR ChatGPT %s kit\n\n' % {'enemies': 'enemy', 'bosses': 'boss', 'pets': 'pet', 'npcs': 'NPC (townsfolk)',
+    head = '# DAGYR ChatGPT %s kit\n\n' % {'enemies': 'enemy', 'bosses': 'boss', 'pets': 'pet', 'npcs': 'NPC (townsfolk)',
                                               'armor': 'armor'}[kind]
     run = ('## Importing the result\n\nSave ChatGPT\'s image and the filled-in names file, then from the repository root:\n\n'
            '```bash\npython tools/chatgpt_art.py %s <image.png> <names.json> --dry   # cut only: look at tools/tests/out/chatgpt_art/preview.png\n'

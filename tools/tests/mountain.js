@@ -1,9 +1,9 @@
-// MOUNTAINSIDE (beta, docs/MOUNTAINSIDE.md): reached through Velscour's skull ("mountain"), first on the HAIL
-// VELSCOUR! list, never in the biome draw. 30 seeds: 50 x 50, a two-way trail to the summit, cliffs too tall to hop on
+// MOUNTAINSIDE (beta, docs/MOUNTAINSIDE.md): reached through Dagyr's skull ("mountain"), first on the HAIL
+// DAGYR! list, never in the biome draw. 30 seeds: 50 x 50, a two-way trail to the summit, cliffs too tall to hop on
 // every band. The hop rules in play (a 1-2 level step climbs, 3+ blocks, a drop works one way), pathing (A*, the
 // flow field), picking on lifted ground, and screenshots: the foot, a ramp, a cliff band, a hop, the summit, an
 // overview, the phone layout. Then auto-play climbs and takes the summit.
-//   node tools/tests/mountain.js [shots|noshots] [auto|noauto]      (start the server first: python3 -m http.server 8123)
+//   node tools/tests/mountain.js [shots|noshots] [auto|noauto]      (start the server first: python3 -m http.server 8124)
 const { openGame, report } = require('./harness');
 const SHOTS = process.argv[2] !== 'noshots';
 const AUTO = process.argv[3] !== 'noauto';
@@ -12,25 +12,25 @@ const AUTO = process.argv[3] !== 'noauto';
   const { browser, page, errors, shot } = await openGame({ width: 1366, height: 860 });
   try {
     // ------------------------------------------------ reached through the skull
-    await page.evaluate(async () => { await window.VELSCOUR.game.newChar('paladin', 'Climber'); window.VELSCOUR.G.char.depth = 6; });
+    await page.evaluate(async () => { await window.DAGYR.game.newChar('paladin', 'Climber'); window.DAGYR.G.char.depth = 6; });
     await page.waitForTimeout(300);
-    await page.click('#velscour-skull');
-    await page.fill('#velscour-message', 'mountain');
-    await page.click('.velscour-contact-dialog button:has-text("Send")');
-    await page.waitForFunction(() => window.VELSCOUR.G.world?.biome?.id === 'mountainside' && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
+    await page.click('#Dagyr-skull');
+    await page.fill('#Dagyr-message', 'mountain');
+    await page.click('.Dagyr-contact-dialog button:has-text("Send")');
+    await page.waitForFunction(() => window.DAGYR.G.world?.biome?.id === 'mountainside' && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
     const first = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { BIOMES, BETA_BIOMES, drawBiome, OVERWORLD_BIOME_IDS } = await import('/src/data/biomes.js');
       const bad = [];
       // never drawn: 3000 draws with every guarantee path
       const c = { biomeBag: [], overworldMisses: 0 };
       for (let i = 0; i < 3000; i++) { c.overworldMisses = i % 4; const id = drawBiome(c, 10 + (i % 30)); if (id === 'mountainside') { bad.push('drawn into the rotation'); break; } c.lastBiome = id; }
       if (OVERWORLD_BIOME_IDS.includes('mountainside') || BIOMES.some((b) => b.id === 'mountainside')) bad.push('listed with the regular biomes');
-      // first on HAIL VELSCOUR!'s list
-      game.openVelscourTeleport();
-      const opt = document.querySelector('#velscour-biome option');
+      // first on HAIL DAGYR!'s list
+      game.openDagyrTeleport();
+      const opt = document.querySelector('#Dagyr-biome option');
       if (!opt || opt.value !== 'mountainside') bad.push('not first on the teleport list: ' + (opt && opt.value));
-      document.querySelector('.velscour-teleport-dialog button')?.click();
+      document.querySelector('.Dagyr-teleport-dialog button')?.click();
       const m = G.world.map;
       if (m.w !== 50 || m.h !== 50) bad.push(`map is ${m.w} x ${m.h}`);
       if (!m.hgt) bad.push('no height map');
@@ -89,7 +89,7 @@ const AUTO = process.argv[3] !== 'noauto';
 
     // ------------------------------------------------ the hop rules in play
     const rules = await page.evaluate(async () => {
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       const { camera, isoX, isoY } = await import('/src/core/view.js');
       const w = G.world, m = w.map, p = G.player, W = m.w, bad = [], out = {};
       G.godMode = true;
@@ -153,7 +153,7 @@ const AUTO = process.argv[3] !== 'noauto';
     if (SHOTS) {
       const at = async (name, fn, zoom = 1) => {
         await page.evaluate(async ([src, zoom]) => {
-          const { G, game } = window.VELSCOUR;
+          const { G, game } = window.DAGYR;
           const { camera } = await import('/src/core/view.js');
           const w = G.world, m = w.map, p = G.player;
           const [x, y] = new Function('G', 'w', 'm', 'p', src)(G, w, m, p);
@@ -177,7 +177,7 @@ const AUTO = process.argv[3] !== 'noauto';
       await at('overview_low', 'return [20, 36];', 0.6);
       // a hop caught mid-air: walk the hero up a two-level step
       await page.evaluate(async () => {
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         const { camera } = await import('/src/core/view.js');
         const m = G.world.map, p = G.player, W = m.w;
         G.settings.zoom = 1.6; camera.computeZoom();
@@ -191,13 +191,13 @@ const AUTO = process.argv[3] !== 'noauto';
         for (let i = 0; i < 60 && !(p._hop && G.time - p._hop.t0 > 0.08); i++) { m.move(p, 0, -0.04); G.time += 1 / 60; camera.follow(p.x, p.y, 0, true); game.render(); }
       });
       await shot('mountain_hop');
-      await page.evaluate(async () => { const { G } = window.VELSCOUR; const { camera } = await import('/src/core/view.js'); G.settings.zoom = 1; camera.computeZoom(); });
+      await page.evaluate(async () => { const { G } = window.DAGYR; const { camera } = await import('/src/core/view.js'); G.settings.zoom = 1; camera.computeZoom(); });
     }
 
     // ------------------------------------------------ auto-play takes the summit
     if (AUTO) {
       const res = await page.evaluate(async () => {
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         const { Auto } = await import('/src/game/autoplay.js');
         const { BIOME_BY_ID } = await import('/src/data/biomes.js');
         G.godMode = true;
@@ -216,14 +216,14 @@ const AUTO = process.argv[3] !== 'noauto';
       });
       console.log('auto-play', JSON.stringify(res));
       if (!res.completed) errors.push(`[auto] did not take the summit in ${res.secs}s (best altitude ${res.altitude}%, ${res.status})`);
-      if (SHOTS) { await page.evaluate(() => window.VELSCOUR.game.render()); await shot('mountain_auto_end'); }
+      if (SHOTS) { await page.evaluate(() => window.DAGYR.game.render()); await shot('mountain_auto_end'); }
     }
 
     // ------------------------------------------------ phone layout
     if (SHOTS) {
       const m = await openGame({ width: 844, height: 390, mobile: true });
       await m.page.evaluate(async () => {
-        const { G, game } = window.VELSCOUR;
+        const { G, game } = window.DAGYR;
         const { BIOME_BY_ID } = await import('/src/data/biomes.js');
         await game.newChar('ranger', 'Phone');
         await game.teleportToBiome(BIOME_BY_ID.mountainside);

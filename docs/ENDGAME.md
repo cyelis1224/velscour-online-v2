@@ -1,27 +1,27 @@
-# THE ENDGAME: Heresies, Abyssal Rifts, Velscour Unbound, Infernal Marks
+# THE ENDGAME: Heresies, Abyssal Rifts, Dagyr Unbound, Infernal Marks
 
-What a hero does after Velscour falls (depth 500). Four systems, one unlock: **the Endgame opens for the whole browser
-(every hero) the first time any hero slays Velscour for real** (not the skull's practice fight). Before that the altar
-and the rift gate stand in town but refuse: *"Velscour still sits his throne."*
+What a hero does after Dagyr falls (depth 500). Four systems, one unlock: **the Endgame opens for the whole browser
+(every hero) the first time any hero slays Dagyr for real** (not the skull's practice fight). Before that the altar
+and the rift gate stand in town but refuse: *"Dagyr still sits his throne."*
 
 Tests: `tools/tests/heresies.js`, `rifts.js`, `unbound.js`, `marks.js`, `rift_balance.js` (model, no play), plus the
 Marks columns in `endgame.js`. Data lives in `src/data/heresies.js`, `src/data/rifts.js`, additions to
 `src/data/items.js` (the Abyssal rarity) and `src/data/relics.js` (Unbound Heirlooms). Account-wide state in
-`src/game/endgame.js` (localStorage `velscour_endgame_v1`, and the signed-in player's Firestore document
+`src/game/endgame.js` (localStorage `Dagyr_endgame_v1`, and the signed-in player's Firestore document
 `users/{uid}/account/endgame`).
 
 ## The shared record (`src/game/endgame.js`)
 ```
-{ v: 1, unlocked: 0 | timestamp,                       // any hero slew Velscour
+{ v: 1, unlocked: 0 | timestamp,                       // any hero slew Dagyr
   marks: { pts: 0, xp: 0, spent: { life: 0, crit: 0, mf: 0, rift: 0 } },
   bests: { [classId]: { tier, time, at } },            // best Abyssal Rift per class on this account (shown offline)
   keysFound: 0, unboundWins: 0 }
 ```
 API: `endgame()` (cached, like `reliquary()`), `saveEndgame()`, `resetEndgameCache()`, `endgameUnlocked()`
 (record.unlocked, or the current hero's `c.cleared[FINAL_DEPTH]`), `unlockEndgame()` (called from
-`game.buildDungeon`'s `onBossKilled` when `m.isVelscour && !world.practice && !world.unbound`),
+`game.buildDungeon`'s `onBossKilled` when `m.isDagyr && !world.practice && !world.unbound`),
 `mergeEndgame(local, cloud, base)`: never loses anything. `base` is the record this device last synced (`st.endBase` in
-`velscour_cloud_v1`; null on a first sign-in). Counters (`marks.pts`, `keysFound`, `unboundWins`) = the base plus what
+`Dagyr_cloud_v1`; null on a first sign-in). Counters (`marks.pts`, `keysFound`, `unboundWins`) = the base plus what
 each side earned since it (no base: the larger), never below either side or the base; `marks.spent` = each side's
 change since the base per category (only one side changed: that side's), this device's if the sum passes the Marks, a
 side with fewer Marks than the base counts as damaged (its spending ignored), no base: the larger side's; `marks.xp`
@@ -37,10 +37,10 @@ its three-way rules for heroes untouched. The fake backend in `tools/tests/cloud
 ## 1. Heresies (`src/data/heresies.js`, `src/game/heresies.js`, `src/ui/heresies.js`)
 Difficulty modifiers the player switches on at the **Altar of Heresy** in Herrington Hollow (a dark obelisk beside the
 plaza, `world.npcs` entry `{ altar: true, name: 'Altar of Heresy', use: () => Heresies.open() }`, drawn by `drawNpc` with
-`obelisk()` from happenings.js in Velscour's red, a skull glow when any Heresy is on). They are the hero's (`c.heresy =
+`obelisk()` from happenings.js in Dagyr's red, a skull glow when any Heresy is on). They are the hero's (`c.heresy =
 { on: ['twins', ...] }`, migrate adds `{ on: [] }`), take hold from the next level built, and apply in standard depths,
 the Endless Torment and the Eternal Breach. **Not** in Abyssal Rifts (the clock is the challenge and the honour board
-must compare like with like) and not in Velscour Unbound. The Quest Log and the HUD's area subtitle show the rank.
+must compare like with like) and not in Dagyr Unbound. The Quest Log and the HUD's area subtitle show the rank.
 
 | id | name | rank | what it does (where) |
 |----|------|-----:|----------------------|
@@ -48,14 +48,14 @@ must compare like with like) and not in Velscour Unbound. The Quest Log and the 
 | crowned | Crowned Champions | 2 | champions roll 2 extra affixes, uniques 1 (`heresyMonster`: `makeElite`'s affix keys) |
 | thirst | Dry Throat | 3 | no potions of any kind (`Player.usePotion` refuses with "The Heresy forbids it"; auto-play never tries) |
 | fifth | The Fifth Phase | 2 | BOSS ROOM bosses fight one phase more (`heresyRaid(raid)`: the next template phase, or Final Stand again, with a new mark) and roll one more modifier |
-| legion | The Legion Follows | 3 | every 40-55 s (the first after 25-40) a hellgate opens in the hero's sight, on ground joined to him, and 2-4 Pit Demons/Imps (level `depthLevel(depth) - 2`, the first a champion, at most 8 alive) climb out (the hazard from velscour.js `legion`, moved to `src/game/heresies.js legionGate(world, near, n, level, opts)` and shared). Its clock stands still while a guardian or BOSS ROOM boss is awake. Runs from `game.update` (`heresyTick`), so the Breach has it too |
+| legion | The Legion Follows | 3 | every 40-55 s (the first after 25-40) a hellgate opens in the hero's sight, on ground joined to him, and 2-4 Pit Demons/Imps (level `depthLevel(depth) - 2`, the first a champion, at most 8 alive) climb out (the hazard from dagyr.js `legion`, moved to `src/game/heresies.js legionGate(world, near, n, level, opts)` and shared). Its clock stands still while a guardian or BOSS ROOM boss is awake. Runs from `game.update` (`heresyTick`), so the Breach has it too |
 | iron | Iron Hide | 2 | monsters +50% life |
 | cruel | Cruel Hand | 3 | monsters +30% damage |
 | ambush | Ambush Weather | 1 | ambush arrivals 3x as often, the first wait too (`mayhem.ambushTick` reads `world.heresyAmbush`; like every ambush, not in BOSS ROOMs or the Breach) |
 | omens | Black Omens | 1 | every omenable depth has an omen (the portal choice rolls one), and a Nemesis always returns |
 | glass | Glass Cannon | 2 | the hero: -25% life, +15% damage (`heresyHero(c)` summed in `Player.recompute` like Defiance) |
 | hunger | Hunger of the Abyss | 2 | no life or mana orbs drop from any source (kills, the Feeding Frenzy omen: `heresyWorld` filters `world.addLoot`), no life regeneration from gear or buffs |
-| gaze | Velscour's Gaze | 2 | monsters notice the hero from twice as far (`aggroRange *= 2`, was 2.5: with every Heresy on it woke 300+ monsters at once and doubled the frame cost; a raid boss's 0 stays 0) and, once awake, never lose him (`m.gaze`: `Monster.pickTarget` tracks him anywhere, like a hunter) |
+| gaze | Dagyr's Gaze | 2 | monsters notice the hero from twice as far (`aggroRange *= 2`, was 2.5: with every Heresy on it woke 300+ monsters at once and doubled the frame cost; a raid boss's 0 stays 0) and, once awake, never lose him (`m.gaze`: `Monster.pickTarget` tracks him anywhere, like a hunter) |
 
 Rank = the sum of the ranks on (max 26). `heresyMods(rank)` → `{ mf: 4 * rank, gold: 1 + 0.04 * rank, loot: 1 +
 0.02 * rank, xp: 1 + 0.02 * rank, sigil: 1 + 0.05 * rank, relic: 1 + 0.04 * rank }`. Where they land: `heresyWorld(world,
@@ -72,7 +72,7 @@ cleared" (`grantMarks(1)` in `brokeThrough` when rank >= 20).
 Altar panel (`Heresies.open()`, `UI.openPanel('heresies', ...)`, class `heresy-panel`, CSS `.hx-*`): the rank with a
 bar (ticks at the milestones) and its rewards as chips, a note that they take hold from the next level (inside a level
 built with another set it says the changes wait), one row per Heresy (the whole row is a switch: name, rank pips,
-description), the milestones, "Renounce all", and the three doors (Abyssal Rift `game.confirmRift()`, Velscour Unbound
+description), the milestones, "Renounce all", and the three doors (Abyssal Rift `game.confirmRift()`, Dagyr Unbound
 `game.enterUnbound()` with the key count, disabled under three keys, Infernal Marks `G.ui.marks.open()`). A toggle
 autosaves. On a touch screen: one column, 50x28 switches, 48 px doors, the body scrolls. Locked before the Endgame: the
 panel says so, the list is greyed and disabled, the rift door too. The altar itself is `t.altar` from `generateTown`
@@ -89,7 +89,7 @@ SwiftShader on a shared 4-CPU box, so timings are rough; ranges over 4 runs): a 
 monsters, **1,013-1,435 with Twinned Packs** (a seeded level: exactly x2 pack monsters); champions carry 2 affixes (4 with
 Crowned), uniques 3 (4); the build takes 70-210 ms either way. `game.update()` per frame standing at the start: 1.7-2.8 ms
 without, 2.4-5.9 ms with Twinned Packs (x1.1-2.4: it follows the monsters awake and fighting near the hero, sleeping ones
-cost almost nothing); under auto-play 2.8-3.3 ms vs 3.6-4.8 ms (x1.1-1.6), and all twelve 3.8-6.6 ms (x1.2-2.4: Velscour's
+cost almost nothing); under auto-play 2.8-3.3 ms vs 3.6-4.8 ms (x1.1-1.6), and all twelve 3.8-6.6 ms (x1.2-2.4: Dagyr's
 Gaze wakes up to ~300 monsters that then all chase the hero). God-mode auto-play's first 25 kills: 8-25 s without, 7-38 s
 with Twinned Packs, 4-36 s under all twelve (the level matters more than the Heresies; Gaze brings the packs to it).
 Without god mode, 60-90 s on a fresh level: no Heresy lived every run (lowest life 4-94%), every single Heresy lived but
@@ -124,7 +124,7 @@ run = { tier, t, limit: riftTime(), progress, total, quota, guardian, gT, done, 
 - `riftTime() = RIFT_TIME + markBonuses().rift` (Haste Marks). The clock runs in `game.update` (`riftTick(w, dt)`), so
   menus and dialogs stop it (`G.paused`); warnings at 1:00, 0:30 and 0:10.
 - Progress: `riftWeight(m)`: normal 1, champion 4 (every champion of a pack), unique 8, a unique's minions 1; summons,
-  pit spawns, Velscour's parts and bosses 0. `total` sums the monsters the level was built with and `quota = ceil(total x
+  pit spawns, Dagyr's parts and bosses 0. `total` sums the monsters the level was built with and `quota = ceil(total x
   RIFT_QUOTA)`. `combat.kill` calls `riftKill(world, m)` for every death (the hero's pets and ambush arrivals count too).
 - At the quota "THE GUARDIAN STIRS": `makeRaidBoss(world, gen.raid, depth, riftLevel + 3, { tpl, hp: RIFT_GUARDIAN_HP })`
   in the arena, one of the 28 classic BOSS ROOM bosses (the twenty signature fights of `raidsigs.js` are long puzzles
@@ -142,7 +142,7 @@ run = { tier, t, limit: riftTime(), progress, total, quota, guardian, gT, done, 
   max(open, tier + jump)`, `best`, `cleared[tier]++`, `bestTime[tier] = min`; `grantMarks(riftMarks(tier))` (`ceil(tier /
   10)`); `noteRiftBest` puts it in the account record's `bests[cls]` when it beats it (higher tier, or the same tier
   faster), and then `Board.submit` posts it to the honour board (signed in); `run.result.board` says how that went
-  (`posted` / `kept` / `signedout` / `offline`). A hero that took Velscour's gift (`c.cheated`, `barred(c)`) records
+  (`posted` / `kept` / `signedout` / `offline`). A hero that took Dagyr's gift (`c.cheated`, `barred(c)`) records
   neither: no account best, no post, `barred`, and its class's entry is withdrawn (docs/CLOUD_SAVES.md). "THE RIFT IS CLOSED", the exit opens; `game.riftExit(world, opts)`
   shows the results (`Rifts.results`: the time and its share of the clock, the tiers opened, Marks, the prize, a new best
   and the board) with "On to Tier T+jump" / "Return to Town". Auto-play (`opts.auto`): on to `tier + jump` when
@@ -196,10 +196,10 @@ Auto-play: a third card in `askDest` (`'rift'`): "Abyssal Rift · Tier N"; `rift
 farming), and once the Guardian stirs it **rushes** to the arena (`riftRush`): no loot, and it fights only the Guardian or
 what blocks the way (no ground gained on the path for 1.5 s), so the chasers follow it in; in the arena it fights the
 Guardian like a BOSS ROOM boss. Healthy and barely hurt, it stops side-stepping telegraphs for 4 s after 2 s of it (the
-Breach's bravery, quicker on the clock). It takes the exit as above. It never chooses Heresies and never opens Velscour
+Breach's bravery, quicker on the clock). It takes the exit as above. It never chooses Heresies and never opens Dagyr
 Unbound.
 
-## 3. Velscour Unbound (`src/game/unbound.js`, additions to `src/game/velscour.js`, `src/data/relics.js`)
+## 3. Dagyr Unbound (`src/game/unbound.js`, additions to `src/game/dagyr.js`, `src/data/relics.js`)
 Three **Abyssal Keys** (`c.keys`, a counter; a ground item `GroundItem(x, y, 'key')` drawn as a cyan key glyph, picked
 up by `Player.pickup` → `c.keys++`, `endgame().keysFound++`) open the rematch. They drop from BOSS ROOM bosses past depth
 600 (chance `0.06 + 0.002 * (depth - 600)`, capped 0.25, only with Heresy rank >= 10) and from rift guardians (`0.12 +
@@ -211,10 +211,10 @@ certain wherever one can drop. A key on the floor never fades (the 120-s rule sk
 true` (consumed by `buildDungeon`: `world.unbound = true`, `world.practice = false`); `c.depth` is untouched; the hero is
 set down in the arena like `finalBoss()` (the court's art is loaded with the level). In Unbound `onBossKilled` opens the
 exit ('Exit — to town') but changes no `cleared`/`deepest` and shows no victory screen; the exit and the town portal lead
-to town only. Death (`game.unboundDeath`): the death screen ("on Velscour's throne"), back to town, no Defiance, the
+to town only. Death (`game.unboundDeath`): the death screen ("on Dagyr's throne"), back to town, no Defiance, the
 keys stay spent.
 
-`setupVelscour(world, m, gen)` reads `world.unbound` and calls `setupUnbound(V)` which adds, on top of the five phases
+`setupDagyr(world, m, gen)` reads `world.unbound` and calls `setupUnbound(V)` which adds, on top of the five phases
 (dials in `UNBOUND`, `src/game/unbound.js`):
 - **The Court of the Abyss**: two of the signature raid bosses (`RAID_BOSSES` with `sigs: true` but the Pipe Organ, whose
   Danse Macabre wants a square hall: in the oval with its lava auto-play dodged it for 14 minutes; never the same two, never
@@ -232,10 +232,10 @@ keys stay spent.
   `dropLoot`s, the hero's sunder/polarity multipliers reset, but `w.darkK` stays (the abyss owns the dark; in phase 4 it is
   held at 0.93 every frame). They are never `world.boss`/`world.raid` (the HUD shows him; they carry the life bars of any
   monster) and `onBossKilled` returns on `m.raid.court`. `raidPriority` 6: auto-play kills them first.
-- **The Pact**: while a courtier lives Velscour takes 40% of every hit (`m.ward = 0.4`, cyan tethers from them to him; the
+- **The Pact**: while a courtier lives Dagyr takes 40% of every hit (`m.ward = 0.4`, cyan tethers from them to him; the
   boss bar shows it warded and "Pact: slay his court") **and his damage cap refills at 40% of its pace** (`unboundTick`
   drains 60% of the refill from `V.bank`; `absorb()`, `pace()` and `PACE` are untouched). Without the second half a hero
-  far over the cap (2.5x it, as the test hero is) never felt the Pact: Velscour reached 80% while his first courtier lived.
+  far over the cap (2.5x it, as the test hero is) never felt the Pact: Dagyr reached 80% while his first courtier lived.
 - **Abyssal Crown**: APOCALYPSE leaves two safe circles instead of three; the abyss drifts four Heart Shards at -4% each.
 - **Unbound Chains**: after the first binding breaks (at 10%) the life gate stops at 5%, where he binds himself to four
   fresh obelisks (`V.bound2`); only then can he die. In Unbound an obelisk holds 3.5% of his life (2% in the plain fight).
@@ -244,7 +244,7 @@ keys stay spent.
 
 Measured (`node tools/tests/unbound.js autoonly [runs]`: auto-play, god mode, a paladin at level 259 in the best of 60
 item level 262 drops a slot, +8, gems, from a fixed seed; `gear=5` the best of 5; `original` the plain fight): the plain
-fight 5.0-6.2 minutes (it sits at the damage cap: 20% of his life in 45 s). Velscour Unbound as shipped: 6.2-12.8 minutes
+fight 5.0-6.2 minutes (it sits at the damage cap: 20% of his life in 45 s). Dagyr Unbound as shipped: 6.2-12.8 minutes
 (mean 7.6, median 6.9, 10 fights) for that hero, 8.3-13.5 (mean 10.1, 4 fights) for the weaker one; a courtier lives
 35-260 s, mostly 50-100 s, two thirds of it in its two ward interludes; the long fights are a first courtier that a melee
 hero struggles with (Ophaniel's gaze, Thessaly's trumpet: 200-340 s). On the way (about 90 fights): the brief's dials

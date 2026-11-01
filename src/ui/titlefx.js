@@ -1,4 +1,4 @@
-// Title screen: the VELSCOUR logo rises out of the dark in time with "Hymn of the Abyss" and bursts into flame on the
+// Title screen: the DAGYR logo rises out of the dark in time with "Hymn of the Abyss" and bursts into flame on the
 // song's first hit; red eyes blink in the background. The separate Credits screen owns the studio credit cards.
 // Timeline (song time, s): visuals start with scheduled music, then re-sync to its clock when playback is available.
 // If the browser hasn't let audio start yet, a prompt asks for a click first (the eyes watch you meanwhile).
@@ -106,7 +106,7 @@ export function attachTitleFx(screen, logoEl, els = {}) {
     t0 = performance.now() - (HIT - 0.35 + INTRO_DELAY) * 1000;
     creditsAt = performance.now() - (HIT - 0.35 + INTRO_DELAY) * 1000; creditsClockAnchored = true; ts = Math.max(ts, HIT - 0.35);
   }
-  if (window.VELSCOUR_TEST_MENU) screen.classList.add('title-ready');   // headless tests click the menu straight away
+  if (window.DAGYR_TEST_MENU) screen.classList.add('title-ready');   // headless tests click the menu straight away
   const c0 = musicClock();
   if (c0 && c0.kind === 'title') { phase = 'intro'; light(true); }      // back from a sub-menu: the song is still playing
   else if (audioReady()) begin();
@@ -298,8 +298,10 @@ export function attachTitleFx(screen, logoEl, els = {}) {
     const open = Math.random() < 0.3 ? rand(0.9, 1.6) : rand(0.18, 0.4);   // sometimes they open slowly, which is worse
     const hold = rand(1.4, 4.2);
     const blinks = []; for (let n = randi(0, 2), t = rand(0.5, 1.2); n-- > 0 && t < hold - 0.3; t += rand(0.6, 1.6)) blinks.push(open + t);
-    eyes.push({ x: at[0], y: at[1], rx, ry, list, slit, hue, t: 0, open, hold, close: rand(0.2, 0.7), blinks,
-      gaze: [0, 0], dart: rand(0.8, 2), dartTo: null, glare: Math.random() < 0.25 });
+    eyes.push({
+      x: at[0], y: at[1], rx, ry, list, slit, hue, t: 0, open, hold, close: rand(0.2, 0.7), blinks,
+      gaze: [0, 0], dart: rand(0.8, 2), dartTo: null, glare: Math.random() < 0.25
+    });
   }
   function lid(w, tt) {   // 0 closed .. 1 open
     if (tt <= 0) return 0;

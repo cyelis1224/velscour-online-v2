@@ -14,7 +14,7 @@ const { openGame, report } = require('./harness');
       const { itemIcon } = await import('/src/game/loot.js');
       const { gemIcon, ringIcon, goldIcon } = await import('/src/gfx/pixelart.js');
       const { GEMS } = await import('/src/data/items.js');
-      const { G, game } = window.VELSCOUR;
+      const { G, game } = window.DAGYR;
       await game.newChar('necromancer', 'Art QA');
       G.godMode = true;
       const bad = [], check = (ok, message) => { if (!ok) bad.push(message); };
@@ -27,7 +27,7 @@ const { openGame, report } = require('./harness');
         check(flash && corpse && flash.width === img.width && corpse.height === img.height, a.id + ' silhouette dimensions');
         const d = flash.getContext('2d').getImageData(0, 0, flash.width, flash.height).data;
         check(d.some((v, i) => i % 4 === 3 && v > 200), a.id + ' empty alpha');
-        for (let i = 0; i < d.length; i += 4) if (d[i+3] > 200) { check(d[i] > 250 && d[i+1] > 250 && d[i+2] > 250, a.id + ' flash not white'); break; }
+        for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200) { check(d[i] > 250 && d[i + 1] > 250 && d[i + 2] > 250, a.id + ' flash not white'); break; }
       }
       let summons = 0;
       for (const [key, def] of Object.entries(SUMMONS)) {
@@ -37,7 +37,7 @@ const { openGame, report } = require('./harness');
         const m = buildSummon(G.player, def, key, 0, 0, 10, 100, 20), img = m.spriteImage();
         check(img && img._art, key + ' fallback active');
         check(m.flashImage(img)?._art, key + ' missing flash');
-        const [w,h] = m.spriteDims(img);
+        const [w, h] = m.spriteDims(img);
         check(w > 5 && w < 220 && h >= 24 && h <= 80, key + ' invalid game scale');
         summons++;
       }
@@ -59,10 +59,10 @@ const { openGame, report } = require('./harness');
       const ctx = gallery.getContext('2d'); ctx.imageSmoothingEnabled = false;
       REPLACEMENT_ART.forEach((a, i) => {
         const x = i % 10 * 140, y = Math.floor(i / 10) * 150;
-        ctx.fillStyle = i % 2 ? '#393337' : '#211d22'; ctx.fillRect(x,y,140,150);
-        const img = replacementImage(a.id), k = Math.min(118/img.width, 120/img.height);
-        ctx.drawImage(img, x+(140-img.width*k)/2,y+124-img.height*k,img.width*k,img.height*k);
-        ctx.fillStyle = '#eee3ce'; ctx.font = '11px monospace'; ctx.fillText(a.id.slice(3), x+4,y+142);
+        ctx.fillStyle = i % 2 ? '#393337' : '#211d22'; ctx.fillRect(x, y, 140, 150);
+        const img = replacementImage(a.id), k = Math.min(118 / img.width, 120 / img.height);
+        ctx.drawImage(img, x + (140 - img.width * k) / 2, y + 124 - img.height * k, img.width * k, img.height * k);
+        ctx.fillStyle = '#eee3ce'; ctx.font = '11px monospace'; ctx.fillText(a.id.slice(3), x + 4, y + 142);
       });
       document.body.append(gallery); gallery.id = 'art-qa';
       gallery.style.cssText = 'position:absolute;left:0;top:0;z-index:99999;';

@@ -7,7 +7,7 @@ const { openGame, report } = require('./harness');
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1400, height: 800 });
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     await game.newChar('necromancer', 'Legion');
     document.querySelectorAll('.screen').forEach((s) => s.remove());
     G.ui.modalCount = 0;
@@ -35,7 +35,7 @@ const { openGame, report } = require('./harness');
 
   // cast every Legion skill into a crowd, then a mid-fight shot
   await page.evaluate(async () => {
-    const { G, game } = window.VELSCOUR;
+    const { G, game } = window.DAGYR;
     const { camera } = await import('/src/core/view.js');
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
@@ -86,7 +86,7 @@ const { openGame, report } = require('./harness');
 
   // fight on, then check every minion kind attacked and cast its spell
   const out = await page.evaluate(async () => {
-    const { G } = window.VELSCOUR;
+    const { G } = window.DAGYR;
     const { SUMMONS } = await import('/src/data/summons.js');
     const { tally, legion, out, step, crowd } = window.legionTest;
     const w = G.world;

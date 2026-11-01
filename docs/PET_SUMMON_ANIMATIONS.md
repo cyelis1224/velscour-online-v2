@@ -1,7 +1,7 @@
 # Summon Pet Animation Sheets
 
 Every summon except the Slime Lord's slimes and revived monsters animates from the Grim Nocturne pet sheets
-(`Velscour_Grim_Nocturne_Pets_No_Slimes.zip`): 109 pets on 27 sheets in `assets/source/pet_animations/`, listed with
+(`Dagyr_Grim_Nocturne_Pets_No_Slimes.zip`): 109 pets on 27 sheets in `assets/source/pet_animations/`, listed with
 their kind and row keys in `pets.json` there. `python tools/build_pet_animations.py [sheet ...]` cuts them into the
 atlases in `assets/sprites/pets/` and writes `catalog.json`; `src/core/petart.js` picks the frame.
 
