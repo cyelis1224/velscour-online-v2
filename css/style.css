@@ -2129,6 +2129,7 @@ body.touch #sealed-btn i {
 }
 
 /* level-up banner */
+body.at-sea #levelup { top: 31%; } /* the Pirate Seas: the top band is the scenario pressure */
 #levelup {
   position: absolute;
   top: 9%;
@@ -5288,7 +5289,8 @@ body.touch:not(.portrait) #target-box.big #tb-info {
   text-align: left;
 }
 
-body.touch #levelup {
+body.touch body.at-sea #levelup { top: 31%; } /* the Pirate Seas: the top band is the scenario pressure */
+#levelup {
   top: 21%;
 }
 
