@@ -1653,22 +1653,18 @@ export const game = {
     const seed = (G.room && G.room.dungeonSeed) ? G.room.dungeonSeed : (kept ? kept.seed : (G.room?.seed ? (G.room.seed + depth * 7919) | 0 : (Math.random() * 1e9) | 0));
     const tileset = forest ? biomeTileSet(biome) : biome.overworld ? biomeTileSet(TOWN_BIOME) : mix ? mixedTileSet(biome, mix, G.room ? ((seed % 2) === 0) : Math.random() < 0.5) : biomeTileSet(biome);
     keepTileSets(tileset);
-    const sky = biome.id === 'skyship';
+    const sky = biome.id === 'skyship', sea = !!biome.sea;
     const towerVar = G.room ? (seed % 3) : G.towerVariant;
     const caveVar = G.room ? (seed % CAVE_VARIANTS.length) : (G.caveVariant ?? G.caveNext);
     const sandVar = G.room ? (Math.abs(seed) % (DUNE_VARIANTS.length + 1)) : (G.sandVariant ?? G.sandNext);
     const castleVar = G.room ? (Math.abs(seed) % CASTLE_VARIANTS.length) : (G.castleVariant ?? G.castleNext);
     const gen = forest ? generateDarkForest(depth, biome, tileset, seed) : biome.id === 'mountainside' ? generateMountain(depth, biome, seed)
       : sky ? generateSkyship(depth, biome, seed, castle3dState())
-        : biome.tower ? generateTower(depth, biome, seed, towerVar)
-          : biome.cave ? generateCaverns(depth, biome, seed, caveVar)
-            : biome.id === 'sea_of_sand' && sandVar > 0 && dunes3dReady() ? generateDunes(depth, biome, seed, sandVar - 1)
-              : biome.overworld ? generateOverworld(depth, biome, seed, biome.id === 'castle' ? castleVar : null) : generateDungeon(depth, biome, tileset, seed);
-    if (sea) {
-      const variant = SEA_VARIANTS.find((q) => q.id === (G.seaNext || c.seaVariant)) || SEA_VARIANTS[0];
-      G.seaNext = null; c.seaVariant = null;
-      world.seaRun = new SeaBattle(world, variant);
-    }
+        : sea ? generateSeaship(depth, biome, seed, SEA_VARIANTS.find((q) => q.id === (G.seaNext || c.seaVariant))?.size)
+          : biome.tower ? generateTower(depth, biome, seed, towerVar)
+            : biome.cave ? generateCaverns(depth, biome, seed, caveVar)
+              : biome.id === 'sea_of_sand' && sandVar > 0 && dunes3dReady() ? generateDunes(depth, biome, seed, sandVar - 1)
+                : biome.overworld ? generateOverworld(depth, biome, seed, biome.id === 'castle' ? castleVar : null) : generateDungeon(depth, biome, tileset, seed);
     if (biome.id === 'sea_of_sand') { c.lastSand = gen.dunes ? 1 + DUNE_VARIANTS.indexOf(gen.variant) : 0; if (gen.dunes) c.seaOfSandRuns[depth] = { seed, dunes: c.lastSand }; }
     const world = new World('dungeon', { map: gen.map, tileset, biome, depth, props: gen.props, torches: gen.torches, wallHangings: gen.wallHangings, looks: gen.looks, townTiles: gen.townTiles || null, buildings: gen.buildings || [] });
     world._generatingDungeon = true;

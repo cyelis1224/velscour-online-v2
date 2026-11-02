@@ -264,6 +264,15 @@ export const BIOMES = [
     torch: '#ffb060', fog: '#050509',
   },
   {
+    // a height-mapped climb up a mountainside to its summit (world/mountain.js, docs/MOUNTAINSIDE.md)
+    id: 'mountainside', name: 'Mountainside', pack: 'town', overworld: true, painted: false, wallPack: null,
+    palette: null, dark: 0.3, light: 13,
+    ambient: { type: 'snow', color: '#e8f4ff' }, mon: { hue: 8, sat: 0.9, light: 0.04 },
+    el: 'cold', blood: '#7c1610', adj: ['Windswept', 'Craggy', 'High', 'Rimed', 'Alpine'],
+    roster: ['hound', 'golem', 'gargoyle', 'bat', 'archer', 'skeleton', 'knight', 'elemental', 'spider', 'cultist', 'wraith', 'imp'],
+    torch: '#ffc078', fog: '#0c1622',
+  },
+  {
     id: 'desert_temple', name: 'Temple of the Sunless Dynasty', pack: 'desert_temple',
     palette: null, dark: 0.77, light: 8.2,
     ambient: { type: 'sand', color: '#d9ac70' },
@@ -471,19 +480,8 @@ export function mixPartner(biome, rnd = Math.random) {
   return kin.length ? kin[Math.floor(rnd() * kin.length)] : null;
 }
 
-// Beta biomes: never in a biome bag or the overworld guarantee. Velscour's skull button reaches them (the "mountain"
-// message, or first on the HAIL VELSCOUR! list; game.js openVelscourContact).
-export const BETA_BIOMES = [
-  {
-    // a height-mapped climb up a mountainside to its summit (world/mountain.js, docs/MOUNTAINSIDE.md)
-    id: 'mountainside', name: 'Mountainside', pack: 'town', overworld: true, beta: true, painted: false, wallPack: null,
-    palette: null, dark: 0.3, light: 13,
-    ambient: { type: 'leaf', color: '#d8e6c0' }, mon: { hue: 8, sat: 0.9, light: 0.04 },
-    el: 'cold', blood: '#7c1610', adj: ['Windswept', 'Craggy', 'High', 'Rimed'],
-    roster: ['hound', 'golem', 'gargoyle', 'bat', 'archer', 'skeleton', 'knight', 'elemental', 'spider', 'cultist', 'wraith', 'imp'],
-    torch: '#ffc078', fog: '#0c1622',
-  },
-];
+// Beta biomes: empty now that Mountainside has graduated to the full overworld rotation.
+export const BETA_BIOMES = [];
 
 // THE ETERNAL BREACH (docs/ETERNAL_BREACH.md): the challenge biome behind the purple portal in Herrington Hollow. Never in
 // a biome bag, the overworld guarantee or Velscour's list; its floors are counted apart (c.breach). Island tops and
