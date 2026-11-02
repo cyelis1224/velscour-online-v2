@@ -18,8 +18,8 @@ import { MAX_LEVEL } from './depth.js';
 // Epic before item level 30, Legendary before 45 or Mythic before 60 (rarityAt caps the guaranteed rewards the same
 // way).
 export const RARITY = [
-  { id: 0, name: 'Common', color: '#e8e8e8', weight: 70, lv: 0, perks: 0, sockets: 1, bonus: 0, minIlvl: 1, fullIlvl: 1 },
-  { id: 1, name: 'Uncommon', color: '#4fd65a', weight: 21, lv: 2, perks: 0, sockets: 2, bonus: 1, minIlvl: 1, fullIlvl: 1 },
+  { id: 0, name: 'Common', color: '#e8e8e8', weight: 32, lv: 0, perks: 0, sockets: 1, bonus: 0, minIlvl: 1, fullIlvl: 1 },
+  { id: 1, name: 'Uncommon', color: '#4fd65a', weight: 10, lv: 2, perks: 0, sockets: 2, bonus: 1, minIlvl: 1, fullIlvl: 1 },
   { id: 2, name: 'Rare', color: '#4f8dff', weight: 6, lv: 4, perks: 1, sockets: 3, bonus: 1.6, minIlvl: 3, fullIlvl: 8 },
   { id: 3, name: 'Epic', color: '#b45cff', weight: 1, lv: 6, perks: 1, sockets: 3, bonus: 2.2, minIlvl: 15, fullIlvl: 25 },
   { id: 4, name: 'Legendary', color: '#ff9a2a', weight: 0.14, lv: 9, perks: 1, sockets: 4, bonus: 2.8, minIlvl: 30, fullIlvl: 45 },

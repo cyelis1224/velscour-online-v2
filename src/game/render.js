@@ -277,12 +277,12 @@ function drawProp(ctx, pr, alpha) {
 function treeFade(o, hx, hy) {
   const s = o.spr, k = o.k, w = s.w * k, x = isoX(o.x, o.y), y = isoY(o.x, o.y);
   const top = y + s.oy * k, cut = top + s.split * k, py = hy - 30;
-  // a see-through window round the hero: every canopy in front of him within ~a tree and a half fades, nearest most
-  const dx = Math.abs(hx - x), reach = w * 0.5 + 70;
-  if (py > y + 10 || py < top - 30 || dx > reach) return null;
-  const t = clamp((dx - w * 0.1) / (reach - w * 0.1), 0, 1);
-  const canopy = 0.22 + 0.78 * t * t;
-  const trunk = py > cut - 20 && dx < w * 0.3 ? 0.45 + 0.55 * t : 1;
+  // a see-through window round the hero: every canopy in front of him fades, nearest most
+  const dx = Math.abs(hx - x), reach = w * 0.65 + 110;
+  if (py > y + 30 || py < top - 50 || dx > reach) return null;
+  const t = clamp((dx - w * 0.05) / (reach - w * 0.05), 0, 1);
+  const canopy = 0.18 + 0.82 * (t * t * t);
+  const trunk = py > cut - 20 && dx < w * 0.35 ? 0.4 + 0.6 * t : 1;
   return canopy < 0.98 || trunk < 1 ? [canopy, trunk] : null;
 }
 /** The tree's fade for everyone behind it: the hero's wide window, and a tight one right round anyone else. */
@@ -467,7 +467,7 @@ function drawNpc(ctx, n) {
   // Painted art for vendors and scenario civilians (n.art); never hue-shifted class sprites (they came out green).
   const hom = n.vendor && n.vendor.id === 'upgrade' ? homunculusPose(n.pose || 'confident') : null; // Homunculus the Proud's 30 poses
   const vendorArt = hom ? hom.img : n.vendor
-    ? replacementImage('npc_' + n.vendor.id) || classSprite(n.vendor.sprite, 180)
+    ? replacementImage('npc_' + n.vendor.id) || classSprite(n.vendor.sprite, 180, n.vendor.pal || null)
     : n.adv ? advPortrait(n.adv)
       : !spriteId && (n.art && replacementImage(n.art) || classSprite(n.sprite || 'paladin', 180));
   // a people cell is 256 x 200 with the feet on row 194; adults are 172 px tall in it, animals their own size

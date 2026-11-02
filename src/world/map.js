@@ -355,9 +355,13 @@ export class TileMap {
 
   /** Random walkable tile centre near (x,y) within r. */
   randomNear(x, y, r, rng = Math.random) {
+    const from = this.hgt ? this.tileIdx(x, y) : undefined;
     for (let i = 0; i < 40; i++) {
       const nx = x + (rng() * 2 - 1) * r, ny = y + (rng() * 2 - 1) * r;
-      if (this.walkable(nx, ny) && this.circleFree(nx, ny, 0.3)) return [nx, ny];
+      if (this.walkable(nx, ny) && this.circleFree(nx, ny, 0.3, from)) {
+        if (this.hgt && Math.abs(this.hgt[this.tileIdx(nx, ny)] - this.hgt[from]) > this.climb) continue;
+        return [nx, ny];
+      }
     }
     return [x, y];
   }

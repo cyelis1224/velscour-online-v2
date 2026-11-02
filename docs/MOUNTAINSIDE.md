@@ -1,6 +1,6 @@
 # Mountainside: the height-mapped overworld
 
-A 50 x 50 climb from the foot of a mountain (the bottom-left edge of the screen) to its summit (the top-right).
+An expanded 80 x 80 climb from the foot of a mountain (the bottom-left edge of the screen, southwest) to its summit (the top-right, northeast).
 It is part of the active overworld rotation (guaranteed in the overworld cycle alongside Castle, Sea of Sand, and Dark Forest).
 It can also be reached directly through Dagyr's skull button beside the minimap by sending the message `mountain` (any case), or selected on the HAIL DAGYR! list ("Mountainside · Overworld").
 Test: `node tools/tests/mountain.js [shots|noshots] [auto|noauto]`.
@@ -29,18 +29,22 @@ Test: `node tools/tests/mountain.js [shots|noshots] [auto|noauto]`.
 - A sky gradient with two ranges of far peaks is drawn behind the mountain (`drawSky`); the minimap is shaded by height.
 
 ## The map (`src/world/mountain.js`)
-- Uphill is `v = 49 - y`. Base slope 0.68 levels a row, five cliff bands (9-15 levels) at v = 8, 17, 26, 35, 42, each
-  broken by one ramp (a stair of ~2 levels a tile) at x = 36, 12, 37, 13, 38, so the trail switchbacks. A hop-high
-  terrace (3-4 levels) crosses each band between cliffs; where one meets a ramp it folds into the stair.
-- A rock ridge walls the west (x <= 2); east of x = 46 the mountain falls away. Crags (6-13 levels) dot the slope and
-  are taken back if they would cut the climb in two; three shelves sit exactly a hop up with a chest on top.
-- The trail is the cheapest two-way path (every step a hop either way); it is laid in dirt, gravel and stone steps,
-  with cairns, signs at the foot of each ramp, rope posts at the top and a climbers' camp halfway.
-- Ground by band: meadow at the foot, deep grass and ferns, alpine grass and moss, dry grass and lichen, scree, stone
-  and snow at the summit. The 21 floors (`src/gfx/mountainart.js`) are the town pack's grass/dirt/gravel/stone and
-  the Dark Forest pack's floors, recoloured once at load. Props: town firs, pines, cedars, junipers and frost firs,
-  the Dark Forest's spire pines and moss firs, boulders, shrubs, flowers, cairns, the summit shrine.
-- About 23 monster packs (champions higher up) and the Summit Warden (a golem boss) on the peak. Generation is ~20 ms;
+- Uphill is `v = 79 - y`. Base slope 0.65 levels a row, seven cliff bands (9-15 levels) at v = 10, 20, 30, 40, 50, 60, 69,
+  each broken by one ramp (a stair of ~2 levels a tile) alternating east and west (x = 60, 18, 62, 16, 64, 18, 62),
+  so the trail switchbacks up across the entire mountain face. A hop-high terrace (3-4 levels) crosses each band between cliffs.
+- Playable bounds are strictly enforced (`X_MIN = 4`, `X_MAX = 74`, `Y_MIN = 4`, `Y_MAX = 75`): the west ridge (`x < 4`)
+  and eastern precipice (`x > 74`) are void (`map.t = 0`) and blocked (`map.block = 1`), preventing any monster spawns,
+  ambushes, or minions outside the playable map.
+- Landmark set pieces:
+  - **Glacial Tarn**: a high mountain pool on Tier 3 with shallow water, gravel wash, and stepping stones.
+  - **Climbers' Base Camp**: on Tier 2 with campfire, supply crates, bedrolls, and a loot chest.
+  - **High Alpine Outpost**: on Tier 6 overlooking the cloud precipice with ancient standing stones and an elite chest.
+  - **Secret Hop Ledges**: 5-6 elevated rock shelves across the mountain, each exactly 1 hop high with a treasure chest.
+  - **The Frozen Summit**: spacious snow plateau with cairn monoliths, ancient shrine, and the Summit Warden arena.
+- Ground across 8 zones: valley meadow at the foot, pine forest floor, alpine terraces, glacial tarn moss and wash,
+  scree slopes, frost crags, ruined watchtower, and summit snow. Props: town firs, pines, cedars, junipers and frost firs,
+  Dark Forest spire pines, moss firs, boulders, shrubs, flowers, cairns, and shrines.
+- About 38-40 monster packs (champions higher up) and the Summit Warden (a golem boss) on the peak. Generation is ~200 ms;
   a seed whose trail fails retries (most build first time).
 
 ## Run (`src/game/mountain.js`)

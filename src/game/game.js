@@ -103,6 +103,7 @@ import { saveOnlineCharacter, flushOnlineSave, getOnlineToken } from '../net/onl
 import { RemotePlayer } from '../net/remoteplayer.js';
 import { updateAutomapPartyRoster } from '../ui/partyroster.js';
 import { GameChat } from '../ui/chat.js';
+import { LoadingScreen } from '../ui/loading.js';
 // the Endgame (docs/ENDGAME.md): Heresies, Abyssal Rifts, Dagyr Unbound, Infernal Marks
 import { endgameUnlocked, unlockEndgame, endgame, adoptEndgame } from './endgame.js';
 import { heresySpawns, heresyWorld, heresyBegin, heresyTick, heresiesOf, heresyRank, worldRank, MARKS_RANK } from './heresies.js';
@@ -373,6 +374,21 @@ function attachNetListeners() {
       rp.updateFromNetwork(state);
       if (Array.isArray(state.summons)) {
         rp.syncSummons(state.summons);
+      }
+      if (state.loading) {
+        rp.isLoading = true;
+        rp.targetable = false;
+        rp.invuln = 1e9;
+        rp.alpha = 0;
+      } else if (rp.isLoading) {
+        rp.isLoading = false;
+        rp.targetable = true;
+        rp.invuln = 2.0;
+        rp.alpha = 1;
+        if (rp.world) {
+          addEffect(new Ring(rp.x, rp.y, 0.2, 2.5, 0.8, '#40a0ff', 4));
+          sfx('portal');
+        }
       }
     } else {
       if (rp.world === G.world || G.world.creatures.includes(rp)) {
@@ -949,11 +965,15 @@ export const game = {
     this.startChar(migrate(c), false);
   },
   async loadClassPack(classId, char = null) {
-    const el = document.getElementById('loading');
-    const slow = setTimeout(() => el && el.classList.remove('hidden'), 250);
+    LoadingScreen.show({
+      title: 'HERO AWAKENING',
+      subtitle: classId ? classId.toUpperCase() : 'HERO',
+      text: 'Preparing hero equipment…',
+      progress: 30
+    });
     const [meta] = await Promise.all([loadClassArt(classId), loadGearArt(classId), loadHeld(classId, char)]);
-    clearTimeout(slow);
-    if (el) el.classList.add('hidden');
+    LoadingScreen.setProgress(100, 'Hero ready');
+    await LoadingScreen.hide();
     setClassItems(classId, meta);
   },
 
@@ -1089,15 +1109,36 @@ export const game = {
     const keep = this.carrySummons(oldWorld);
     clearVfx();
     UI.closeAll();
+    const loadingActive = !!(this.isLoading || G.loading);
     if (p) {
       p.x = start[0]; p.y = start[1]; p.z = 0;
       p.channel = null; p.path = null; p.moveTarget = null; p.attackTarget = null; p.interact = null; p.lootTarget = null;
       p.status = {}; p.dead = false; p.kbx = p.kby = 0; p.castLock = 0;
+      if (loadingActive) {
+        p.spawned = false;
+        p.targetable = false;
+        p.invuln = 1e9;
+        p.alpha = 0;
+      } else {
+        p.spawned = true;
+        p.targetable = true;
+        p.alpha = 1;
+      }
       world.player = p;
       world.add(p);
       for (const s of keep) {
         const [x, y] = world.map.randomNear(p.x, p.y, 1.5);
         s.x = x; s.y = y; s.world = world; s.aggro = null; s.foe = null; s.nav = null; s.fol = null;
+        if (loadingActive) {
+          s.spawned = false;
+          s.targetable = false;
+          s.invuln = 1e9;
+          s.alpha = 0;
+        } else {
+          s.spawned = true;
+          s.targetable = true;
+          s.alpha = 1;
+        }
         world.add(s);
       }
     }
@@ -1140,6 +1181,58 @@ export const game = {
     propReach(world); // and the props' culling box (render.js), once the ground's heights are set
     if (G.room && net.connected) {
       net.sendLootRequest(world.kind, world.depth || 0);
+    }
+  },
+
+  spawnPlayer(world = G.world, start = null) {
+    const p = G.player;
+    if (!p) return;
+    if (start && Array.isArray(start)) {
+      p.x = start[0];
+      p.y = start[1];
+    }
+    p.spawned = true;
+    p.targetable = true;
+    p.invuln = Math.max(p.invuln === 1e9 ? 0 : (p.invuln || 0), 2.0);
+    p.alpha = 1;
+    p.dead = false;
+
+    if (world && world.creatures) {
+      for (const c of world.creatures) {
+        if (c.summon && c.owner === p && !c.dead) {
+          c.spawned = true;
+          c.targetable = true;
+          c.invuln = Math.max(c.invuln === 1e9 ? 0 : (c.invuln || 0), 2.0);
+          c.alpha = 1;
+        }
+      }
+    }
+
+    addEffect(new Ring(p.x, p.y, 0.2, 2.5, 0.8, '#40a0ff', 4));
+    sfx('portal');
+
+    if (G.room && net.connected) {
+      net.sendPlayerState({
+        name: G.char?.name || 'Hero',
+        classId: p.classId,
+        level: G.char?.level || 1,
+        x: p.x,
+        y: p.y,
+        z: Math.round(p.z || 0),
+        vx: p.vx || 0,
+        vy: p.vy || 0,
+        facing: p.facing || 0,
+        moving: !!p.moving,
+        animT: p.animT || 0,
+        flip: !!p.flip,
+        hp: Math.round(p.hp),
+        maxHp: Math.round(p.maxHp),
+        mana: Math.round(p.mana),
+        maxMana: Math.round(p.maxMana),
+        worldKind: world?.kind || 'town',
+        depth: (world?.kind === 'dungeon' ? world.depth : 0) || 0,
+        loading: false,
+      });
     }
   },
 
@@ -1220,6 +1313,7 @@ export const game = {
     playMusic('town'); setAmbience('town');
     Vendor.restock();
     const p = G.player;
+    if (p) this.spawnPlayer(world, arrive);
     townHappening(world); // a festival, a blessing, a gift (game/happenings.js)
     p.hp = p.maxHp; p.mana = p.maxMana;
     this.autosave();
@@ -1523,22 +1617,31 @@ export const game = {
       delete c.seaOfSandRuns[depth];
     }
     if (biome.id === 'dark_forest' && c.darkForestRuns) delete c.darkForestRuns[depth];
-    const loading = document.getElementById('loading');
-    document.getElementById('loading-text').textContent = `Answering Dagyr — Depth ${depth} · ${biome.name}…`;
-    loading.classList.remove('hidden');
+    LoadingScreen.show({
+      title: (biome.name || 'ABYSSAL REALM').toUpperCase(),
+      subtitle: `Depth ${depth}`,
+      text: `Answering Dagyr — Depth ${depth} · ${biome.name}…`,
+      progress: 10
+    });
     try {
       const mix = mixPartner(biome);
+      LoadingScreen.setProgress(30, `Summoning ${biome.name}…`);
       await this.loadLevelArt(biome, mix);
+      LoadingScreen.setProgress(55, 'Forging realm…');
       this.buildDungeon(depth, biome, mix);
       const w = G.world;
+      LoadingScreen.setProgress(75, 'Awakening entities…');
       await loadArtFor([...w.creatures.map((m) => m.art), ...(w.looks ? w.looks.ids() : [])], true).catch((e) => console.warn(e));
+      LoadingScreen.setProgress(90, 'Warming the flame…');
       await warmLevelArt(w);
       releaseLevelArt(biome);
+      LoadingScreen.setProgress(100, 'Arriving…');
     } catch (e) {
       console.warn(e);
       UI.log('The abyss rejected that destination. Try the skull again.', '#ff8060');
     } finally {
-      loading.classList.add('hidden');
+      await LoadingScreen.hide();
+      this.spawnPlayer(G.world);
       this.autosave();
     }
   },
@@ -1614,25 +1717,36 @@ export const game = {
       }
     }
     const mix = G.room ? (G.room.mixId ? BIOME_BY_ID[G.room.mixId] : (dungeonSeed ? mixPartner(biome, () => new RNG(dungeonSeed ^ 0x3d17a892).next()) : null)) : mixPartner(biome);
-    const loading = document.getElementById('loading');
-    document.getElementById('loading-text').textContent = `Descending to Depth ${depth} — ${biome.name}…`;
-    loading.classList.remove('hidden');
+    LoadingScreen.show({
+      title: (biome.name || 'THE DEPTHS').toUpperCase(),
+      subtitle: `Depth ${depth}`,
+      text: `Descending to Depth ${depth} — ${biome.name}…`,
+      progress: 10
+    });
     sfx('portal');
     // fetch this biome's art first (about 1 MB); if that fails the default set stands in
     setTimeout(async () => {
-      try { await this.loadLevelArt(biome, mix); } catch (e) { console.warn(e); }
+      try {
+        LoadingScreen.setProgress(25, `Mapping ${biome.name}…`);
+        await this.loadLevelArt(biome, mix);
+      } catch (e) { console.warn(e); }
       try {
         if (G.room && net.connected) {
           net.requestDungeonState(depth);
         }
+        LoadingScreen.setProgress(50, 'Forging labyrinth…');
         this.buildDungeon(depth, biome, mix);
         // the level's monster art (set 2 sheets load per level); a failed sheet falls back to pixel sprites
         const w = G.world;
+        LoadingScreen.setProgress(75, 'Summoning inhabitants…');
         await loadArtFor([...w.creatures.map((m) => m.art), ...(w.looks ? w.looks.ids() : [])], true).catch((e) => console.warn(e));
+        LoadingScreen.setProgress(90, 'Preparing the veil…');
         await warmLevelArt(w);
         releaseLevelArt(biome);
+        LoadingScreen.setProgress(100, 'Arriving…');
       } finally {
-        loading.classList.add('hidden');
+        await LoadingScreen.hide();
+        this.spawnPlayer(G.world);
         this._enteringDungeon = false;
       }
     }, 40);
@@ -2225,19 +2339,32 @@ export const game = {
     floor = Math.max(1, Math.min(this.breachOpen(), floor | 0 || 1));
     c.breach ||= { best: 0, cleared: {} };
     c.breach.floor = floor;
-    const loading = document.getElementById('loading');
-    document.getElementById('loading-text').textContent = `Into the Eternal Breach — Floor ${floor}…`;
-    loading.classList.remove('hidden');
+    LoadingScreen.show({
+      title: 'THE ETERNAL BREACH',
+      subtitle: `Floor ${floor}`,
+      text: `Into the Eternal Breach — Floor ${floor}…`,
+      progress: 10
+    });
     sfx('portal');
     setTimeout(async () => {
-      try { await this.loadLevelArt(BREACH_BIOME); } catch (e) { console.warn(e); }
       try {
+        LoadingScreen.setProgress(30, 'Unsealing breach wards…');
+        await this.loadLevelArt(BREACH_BIOME);
+      } catch (e) { console.warn(e); }
+      try {
+        LoadingScreen.setProgress(55, 'Forging the shattered rift…');
         this.buildBreach(floor);
         const w = G.world;
+        LoadingScreen.setProgress(75, 'Summoning breach horrors…');
         await loadArtFor(BREACH_ART.map((a) => a.id), true).catch((e) => console.warn(e)); // the Breach's six atlases (~1.6 MB)
+        LoadingScreen.setProgress(90, 'Stabilizing dimensions…');
         await warmLevelArt(w);
         releaseLevelArt(BREACH_BIOME);
-      } finally { loading.classList.add('hidden'); }
+        LoadingScreen.setProgress(100, 'Arriving…');
+      } finally {
+        await LoadingScreen.hide();
+        this.spawnPlayer(G.world);
+      }
     }, 40);
   },
 
@@ -2335,21 +2462,34 @@ export const game = {
     const biome = pick(pool.length ? pool : BIOMES.filter((b) => !b.overworld)) || BIOME_BY_ID.catacombs;
     c.lastRift = biome.id;
     const mix = mixPartner(biome);
-    const loading = document.getElementById('loading');
-    document.getElementById('loading-text').textContent = `Into the Abyssal Rift — Tier ${tier}…`;
-    loading.classList.remove('hidden');
+    LoadingScreen.show({
+      title: 'ABYSSAL RIFT',
+      subtitle: `Tier ${tier}`,
+      text: `Into the Abyssal Rift — Tier ${tier}…`,
+      progress: 10
+    });
     sfx('portal');
     this.riftLoading = true;
     setTimeout(async () => {
-      try { await this.loadLevelArt(biome, mix); } catch (e) { console.warn(e); }
+      try {
+        LoadingScreen.setProgress(30, 'Breaching dimensional folds…');
+        await this.loadLevelArt(biome, mix);
+      } catch (e) { console.warn(e); }
       try {
         this.riftLoading = false;
+        LoadingScreen.setProgress(55, 'Weaving rift chaos…');
         this.buildRift(tier, biome, mix);
         const w = G.world;
+        LoadingScreen.setProgress(75, 'Empowering champions…');
         await loadArtFor([...w.creatures.map((m) => m.art), ...(w.looks ? w.looks.ids() : [])], true).catch((e) => console.warn(e));
+        LoadingScreen.setProgress(90, 'Igniting the beacon…');
         await warmLevelArt(w);
         releaseLevelArt(biome);
-      } finally { loading.classList.add('hidden'); }
+        LoadingScreen.setProgress(100, 'Arriving…');
+      } finally {
+        await LoadingScreen.hide();
+        this.spawnPlayer(G.world);
+      }
     }, 40);
   },
   /** A rift level: a small maze and a BOSS ROOM arena of a standard biome, as deadly as depth 500 + 10 T, no boss until the quota. */
@@ -2436,15 +2576,22 @@ export const game = {
     if (Auto.on) Auto.toggle(false);
     spendKeys(c);
     const depth = Math.max(FINAL_DEPTH, G.world?.kind === 'dungeon' && !G.world.rift ? G.world.depth : c.depth || 1), biome = BIOME_BY_ID.throne;
-    const loading = document.getElementById('loading');
-    document.getElementById('loading-text').textContent = `Dagyr Unbound — Depth ${depth}…`;
-    loading.classList.remove('hidden');
+    LoadingScreen.show({
+      title: 'DAGYR UNBOUND',
+      subtitle: `Depth ${depth}`,
+      text: `Dagyr Unbound — Depth ${depth}…`,
+      progress: 10
+    });
     try {
+      LoadingScreen.setProgress(30, 'Unsealing the throne room…');
       await this.loadLevelArt(biome);
       G.unboundNext = true;
+      LoadingScreen.setProgress(55, 'Rebuilding the court…');
       this.buildDungeon(depth, biome);
       const w = G.world;
+      LoadingScreen.setProgress(75, 'Awakening the demon lord…');
       await loadArtFor([...w.creatures.map((m) => m.art), ...(w.looks ? w.looks.ids() : []), ...(w.Dagyr ? w.Dagyr.courtArt || [] : [])], true).catch((e) => console.warn(e)); // (his court steps in later)
+      LoadingScreen.setProgress(90, 'Preparing the battleground…');
       await warmLevelArt(w);
       releaseLevelArt(biome);
       const p = G.player;
@@ -2456,12 +2603,14 @@ export const game = {
         camera.follow(x, y, 0, true);
       }
       UI.log('<b style="color:#ff4020">Dagyr Unbound.</b> The keys turn; the Demon Lord rises with his court at his side. There is no practice here.', '#ffb0a0');
+      LoadingScreen.setProgress(100, 'Arriving…');
     } catch (e) {
       console.warn(e); G.unboundNext = false;
       c.keys += 3; // the keys come back
       UI.log('The abyss rejected the keys. Try again.', '#ff8060');
     } finally {
-      loading.classList.add('hidden');
+      await LoadingScreen.hide();
+      this.spawnPlayer(G.world);
       this.autosave();
     }
     return true;
@@ -2537,9 +2686,13 @@ export const game = {
     } else if (!G.room && G.hitStop > 0) { G.hitStop -= dt; controls.update(0); }
     else if (!G.paused) {
       if (G.room && G.hitStop > 0) G.hitStop = Math.max(0, G.hitStop - dt);
-      Auto.noteInput();
-      controls.update(dt);
-      Auto.update(dt);
+      if (this.isLoading || G.loading || (p && p.spawned === false)) {
+        // Skip player input and auto-play while loading screen is active
+      } else {
+        Auto.noteInput();
+        controls.update(dt);
+        Auto.update(dt);
+      }
       // auto-play (or a click) may have taken the hero through a portal: the world he left stops here, or its rules run on
       // him in the new one (the Breach's wards put him back at his last Breach spot, off the edge of town: a black town)
       if (G.world !== w) return;
@@ -2650,6 +2803,7 @@ export const game = {
             summons: mySummons,
             worldKind: w?.kind || 'town',
             depth: (w?.kind === 'dungeon' ? w.depth : 0) || 0,
+            loading: !!(G.loading || this.isLoading || (p && p.spawned === false)),
           });
         }
       }

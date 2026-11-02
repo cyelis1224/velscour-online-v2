@@ -25,6 +25,7 @@ async function runTest() {
   });
 
   const page = await context.newPage();
+  await page.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
 
   page.on('console', msg => {
     const text = msg.text();
@@ -34,8 +35,9 @@ async function runTest() {
   });
 
   try {
-    await page.goto('http://localhost:8124/?touch=1&autostart=1', { waitUntil: 'domcontentloaded', timeout: 20000 });
-    await page.waitForTimeout(1500);
+    await page.goto('http://localhost:8124/index.html?touch=1&autostart=1', { waitUntil: 'domcontentloaded', timeout: 20000 });
+    await page.waitForFunction(() => !!window.DAGYR && document.querySelector('#loading')?.classList.contains('hidden'), null, { timeout: 15000 });
+    await page.waitForTimeout(500);
 
     // Ensure we are in game / town
     await page.evaluate(async () => {
@@ -151,11 +153,11 @@ async function runTest() {
     // Verify expectations
     if (collapsedData.chatBottom > 2) throw new Error(`Chat is not at bottom! chatBottom=${collapsedData.chatBottom}`);
     if (collapsedData.chatHeight > 45) throw new Error(`Chat is not collapsed! height=${collapsedData.chatHeight}`);
+    if (!collapsedData.isChatMinimized) throw new Error('Chat is not minimized initially in portrait view!');
     if (collapsedData.minimapWidth < 90) throw new Error(`Minimap was not resized! width=${collapsedData.minimapWidth}`);
     if (collapsedData.skullTop <= collapsedData.minimapTop) throw new Error('Skull was not moved below minimap!');
-    if (!expandedData.isChatMinimized && expandedData.hudBarBottom < 100) {
-      throw new Error(`HUD bar did not move up when chat opened! hudBarBottom=${expandedData.hudBarBottom}`);
-    }
+    if (expandedData.isChatMinimized) throw new Error('Chat failed to expand when toggle was clicked!');
+    if (expandedData.chatHeight < 200) throw new Error(`Chat expanded overlay height is too small! height=${expandedData.chatHeight}`);
 
     console.log('--- ALL MOBILE PORTRAIT UI TESTS PASSED! ---');
   } finally {

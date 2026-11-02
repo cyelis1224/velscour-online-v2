@@ -2,7 +2,7 @@
 import { UI } from './ui.js';
 import { sfx } from '../core/audio.js';
 
-export const CURRENT_BUILD_VERSION = '0.1.4';
+export const CURRENT_BUILD_VERSION = '0.2.3';
 
 const STORAGE_VERSION_KEY = 'Dagyr_installed_version';
 const STORAGE_MANIFEST_HASH_KEY = 'Dagyr_installed_manifest_hash';
@@ -340,12 +340,12 @@ export async function checkForUpdates({ force = false } = {}) {
           version: forceTestUpdate ? '0.2.0' : currentVer,
           inGameUpdateSupported: true,
           changelog: [
+            'Travelling Merchant Malakor: Trade Infernal Marks for Sealed Chests just off the town square',
+            'Mountainside Biome Overworld Overhaul: Complete high-altitude terrain, snow drifts, goats, and shrines',
+            'The Pirate Seas Expansion: 12 naval scenario battlefields on Bellmourn\'s waters with 3D ships',
+            'Diablo-Style Cast Lock & Auto-Cast Summons: Fluid spellcasting flow and persistent summon management',
+            'Infernal Marks Storage Expansions: Account-wide row expansions for Bag, Gem Bag, Stash, Jewel Box, and Reliquary',
             'In-Game Differential Android OTA Updater: downloads and replaces only modified game files in-place without reinstalling the full APK',
-            'Level Cap 3000 & Uncapped Infernal Marks: hero progression extended to level 3000 across Endless Torment depths up to D6600, with uncapped Infernal Marks',
-            'Skill Macros (R E Y U O & Touch M1-M5): 5 customizable skill macro slots per hero with Keep up auto-recast and full online party synchronization',
-            'Thorns Scaling & Weapon Base Display: endgame thorns scale with hero fortitude and attacker level; added Weapon Base to the Character Sheet',
-            'Compact Big-Number Notation & Gold Scaling: added Qa through Dc and scientific notation suffixes along with high-depth logarithmic gold scaling',
-            'Dagyr Unbound & Sealed Treasure Updates: Unbound prioritizes uncollected Heirlooms + 3 Abyssal items + 20 Infernal Marks; ring augments show hit damage; sealed items blocked from socketing/upgrading/enchanting',
           ],
           downloads: {
             android: { available: true, url: '/download/android', filename: 'DagyrOnline.apk', sizeFormatted: '346 MB' },

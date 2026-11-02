@@ -50,9 +50,13 @@ const ENTRY = ['drop', 'teleport', 'burrow', 'wall'];
 
 /** Floor spot near (x, y) the hero can reach, `r0..r1` tiles away. */
 function spotNear(w, x, y, r0, r1, rr) {
+  const from = w.map.hgt ? w.map.tileIdx(x, y) : undefined;
   for (let i = 0; i < 40; i++) {
     const a = rand(TAU), r = rand(r0, r1), sx = x + Math.cos(a) * r, sy = y + Math.sin(a) * r;
-    if (w.map.walkable(sx, sy) && w.map.circleFree(sx, sy, rr)) return [sx, sy];
+    if (w.map.walkable(sx, sy) && w.map.circleFree(sx, sy, rr, from)) {
+      if (w.map.hgt && Math.abs(w.map.hgt[w.map.tileIdx(sx, sy)] - w.map.hgt[from]) > (w.map.climb || 4)) continue;
+      return [sx, sy];
+    }
   }
   return null;
 }
@@ -64,7 +68,10 @@ function wallSpot(w, x, y) {
     const a = rand(TAU), r = rand(3, 7), tx = Math.floor(x + Math.cos(a) * r), ty = Math.floor(y + Math.sin(a) * r);
     const cx = tx + 0.5, cy = ty + 0.5;
     if (!map.walkable(cx, cy) || !map.circleFree(cx, cy, 0.35)) continue;
-    for (const [dx, dy] of shuffle([[1, 0], [-1, 0], [0, 1], [0, -1]])) if (!map.isFloor(cx + dx, cy + dy)) return [cx, cy, cx + dx * 0.7, cy + dy * 0.7];
+    for (const [dx, dy] of shuffle([[1, 0], [-1, 0], [0, 1], [0, -1]])) {
+      const wx = cx + dx * 0.7, wy = cy + dy * 0.7;
+      if (!map.isFloor(cx + dx, cy + dy) && map.inb(Math.floor(wx), Math.floor(wy))) return [cx, cy, wx, wy];
+    }
   }
   return null;
 }
@@ -161,6 +168,7 @@ export function ambushTick(w, dt) {
 }
 
 export function ambush(w, kind = pick(ENTRY), n = 0, targetPlayer = null) {
+  if ((w.biome?.overworld || w.map?.hgt) && kind === 'wall') kind = pick(['drop', 'burrow', 'teleport']);
   const p = targetPlayer || w.player;
   if (!p) return 0;
   const depth = w.depth || 1, lvl = depthLevel(depth);

@@ -54,26 +54,34 @@ export const GameChat = {
   fadeTimer: null,
   FADE_DELAY_MS: 5000,
 
+  /** Whether the current environment is running on a touch/mobile device. */
+  isTouchDevice() {
+    return !!(G.touch || document.body.classList.contains('touch') || (typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches));
+  },
+
   /** Desktop = mouse/keyboard play (not the touch layout). */
   isDesktop() {
-    return !G.touch && !document.body.classList.contains('touch');
+    return !this.isTouchDevice();
   },
 
   /** Mobile landscape mode (touch device in horizontal orientation). */
   isLandscapeMobile() {
-    const isTouch = G.touch || document.body.classList.contains('touch');
-    const isPortrait = document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && isTouch);
-    return isTouch && !isPortrait;
+    return this.isTouchDevice() && !this.isPortraitMobile();
   },
 
   /** Mobile portrait mode (touch device in vertical orientation). */
   isPortraitMobile() {
-    const isTouch = G.touch || document.body.classList.contains('touch');
-    return isTouch && (document.body.classList.contains('portrait') || window.innerHeight > window.innerWidth);
+    const isPortrait = document.body.classList.contains('portrait') || (typeof window !== 'undefined' && window.innerHeight > window.innerWidth);
+    return this.isTouchDevice() && isPortrait;
   },
 
   init() {
-    if (this.isInitialized && this.container?.isConnected) return;
+    if (this.isInitialized && this.container?.isConnected) {
+      if (this.isPortraitMobile()) {
+        this.toggleMinimize(true);
+      }
+      return;
+    }
     this.isInitialized = true;
 
     // Load saved All tab channel filters
@@ -92,11 +100,16 @@ export const GameChat = {
     const existing = document.getElementById('game-chat');
     if (existing) existing.remove();
 
-    const root = el('div', 'game-chat');
+    if (this.isPortraitMobile()) {
+      this.isMinimized = true;
+    }
+
+    const root = el('div', 'game-chat' + (this.isMinimized ? ' minimized' : ''));
     root.id = 'game-chat';
 
     // Header & Tabs
     const header = el('div', 'gc-header');
+    const toggleIcon = this.isMinimized ? '&#9650;' : '&#9660;';
     header.innerHTML = `
       <div class="gc-tabs">
         <button type="button" class="gc-tab active" data-tab="all">All</button>
@@ -115,7 +128,7 @@ export const GameChat = {
           <span class="gc-filter-dot hidden" id="gc-filter-dot"></span>
         </button>
         <button type="button" class="gc-tool-btn" id="gc-btn-clear" title="Clear history">&#128465;</button>
-        <button type="button" class="gc-tool-btn" id="gc-btn-toggle" title="Minimize/Expand">&#9660;</button>
+        <button type="button" class="gc-tool-btn" id="gc-btn-toggle" title="Minimize/Expand">${toggleIcon}</button>
       </div>
     `;
 
@@ -485,7 +498,7 @@ export const GameChat = {
     });
 
     // In mobile portrait mode, default to minimized state
-    if (document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch)) {
+    if (this.isPortraitMobile()) {
       this.isMinimized = true;
       this.container.classList.add('minimized');
       if (this.landscapeBackdropEl) {
@@ -530,8 +543,7 @@ export const GameChat = {
       // Desktop chat is docked in the pickup log's spot: no dragging
       if (this.isDesktop()) return;
       // Don't drag on mobile touch devices
-      if (G.touch || document.body.classList.contains('touch')) return;
-      if (document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch)) return;
+      if (this.isTouchDevice() || this.isPortraitMobile()) return;
       // Don't drag if clicked on button, tab, badge, input, etc.
       if (e.target.closest('button, input, select, textarea, a, .gc-badge')) return;
       if (e.button !== undefined && e.button !== 0) return; // primary click only
@@ -597,8 +609,7 @@ export const GameChat = {
 
     const onResizePointerDown = (e) => {
       if (this.isDesktop()) return;
-      if (G.touch || document.body.classList.contains('touch')) return;
-      if (document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch)) return;
+      if (this.isTouchDevice() || this.isPortraitMobile()) return;
       if (e.button !== undefined && e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
@@ -668,19 +679,23 @@ export const GameChat = {
     if (!this.container) return;
     this.applyDesktopMode();
     const isLand = this.isLandscapeMobile();
+    const isPort = this.isPortraitMobile();
     if (!isLand && this.isLandscapeOpen) {
       this.toggleLandscapeChat(false);
     }
     if (isLand && this.isMinimized) {
       this.isMinimized = false;
       this.container.classList.remove('minimized');
+    } else if (isPort && !this.wasInPortrait) {
+      // Rotating or switching into portrait mobile defaults to minimized bottom banner
+      this.toggleMinimize(true);
     }
-    const isPortrait = document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch);
+    this.wasInPortrait = isPort;
     if (this.landscapeBackdropEl) {
       if (isLand) {
         this.landscapeBackdropEl.classList.toggle('visible', this.isLandscapeOpen);
         this.landscapeBackdropEl.classList.toggle('hidden', !this.isLandscapeOpen);
-      } else if (isPortrait) {
+      } else if (isPort) {
         this.landscapeBackdropEl.classList.toggle('visible', !this.isMinimized);
         this.landscapeBackdropEl.classList.toggle('hidden', this.isMinimized);
       } else {
@@ -721,7 +736,7 @@ export const GameChat = {
   },
 
   updatePortraitChatHeight() {
-    const isPortrait = document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch);
+    const isPortrait = this.isPortraitMobile();
     if (!this.container) return;
     if (isPortrait) {
       // Keep HUD bar and touch controls docked above the 34px bottom banner.
@@ -1054,7 +1069,7 @@ export const GameChat = {
     this.container.classList.toggle('minimized', this.isMinimized);
     const toggleBtn = this.container.querySelector('#gc-btn-toggle');
     if (toggleBtn) toggleBtn.innerHTML = this.isMinimized ? '&#9650;' : '&#9660;';
-    const isPortrait = document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch);
+    const isPortrait = this.isPortraitMobile();
     if (this.landscapeBackdropEl && isPortrait) {
       this.landscapeBackdropEl.classList.toggle('visible', !this.isMinimized);
       this.landscapeBackdropEl.classList.toggle('hidden', this.isMinimized);
@@ -1320,6 +1335,9 @@ export const GameChat = {
     if (!this.container) this.init();
     this.container.classList.remove('hidden');
     this.applyDesktopMode();
+    if (this.isPortraitMobile()) {
+      this.toggleMinimize(true);
+    }
     if (!this.isDesktop()) {
       document.body.classList.remove('gc-chat-visible');
       return;

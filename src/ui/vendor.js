@@ -16,6 +16,8 @@ import { VENDORS } from '../world/town.js';
 import { depthLevel } from '../data/depth.js';
 import { sheetItem, bannerKitItem, BANNER_KIT_PRICE, goldLvl } from '../data/items.js';
 import { SHEET_PRICE } from '../data/tabs.js';
+import { marksFree, deductMarks } from '../game/marks.js';
+import { Marks } from './marks.js';
 
 const VBY = Object.fromEntries(VENDORS.map((v) => [v.id, v]));
 
@@ -55,8 +57,11 @@ export const Vendor = {
     UI.openPanel('inventory', 'Your Inventory', renderInventory);
   },
 
-  render(body) {
+  render(body = null) {
+    body = body || (typeof document !== 'undefined' ? document.querySelector('.vendor-body') : null);
+    if (!body || !this.active) return;
     const v = VBY[this.active];
+    if (!v) return;
     const c = G.char;
     body.innerHTML = '';
     body.appendChild(el('div', 'vendor-greet', `“${escapeHtml(v.greet)}”`));
@@ -65,6 +70,14 @@ export const Vendor = {
     goldSpan.title = 'Click to drop gold on the floor';
     goldSpan.onclick = () => { sfx('ui'); openDropGoldDialog(); };
     goldRow.appendChild(goldSpan);
+    if (this.active === 'infernal') {
+      const freeMarks = marksFree();
+      const markSpan = el('span', 'gold-text', `★ ${fmtInt(freeMarks)} Infernal Mark${freeMarks === 1 ? '' : 's'}`);
+      markSpan.style.cssText = 'color:#ff5533;font-weight:bold;margin-left:14px;cursor:pointer;';
+      markSpan.title = 'Click to view Infernal Marks panel';
+      markSpan.onclick = () => Marks.open();
+      goldRow.appendChild(markSpan);
+    }
     body.appendChild(goldRow);
     const sellZone = el('div', 'shop-sellzone', 'Drop a backpack item here to sell · Right-click an item to sell it');
     droppable(sellZone, (data) => (data.type === 'item' ? this.sell(data) : false), (data) => data.type === 'item');
@@ -78,6 +91,7 @@ export const Vendor = {
       case 'enchant': this.serviceBox(body, 'enchant'); break;
       case 'socket': this.serviceBox(body, 'socket'); body.appendChild(el('div', 'vendor-sub', '<b>Rings</b> <span class="dim">· each ring augments your skills</span>')); this.shopGrid(body, this.stock.rings || []); break;
       case 'gamble': this.gambleBox(body); break;
+      case 'infernal': this.infernalBox(body); break;
     }
   },
 
@@ -374,6 +388,148 @@ export const Vendor = {
       row.appendChild(b);
     }
     body.appendChild(row);
+  },
+
+  /** Malakor the Ash-Wanderer: trade Infernal Marks for Sealed Chests. */
+  infernalBox(body) {
+    const c = G.char;
+    const free = marksFree();
+
+    const banner = el('div', 'dim', 'The wanderer trades relics salvaged from the deepest abysses. Exchange your <b>Infernal Marks</b> for sealed coffers. Break the seal in your backpack or via the HUD button to reveal the treasure within!');
+    banner.style.cssText = 'margin-bottom:12px;font-size:13px;line-height:1.4;';
+    body.appendChild(banner);
+
+    const chestOffers = [
+      {
+        id: 'mystery',
+        name: 'Sealed Mystery Casket',
+        cost: 1,
+        desc: 'An iron-bound coffer pulled from the outer depths. Contains an <b>Epic or better</b> item scaled to your level.',
+        rarityText: 'Epic+',
+        rollRarity: () => {
+          const mf = G.player?.st?.magicFind || 0;
+          const r = Math.random();
+          if (r < Math.min(0.12, 0.03 * (1 + mf / 200))) return 5;
+          if (r < Math.min(0.40, 0.20 * (1 + mf / 150))) return 4;
+          return 3;
+        },
+      },
+      {
+        id: 'weapon',
+        name: 'Sealed Armament Coffer',
+        cost: 2,
+        desc: 'A heavy warded coffer containing an <b>Epic or better Weapon or Offhand</b>.',
+        rarityText: 'Epic+ Weapon / Offhand',
+        slot: () => (Math.random() < 0.75 ? 'weapon' : 'offhand'),
+        rollRarity: () => {
+          const mf = G.player?.st?.magicFind || 0;
+          const r = Math.random();
+          if (r < Math.min(0.15, 0.04 * (1 + mf / 200))) return 5;
+          if (r < Math.min(0.45, 0.25 * (1 + mf / 150))) return 4;
+          return 3;
+        },
+      },
+      {
+        id: 'armor',
+        name: 'Sealed Armor Vault',
+        cost: 2,
+        desc: 'A runed lockbox containing <b>Epic or better Armor</b> (Helm, Chest, Legs, Boots, or Gloves).',
+        rarityText: 'Epic+ Armor',
+        slot: () => pick(['head', 'body', 'legs', 'feet', 'hands']),
+        rollRarity: () => {
+          const mf = G.player?.st?.magicFind || 0;
+          const r = Math.random();
+          if (r < Math.min(0.15, 0.04 * (1 + mf / 200))) return 5;
+          if (r < Math.min(0.45, 0.25 * (1 + mf / 150))) return 4;
+          return 3;
+        },
+      },
+      {
+        id: 'reliquary',
+        name: 'Sealed Abyssal Reliquary',
+        cost: 5,
+        desc: 'A forbidden relic chest pulsing with dark brimstone. Guaranteed <b>Legendary or Mythic</b>!',
+        rarityText: 'Guaranteed Legendary / Mythic',
+        rollRarity: () => {
+          const mf = G.player?.st?.magicFind || 0;
+          const r = Math.random();
+          return r < Math.min(0.35, 0.15 * (1 + mf / 150)) ? 5 : 4;
+        },
+      },
+    ];
+
+    const list = el('div', 'infernal-chest-list');
+    list.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px;';
+
+    for (const offer of chestOffers) {
+      const row = el('div', 'service-box row');
+      row.style.cssText += ';align-items:center;padding:10px;background:rgba(25,10,12,0.5);border:1px solid rgba(255,80,40,0.3);';
+
+      const ic = el('div', 'bslot r3 sealed');
+      Object.assign(ic.style, { width: '42px', height: '42px', flex: 'none' });
+      ic.appendChild(itemCell({ type: 'gear', sealed: true, rarity: offer.id === 'reliquary' ? 4 : 3 }));
+      row.appendChild(ic);
+
+      const info = el('div', '');
+      info.style.cssText = 'flex:1;margin-left:12px;margin-right:12px;';
+      info.innerHTML = `<div style="font-size:14px;font-weight:bold;color:#ffdf8a">${escapeHtml(offer.name)} <span style="font-size:11px;color:#ff6644;font-weight:normal">(${offer.rarityText})</span></div><div class="dim" style="font-size:12px;margin-top:2px;line-height:1.3">${offer.desc}</div>`;
+      row.appendChild(info);
+
+      const btn = el('button', 'btn small', `Trade <b>${offer.cost} Mark${offer.cost > 1 ? 's' : ''}</b>`);
+      btn.style.cssText = 'flex:none;white-space:nowrap;min-width:115px;color:#ffd860;';
+      const bagFull = c.bag.filter((x) => !x).length < 1;
+      const canAfford = free >= offer.cost;
+      btn.disabled = !canAfford || bagFull;
+      if (bagFull) {
+        btn.title = 'Inventory is full';
+      } else if (!canAfford) {
+        btn.title = `Requires ${offer.cost} unspent Infernal Marks (you have ${free})`;
+      }
+      btn.onclick = () => this.buySealedChest(offer);
+      row.appendChild(btn);
+
+      list.appendChild(row);
+    }
+
+    body.appendChild(list);
+  },
+
+  buySealedChest(offer) {
+    const c = G.char;
+    if (!c) return;
+    if (marksFree() < offer.cost) {
+      UI.log(`Not enough unspent Infernal Marks (need ${offer.cost}, have ${marksFree()}).`, '#ff8080');
+      sfx('error');
+      return;
+    }
+    if (c.bag.filter((x) => !x).length < 1) {
+      UI.log('Inventory is full! Free up a slot first.', '#ff8080');
+      sfx('error');
+      return;
+    }
+    if (!deductMarks(offer.cost)) {
+      UI.log('Failed to deduct Infernal Marks.', '#ff8080');
+      sfx('error');
+      return;
+    }
+
+    const lvl = Math.max(c.level, depthLevel(c.depth || 1));
+    const slot = offer.slot ? offer.slot() : undefined;
+    const rarity = offer.rollRarity();
+    const it = rollItem(lvl, {
+      slot,
+      rarity,
+      mf: (G.player?.st?.magicFind || 0) + 50,
+      bonus: 0.5,
+    });
+    it.sealed = true;
+    addToBag(c, it);
+
+    sfx('levelup', 0.7);
+    sfx('shadow', 0.8);
+    UI.log(`The wanderer passes you a <b style="color:#ffdf8a">Sealed Treasure</b> (${escapeHtml(offer.name)})! Break the seal to unveil it.`, '#ffd860');
+    changed();
+    this.render();
   },
 };
 

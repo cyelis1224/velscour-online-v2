@@ -20,7 +20,7 @@ export const G = {
     sfx: 0.6,
     music: 0.35,
     amb: 0.5,
-    gore: 2, // 0 off, 1 normal, 2 extreme
+    gore: 0, // 0 off, 1 normal, 2 extreme
     dmgNumbers: true,
     shake: true,
     zoom: 1,
@@ -39,7 +39,7 @@ export const G = {
     autoSummon: true, // re-raise pets, totems and turrets on the skill bar the moment one is missing (Player.autoSummon)
     dkBlade: 'sprite', // the Death Knight's flying sword: 'sprite' (his sword as a 2D object), 'model' (live three.js), 'runeblade'
     noSkipCine: false, // "Don't skip cutscenes": Sky Battle scenes already seen play at 1x, not 20x
-    fpsCap: 0, // frame rate cap: 0 none, 30 (phones run cooler over a long session)
+    fpsCap: 30, // frame rate cap: 0 none, 30 (phones run cooler over a long session)
     showHeroStats: true, // show/hide the #hero-stats div
     alwaysShowParty: false, // keep the party list up in online rooms (otherwise it shows with the automap: Tab/M)
     showTargetBox: true, // show/hide the #target-box div

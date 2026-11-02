@@ -32,13 +32,14 @@ const AUTO = process.argv[3] !== 'noauto';
         if (drawBiome(c, 10 + (i % 30)) === 'mountainside') { drawn = true; break; }
       }
       if (!drawn) bad.push('never drawn in overworld guarantee rotation');
-      // first on HAIL DAGYR!'s list
+      // teleport list contains mountainside
       game.openDagyrTeleport();
-      const opt = document.querySelector('#Dagyr-biome option');
-      if (!opt || opt.value !== 'mountainside') bad.push('not first on the teleport list: ' + (opt && opt.value));
+      const opt = document.querySelector('#Dagyr-biome option[value="mountainside"]');
+      if (!opt) bad.push('mountainside not in teleport list');
       document.querySelector('.Dagyr-teleport-dialog button')?.click();
+      const { MW, MH } = await import('/src/world/mountain.js');
       const m = G.world.map;
-      if (m.w !== 50 || m.h !== 50) bad.push(`map is ${m.w} x ${m.h}`);
+      if (m.w !== MW || m.h !== MH) bad.push(`map is ${m.w} x ${m.h}`);
       if (!m.hgt) bad.push('no height map');
       return { bad, title: G.world.overworldScenario?.title, levels: [m.minLevel, m.maxLevel], props: G.world.props.length, mobs: G.world.creatures.length };
     });
@@ -77,7 +78,7 @@ const AUTO = process.argv[3] !== 'noauto';
         for (const ch of g.chests) if (!up[I(Math.floor(ch.x), Math.floor(ch.y))]) bad.push(`seed ${seed}: chest at ${ch.x.toFixed(1)},${ch.y.toFixed(1)} unreachable`);
         // tall cliffs on every band, hop-sized steps, and the climb
         let tall = 0, hops = 0, drops = 0;
-        for (let y = 0; y < m.h - 1; y++) for (let x = 3; x < 46; x++) {
+        for (let y = 0; y < m.h - 1; y++) for (let x = 4; x < m.w - 6; x++) {
           const a = I(x, y), b = I(x, y + 1), d = m.hgt[a] - m.hgt[b];
           if (d > m.climb) tall++; if (d === m.climb) hops++; if (d > m.climb && d <= m.drop) drops++;
         }
@@ -99,7 +100,7 @@ const AUTO = process.argv[3] !== 'noauto';
       const { camera, isoX, isoY } = await import('/src/core/view.js');
       const w = G.world, m = w.map, p = G.player, W = m.w, bad = [], out = {};
       G.godMode = true;
-      for (const c of w.creatures) if (c !== p && c.team === 'enemy') { c.x = 48; c.y = 48; c.disabled = () => true; }
+      for (const c of w.creatures) if (c !== p && c.team === 'enemy') { c.x = W - 2; c.y = m.h - 2; c.disabled = () => true; }
       // walk into the next tile toward +y/-y and see where the hero ends up
       const tryStep = (x, y, dy) => {
         p.x = x + 0.5; p.y = y + 0.5; p.path = null; p.moveTarget = null;
@@ -107,7 +108,7 @@ const AUTO = process.argv[3] !== 'noauto';
         return dy < 0 ? p.y < y : p.y >= y + 1;
       };
       const find = (pred) => {
-        for (let y = 2; y < m.h - 2; y++) for (let x = 6; x < 44; x++) {
+        for (let y = 4; y < m.h - 4; y++) for (let x = 8; x < m.w - 8; x++) {
           const a = y * W + x, b = (y - 1) * W + x;
           if (!m.walkableTile(x, y) || !m.walkableTile(x, y - 1)) continue;
           if (!m.walkableTile(x - 1, y) || !m.walkableTile(x + 1, y) || !m.walkableTile(x - 1, y - 1) || !m.walkableTile(x + 1, y - 1)) continue;
@@ -126,22 +127,23 @@ const AUTO = process.argv[3] !== 'noauto';
         if (!tryStep(three[0], three[1] - 1, 1)) bad.push(`could not drop ${out.tall} levels at ${three}`);
       }
       // A* and the flow field respect the cliffs: a path from the foot to the summit only steps legally
-      const path = m.findPath(w.overworldScenario.shrine.x, w.overworldScenario.shrine.y + 1.5, 8.5, 45.5, 60000);
-      const top = w.overworldScenario.shrine, up = m.findPath(8.5, 45.5, top.x, top.y, 60000);
+      const startPt = m.mountain.start;
+      const path = m.findPath(w.overworldScenario.shrine.x, w.overworldScenario.shrine.y + 1.5, startPt[0], startPt[1], 60000);
+      const top = w.overworldScenario.shrine, up = m.findPath(startPt[0], startPt[1], top.x, top.y, 60000);
       if (!up) bad.push('A* found no way up');
       else {
-        let x = 8.5, y = 45.5, ill = 0;
+        let x = startPt[0], y = startPt[1], ill = 0;
         for (const [tx, ty] of up) { if (!m.losWide(x, y, tx, ty, 0.28)) ill++; x = tx; y = ty; }
         if (ill) bad.push(`${ill} A* legs cross a cliff`);
         out.upLegs = up.length;
       }
       out.downLegs = path ? path.length : 0;
       m.flowFrom = [-1, -1]; m.buildFlow(top.x, top.y, 400);
-      if (m.flowAt(8.5, 45.5) < 0) bad.push('the flow field from the summit never reaches the foot');
+      if (m.flowAt(startPt[0], startPt[1]) < 0) bad.push('the flow field from the summit never reaches the foot');
       // picking: the screen point of a lifted tile maps back to that tile
       let miss = 0;
       for (let k = 0; k < 40; k++) {
-        const tx = 6 + (k * 7) % 38, ty = 2 + (k * 11) % 44;
+        const tx = 8 + (k * 7) % (m.w - 16), ty = 4 + (k * 11) % (m.h - 10);
         // skip tiles hidden behind a higher column in front of them
         if (!m.walkableTile(tx, ty) || [[1, 0], [0, 1], [1, 1]].some(([ox, oy]) => m.hgt[(ty + oy) * W + tx + ox] > m.hgt[ty * W + tx])) continue;
         p.x = tx + 0.5; p.y = ty + 0.5; camera.follow(p.x, p.y, 0, true);
@@ -173,14 +175,14 @@ const AUTO = process.argv[3] !== 'noauto';
         await page.waitForTimeout(150);
         await shot('mountain_' + name);
       };
-      await at('start', 'return [8.5, 45.5];');
+      await at('start', 'return [m.mountain.start[0], m.mountain.start[1]];');
       await at('ramp1', 'const t = m.mountain.trail; const i = t[Math.floor(t.length * 0.18)]; return [i % m.w + 0.5, ((i / m.w) | 0) + 0.5];');
       await at('trail_mid', 'const t = m.mountain.trail; const i = t[Math.floor(t.length * 0.5)]; return [i % m.w + 0.5, ((i / m.w) | 0) + 0.5];');
       await at('trail_high', 'const t = m.mountain.trail; const i = t[Math.floor(t.length * 0.8)]; return [i % m.w + 0.5, ((i / m.w) | 0) + 0.5];');
       await at('summit', 'const s = w.overworldScenario.shrine; return [s.x - 2.5, s.y + 3.5];');
-      await at('ledge', 'const l = m.mountain.ledges[0] || [20, 20]; return [l[0] + 1.5, l[1] + 1.5];');
-      await at('overview', 'return [24, 24];', 0.42);
-      await at('overview_low', 'return [20, 36];', 0.6);
+      await at('ledge', 'const l = m.mountain.ledges[0] || [30, 30]; return [l[0] + 1.5, l[1] + 1.5];');
+      await at('overview', 'return [m.w / 2, m.h / 2];', 0.35);
+      await at('overview_low', 'return [m.w / 2, m.h * 0.7];', 0.45);
       // a hop caught mid-air: walk the hero up a two-level step
       await page.evaluate(async () => {
         const { G, game } = window.DAGYR;

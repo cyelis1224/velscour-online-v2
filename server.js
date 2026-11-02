@@ -1045,6 +1045,13 @@ const server = http.createServer((req, res) => {
       serverTime: Date.now(),
       buildTime: latestBuild,
       changelog: [
+        "Travelling Merchant in Town: Added Malakor the Ash-Wanderer just off the town square. Trade unspent Infernal Marks for Sealed Chests (Mystery Casket, Armament Coffer, Armor Vault, and Abyssal Reliquary with guaranteed Legendary/Mythic loot) that unseal via the HUD or backpack.",
+        "Mountainside Biome Overworld Overhaul: Complete integration of high-altitude rugged terrain, snow drifts, mountain goats, peak temples, avalanche hazards, and mobile performance optimizations.",
+        "The Pirate Seas Naval Expansion: 12 unique naval scenarios (Flight Deck, Ninth Bell, The Lightless, Wrecker's Reef, Harpoon Weather, Lashed Together, Fire Below, Across the Plank, Three Chains, Red Tide, Sea Coming Over, Dawnwake) with 3D ship models and tactical naval battles on Bellmourn's waters.",
+        "Diablo-Style Cast Lock & Auto-Cast Summons: Responsive casting lock preventing interruption during ability sequences and automated cast logic for persistent pet and minion management.",
+        "Infernal Marks Storage Expansions: Account-wide row expansions for Backpack, Gem Bag, Stash, Jewel Box, and Reliquary unlockable using free Infernal Marks.",
+        "Fullscreen Loading Screen & Spawn Polish: Dedicated loading transition with game tip carousel, progress bar, and graceful player/camera spawn stabilization.",
+        "Minimizable Portrait & Desktop Chat Dock: Compact dockable chat overlay with unread activity badges, customizable channels, and responsive viewport layout.",
         "Bespoke Class Ultimates Animations: Multi-phase visual animations for all 9 class ultimates (Paladin Divine Smite, Barbarian Cataclysm, Lancer Gungnir's Fall, Ranger Storm of Shafts, Gunner Siege Artillery, Bard Grand Crescendo, Wizard Supernova, Necromancer Grave Eruption, Carrion Witch Feast of Crows) featuring rotating ground sigils, celestial spears, subterranean magma fissures, falling arrow storms, artillery shells, musical staff spirals, cosmic singularities, and bone pikes",
         "Class Ultimates Major Update: Unique kill-charged 1-shot Ultimate power move for all 9 classes scaled off primary attributes with custom vector icons, distinct VFX, and SFX",
         "Universal Gothic Fantasy Scrollbars: slim, stylistic scrollbars matching dark parchment and bronze aesthetics across the lobby, inventory, shops, stash, character screens, and chat",

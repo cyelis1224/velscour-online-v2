@@ -343,6 +343,7 @@ export class Creature {
   }
 
   draw(ctx) {
+    if (this.alpha === 0 || this.spawned === false) return;
     if (this.summonKey === 'runeweapon' && drawRuneWeapon(ctx, this)) return; // the Death Knight's 3D Runeblade
     if (TURRET3D.has(this.summonKey) && drawTurret3D(ctx, this)) return; // the Gunner's 3D turrets
     const art = this.artFrame && this.artFrame();
@@ -451,6 +452,7 @@ export class Creature {
 
   /** Draw an animal or humanoid summon from its dedicated animation atlas. */
   drawPet(ctx, a) {
+    if (this.alpha === 0 || this.spawned === false) return;
     const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
     // the atlas has its own summon frames, so the pet only fades in; it stands on the cell's floor line
     const k = a.k * this.scale, dw = a.cw * k, dh = a.ch * k, foot = a.floor * k;
@@ -496,6 +498,7 @@ export class Creature {
    * behind and in front of it.
    */
   drawArt(ctx, a) {
+    if (this.alpha === 0 || this.spawned === false) return;
     const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
     let k = a.k * this.scale;
     if (this.spawnT < 0.3) k *= this.spawnT / 0.3;

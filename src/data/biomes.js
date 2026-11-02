@@ -217,11 +217,11 @@ export const BIOMES = [
   {
     // the largest overworld: thick woods, trail mazes, walled labyrinths and twelve forest trials (docs/DARK_FOREST.md)
     id: 'dark_forest', name: 'The Dark Forest', pack: 'dark_forest', overworld: true, packArt: true,
-    palette: null, dark: 0.64, light: 11.5,
+    palette: null, dark: 0.44, light: 13.0,
     ambient: { type: 'firefly', color: '#b8f07a' }, mon: { hue: 70, sat: 0.8, light: -0.02 },
     el: 'poison', blood: '#5e1410', adj: ['Gloomwood', 'Briar-Bound', 'Moonless', 'Root-Choked'],
     roster: ['spider', 'hound', 'shroom', 'wraith', 'golem', 'archer', 'cultist', 'ghoul', 'zombie', 'bat', 'skeleton', 'slime'],
-    torch: '#ffc070', fog: '#060c07',
+    torch: '#ffd080', fog: '#0a160d',
   },
   {
     // the Sky Battle (docs/SKY_BATTLE.md): the heroes' ironclad against the Air Pirates, eight scenarios and their weather

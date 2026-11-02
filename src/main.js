@@ -9,6 +9,7 @@ import { UI, $ } from './ui/ui.js';
 import { HUD } from './ui/hud.js';
 import { TouchUI } from './ui/touch.js';
 import { GameChat } from './ui/chat.js';
+import { LoadingScreen } from './ui/loading.js';
 import { titleScreen } from './ui/screens.js';
 import { Cloud } from './game/cloud.js';
 import { Vendor } from './ui/vendor.js';
@@ -67,6 +68,14 @@ function renderTitle(dt) {
   }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
+  // Edge vignette shading pass baked directly on the canvas title backdrop
+  const cx = W * 0.5, cy = H * 0.5, r = Math.max(W, H) * 0.72;
+  const vig = ctx.createRadialGradient(cx, cy, r * 0.25, cx, cy, r);
+  vig.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  vig.addColorStop(0.65, 'rgba(0, 0, 0, 0.6)');
+  vig.addColorStop(1, 'rgba(0, 0, 0, 0.94)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
 }
 
 // Adaptive resolution: when a device misses its frame budget, trade backing-store
@@ -176,7 +185,7 @@ async function boot() {
   loadSettings();
   G.canvas = $('#game');
   G.ctx = G.canvas.getContext('2d', { alpha: false });
-  G.touch = window.matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
+  G.touch = window.matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window && navigator.maxTouchPoints > 0) || (typeof location !== 'undefined' && location.search.includes('touch'));
   if (G.touch) { document.body.classList.add('touch'); G.settings.autoLoot = true; }
   G.input = input;
   G.controls = controls;
@@ -248,10 +257,19 @@ async function boot() {
   G.canvas.addEventListener('contextrestored', dropBakes); // a GPU reset wiped the baked floors (game/render.js)
   requestAnimationFrame(loop);
   startTicker();
+  LoadingScreen.show({
+    title: 'DAGYR ONLINE',
+    subtitle: 'The Abyss Awaits',
+    text: 'Summoning the depths…',
+    progress: 0
+  });
   try {
     // the title song downloads in full alongside the art, so on mobile its intro never waits on the network
     let pa = 0, ps = 0;
-    const show = () => { const p = pa * 0.8 + ps * 0.2; $('#loading-text').textContent = `Summoning the depths… ${Math.round(p * 100)}%`; $('#loading-fill').style.width = `${(p * 100).toFixed(1)}%`; };
+    const show = () => {
+      const p = pa * 0.8 + ps * 0.2;
+      LoadingScreen.setProgress(p * 100, `Summoning the depths…`);
+    };
     await Promise.all([loadAssets((p) => { pa = p; show(); }), preloadSong(TITLE_SONG, (p) => { ps = p; show(); }).then(() => { ps = 1; show(); })]);
   } catch (e) {
     $('#loading-text').innerHTML = `Could not load game assets.<br><small>${e.message}</small><br><small>If you opened index.html directly from disk, serve the folder over http instead (see README).</small>`;
@@ -260,8 +278,9 @@ async function boot() {
   HUD.init();
   if (G.touch) TouchUI.init();
   applyVolumes();
-  $('#loading').classList.add('hidden');
   titleScreen();
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  await LoadingScreen.hide();
   Cloud.start(); // a device signed in to Google picks its session back up and syncs (game/cloud.js)
   // prefetch monster art while the player is on the title screen; then redraw skill icons that show summon art
   const redrawIcons = () => {

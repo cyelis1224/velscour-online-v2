@@ -305,8 +305,8 @@ export function dropLoot(world, m) {
   // potions
   if (chance(0.035 * R)) add('potion', { item: potionItem(pick(['hp', 'hp', 'mp', 'mp', 'rejuv', 'fury'])) });
   // gear
-  const items = more(rank === 'boss' ? randi(4, 6) + (world.depth % 10 === 0 ? 2 : 0) : rank === 'unique' ? randi(2, 3) : rank === 'champion' ? (chance(0.6) ? randi(1, 2) : 0) : (chance(0.085 * (world.lootMul || 1)) ? 1 : 0)); // lootMul: omens (game/happenings.js)
-  const bonus = rank === 'boss' ? 1.2 : rank === 'unique' ? 0.6 : rank === 'champion' ? 0.3 : 0;
+  const items = more(rank === 'boss' ? randi(2, 3) + (world.depth % 10 === 0 ? 1 : 0) : rank === 'unique' ? randi(1, 2) : rank === 'champion' ? (chance(0.3) ? randi(1, 2) : 0) : (chance(0.0425 * (world.lootMul || 1)) ? 1 : 0)); // lootMul: omens (game/happenings.js)
+  const bonus = rank === 'boss' ? 1.8 : rank === 'unique' ? 0.7 : rank === 'champion' ? 0.35 : 0;
   const boost = (world.raid || m.isRaid || m.isDagyr ? 3 : 1) * (world.relicMul || 1); // BOSS ROOMs triple the Covenant odds (data/relics.js); Heresies raise them
   for (let i = 0; i < items; i++) {
     const ilvl = lvl + (rank === 'boss' ? 2 : rank === 'normal' ? 0 : 1) + randi(-1, 1);
@@ -326,9 +326,9 @@ export function dropLoot(world, m) {
 
 export function dropChest(world, chest, depth) {
   const st = G.player ? G.player.st : { magicFind: 0, goldFind: 0 };
-  const n = chest.rare ? randi(3, 5) : randi(1, 3);
+  const n = chest.rare ? randi(2, 3) : randi(1, 2);
   const add = (kind, data) => world.addLoot(new GroundItem(chest.x, chest.y + 0.3, kind, data));
-  for (let i = 0; i < n; i++) add('item', { item: maybeRelic(rollItem(depthLevel(depth) + 1, { mf: st.magicFind + (world.mfAdd || 0), bonus: chest.rare ? 0.8 : 0.25 })) });
+  for (let i = 0; i < n; i++) add('item', { item: maybeRelic(rollItem(depthLevel(depth) + 1, { mf: st.magicFind + (world.mfAdd || 0), bonus: chest.rare ? 1.2 : 0.35 })) });
   if (chance(chest.rare ? 0.25 : 0.06)) add('item', { item: rollSigil(depth) });
   for (let i = 0; i < randi(2, 4); i++) add('gold', { amount: Math.round((10 + depthLevel(depth) * 4) * goldScale(depthLevel(depth)) * rand(0.6, 1.4) * (1 + st.goldFind / 100)) });
   if (chance(chest.rare ? 0.8 : 0.3)) add('item', { item: rollGem(depthLevel(depth) + 4) });

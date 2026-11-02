@@ -174,6 +174,12 @@ export const SHOPPING = {
     [['Is this game fair?', 'question'], ['As fair as fate!', 'gesture'], ['So no.', 'angry']],
     [['I feel lucky today.', 'greedy'], ['Fortune adores you!', 'cheer'], ['Then why am I poorer?', 'argue']],
   ],
+  infernal: [
+    [['What is inside these sealed boxes?', 'question'], ['Ancient relics of the abyss. Break the seal to see.', 'think'], ['Sounds dangerous.', 'scared']],
+    [['Will you take gold for these?', 'greedy'], ['Gold is mortal dust. Only Infernal Marks carry real weight.', 'proud'], ['Where do I find those?', 'question']],
+    [['I hear something scratching in that coffer.', 'surprised'], ['Pay it no mind. It settles once opened.', 'mischief'], ['That does not reassure me!', 'panic']],
+    [['How far have you travelled?', 'question'], ['From depths where no sun has ever risen.', 'gesture'], ['...Safe travels, then.', 'shy']],
+  ],
 };
 
 // Adventurers at their camp or passing through (class-agnostic; speaker 0 and 1)

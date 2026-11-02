@@ -89,7 +89,7 @@ export function rageCost(sk) { return sk.classId === 'barbarian' ? (sk.m.rage ||
 export function manaCost(sk, L) {
   if (sk.classId === 'barbarian' && (sk.kind === 'whirl' || rageCost(sk))) return 0; // Barbarian Rage abilities do not consume mana
   if (sk.m.free) return 0;
-  return Math.round((2.5 + sk.row * 2.4) * (1 + 0.07 * (L - 1)) * (sk.m.mana ?? 1) * (KIND_MANA[sk.kind] ?? 1));
+  return Math.round((2.5 + Math.pow(sk.row, 1.4) * 3.2) * (1 + 0.09 * (L - 1)) * (sk.m.mana ?? 1) * (KIND_MANA[sk.kind] ?? 1));
 }
 export function cooldown(sk) { return sk.m.cd ?? KIND_CD[sk.kind] ?? 0; }
 export function useTime(sk) { return sk.m.barrage ? 0 : KIND_USE[sk.kind] ?? 0.42; }

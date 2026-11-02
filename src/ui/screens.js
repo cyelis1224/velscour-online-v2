@@ -528,7 +528,7 @@ export function onlineCharSelectScreen(selectedCharId = null, back = titleScreen
   }
 
   preloadPortraits(ACTIVE_CLASS_IDS);
-  fetchOnlineReliquary().catch(() => {});
+  fetchOnlineReliquary().catch(() => { });
   const acc = getOnlineAccount();
   let chars = getOnlineCharacters().filter(c => c && ACTIVE_CLASS_IDS.includes(c.classId));
   let selId = selectedCharId && chars.some(c => c.id === selectedCharId)
@@ -1086,7 +1086,7 @@ export function settingsDialog() {
   <div class="settings-tab-pane" data-pane="graphics">
     <div class="settings-grid">
       <label>Camera zoom</label><input type="range" min="0.7" max="1.6" step="0.05" value="${st.zoom}" data-k="zoom">
-      <label title="30 draws half the frames: smoother than a frame rate that keeps dipping, and a phone stays cooler (a hot phone slows itself down after a long session)">Frame rate cap</label><select data-k="fpsCap"><option value="0">None</option><option value="30">30 fps (cooler phone)</option></select>
+      <label title="30 draws half the frames: smoother than a frame rate that keeps dipping, and a phone stays cooler (a hot phone slows itself down after a long session)">Frame rate cap</label><select data-k="fpsCap"><option value="0">None</option><option value="30">30 fps</option></select>
       <label>Gore</label><select data-k="gore"><option value="0">Off</option><option value="1">Bloody</option><option value="2">Extreme</option></select>
       <label>Screen shake</label><input type="checkbox" data-k="shake" ${st.shake ? 'checked' : ''}>
       <label title="The hero, monsters and pets keep a coloured outline over spells, walls and darkness (hidden only behind another creature)">See-through outlines</label><input type="checkbox" data-k="outlines" ${st.outlines !== false ? 'checked' : ''}>
@@ -1138,8 +1138,8 @@ export function settingsDialog() {
   });
   if (!['general', 'audio', 'graphics', 'hud', 'autoplay'].includes(activeSettingsTab)) activeSettingsTab = 'general';
   setTab(activeSettingsTab);
-  d.box.querySelector('[data-k=gore]').value = String(st.gore);
-  d.box.querySelector('[data-k=fpsCap]').value = String(st.fpsCap || 0);
+  d.box.querySelector('[data-k=gore]').value = String(st.gore ?? 0);
+  d.box.querySelector('[data-k=fpsCap]').value = String(st.fpsCap ?? 30);
   d.box.querySelector('[data-backups]').onclick = () => { sfx('ui'); backupsDialog(); };
   const ub = d.box.querySelector('[data-check-update]');
   if (ub) {

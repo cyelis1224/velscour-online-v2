@@ -198,7 +198,7 @@ export class Player extends Creature {
     this.maxHp = Math.round(baseHp * (1 + lifePct / 100) * st.fortitude * (1 + mk.life / 100));
     this.maxMana = Math.round(C.mana + (c.level - 1) * C.manaLvl + int * 2 + (add.mana || 0));
     st.lifeRegen = heresyAllows('regen', c) ? 1.2 + c.level * 0.35 + vit * 0.08 + (add.lifeRegen || 0) + this.maxHp * st.regenPct / 100 : 0; // Hunger of the Abyss: none
-    st.manaRegen = (1.8 + c.level * 0.18 + int * 0.06 + (add.manaRegen || 0)) * (1 + (add.manaRegenPct || 0) / 100);
+    st.manaRegen = (1.0 + c.level * 0.04 + int * 0.04 + (add.manaRegen || 0)) * (1 + (add.manaRegenPct || 0) / 100);
     st.talents = tb.mods;
     st.talentSkillMults = tb.skillMults;
     this.st = st;
@@ -389,7 +389,7 @@ export class Player extends Creature {
         G.ui && G.ui.refresh();
         return true;
       case 'orb_hp': this.heal(this.maxHp * 0.15); sfx('orb'); return true;
-      case 'orb_mp': this.mana = Math.min(this.maxMana, this.mana + this.maxMana * 0.18); sfx('orb'); floatText(this.x, this.y, 46, '+mana', '#6a8aff', 11); return true;
+      case 'orb_mp': this.mana = Math.min(this.maxMana, this.mana + this.maxMana * 0.10); sfx('orb'); floatText(this.x, this.y, 46, '+mana', '#6a8aff', 11); return true;
       case 'key': { // an Abyssal Key (docs/ENDGAME.md): three open Dagyr Unbound
         c.keys = (c.keys | 0) + 1; endgame().keysFound++; saveEndgame();
         sfx('levelup', 0.5); floatText(this.x, this.y, 56, `ABYSSAL KEY ${Math.min(3, c.keys)}/3`, '#20e0ff', 15, { life: 2 });
@@ -642,6 +642,7 @@ export class Player extends Creature {
 
   // ------------------------------------------------------------------ update
   update(dt) {
+    if (this.spawned === false) return;
     const st = this.st;
     this.animT += dt;
     const gfx = this.gearFx();
