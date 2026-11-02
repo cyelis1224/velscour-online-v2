@@ -7,6 +7,7 @@ import { itemCell, itemTooltip, rarityClass } from './itemui.js';
 import { changed, renderInventory } from './inventory.js';
 import { addToBag } from '../game/player.js';
 import { itemName } from '../data/items.js';
+import { stashRows, nextStashRowCost, canBuyStashRow, buyStashRow, STASH_MAX_ROWS } from '../data/bag.js';
 
 export const STASH_SIZE = 300;
 
@@ -79,11 +80,39 @@ export const Stash = {
     const prevBodyScroll = body.scrollTop;
     body.innerHTML = '';
     const used = c.stash.filter(Boolean).length;
-    const head = el('div', 'row storage-toolbar', `<strong>${fmtInt(used)} / ${STASH_SIZE}</strong><span class="dim">slots used</span>`);
+    const rows = stashRows(c);
+    const head = el('div', 'row storage-toolbar', `<strong>${fmtInt(used)} / ${c.stash.length}</strong><span class="dim">stored (${rows} rows)</span>`);
     for (const [by, label] of [['type', 'Sort by type'], ['rarity', 'Sort by rarity']]) {
       const b = el('button', 'btn small', label);
       b.onclick = () => { sortStash(c, by); this.selected = null; sfx('ui'); UI.selected = null; changed(); };
       head.appendChild(b);
+    }
+    if (rows < STASH_MAX_ROWS) {
+      const cost = nextStashRowCost(c);
+      const can = canBuyStashRow(c);
+      const buyRowBtn = el('button', 'btn small' + (can ? '' : ' poor'), `+ Row (${cost} Marks)`);
+      buyRowBtn.title = `Add 1 row (10 slots) to Storage Chest for ${cost} Infernal Marks`;
+      buyRowBtn.onclick = () => {
+        sfx('ui');
+        if (!canBuyStashRow(c)) {
+          UI.log(`You need ${cost} free Infernal Marks to expand the storage chest.`, '#ff8080');
+          return;
+        }
+        UI.dialog({
+          title: `Expand Storage Chest (${rows + 1} of ${STASH_MAX_ROWS})`,
+          html: `<p>Add 10 storage slots (row ${rows + 1}) to your Storage Chest for <b style="color:#ffd860">${cost} Infernal Marks</b>?</p>`,
+          buttons: [
+            { label: 'Cancel' },
+            { label: `Buy for ${cost} Marks`, cls: 'red', fn: () => {
+              if (buyStashRow(c)) {
+                changed();
+                this.render(body);
+              }
+            }},
+          ],
+        });
+      };
+      head.appendChild(buyRowBtn);
     }
     body.appendChild(head);
     const tools = el('div', 'storage-filters');

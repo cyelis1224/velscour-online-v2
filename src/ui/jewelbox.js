@@ -7,6 +7,7 @@ import { itemCell, itemTooltip, rarityClass } from './itemui.js';
 import { changed, renderInventory } from './inventory.js';
 import { addToBag } from '../game/player.js';
 import { itemName, GEM_TIERS } from '../data/items.js';
+import { jewelBoxRows, nextJewelBoxRowCost, canBuyJewelBoxRow, buyJewelBoxRow, JEWEL_BOX_MAX_ROWS } from '../data/bag.js';
 
 export const JEWEL_BOX_SIZE = 300;
 
@@ -133,7 +134,8 @@ export const JewelBox = {
     body.innerHTML = '';
 
     const used = c.jewelBox.filter(Boolean).length;
-    const head = el('div', 'row storage-toolbar jewelbox-toolbar', `<strong>${fmtInt(used)} / ${JEWEL_BOX_SIZE}</strong><span class="dim">gems stored</span>`);
+    const rows = jewelBoxRows(c);
+    const head = el('div', 'row storage-toolbar jewelbox-toolbar', `<strong>${fmtInt(used)} / ${c.jewelBox.length}</strong><span class="dim">gems stored (${rows} rows)</span>`);
 
     for (const [by, label] of [['kind', 'Sort by kind'], ['grade', 'Sort by grade']]) {
       const b = el('button', 'btn small', label);
@@ -145,6 +147,33 @@ export const JewelBox = {
         changed();
       };
       head.appendChild(b);
+    }
+    if (rows < JEWEL_BOX_MAX_ROWS) {
+      const cost = nextJewelBoxRowCost(c);
+      const can = canBuyJewelBoxRow(c);
+      const buyRowBtn = el('button', 'btn small' + (can ? '' : ' poor'), `+ Row (${cost} Marks)`);
+      buyRowBtn.title = `Add 1 row (10 slots) to Jewel Box for ${cost} Infernal Marks`;
+      buyRowBtn.onclick = () => {
+        sfx('ui');
+        if (!canBuyJewelBoxRow(c)) {
+          UI.log(`You need ${cost} free Infernal Marks to expand the Jewel Box.`, '#ff8080');
+          return;
+        }
+        UI.dialog({
+          title: `Expand Jewel Box (${rows + 1} of ${JEWEL_BOX_MAX_ROWS})`,
+          html: `<p>Add 10 gem slots (row ${rows + 1}) to your Jewel Box for <b style="color:#ffd860">${cost} Infernal Marks</b>?</p>`,
+          buttons: [
+            { label: 'Cancel' },
+            { label: `Buy for ${cost} Marks`, cls: 'red', fn: () => {
+              if (buyJewelBoxRow(c)) {
+                changed();
+                this.render(body);
+              }
+            }},
+          ],
+        });
+      };
+      head.appendChild(buyRowBtn);
     }
     body.appendChild(head);
 

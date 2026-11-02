@@ -20,6 +20,7 @@ import { openSeal } from './sealed.js';
 import { glyphOf } from '../data/relics.js';
 import { noteFind } from '../game/reliquary.js';
 import { marksTotal, marksFree, capXp } from '../game/marks.js';
+import { bagRows, nextBagRowCost, canBuyBagRow, buyBagRow, BAG_MAX_ROWS, gemBagRows, nextGemBagRowCost, canBuyGemBagRow, buyGemBagRow, GEM_BAG_MAX_ROWS } from '../data/bag.js';
 import { heresyRankOf } from '../game/heresies.js';
 import { endgameUnlocked } from '../game/endgame.js';
 import { sparkle, floatText } from '../gfx/vfx.js';
@@ -942,6 +943,9 @@ export function renderInventory(body) {
   for (let i = 0; i < c.bag.length; i++) bag.appendChild(bagSlot(i));
   mid.appendChild(bag);
 
+  const bagBuyBtn = bagRowButton(c);
+  if (bagBuyBtn) mid.appendChild(bagBuyBtn);
+
   // 2. Dedicated Gem Bag (Half-size: 30 slots for gems and runes)
   const gemTitleRow = el('div', 'inv-section-title gem-bag-title');
   const gemLabel = el('div', 'inv-title-label');
@@ -960,6 +964,9 @@ export function renderInventory(body) {
   const gemBagEl = el('div', 'bag gem-bag');
   for (let i = 0; i < c.gemBag.length; i++) gemBagEl.appendChild(gemBagSlot(i));
   mid.appendChild(gemBagEl);
+
+  const gemBagBuyBtn = gemBagRowButton(c);
+  if (gemBagBuyBtn) mid.appendChild(gemBagBuyBtn);
 
   // 3. Actions / Gold / Potions Bar
   const info = el('div', 'row inv-bag-actions');
@@ -995,12 +1002,77 @@ export function renderInventory(body) {
   body.appendChild(wrap);
 }
 
+function bagRowButton(c) {
+  const rows = bagRows(c);
+  if (rows >= BAG_MAX_ROWS) return null;
+  const next = rows + 1;
+  const cost = nextBagRowCost(c);
+  const can = canBuyBagRow(c);
+  const b = el('button', 'btn small bag-buy' + (can ? '' : ' poor'), `+ Bag row ${next} of ${BAG_MAX_ROWS} (${cost} Marks)`);
+  b.title = can ? `Buy another row of 10 slots for ${cost} Infernal Marks` : `Requires ${cost} unspent Infernal Marks (you have ${marksFree()})`;
+  b.onclick = () => {
+    sfx('ui');
+    if (!canBuyBagRow(c)) {
+      UI.log(`You need ${cost} free Infernal Marks to buy row ${next}.`, '#ff8080');
+      return;
+    }
+    UI.dialog({
+      title: `Bag row ${next} of ${BAG_MAX_ROWS}`,
+      html: `<p>Expand your bag by 1 row (10 slots) for <b style="color:#ffd860">${cost} Infernal Marks</b>?</p>`,
+      buttons: [
+        { label: 'Cancel' },
+        { label: `Buy for ${cost} Marks`, cls: 'red', fn: () => {
+          if (buyBagRow(c)) {
+            changed();
+            const panel = UI.panels?.get('inventory');
+            if (panel) renderInventory(panel.body);
+          }
+        }},
+      ],
+    });
+  };
+  return b;
+}
+
+function gemBagRowButton(c) {
+  const rows = gemBagRows(c);
+  if (rows >= GEM_BAG_MAX_ROWS) return null;
+  const next = rows + 1;
+  const cost = nextGemBagRowCost(c);
+  const can = canBuyGemBagRow(c);
+  const b = el('button', 'btn small bag-buy gem-bag-buy' + (can ? '' : ' poor'), `+ Gem Bag row ${next} of ${GEM_BAG_MAX_ROWS} (${cost} Marks)`);
+  b.title = can ? `Buy another row of 10 gem slots for ${cost} Infernal Marks` : `Requires ${cost} unspent Infernal Marks (you have ${marksFree()})`;
+  b.onclick = () => {
+    sfx('ui');
+    if (!canBuyGemBagRow(c)) {
+      UI.log(`You need ${cost} free Infernal Marks to buy row ${next}.`, '#ff8080');
+      return;
+    }
+    UI.dialog({
+      title: `Gem Bag row ${next} of ${GEM_BAG_MAX_ROWS}`,
+      html: `<p>Expand your Gem Bag by 1 row (10 slots) for <b style="color:#ffd860">${cost} Infernal Marks</b>?</p>`,
+      buttons: [
+        { label: 'Cancel' },
+        { label: `Buy for ${cost} Marks`, cls: 'red', fn: () => {
+          if (buyGemBagRow(c)) {
+            changed();
+            const panel = UI.panels?.get('inventory');
+            if (panel) renderInventory(panel.body);
+          }
+        }},
+      ],
+    });
+  };
+  return b;
+}
+
 export function sortBag() {
   const c = G.char;
   const items = c.bag.filter(Boolean);
   const rank = (it) => (it.type === 'gear' ? 0 : it.type === 'sheet' ? 1 : 2);
   items.sort((a, b) => rank(a) - rank(b) || (b.rarity || 0) - (a.rarity || 0) || (a.slot || '').localeCompare(b.slot || '') || (b.ilvl || 0) - (a.ilvl || 0));
-  c.bag = Array(60).fill(null).map((_, i) => items[i] || null);
+  const bagLen = Math.max(60, c.bag.length);
+  c.bag = Array(bagLen).fill(null).map((_, i) => items[i] || null);
   UI.selected = null;
   changed();
 }
@@ -1022,7 +1094,8 @@ export function sortGemBag() {
     (a.gem || '').localeCompare(b.gem || '') ||
     (b.count || 1) - (a.count || 1)
   );
-  c.gemBag = Array(30).fill(null).map((_, i) => items[i] || null);
+  const gemLen = Math.max(30, c.gemBag.length);
+  c.gemBag = Array(gemLen).fill(null).map((_, i) => items[i] || null);
   UI.selected = null;
   changed();
 }

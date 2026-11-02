@@ -5,13 +5,14 @@ import { drawBiome } from '../data/biomes.js';
 import { migrateBar, BAR_SIZE } from '../data/bar.js';
 import { TAB_SLOTS } from '../data/tabs.js';
 import { newMacros, migrateMacros } from '../data/macros.js';
+import { fixBag, fixGemBag, fixStash, fixJewelBox } from '../data/bag.js';
 import { stashRaw, listRaw } from './herobackup.js';
 
 const KEY = 'Dagyr_saves_v1';
 const ASIDE = KEY + '_unreadable_';   // + time: save data that couldn't be read, set aside before anything replaced it
-const watchers = [];
+var watchers = [];
 /** fn(classId, deletedIds) after a hero of that class is saved, or deleted by the player (game/cloud.js syncs it). */
-export function onSaveChange(fn) { watchers.push(fn); }
+export function onSaveChange(fn) { (watchers || (watchers = [])).push(fn); }
 const changed = (classId, deleted) => { for (const fn of watchers) try { fn(classId, deleted); } catch (e) { console.warn(e); } };
 
 let unreadable = false;   // the saves are there but don't parse: cloud sync must not touch them
@@ -232,10 +233,8 @@ export function migrate(c) {
   // heroes made before the shuffle bag always started in the catacombs: give an unexplored hero a random start
   if (c.nextBiome === 'catacombs' && !c.deepest && !c.lastBiome) c.nextBiome = drawBiome(c, c.depth || 1);
   c.bar = migrateBar(c.bar); // 10 slots (LMB, 1-8, RMB) -> 15 (LMB, ` 1-9 0 - =, RMB)
-  if (!Array.isArray(c.bag)) c.bag = [];
-  while (c.bag.length < 60) c.bag.push(null);
-  if (!Array.isArray(c.gemBag)) c.gemBag = [];
-  while (c.gemBag.length < 30) c.gemBag.push(null);
+  fixBag(c);
+  fixGemBag(c);
   // Migrate existing gems from regular bag to the dedicated Gem Bag
   for (let i = 0; i < c.bag.length; i++) {
     const it = c.bag[i];
@@ -253,10 +252,8 @@ export function migrate(c) {
       }
     }
   }
-  if (!Array.isArray(c.stash)) c.stash = [];
-  while (c.stash.length < 300) c.stash.push(null);
-  if (!Array.isArray(c.jewelBox)) c.jewelBox = [];
-  while (c.jewelBox.length < 300) c.jewelBox.push(null);
+  fixStash(c);
+  fixJewelBox(c);
   if (!Array.isArray(c.tabs)) c.tabs = [];
   while (c.tabs.length < TAB_SLOTS) c.tabs.push(null);
   if (!Number.isInteger(c.tabAt) || c.tabAt < 0 || c.tabAt >= TAB_SLOTS) c.tabAt = 0;

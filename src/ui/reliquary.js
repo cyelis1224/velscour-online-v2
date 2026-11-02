@@ -11,6 +11,7 @@ import { reliquary, saveReliquary, openTabs, codexProgress, codexEntries, MILEST
 import { RELIC_COLORS, SIGILS, SLOT_NAMES, makeGem, itemName } from '../data/items.js';
 import { COVENANT_BY_ID, makeHeirloom, makeCovenant, GLYPHWORDS } from '../data/relics.js';
 import { itemIconURL } from './icons.js';
+import { reliquaryTabRows, nextReliquaryRowCost, canBuyReliquaryRow, buyReliquaryRow, RELIQUARY_MAX_ROWS } from '../data/bag.js';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
 const KIND = { h: ['Heirlooms', RELIC_COLORS.heir], c: ['Covenant pieces', RELIC_COLORS.cov], g: ['Glyphwords', RELIC_COLORS.glyph], s: ['Sigil Stones', '#ffd88a'] };
@@ -111,7 +112,35 @@ export const Reliquary = {
     }
     if (this.tab >= n) { body.appendChild(el('div', 'dim rel-locked', `Vault ${ROMAN[this.tab]} is sealed. ${UNLOCK[this.tab]}.`)); return; }
     const t = r.tabs[this.tab];
-    body.appendChild(el('div', 'dim rel-note', `Shared by all your heroes · Vault ${ROMAN[this.tab]}: ${t.filter(Boolean).length} / ${t.length} · Right-click to move items between the Reliquary and your bag`));
+    const rows = reliquaryTabRows(this.tab);
+    const noteRow = el('div', 'row rel-header-row', `<span class="dim rel-note">Shared by all your heroes · Vault ${ROMAN[this.tab]}: <strong>${t.filter(Boolean).length} / ${t.length}</strong> (${rows} rows)</span>`);
+    if (rows < RELIQUARY_MAX_ROWS) {
+      const cost = nextReliquaryRowCost(this.tab);
+      const can = canBuyReliquaryRow(this.tab);
+      const buyRowBtn = el('button', 'btn small' + (can ? '' : ' poor'), `+ Row (${cost} Marks)`);
+      buyRowBtn.title = `Add 1 row (12 slots) to Vault ${ROMAN[this.tab]} for ${cost} Infernal Marks`;
+      buyRowBtn.onclick = () => {
+        sfx('ui');
+        if (!canBuyReliquaryRow(this.tab)) {
+          UI.log(`You need ${cost} free Infernal Marks to expand this vault tab.`, '#ff8080');
+          return;
+        }
+        UI.dialog({
+          title: `Expand Vault ${ROMAN[this.tab]} (${rows + 1} of ${RELIQUARY_MAX_ROWS})`,
+          html: `<p>Add 12 vault slots (row ${rows + 1}) to Vault Tab ${ROMAN[this.tab]} for <b style="color:#ffd860">${cost} Infernal Marks</b>?</p>`,
+          buttons: [
+            { label: 'Cancel' },
+            { label: `Buy for ${cost} Marks`, cls: 'red', fn: () => {
+              if (buyReliquaryRow(this.tab)) {
+                this.render(body);
+              }
+            }},
+          ],
+        });
+      };
+      noteRow.appendChild(buyRowBtn);
+    }
+    body.appendChild(noteRow);
     const search = el('input', 'storage-search rel-search');
     search.type = 'search'; search.placeholder = 'Search this vault'; search.value = this.query;
     body.appendChild(search);

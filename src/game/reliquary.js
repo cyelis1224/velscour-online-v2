@@ -40,7 +40,7 @@ function blank() { return { tabs: Array.from({ length: VAULT_TABS }, () => Array
 function sanitizeReliquary(r) {
   if (!r || !Array.isArray(r.tabs)) r = blank();
   while (r.tabs.length < VAULT_TABS) r.tabs.push([]);
-  for (const t of r.tabs) while (t.length < VAULT_SIZE) t.push(null);
+  for (const t of r.tabs) while (t.length < VAULT_SIZE || (t.length % 12 !== 0)) t.push(null);
   r.codex = r.codex || {};
   r.lines = r.lines || 0;
   return r;

@@ -2832,6 +2832,24 @@ body.at-sea #levelup { top: 31%; } /* the Pirate Seas: the top band is the scena
   gap: 3px;
 }
 
+.bag-buy {
+  align-self: stretch;
+  margin-top: 4px;
+  width: 100%;
+}
+
+.bag-buy.poor {
+  opacity: .55;
+}
+
+.rel-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
 .bslot {
   position: relative;
   border: 1px solid #3a2a18;
