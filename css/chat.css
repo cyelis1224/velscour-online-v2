@@ -20,8 +20,8 @@
   border: 1px solid rgba(160, 120, 60, 0.25);
   border-radius: 4px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   z-index: 6;
   font-family: 'Alegreya Sans', sans-serif;
   transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
@@ -762,7 +762,7 @@ body.gc-chat-visible:not(.touch) #log {
 }
 
 /* --------------------------------------------------------------------------
-   Mobile Portrait Bottom Docked Chat
+   Mobile Portrait Bottom Docked Chat (Overlay When Expanded)
    -------------------------------------------------------------------------- */
 body.touch.portrait .game-chat {
   position: fixed !important;
@@ -777,24 +777,35 @@ body.touch.portrait .game-chat {
   border-left: none !important;
   border-right: none !important;
   border-bottom: none !important;
-  border-top: 1px solid rgba(160, 120, 60, 0.45) !important;
-  z-index: 20 !important;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.8) !important;
-  transition: height 0.25s cubic-bezier(0.2, 0, 0, 1), background 0.25s ease !important;
+  transition: height 0.28s cubic-bezier(0.2, 0.85, 0.3, 1), background 0.25s ease !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
+/* Minimized: bottom banner across the screen showing tabs and unread badges */
 body.touch.portrait .game-chat.minimized {
   height: calc(34px + env(safe-area-inset-bottom, 0px)) !important;
   min-height: calc(34px + env(safe-area-inset-bottom, 0px)) !important;
   max-height: calc(34px + env(safe-area-inset-bottom, 0px)) !important;
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 20 !important;
+  background: rgba(14, 11, 9, 0.88) !important;
+  border-top: 1px solid rgba(160, 120, 60, 0.45) !important;
 }
 
+/* Expanded: pop-up overlay covering bottom half without shifting the HUD */
 body.touch.portrait .game-chat:not(.minimized) {
-  height: min(210px, 35vh) !important;
-  min-height: 160px !important;
-  max-height: 40vh !important;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  height: 50vh !important;
+  height: 50dvh !important;
+  min-height: 280px !important;
+  max-height: 55vh !important;
+  max-height: 55dvh !important;
+  padding-bottom: max(4px, env(safe-area-inset-bottom, 0px));
+  z-index: 80 !important; /* Overlays on top of HUD & touch elements */
+  background: rgba(14, 11, 9, 0.96) !important;
+  border-top: 1px solid rgba(212, 163, 89, 0.65) !important;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.9), inset 0 0 30px rgba(0, 0, 0, 0.7) !important;
 }
 
 body.touch.portrait .gc-drag-handle,
@@ -805,7 +816,8 @@ body.touch.portrait .gc-mobile-toggle {
 
 body.touch.portrait .gc-header {
   cursor: default !important;
-  padding: 4px 8px;
+  padding: 4px 8px !important;
+  flex-shrink: 0 !important;
 }
 
 body.touch.portrait .gc-tabs {
@@ -820,4 +832,222 @@ body.touch.portrait .gc-tab {
 body.touch.portrait .gc-tool-btn {
   padding: 2px 5px;
   font-size: 11px;
+}
+
+body.touch.portrait .game-chat .gc-body {
+  flex: 1 1 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow-y: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+body.touch.portrait .game-chat .gc-messages {
+  flex: 1 1 0 !important;
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+body.touch.portrait .game-chat .gc-footer {
+  flex-shrink: 0 !important;
+  padding: 5px 8px !important;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Landscape Right 1/2 Pop-Out Chat Overlay & Toggle Handle
+   -------------------------------------------------------------------------- */
+body.touch:not(.portrait) .game-chat,
+body.touch.landscape .game-chat {
+  position: fixed !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: auto !important;
+  width: 50vw !important;
+  min-width: 320px !important;
+  max-width: 50vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100vh !important;
+  max-height: 100dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 0 !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-right: none !important;
+  border-left: 1px solid rgba(212, 163, 89, 0.55) !important;
+  background: rgba(14, 11, 9, 0.96) !important;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.9), inset 0 0 30px rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  z-index: 80 !important; /* Sits completely over all HUD & touch elements */
+  padding-top: max(4px, env(safe-area-inset-top, 0px)) !important;
+  padding-bottom: max(4px, env(safe-area-inset-bottom, 0px)) !important;
+  padding-right: max(6px, env(safe-area-inset-right, 0px)) !important;
+  padding-left: 0 !important;
+  box-sizing: border-box !important;
+  transition: transform 0.28s cubic-bezier(0.2, 0.85, 0.3, 1), background 0.25s ease !important;
+  transform: translateX(100%) !important; /* Hidden off right screen edge by default */
+  pointer-events: none; /* Touches pass through to game when closed */
+}
+
+/* When open in landscape: slide out to right 1/2 overlay */
+body.touch:not(.portrait) .game-chat.gc-landscape-open,
+body.touch.landscape .game-chat.gc-landscape-open {
+  transform: translateX(0) !important;
+  pointer-events: auto !important;
+}
+
+/* Handle element on right edge */
+.gc-landscape-handle {
+  display: none;
+}
+
+body.touch:not(.portrait) .gc-landscape-handle,
+body.touch.landscape .gc-landscape-handle {
+  display: flex !important;
+  position: absolute !important;
+  left: -36px !important;
+  top: 36% !important;
+  transform: translateY(-50%) !important;
+  width: 36px !important;
+  height: 64px !important;
+  border-top-left-radius: 8px !important;
+  border-bottom-left-radius: 8px !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  background: rgba(18, 14, 11, 0.96) !important;
+  border: 1px solid rgba(212, 163, 89, 0.65) !important;
+  border-right: none !important;
+  color: #ffd860 !important;
+  box-shadow: -4px 3px 14px rgba(0, 0, 0, 0.85), inset 0 0 10px rgba(0, 0, 0, 0.6) !important;
+  cursor: pointer !important;
+  pointer-events: auto !important; /* Always clickable even when chat is pointer-events: none */
+  z-index: 85 !important; /* Above chat container (80) and all HUD elements */
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  padding: 0 !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  touch-action: manipulation !important;
+  transition: background 0.2s, border-color 0.2s, color 0.2s !important;
+}
+
+body.touch:not(.portrait) .gc-landscape-handle:hover,
+body.touch.landscape .gc-landscape-handle:hover,
+body.touch:not(.portrait) .gc-landscape-handle:active,
+body.touch.landscape .gc-landscape-handle:active {
+  background: rgba(35, 26, 18, 0.98) !important;
+  border-color: rgba(255, 216, 96, 0.9) !important;
+  color: #fff4d0 !important;
+}
+
+.gc-landscape-handle .gc-handle-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.gc-landscape-handle .gc-handle-badge {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  background: #c02040;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: bold;
+  padding: 1px 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 220, 180, 0.8);
+  box-shadow: 0 0 6px rgba(255, 40, 80, 0.8);
+  line-height: 1.1;
+}
+
+.gc-landscape-handle.has-unread {
+  animation: gcHandleGlow 1.5s infinite alternate !important;
+}
+
+@keyframes gcHandleGlow {
+  0% {
+    border-color: rgba(212, 163, 89, 0.6);
+    box-shadow: -4px 3px 14px rgba(0, 0, 0, 0.75);
+  }
+  100% {
+    border-color: rgba(255, 80, 80, 0.9);
+    box-shadow: -4px 3px 16px rgba(255, 50, 70, 0.6);
+  }
+}
+
+/* Semi-transparent backdrop to dismiss landscape overlay by tapping left side */
+.gc-landscape-backdrop {
+  display: none;
+}
+
+body.touch .gc-landscape-backdrop.visible {
+  display: block !important;
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  z-index: 75 !important; /* Below chat (80) and handle (85), above all HUD elements */
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  animation: gcBackdropFadeIn 0.2s ease forwards !important;
+}
+
+@keyframes gcBackdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Hide desktop free-drag grips on touch devices */
+body.touch .gc-drag-handle,
+body.touch .gc-resize-handle {
+  display: none !important;
+}
+
+/* Header & message container layout in landscape overlay */
+body.touch:not(.portrait) .game-chat .gc-header,
+body.touch.landscape .game-chat .gc-header {
+  cursor: default !important;
+  padding: 5px 8px !important;
+  flex-shrink: 0 !important;
+}
+
+body.touch:not(.portrait) .game-chat .gc-body,
+body.touch.landscape .game-chat .gc-body {
+  flex: 1 1 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow-y: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+body.touch:not(.portrait) .game-chat .gc-messages,
+body.touch.landscape .game-chat .gc-messages {
+  flex: 1 1 0 !important;
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+body.touch:not(.portrait) .game-chat .gc-footer,
+body.touch.landscape .game-chat .gc-footer {
+  flex-shrink: 0 !important;
+  padding: 6px 8px !important;
 }

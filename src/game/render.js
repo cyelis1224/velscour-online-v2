@@ -447,8 +447,12 @@ function drawNpc(ctx, n) {
     if (n.reliquary) { // a golden glow round the vault every hero shares
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35 + Math.sin(G.time * 2) * 0.12;
       ctx.drawImage(glowSprite('#ffd070'), x - 40, y - 46, 80, 64); ctx.restore();
+    } else if (n.jewelBox) { // an amethyst glow around the Jewel Box
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.38 + Math.sin(G.time * 2.5) * 0.14;
+      ctx.drawImage(glowSprite('#b850ff'), x - 40, y - 46, 80, 64); ctx.restore();
     }
-    drawChest(ctx, { x: n.x, y: n.y, rare: true, opened: !!(n.reliquary ? G.ui.reliquary && G.ui.reliquary.active : G.ui.stash && G.ui.stash.active) });
+    const isOpened = !!(n.jewelBox ? G.ui.jewelBox && G.ui.jewelBox.active : n.reliquary ? G.ui.reliquary && G.ui.reliquary.active : G.ui.stash && G.ui.stash.active);
+    drawChest(ctx, { x: n.x, y: n.y, rare: true, opened: isOpened });
     n.sbox = [x - 24, y - 40, x + 24, y + 6];
     return;
   }
@@ -734,6 +738,7 @@ export function renderWorld(ctx, world) {
   ctx.imageSmoothingQuality = hq;
   const fc = world.floorNow;
   drawDecals(ctx, vr, world.tower || world.cave ? () => false : (d, px, py) => decalStamped(fc, d, px, py)); // the tower turns: its blood can't bake
+  drawMapEdgeFade(ctx, world, camT, tx0, ty0, tx1, ty1);
   const tall = map.hgt && map.tallOcclusion;
   for (const c of world.corpses) {
     if (tall && hiddenBehind(map, c.x, c.y)) continue; // behind the Castle's walls
@@ -1086,6 +1091,100 @@ function drawWallBases(oc, map, camT, tx0, ty0, tx1, ty1) {
   oc.strokeStyle = 'rgba(0,0,0,0.75)'; oc.lineWidth = 3.5 / z; oc.stroke();
   oc.strokeStyle = 'rgba(240,226,192,0.95)'; oc.lineWidth = 1.5 / z; oc.stroke();
   return true;
+}
+
+/** Shading on the perimeter of the map so the world fades seamlessly into the black void. */
+function drawMapEdgeFade(ctx, world, camT, tx0, ty0, tx1, ty1) {
+  const map = world.map;
+  if (!map || world.tower || world.cave || world.sky || map.voidFace) return;
+  if (world.kind === 'dungeon' && !world.biome?.overworld) return;
+  const W = map.w, H = map.h;
+  const F = 6; // fade width in tiles
+  // If no map edge is anywhere near the current view, skip
+  if (tx0 > F && tx1 < W - 1 - F && ty0 > F && ty1 < H - 1 - F) return;
+
+  const pad = 40;
+  const pX = (x, y) => (x - y) * HW;
+  const pY = (x, y) => (x + y) * HH;
+
+  const applyStops = (g) => {
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.2, 'rgba(0,0,0,0.05)');
+    g.addColorStop(0.4, 'rgba(0,0,0,0.18)');
+    g.addColorStop(0.6, 'rgba(0,0,0,0.40)');
+    g.addColorStop(0.8, 'rgba(0,0,0,0.70)');
+    g.addColorStop(1, 'rgba(0,0,0,1)');
+  };
+
+  ctx.setTransform(camT);
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+
+  // 1. South edge (y = H): along line y = const
+  if (ty1 >= H - 1 - F) {
+    const sx = pX(W / 2, H - F), sy = pY(W / 2, H - F);
+    const ex = sx - 12.8 * F, ey = sy + 25.6 * F;
+    const g = ctx.createLinearGradient(sx, sy, ex, ey);
+    applyStops(g);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(pX(-pad, H - F), pY(-pad, H - F));
+    ctx.lineTo(pX(W + pad, H - F), pY(W + pad, H - F));
+    ctx.lineTo(pX(W + pad, H + pad), pY(W + pad, H + pad));
+    ctx.lineTo(pX(-pad, H + pad), pY(-pad, H + pad));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // 2. North edge (y = 0): along line y = const
+  if (ty0 <= F) {
+    const sx = pX(W / 2, F), sy = pY(W / 2, F);
+    const ex = sx + 12.8 * F, ey = sy - 25.6 * F;
+    const g = ctx.createLinearGradient(sx, sy, ex, ey);
+    applyStops(g);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(pX(-pad, F), pY(-pad, F));
+    ctx.lineTo(pX(W + pad, F), pY(W + pad, F));
+    ctx.lineTo(pX(W + pad, -pad), pY(W + pad, -pad));
+    ctx.lineTo(pX(-pad, -pad), pY(-pad, -pad));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // 3. East edge (x = W): along line x = const
+  if (tx1 >= W - 1 - F) {
+    const sx = pX(W - F, H / 2), sy = pY(W - F, H / 2);
+    const ex = sx + 12.8 * F, ey = sy + 25.6 * F;
+    const g = ctx.createLinearGradient(sx, sy, ex, ey);
+    applyStops(g);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(pX(W - F, -pad), pY(W - F, -pad));
+    ctx.lineTo(pX(W - F, H + pad), pY(W - F, H + pad));
+    ctx.lineTo(pX(W + pad, H + pad), pY(W + pad, H + pad));
+    ctx.lineTo(pX(W + pad, -pad), pY(W + pad, -pad));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // 4. West edge (x = 0): along line x = const
+  if (tx0 <= F) {
+    const sx = pX(F, H / 2), sy = pY(F, H / 2);
+    const ex = sx - 12.8 * F, ey = sy - 25.6 * F;
+    const g = ctx.createLinearGradient(sx, sy, ex, ey);
+    applyStops(g);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(pX(F, -pad), pY(F, -pad));
+    ctx.lineTo(pX(F, H + pad), pY(F, H + pad));
+    ctx.lineTo(pX(-pad, H + pad), pY(-pad, H + pad));
+    ctx.lineTo(pX(-pad, -pad), pY(-pad, -pad));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.restore();
 }
 
 /** The light falloff (alpha 1 at the centre to 0 at the rim), drawn with 'destination-out' to cut the darkness. */

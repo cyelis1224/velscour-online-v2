@@ -25,6 +25,11 @@ export const GameChat = {
   channelBtn: null,
   channelLabel: null,
   mobileBtn: null,
+  landscapeHandleEl: null,
+  landscapeBadgeEl: null,
+  landscapeBackdropEl: null,
+  isLandscapeOpen: false,
+  landscapeUnreadCount: 0,
 
   messages: [],
   maxMessages: 300,
@@ -54,6 +59,19 @@ export const GameChat = {
     return !G.touch && !document.body.classList.contains('touch');
   },
 
+  /** Mobile landscape mode (touch device in horizontal orientation). */
+  isLandscapeMobile() {
+    const isTouch = G.touch || document.body.classList.contains('touch');
+    const isPortrait = document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && isTouch);
+    return isTouch && !isPortrait;
+  },
+
+  /** Mobile portrait mode (touch device in vertical orientation). */
+  isPortraitMobile() {
+    const isTouch = G.touch || document.body.classList.contains('touch');
+    return isTouch && (document.body.classList.contains('portrait') || window.innerHeight > window.innerWidth);
+  },
+
   init() {
     if (this.isInitialized && this.container?.isConnected) return;
     this.isInitialized = true;
@@ -66,9 +84,9 @@ export const GameChat = {
       }
     } catch (e) { }
 
-    // Attach to HUD or app
-    const hud = document.getElementById('hud') || document.getElementById('app');
-    if (!hud) return;
+    // Attach to app or HUD (app gives top-level z-index over touch controls and HUD)
+    const mount = document.getElementById('app') || document.getElementById('hud') || document.body;
+    if (!mount) return;
 
     // Remove any existing container
     const existing = document.getElementById('game-chat');
@@ -177,7 +195,30 @@ export const GameChat = {
     root.appendChild(resizeHandle);
     root.appendChild(filterMenu);
 
-    hud.appendChild(root);
+    // Mobile Landscape Handle (protrudes from the right edge when closed, stays on left border when open)
+    const handle = el('button', 'gc-landscape-handle');
+    handle.type = 'button';
+    handle.id = 'gc-landscape-handle';
+    handle.setAttribute('aria-label', 'Toggle Chat Log');
+    handle.setAttribute('title', 'Chat');
+    handle.innerHTML = `
+      <span class="gc-handle-icon">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </span>
+      <span class="gc-handle-badge hidden" id="gc-handle-badge">0</span>
+    `;
+    root.appendChild(handle);
+
+    // Mobile Landscape Backdrop (dismiss chat when tapping the left half of the screen)
+    const existingBackdrop = document.getElementById('gc-landscape-backdrop');
+    if (existingBackdrop) existingBackdrop.remove();
+    const backdrop = el('div', 'gc-landscape-backdrop hidden');
+    backdrop.id = 'gc-landscape-backdrop';
+    mount.appendChild(backdrop);
+
+    mount.appendChild(root);
 
     this.container = root;
     this.headerEl = header;
@@ -191,6 +232,9 @@ export const GameChat = {
     this.filterBtnEl = root.querySelector('#gc-btn-filter');
     this.filterMenuEl = filterMenu;
     this.filterDotEl = root.querySelector('#gc-filter-dot');
+    this.landscapeHandleEl = handle;
+    this.landscapeBadgeEl = handle.querySelector('#gc-handle-badge');
+    this.landscapeBackdropEl = backdrop;
 
     try {
       this.isPinned = localStorage.getItem('Dagyr_chat_pinned') === '1';
@@ -213,6 +257,9 @@ export const GameChat = {
         e.stopPropagation();
         sfx('ui');
         this.setTab(btn.dataset.tab);
+        if (this.isMinimized) {
+          this.toggleMinimize(false);
+        }
       });
     });
 
@@ -294,14 +341,44 @@ export const GameChat = {
       });
     }
 
-    // Toggle / minimize button (desktop: pushpin)
+    // Toggle / minimize button (desktop: pushpin, landscape: overlay toggle, portrait: bottom collapse)
     const toggleBtn = this.container.querySelector('#gc-btn-toggle');
     if (toggleBtn) {
       toggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         sfx('ui');
         if (this.isDesktop()) this.togglePin();
+        else if (this.isLandscapeMobile()) this.toggleLandscapeChat();
         else this.toggleMinimize();
+      });
+    }
+
+    // Mobile Landscape Handle (tap to pop out overlay / tap again to close)
+    if (this.landscapeHandleEl) {
+      this.landscapeHandleEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        sfx('ui');
+        this.toggleLandscapeChat();
+      });
+      this.landscapeHandleEl.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+    }
+
+    // Mobile Landscape Backdrop (tap outside to close)
+    if (this.landscapeBackdropEl) {
+      this.landscapeBackdropEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (this.isLandscapeMobile()) {
+          this.toggleLandscapeChat(false);
+        } else {
+          this.toggleMinimize(true);
+        }
+      });
+      this.landscapeBackdropEl.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
       });
     }
 
@@ -411,6 +488,10 @@ export const GameChat = {
     if (document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch)) {
       this.isMinimized = true;
       this.container.classList.add('minimized');
+      if (this.landscapeBackdropEl) {
+        this.landscapeBackdropEl.classList.remove('visible');
+        this.landscapeBackdropEl.classList.add('hidden');
+      }
       const toggleBtn = this.container.querySelector('#gc-btn-toggle');
       if (toggleBtn) toggleBtn.innerHTML = '&#9650;';
     }
@@ -448,7 +529,8 @@ export const GameChat = {
     const onHeaderPointerDown = (e) => {
       // Desktop chat is docked in the pickup log's spot: no dragging
       if (this.isDesktop()) return;
-      // Don't drag if mobile portrait
+      // Don't drag on mobile touch devices
+      if (G.touch || document.body.classList.contains('touch')) return;
       if (document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch)) return;
       // Don't drag if clicked on button, tab, badge, input, etc.
       if (e.target.closest('button, input, select, textarea, a, .gc-badge')) return;
@@ -515,6 +597,7 @@ export const GameChat = {
 
     const onResizePointerDown = (e) => {
       if (this.isDesktop()) return;
+      if (G.touch || document.body.classList.contains('touch')) return;
       if (document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch)) return;
       if (e.button !== undefined && e.button !== 0) return;
       e.preventDefault();
@@ -575,25 +658,75 @@ export const GameChat = {
 
     // Keep within bounds on window resize
     window.addEventListener('resize', () => {
+      this.updateMode();
       this.updatePortraitChatHeight();
       this.clampToViewport();
     });
+  },
+
+  updateMode() {
+    if (!this.container) return;
+    this.applyDesktopMode();
+    const isLand = this.isLandscapeMobile();
+    if (!isLand && this.isLandscapeOpen) {
+      this.toggleLandscapeChat(false);
+    }
+    if (isLand && this.isMinimized) {
+      this.isMinimized = false;
+      this.container.classList.remove('minimized');
+    }
+    const isPortrait = document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch);
+    if (this.landscapeBackdropEl) {
+      if (isLand) {
+        this.landscapeBackdropEl.classList.toggle('visible', this.isLandscapeOpen);
+        this.landscapeBackdropEl.classList.toggle('hidden', !this.isLandscapeOpen);
+      } else if (isPortrait) {
+        this.landscapeBackdropEl.classList.toggle('visible', !this.isMinimized);
+        this.landscapeBackdropEl.classList.toggle('hidden', this.isMinimized);
+      } else {
+        this.landscapeBackdropEl.classList.remove('visible');
+        this.landscapeBackdropEl.classList.add('hidden');
+      }
+    }
+  },
+
+  toggleLandscapeChat(force = null) {
+    this.isLandscapeOpen = force != null ? !!force : !this.isLandscapeOpen;
+    if (!this.container) return;
+    this.container.classList.toggle('gc-landscape-open', this.isLandscapeOpen);
+    if (this.landscapeBackdropEl) {
+      this.landscapeBackdropEl.classList.toggle('visible', this.isLandscapeOpen);
+      this.landscapeBackdropEl.classList.toggle('hidden', !this.isLandscapeOpen);
+    }
+    if (this.isLandscapeOpen) {
+      this.landscapeUnreadCount = 0;
+      this.updateLandscapeHandleBadge();
+      this.scrollToBottom();
+    } else {
+      this.blur();
+    }
+  },
+
+  updateLandscapeHandleBadge() {
+    if (!this.landscapeBadgeEl || !this.landscapeHandleEl) return;
+    const count = this.landscapeUnreadCount || 0;
+    if (count > 0 && !this.isLandscapeOpen) {
+      this.landscapeBadgeEl.textContent = count > 99 ? '99+' : count;
+      this.landscapeBadgeEl.classList.remove('hidden');
+      this.landscapeHandleEl.classList.add('has-unread');
+    } else {
+      this.landscapeBadgeEl.classList.add('hidden');
+      this.landscapeHandleEl.classList.remove('has-unread');
+    }
   },
 
   updatePortraitChatHeight() {
     const isPortrait = document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch);
     if (!this.container) return;
     if (isPortrait) {
-      const h = this.isMinimized ? 34 : Math.min(210, Math.round(window.innerHeight * 0.35));
-      document.documentElement.style.setProperty('--portrait-chat-h', `${h}px`);
-      const relayout = () => {
-        if (typeof HUD !== 'undefined') HUD.layoutMobile();
-        if (typeof TouchUI !== 'undefined') TouchUI.layout();
-      };
-      relayout();
-      setTimeout(relayout, 50);
-      setTimeout(relayout, 150);
-      setTimeout(relayout, 250);
+      // Keep HUD bar and touch controls docked above the 34px bottom banner.
+      // Expanding chat overlay does not shift HUD or touch controls up.
+      document.documentElement.style.setProperty('--portrait-chat-h', '34px');
     } else {
       document.documentElement.style.removeProperty('--portrait-chat-h');
     }
@@ -612,7 +745,7 @@ export const GameChat = {
 
   saveLayout() {
     if (!this.container) return;
-    if (document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch)) return;
+    if (G.touch || document.body.classList.contains('touch')) return;
     const rect = this.container.getBoundingClientRect();
     const layout = {
       left: Math.round(rect.left),
@@ -629,7 +762,7 @@ export const GameChat = {
   restoreLayout() {
     if (!this.container) return;
     if (this.isDesktop()) return; // docked in the pickup log's spot
-    if (document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch)) return;
+    if (G.touch || document.body.classList.contains('touch')) return;
     try {
       const raw = localStorage.getItem('Dagyr_chat_layout');
       if (!raw) return;
@@ -712,6 +845,7 @@ export const GameChat = {
       }
       const rp = G.remotePlayers?.get(data.fromId) || Array.from(G.remotePlayers?.values() || []).find(p => p.name === data.from);
       if (rp) rp.showChat(data.text);
+      sfx('whisper');
       this.addMessage({
         tab: 'party',
         channel: 'party',
@@ -764,6 +898,13 @@ export const GameChat = {
         this.unread[tabKey]++;
         this.updateBadge(tabKey);
       }
+    }
+
+    // Update landscape handle badge if closed on landscape mobile (party or whisper only)
+    const isPartyOrWhisper = (entry.tab === 'party' || entry.tab === 'whisper') && !entry.isSelf;
+    if (this.isLandscapeMobile() && !this.isLandscapeOpen && isPartyOrWhisper) {
+      this.landscapeUnreadCount = (this.landscapeUnreadCount || 0) + 1;
+      this.updateLandscapeHandleBadge();
     }
   },
 
@@ -913,7 +1054,15 @@ export const GameChat = {
     this.container.classList.toggle('minimized', this.isMinimized);
     const toggleBtn = this.container.querySelector('#gc-btn-toggle');
     if (toggleBtn) toggleBtn.innerHTML = this.isMinimized ? '&#9650;' : '&#9660;';
+    const isPortrait = document.body.classList.contains('portrait') || (window.innerHeight > window.innerWidth && G.touch);
+    if (this.landscapeBackdropEl && isPortrait) {
+      this.landscapeBackdropEl.classList.toggle('visible', !this.isMinimized);
+      this.landscapeBackdropEl.classList.toggle('hidden', this.isMinimized);
+    }
     this.updatePortraitChatHeight();
+    if (!this.isMinimized) {
+      this.scrollToBottom();
+    }
   },
 
   /** Desktop: dock over the pickup log, swap the minimize arrow for a pushpin. */
@@ -1027,7 +1176,8 @@ export const GameChat = {
 
   focus(prefix = '') {
     if (!this.container) this.init();
-    if (this.isMinimized) this.toggleMinimize(false);
+    if (this.isLandscapeMobile()) this.toggleLandscapeChat(true);
+    else if (this.isMinimized) this.toggleMinimize(false);
     this.container.classList.add('active');
     this.isOpen = true;
     this.wake();
@@ -1181,6 +1331,10 @@ export const GameChat = {
 
   hide() {
     if (this.container) this.container.classList.add('hidden');
+    if (this.landscapeBackdropEl) {
+      this.landscapeBackdropEl.classList.remove('visible');
+      this.landscapeBackdropEl.classList.add('hidden');
+    }
     if (this.fadeTimer) {
       clearTimeout(this.fadeTimer);
       this.fadeTimer = null;

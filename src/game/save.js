@@ -136,11 +136,13 @@ export function newCharData(classId, name) {
     attrs: { ...C.base }, statPoints: 0, skillPoints: 1, talentPoints: 0,
     skills: {}, talents: {}, granted: {}, bar: Array(BAR_SIZE).fill(null),
     equip: { weapon: null, offhand: null, head: null, body: null, hands: null, legs: null, feet: null, ring1: null, ring2: null, ring3: null, ring4: null },
-    vanity: { head: null, body: null }, hideHelm: false,
+    vanity: { head: null, body: null, weapon: null, offhand: null }, hideHelm: false,
     macros: newMacros(), // game/macros.js
     mastery: {}, rage: 0, townSeed: (Math.random() * 1e9) | 0,
     bag: Array(60).fill(null),
+    gemBag: Array(30).fill(null),
     stash: Array(300).fill(null),
+    jewelBox: Array(300).fill(null),
     tabs: Array(TAB_SLOTS).fill(null), tabAt: 0, // the Bard's Tabs: locked Music Sheets he plays (data/tabs.js)
     gold: 150, potions: { hp: 6, mp: 4, rejuv: 1, fury: 1 },
     depth: 1, deepest: 0, nextBiome: null, biomeBag: [], cleared: {}, overworldMisses: 0, overworldLastVisit: null, seaOfSandRuns: {}, darkForestRuns: {}, breach: { best: 0, cleared: {} },
@@ -210,8 +212,9 @@ export function migrate(c) {
   // Sky Battle cut scenes watched ('<story or base>:<scene>'): seen ones play at 20x. A hero who fought one before this
   // was kept has seen the weathers' scenes.
   if (!c.skySeen) c.skySeen = c.lastSkyVariant ? Object.fromEntries(['intro', 'mid', 'parley', 'hooks', 'victory'].map((n) => [`base:${n}`, 1])) : {};
+  c.equip = c.equip || {};
   for (const s of ['ring1', 'ring2', 'ring3', 'ring4']) if (!(s in c.equip)) c.equip[s] = null;
-  c.vanity = Object.assign({ head: null, body: null }, c.vanity); // looks only: worn over the real gear, no stats
+  c.vanity = Object.assign({ head: null, body: null, weapon: null, offhand: null }, c.vanity); // looks only: worn over the real gear, no stats
   c.hideHelm = !!c.hideHelm;
   c.macros = migrateMacros(c.macros);
   if (c.townSeed === undefined) c.townSeed = (Math.random() * 1e9) | 0;
@@ -222,9 +225,31 @@ export function migrate(c) {
   // heroes made before the shuffle bag always started in the catacombs: give an unexplored hero a random start
   if (c.nextBiome === 'catacombs' && !c.deepest && !c.lastBiome) c.nextBiome = drawBiome(c, c.depth || 1);
   c.bar = migrateBar(c.bar); // 10 slots (LMB, 1-8, RMB) -> 15 (LMB, ` 1-9 0 - =, RMB)
+  if (!Array.isArray(c.bag)) c.bag = [];
   while (c.bag.length < 60) c.bag.push(null);
+  if (!Array.isArray(c.gemBag)) c.gemBag = [];
+  while (c.gemBag.length < 30) c.gemBag.push(null);
+  // Migrate existing gems from regular bag to the dedicated Gem Bag
+  for (let i = 0; i < c.bag.length; i++) {
+    const it = c.bag[i];
+    if (it && it.type === 'gem') {
+      const same = c.gemBag.find((b) => b && b.type === 'gem' && b.gem === it.gem && b.tier === it.tier);
+      if (same) {
+        same.count = (same.count || 1) + (it.count || 1);
+        c.bag[i] = null;
+      } else {
+        const free = c.gemBag.findIndex((b) => !b);
+        if (free >= 0) {
+          c.gemBag[free] = it;
+          c.bag[i] = null;
+        }
+      }
+    }
+  }
   if (!Array.isArray(c.stash)) c.stash = [];
   while (c.stash.length < 300) c.stash.push(null);
+  if (!Array.isArray(c.jewelBox)) c.jewelBox = [];
+  while (c.jewelBox.length < 300) c.jewelBox.push(null);
   if (!Array.isArray(c.tabs)) c.tabs = [];
   while (c.tabs.length < TAB_SLOTS) c.tabs.push(null);
   if (!Number.isInteger(c.tabAt) || c.tabAt < 0 || c.tabAt >= TAB_SLOTS) c.tabAt = 0;

@@ -143,7 +143,7 @@ export const controls = {
     SLOT_KEYS.forEach((k, i) => { if (k && (input.consume(k) || (input.down(k) && p.castLock <= 0))) this.useSlot(i); });
     if (input.consume('KeyZ')) p.usePotion('hp');
     if (input.consume('KeyX')) p.usePotion('mp');
-    if (input.consume('KeyC')) p.usePotion('rejuv');
+    if (input.consume('KeyR')) p.usePotion('rejuv');
     if (input.consume('KeyV')) p.usePotion('fury');
     if (input.consume('Enter') && G.mode === 'game') {
       if (G.gameChat) {

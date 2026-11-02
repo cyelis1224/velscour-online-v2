@@ -14,7 +14,7 @@ import { CLASSES } from '../data/classes.js';
 import { potionIcon } from '../core/assets.js';
 import { VENDORS } from '../world/town.js';
 import { depthLevel } from '../data/depth.js';
-import { sheetItem, goldLvl } from '../data/items.js';
+import { sheetItem, bannerKitItem, BANNER_KIT_PRICE, goldLvl } from '../data/items.js';
 import { SHEET_PRICE } from '../data/tabs.js';
 
 const VBY = Object.fromEntries(VENDORS.map((v) => [v.id, v]));
@@ -155,11 +155,17 @@ export const Vendor = {
     const n = it.type === 'gem' ? 1 : 1;
     const price = Math.max(1, Math.floor(itemValue(it) / 4)) * n;
     const sellIt = () => {
-      if (it.type === 'gem' && (it.count || 1) > 1) it.count--; else c.bag[ref.idx] = null;
+      if (it.type === 'gem' && (it.count || 1) > 1) {
+        it.count--;
+      } else if (ref.where === 'gemBag') {
+        if (c.gemBag) c.gemBag[ref.idx] = null;
+      } else {
+        c.bag[ref.idx] = null;
+      }
       c.gold += price;
       sfx('gold');
       UI.log(`Sold ${escapeHtml(itemName(it))} for ${fmtInt(price)} gold.`, '#ffd34a');
-      if (UI.selected && UI.selected.where === 'bag' && UI.selected.idx === ref.idx && !c.bag[ref.idx]) UI.selected = null;
+      if (UI.selected && UI.selected.where === ref.where && UI.selected.idx === ref.idx) UI.selected = null;
       changed();
     };
     if ((it.type === 'gear' && it.rarity >= 3) || (it.type === 'sheet' && it.inked)) UI.confirm('Sell item?', `Sell <span style="color:${itemColor(it)}">${escapeHtml(itemName(it))}</span> for ${fmtInt(price)} gold?`, sellIt, 'Sell');
@@ -213,7 +219,11 @@ export const Vendor = {
     const c = G.char;
     const box = el('div', 'service-box');
     box.innerHTML = `<b>Gem Forge</b><div class="dim" style="font-size:12px">Fuse three identical gems into one of the next grade, or pay to refine a single gem. Grades: Chipped → Flawed → Gem → Flawless → Perfect → Royal → Imperial → Celestial → Abyssal → Eternal. Three Sigil Stones of a rank fuse into one of the next rank (Sigils can't be refined).</div>`;
-    const gems = c.bag.map((b, i) => ({ b, i })).filter(({ b }) => b && b.type === 'gem' && b.tier < gemMaxTier(b.gem));
+    const gemSources = [
+      ...((c.gemBag || []).map((b, i) => ({ b, i, where: 'gemBag' }))),
+      ...((c.bag || []).map((b, i) => ({ b, i, where: 'bag' }))),
+    ];
+    const gems = gemSources.filter(({ b }) => b && b.type === 'gem' && b.tier < gemMaxTier(b.gem));
     const fusable = gems.filter(({ b }) => (b.count || 1) >= 3);
     if (fusable.length) {
       const all = el('button', 'btn small', 'Fuse all');
@@ -222,18 +232,24 @@ export const Vendor = {
       box.appendChild(all);
     }
     if (!gems.length) box.appendChild(el('div', 'dim', 'You carry no gems the forge can work.'));
-    for (const { b, i } of gems) {
+    for (const { b, i, where } of gems) {
       const row = el('div', 'row forge-row');
       row.appendChild(el('span', '', `<span style="color:${GEMS[b.gem].color}">◆</span> ${escapeHtml(gemName(b.gem, b.tier))}${(b.count || 1) > 1 ? ` <span class="dim">x${b.count}</span>` : ''}`));
       const sig = GEMS[b.gem].sigil, fuse = fuseCost(b), refine = gemRefineCost(b.tier, GEMS[b.gem].special);
       const f = el('button', 'btn small', `Fuse 3 → ${escapeHtml(gemName(b.gem, b.tier + 1))} (${fmtInt(fuse)}g)`);
       f.disabled = (b.count || 1) < 3 || c.gold < fuse;
-      f.onclick = () => { if (fuseGem(c, i)) { sfx('levelup'); UI.log(`Forged <span style="color:#c8f0ff">${escapeHtml(gemName(b.gem, b.tier + 1))}</span>!`); changed(); } };
+      f.onclick = () => { if (fuseGem(c, i, where)) { sfx('levelup'); UI.log(`Forged <span style="color:#c8f0ff">${escapeHtml(gemName(b.gem, b.tier + 1))}</span>!`); changed(); } };
       const u = el('button', 'btn small', `Refine 1 (${fmtInt(refine)}g)`);
       u.disabled = c.gold < refine;
       u.onclick = () => {
         c.gold -= refine;
-        if ((b.count || 1) > 1) b.count--; else c.bag[i] = null;
+        if ((b.count || 1) > 1) {
+          b.count--;
+        } else if (where === 'gemBag') {
+          if (c.gemBag) c.gemBag[i] = null;
+        } else {
+          c.bag[i] = null;
+        }
         addToBag(c, makeGem(b.gem, b.tier + 1));
         sfx('arcane');
         UI.log(`Refined into <span style="color:#c8f0ff">${escapeHtml(gemName(b.gem, b.tier + 1))}</span>.`);
@@ -311,6 +327,31 @@ export const Vendor = {
     }
     body.appendChild(grid);
     if (c.classId === 'bard') this.sheetBox(body);
+    if (c.classId === 'lancer') this.bannerKitBox(body);
+  },
+
+  /** Fortunato's banner kit: customize the 3D war banner that follows the Lancer. */
+  bannerKitBox(body) {
+    const c = G.char, row = el('div', 'service-box row');
+    const ic = el('div', 'bslot r2');
+    Object.assign(ic.style, { width: '40px', height: '40px', flex: 'none' });
+    ic.appendChild(itemCell(bannerKitItem()));
+    row.appendChild(ic);
+    const desc = el('div', '', `<b>Lancer's Banner Kit</b> <span class="dim">· ride under your own colors!</span><div class="dim" style="font-size:12px">Contains heraldic dyes, cloth cuts, and crests to customize the 3D War Banner trailing your Lancer.</div>`);
+    desc.style.flex = '1';
+    row.appendChild(desc);
+    const b = el('button', 'btn small', `Buy Kit (${fmtInt(BANNER_KIT_PRICE)}g)`);
+    b.disabled = c.gold < BANNER_KIT_PRICE || c.bag.filter((x) => !x).length < 1;
+    b.onclick = () => {
+      c.gold -= BANNER_KIT_PRICE;
+      addToBag(c, bannerKitItem());
+      sfx('gold');
+      UI.log('Purchased <span style="color:#ffd860">Lancer\'s Banner Kit</span>. Open it from your bag to customize your banner!');
+      changed();
+      this.render();
+    };
+    row.appendChild(b);
+    body.appendChild(row);
   },
 
   /** Fortunato's paper: blank Music Sheets for a Bard to write songs on (data/tabs.js, ui/sheets.js). */
@@ -338,15 +379,16 @@ export const Vendor = {
 
 /** What fusing three of a gem stack costs (Sigils follow the gold curve of their depth). */
 export const fuseCost = (b) => (GEMS[b.gem].sigil ? sigilFuseCost(b.tier) : gemFuseCost(b.tier));
-/** Fuse three gems of the stack at bag index i into one of the next grade. */
-export function fuseGem(c, i) {
-  const b = c.bag[i];
+/** Fuse three gems of the stack at container index i into one of the next grade. */
+export function fuseGem(c, i, where = 'gemBag') {
+  const container = where === 'gemBag' && c.gemBag ? c.gemBag : c.bag;
+  const b = container[i];
   if (!b || b.type !== 'gem' || (b.count || 1) < 3 || b.tier >= gemMaxTier(b.gem)) return false;
   const cost = fuseCost(b);
   if (c.gold < cost) return false;
   c.gold -= cost;
   b.count = (b.count || 1) - 3;
-  if (b.count <= 0) c.bag[i] = null;
+  if (b.count <= 0) container[i] = null;
   addToBag(c, makeGem(b.gem, b.tier + 1));
   return true;
 }
@@ -355,10 +397,24 @@ export function fuseAll(c, budget = Infinity, keepSigils = false) {
   let n = 0;
   for (let guard = 0; guard < 200; guard++) {
     let best = -1;
-    c.bag.forEach((b, i) => { if (b && b.type === 'gem' && !b.locked && !(keepSigils && GEMS[b.gem].sigil) && (b.count || 1) >= 3 && b.tier < gemMaxTier(b.gem) && fuseCost(b) <= Math.min(c.gold, budget) && (best < 0 || b.tier < c.bag[best].tier)) best = i; });
+    let bestWhere = 'gemBag';
+    const checkList = (list, where) => {
+      list.forEach((b, i) => {
+        if (b && b.type === 'gem' && !b.locked && !(keepSigils && GEMS[b.gem].sigil) && (b.count || 1) >= 3 && b.tier < gemMaxTier(b.gem) && fuseCost(b) <= Math.min(c.gold, budget)) {
+          const currentBest = best < 0 ? null : (bestWhere === 'gemBag' ? c.gemBag[best] : c.bag[best]);
+          if (!currentBest || b.tier < currentBest.tier) {
+            best = i;
+            bestWhere = where;
+          }
+        }
+      });
+    };
+    if (c.gemBag) checkList(c.gemBag, 'gemBag');
+    if (c.bag) checkList(c.bag, 'bag');
     if (best < 0) break;
-    budget -= fuseCost(c.bag[best]);
-    fuseGem(c, best); n++;
+    const cur = bestWhere === 'gemBag' ? c.gemBag[best] : c.bag[best];
+    budget -= fuseCost(cur);
+    fuseGem(c, best, bestWhere); n++;
   }
   return n;
 }

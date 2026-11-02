@@ -17,21 +17,105 @@ export const MILESTONES = [
 ];
 let R = null;
 
+let onlineHooks = {
+  getAccount: () => null,
+  isLoggedIn: () => false,
+  saveReliquary: () => Promise.resolve(false),
+};
+
+export function setReliquaryOnlineHooks(hooks) {
+  Object.assign(onlineHooks, hooks);
+}
+
+export function reliquaryStorageKey() {
+  try {
+    const acc = onlineHooks.getAccount ? onlineHooks.getAccount() : null;
+    if (acc && acc.id) return `Dagyr_reliquary_${acc.id}`;
+  } catch (e) { }
+  return KEY;
+}
+
 function blank() { return { tabs: Array.from({ length: VAULT_TABS }, () => Array(VAULT_SIZE).fill(null)), codex: {}, lines: 0 }; }
+
+function sanitizeReliquary(r) {
+  if (!r || !Array.isArray(r.tabs)) r = blank();
+  while (r.tabs.length < VAULT_TABS) r.tabs.push([]);
+  for (const t of r.tabs) while (t.length < VAULT_SIZE) t.push(null);
+  r.codex = r.codex || {};
+  r.lines = r.lines || 0;
+  return r;
+}
+
 /** The shared Reliquary (loaded once). */
 export function reliquary() {
   if (R) return R;
-  try { R = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { R = null; }
-  if (!R || !Array.isArray(R.tabs)) R = blank();
-  while (R.tabs.length < VAULT_TABS) R.tabs.push([]);
-  for (const t of R.tabs) while (t.length < VAULT_SIZE) t.push(null);
-  R.codex = R.codex || {};
-  R.lines = R.lines || 0;
+  const k = reliquaryStorageKey();
+  try { R = JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { R = null; }
+  if (!R && k !== KEY) {
+    try { R = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { R = null; }
+    if (R) {
+      try { localStorage.setItem(k, JSON.stringify(R)); } catch (e) { }
+    }
+  }
+  R = sanitizeReliquary(R);
   return R;
 }
-export function saveReliquary() { try { localStorage.setItem(KEY, JSON.stringify(reliquary())); } catch (e) { /* storage full or blocked: the vault lives on for this visit */ } }
-/** Tests: forget the cached copy (the next call reads localStorage again). */
+
+export function saveReliquary() {
+  const r = reliquary();
+  const k = reliquaryStorageKey();
+  try { localStorage.setItem(k, JSON.stringify(r)); } catch (e) { }
+  try { localStorage.setItem(KEY, JSON.stringify(r)); } catch (e) { }
+  if (onlineHooks.isLoggedIn()) {
+    try { onlineHooks.saveReliquary(r); } catch (e) { }
+  }
+}
+
+/** Tests or account switch: forget the cached copy (the next call reads localStorage again). */
 export function resetReliquaryCache() { R = null; }
+
+/** Adopt reliquary data from server or another client. */
+export function adoptOnlineReliquary(serverRel) {
+  const current = reliquary();
+  if (!serverRel) {
+    const hasLocal = current.tabs.some(t => t && t.some(Boolean)) || Object.keys(current.codex).length > 0 || current.lines > 0;
+    if (hasLocal && onlineHooks.isLoggedIn()) {
+      onlineHooks.saveReliquary(current);
+    }
+    return current;
+  }
+  const s = sanitizeReliquary(serverRel);
+
+  // Server is the single authoritative source of truth for online accounts!
+  current.tabs = s.tabs;
+  current.codex = Object.assign({}, current.codex, s.codex);
+  current.lines = Math.max(current.lines || 0, s.lines || 0);
+
+  R = current;
+  const k = reliquaryStorageKey();
+  try { localStorage.setItem(k, JSON.stringify(R)); } catch (e) { }
+  try { localStorage.setItem(KEY, JSON.stringify(R)); } catch (e) { }
+  return R;
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === reliquaryStorageKey() || e.key === KEY) {
+      try {
+        const next = JSON.parse(e.newValue || 'null');
+        if (next && Array.isArray(next.tabs)) {
+          R = sanitizeReliquary(next);
+          import('../ui/ui.js').then(({ UI }) => {
+            if (UI.refresh) UI.refresh();
+          }).catch(() => { });
+          if (G.ui?.reliquary?.active) {
+            G.ui.reliquary.refresh();
+          }
+        }
+      } catch (err) { }
+    }
+  });
+}
 
 /** Codex progress: {by: {h, c, g, s}, have, total, pct}. */
 export function codexProgress() {

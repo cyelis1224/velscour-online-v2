@@ -31,25 +31,50 @@ export const Reliquary = {
   tab: 0,
   selected: null,
   query: '',
+  lastScrollTop: 0,
   open() {
     UI.closeAll();
     this.active = true;
+    this.lastScrollTop = 0;
     sfx('ui');
     UI.openPanel('reliquary', 'The Reliquary', (b) => this.render(b), { onClose: () => { this.active = false; UI.closePanel('inventory'); }, cls: 'reliquary-panel' });
     UI.openPanel('inventory', 'Your Inventory', renderInventory);
+
+    import('../net/online.js').then(({ isOnlineLoggedIn, fetchOnlineReliquary }) => {
+      if (isOnlineLoggedIn && isOnlineLoggedIn()) {
+        fetchOnlineReliquary().then((rel) => {
+          if (this.active && rel) {
+            this.refresh();
+          }
+        }).catch(() => {});
+      }
+    }).catch(() => {});
   },
-  /** Bag slot -> the open vault tab. */
-  store(idx) {
-    const c = G.char, it = c.bag[idx], r = reliquary();
+  refresh() {
+    if (!this.active) return;
+    const p = UI.panels?.get('reliquary');
+    if (p) this.render(p.body);
+  },
+  /** Bag/GemBag slot -> the open vault tab. */
+  store(idx, where = 'bag') {
+    const c = G.char, container = where === 'gemBag' && c.gemBag ? c.gemBag : c.bag;
+    const it = container[idx], r = reliquary();
     if (!it || this.tab >= openTabs()) return false;
     if (it.locked) { UI.log('Unlock it first (its panel in the inventory).', '#ffd860'); sfx('error'); return false; }
     const t = r.tabs[this.tab];
-    if (it.type === 'gem') { const same = t.find((b) => b && b.type === 'gem' && b.gem === it.gem && b.tier === it.tier); if (same) { same.count = (same.count || 1) + (it.count || 1); c.bag[idx] = null; saveReliquary(); sfx('pickup'); changed(); return true; } }
+    if (it.type === 'gem') {
+      const same = t.find((b) => b && b.type === 'gem' && b.gem === it.gem && b.tier === it.tier);
+      if (same) {
+        same.count = (same.count || 1) + (it.count || 1);
+        container[idx] = null;
+        saveReliquary(); sfx('pickup'); UI.selected = null; changed(); this.refresh(); return true;
+      }
+    }
     const i = t.findIndex((b) => !b);
     if (i < 0) { UI.log(`Vault ${ROMAN[this.tab]} is full.`, '#ff8080'); sfx('error'); return false; }
     delete it.autoStash;
-    t[i] = it; c.bag[idx] = null;
-    saveReliquary(); sfx('pickup'); UI.selected = null; changed();
+    t[i] = it; container[idx] = null;
+    saveReliquary(); sfx('pickup'); UI.selected = null; changed(); this.refresh();
     return true;
   },
   /** Vault slot -> bag. */
@@ -59,22 +84,31 @@ export const Reliquary = {
     if (!addToBag(c, it)) { UI.log('Inventory full.', '#ff8080'); sfx('error'); return false; }
     r.tabs[tab][idx] = null;
     if (this.tab === tab && this.selected === idx) this.selected = null;
-    saveReliquary(); sfx('pickup'); changed();
+    saveReliquary(); sfx('pickup'); changed(); this.refresh();
     return true;
   },
   render(body) {
     const r = reliquary(), n = openTabs(), prog = codexProgress();
+    const prevGridScroll = body.querySelector('.rel-grid')?.scrollTop ?? this.lastScrollTop ?? 0;
+    const prevBodyScroll = body.scrollTop;
     body.innerHTML = '';
     const tabs = el('div', 'rel-tabs');
     for (let i = 0; i <= VAULT_TABS; i++) {
       const codex = i === VAULT_TABS, locked = !codex && i >= n;
       const b = el('button', 'tab' + (this.tab === i ? ' active' : '') + (locked ? ' locked' : ''), codex ? 'Codex' : `${locked ? '🔒 ' : ''}Vault ${ROMAN[i]}`);
       b.title = locked ? UNLOCK[i] : '';
-      b.onclick = () => { this.tab = i; this.selected = null; this.query = ''; sfx('ui'); UI.selected = null; this.render(body); };
+      b.onclick = () => { this.tab = i; this.selected = null; this.query = ''; this.lastScrollTop = 0; sfx('ui'); UI.selected = null; this.render(body); };
       tabs.appendChild(b);
     }
     body.appendChild(tabs);
-    if (this.tab === VAULT_TABS) return this.renderCodex(body, prog);
+    if (this.tab === VAULT_TABS) {
+      this.renderCodex(body, prog);
+      if (prevBodyScroll > 0) {
+        body.scrollTop = prevBodyScroll;
+        requestAnimationFrame(() => { if (body && prevBodyScroll > 0) body.scrollTop = prevBodyScroll; });
+      }
+      return;
+    }
     if (this.tab >= n) { body.appendChild(el('div', 'dim rel-locked', `Vault ${ROMAN[this.tab]} is sealed. ${UNLOCK[this.tab]}.`)); return; }
     const t = r.tabs[this.tab];
     body.appendChild(el('div', 'dim rel-note', `Shared by all your heroes · Vault ${ROMAN[this.tab]}: ${t.filter(Boolean).length} / ${t.length} · Right-click to move items between the Reliquary and your bag`));
@@ -82,16 +116,17 @@ export const Reliquary = {
     search.type = 'search'; search.placeholder = 'Search this vault'; search.value = this.query;
     body.appendChild(search);
     const transfer = el('div', 'storage-dropzone', 'Drop a backpack item here to store it · Tap a stored item to inspect it');
-    droppable(transfer, (data) => data.type === 'item' && data.where === 'bag' ? this.store(data.idx) : false, (data) => data.type === 'item' && data.where === 'bag');
+    droppable(transfer, (data) => data.type === 'item' && (data.where === 'bag' || data.where === 'gemBag') ? this.store(data.idx, data.where) : false, (data) => data.type === 'item' && (data.where === 'bag' || data.where === 'gemBag'));
     body.appendChild(transfer);
     const grid = el('div', 'bag rel-grid');
+    grid.addEventListener('scroll', () => { this.lastScrollTop = grid.scrollTop; }, { passive: true });
     t.forEach((it, i) => {
       const d = el('div', 'bslot ' + rarityClass(it));
       if (this.selected === i) d.classList.add('sel');
       d.dataset.name = it ? itemName(it).toLowerCase() : '';
       if (it) d.appendChild(itemCell(it));
       draggable(d, { key: 'vault:' + i, data: () => (t[i] ? { type: 'vault', idx: i, tab: this.tab } : null), icon: () => d.querySelector('img') && d.querySelector('img').src, onClick: () => { if (t[i]) { this.selected = i; this.render(body); } }, onRight: () => this.take(i), onDouble: () => this.take(i) });
-      droppable(d, (data) => (data.type === 'item' && data.where === 'bag' ? this.store(data.idx) : false), (data) => data.type === 'item' && data.where === 'bag');
+      droppable(d, (data) => (data.type === 'item' && (data.where === 'bag' || data.where === 'gemBag') ? this.store(data.idx, data.where) : false), (data) => data.type === 'item' && (data.where === 'bag' || data.where === 'gemBag'));
       if (it) UI.tip(d, () => itemTooltip(t[i], { hint: 'Right-click to take' }));
       grid.appendChild(d);
     });
@@ -112,6 +147,14 @@ export const Reliquary = {
     };
     search.oninput = () => { this.query = search.value.trim().toLowerCase(); applyFilter(); };
     applyFilter();
+    if (prevGridScroll > 0) {
+      grid.scrollTop = prevGridScroll;
+      requestAnimationFrame(() => { if (grid && prevGridScroll > 0) grid.scrollTop = prevGridScroll; });
+    }
+    if (prevBodyScroll > 0) {
+      body.scrollTop = prevBodyScroll;
+      requestAnimationFrame(() => { if (body && prevBodyScroll > 0) body.scrollTop = prevBodyScroll; });
+    }
   },
   renderCodex(body, prog) {
     const r = reliquary();

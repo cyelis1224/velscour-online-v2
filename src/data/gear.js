@@ -127,5 +127,5 @@ export const FX_CHANCE = [0, 0, 0.45, 1, 1, 1, 1];
 
 /** Glow colour of a look: the effect's own, else the finish's, else the rarity colour. */
 export function fxColor(fx, pal, rarity) {
-  return (fx && fx.col) || (pal && pal.glow) || RARITY[rarity].color;
+  return (fx && fx.col) || (pal && pal.glow) || (rarity != null && RARITY[rarity]?.color) || '#ffd860';
 }

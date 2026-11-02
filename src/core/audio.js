@@ -209,6 +209,27 @@ const SOUNDS = {
     tone(t + 0.11, 0.7, { f0: 1760, vol: 0.09, a: 0.004 });
     tone(t + 0.11, 0.45, { f0: 3520, vol: 0.02, a: 0.004 });
   },
+  // Special abilities ready cues (F, G, H)
+  ready_ultimate: (t) => {
+    [523, 659, 784, 1046].forEach((f, i) => {
+      tone(t + i * 0.07, 0.45, { f0: f, vol: 0.11, wave: 'triangle', a: 0.004 });
+      tone(t + i * 0.07, 0.25, { f0: f * 2, vol: 0.03, wave: 'sine', a: 0.004 });
+    });
+    tone(t + 0.22, 0.8, { f0: 2093, vol: 0.04, wave: 'sine', a: 0.004 });
+  },
+  ready_madness: (t) => {
+    tone(t, 0.55, { f0: 140, f1: 65, wave: 'sawtooth', vol: 0.16, a: 0.01 });
+    tone(t + 0.05, 0.45, { f0: 666, f1: 444, wave: 'square', vol: 0.06, a: 0.006 });
+    tone(t + 0.1, 0.5, { f0: 888, wave: 'triangle', vol: 0.07, a: 0.005 });
+    noise(t + 0.04, 0.35, { type: 'bandpass', f0: 1200, f1: 300, q: 4, vol: 0.12 });
+  },
+  ready_hearth: (t) => {
+    [659, 987, 1319].forEach((f, i) => {
+      tone(t + i * 0.08, 0.5, { f0: f, vol: 0.1, wave: 'sine', a: 0.004 });
+      tone(t + i * 0.08, 0.3, { f0: f * 2, vol: 0.025, wave: 'triangle', a: 0.004 });
+    });
+    tone(t + 0.18, 0.8, { f0: 2638, vol: 0.035, wave: 'sine', a: 0.005 });
+  },
 };
 
 export function sfx(name, vol = 1, pitch = 1) {

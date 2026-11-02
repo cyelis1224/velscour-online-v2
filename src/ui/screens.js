@@ -27,6 +27,7 @@ import {
   checkOnlineCharName,
   createOnlineCharacter,
   deleteOnlineCharacter,
+  fetchOnlineReliquary,
 } from '../net/online.js';
 export { hardReload };
 
@@ -527,6 +528,7 @@ export function onlineCharSelectScreen(selectedCharId = null, back = titleScreen
   }
 
   preloadPortraits(ACTIVE_CLASS_IDS);
+  fetchOnlineReliquary().catch(() => {});
   const acc = getOnlineAccount();
   let chars = getOnlineCharacters().filter(c => c && ACTIVE_CLASS_IDS.includes(c.classId));
   let selId = selectedCharId && chars.some(c => c.id === selectedCharId)
@@ -1203,10 +1205,12 @@ export function lootFilterDialog(onDone) {
   const f = lootFilter();
   const hue = ['white', 'green', 'blue', 'purple', 'orange', 'red', 'cyan'];
   const opts = `<option value="-1">None</option>` + RARITY.map((r, i) => `<option value="${i}" style="color:${r.color}">${r.name}${i < RARITY.length - 1 ? ' or better' : ''} (${hue[i]})</option>`).join('');
+  const gemGradeNames = ['Chipped', 'Flawed', 'Standard', 'Flawless', 'Perfect', 'Royal', 'Imperial', 'Celestial', 'Abyssal', 'Eternal'];
+  const gemOpts = `<option value="-1">None</option>` + gemGradeNames.map((name, i) => `<option value="${i}">${name}${i < gemGradeNames.length - 1 ? ' or better' : ''}</option>`).join('');
   const html = `<div class="settings-grid">
     <label><b>Use the loot filter</b></label><input type="checkbox" data-f="on" ${f.on ? 'checked' : ''}>
     ${FILTER_ROWS.map((r) => `<label>${r.name}</label><select data-f="${r.k}">${opts}</select>`).join('')}
-    <label>Gems (all of them)</label><input type="checkbox" data-f="gems" ${f.gems ? 'checked' : ''}>
+    <label>Gems & Runes</label><select data-f="gems">${gemOpts}</select>
     <label>Auto-play also picks up upgrades it will wear</label><input type="checkbox" data-f="upgrades" ${f.upgrades ? 'checked' : ''}>
     <label>Auto-play keeps what passes (stores it in the chest instead of selling it)</label><input type="checkbox" data-f="keep" ${f.keep ? 'checked' : ''}>
   </div><p class="dim" style="font-size:12px;max-width:520px">With the filter on, auto-play and walk-over pickup take only what passes. Clicking or tapping an item still picks it up, and sealed treasures always pass.</p>`;
@@ -1228,7 +1232,7 @@ export function helpDialog() {
     <div><kbd>&#96;</kbd> <kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd> <kbd>-</kbd> <kbd>=</kbd> cast skills at the cursor (13 keys + both mouse buttons)</div>
     <div><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> potions</div>
     <div><kbd>R</kbd> <kbd>E</kbd> <kbd>Y</kbd> <kbd>U</kbd> <kbd>O</kbd> macros: several skills on one key, set up from the skill tree's <b>Macros</b> button (or the menu)</div>
-    <div><kbd>I</kbd> inventory · <kbd>K</kbd> skill tree · <kbd>T</kbd> passive talent tree · <kbd>B</kbd> skill book · <kbd>Q</kbd> quest log</div>
+    <div><kbd>C</kbd> character · <kbd>I</kbd> bag · <kbd>K</kbd> skill tree · <kbd>T</kbd> passive talent tree · <kbd>B</kbd> friends · <kbd>Q</kbd> quest log</div>
     <div><kbd>Tab</kbd>/<kbd>M</kbd> map · <kbd>Esc</kbd> menu · wheel zoom</div>
     <div><kbd>Alt</kbd>+<kbd>P</kbd> or the <b>Auto</b> button: auto-play (the hero fights, loots, shops and delves on autopilot)</div>
     <div><kbd>G</kbd> MADNESS · <kbd>F</kbd> CLASS ULTIMATE (Smite, Cataclysm, Supernova, etc.), then click where it should strike (both fill as you fight)</div>

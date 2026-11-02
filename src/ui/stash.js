@@ -39,20 +39,26 @@ export const Stash = {
   filter: 'all',
   query: '',
   selected: null,
+  lastScrollTop: 0,
   open() {
     UI.closeAll();
     this.active = true;
+    this.lastScrollTop = 0;
     sfx('ui');
     UI.openPanel('stash', 'Storage Chest', (b) => this.render(b), { onClose: () => { this.active = false; UI.closePanel('inventory'); }, cls: 'stash-panel' });
     UI.openPanel('inventory', 'Your Inventory', renderInventory);
   },
-  /** Bag slot -> chest. */
-  store(idx) {
-    const c = G.char, it = c.bag[idx];
+  /** Bag/GemBag/JewelBox slot -> chest. */
+  store(idx, where = 'bag') {
+    const c = G.char;
+    let container = c.bag;
+    if (where === 'gemBag' && c.gemBag) container = c.gemBag;
+    else if (where === 'jewelbox' && c.jewelBox) container = c.jewelBox;
+    const it = container[idx];
     if (!it) return false;
     if (!addToStash(c, it)) { UI.log('The storage chest is full.', '#ff8080'); sfx('error'); return false; }
     delete it.autoStash; // the player stored it: auto-play leaves it be (game/autoplay.js unstash)
-    c.bag[idx] = null;
+    container[idx] = null;
     sfx('pickup'); UI.selected = null; changed();
     return true;
   },
@@ -69,6 +75,8 @@ export const Stash = {
   render(body) {
     const c = G.char;
     if (!c.stash) c.stash = Array(STASH_SIZE).fill(null);
+    const prevGridScroll = body.querySelector('.stash-grid')?.scrollTop ?? this.lastScrollTop ?? 0;
+    const prevBodyScroll = body.scrollTop;
     body.innerHTML = '';
     const used = c.stash.filter(Boolean).length;
     const head = el('div', 'row storage-toolbar', `<strong>${fmtInt(used)} / ${STASH_SIZE}</strong><span class="dim">slots used</span>`);
@@ -86,9 +94,18 @@ export const Stash = {
     tools.append(kind, search);
     body.appendChild(tools);
     const transfer = el('div', 'storage-dropzone', 'Drop a backpack item here to store it · Right-click a stored item to take it');
-    droppable(transfer, (data) => data.type === 'item' && data.where === 'bag' ? this.store(data.idx) : false, (data) => data.type === 'item' && data.where === 'bag');
+    droppable(
+      transfer,
+      (data) => {
+        if (data.type === 'item') return this.store(data.idx, data.where);
+        if (data.type === 'jewelbox') return this.store(data.idx, 'jewelbox');
+        return false;
+      },
+      (data) => data.type === 'item' || data.type === 'jewelbox'
+    );
     body.appendChild(transfer);
     const grid = el('div', 'bag stash-grid');
+    grid.addEventListener('scroll', () => { this.lastScrollTop = grid.scrollTop; }, { passive: true });
     c.stash.forEach((it, i) => {
       const d = el('div', 'bslot ' + rarityClass(it));
       if (this.selected === i) d.classList.add('sel');
@@ -96,7 +113,15 @@ export const Stash = {
       d.dataset.kind = it?.type || 'empty';
       d.dataset.name = it ? itemName(it).toLowerCase() : '';
       draggable(d, { key: 'stash:' + i, data: () => (c.stash[i] ? { type: 'stash', idx: i } : null), icon: () => d.querySelector('img') && d.querySelector('img').src, onClick: () => { if (c.stash[i]) { this.selected = i; this.render(body); } }, onRight: () => this.take(i), onDouble: () => this.take(i) });
-      droppable(d, (data) => (data.type === 'item' && data.where === 'bag' ? this.store(data.idx) : false), (data) => data.type === 'item' && data.where === 'bag');
+      droppable(
+        d,
+        (data) => {
+          if (data.type === 'item') return this.store(data.idx, data.where);
+          if (data.type === 'jewelbox') return this.store(data.idx, 'jewelbox');
+          return false;
+        },
+        (data) => data.type === 'item' || data.type === 'jewelbox'
+      );
       if (it) UI.tip(d, () => itemTooltip(c.stash[i], { hint: 'Right-click to take' }));
       grid.appendChild(d);
     });
@@ -122,5 +147,13 @@ export const Stash = {
     kind.onchange = () => { this.filter = kind.value; applyFilter(); };
     search.oninput = () => { this.query = search.value.trim().toLowerCase(); applyFilter(); };
     applyFilter();
+    if (prevGridScroll > 0) {
+      grid.scrollTop = prevGridScroll;
+      requestAnimationFrame(() => { if (grid && prevGridScroll > 0) grid.scrollTop = prevGridScroll; });
+    }
+    if (prevBodyScroll > 0) {
+      body.scrollTop = prevBodyScroll;
+      requestAnimationFrame(() => { if (body && prevBodyScroll > 0) body.scrollTop = prevBodyScroll; });
+    }
   },
 };

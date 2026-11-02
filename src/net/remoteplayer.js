@@ -19,6 +19,7 @@ import { castArtFx } from '../gfx/artfx.js';
 import { SKILLS } from '../data/skills.js';
 import { angleTo } from '../core/util.js';
 import { bardScore, bardCompose, bardUpdate, bardRetune, ensureInstrumentsLoaded } from '../game/bard.js';
+import { getBannerSkin, getBannerRoll } from '../gfx/bannergen.js';
 
 export class RemotePlayer extends Creature {
   constructor(info) {
@@ -32,6 +33,9 @@ export class RemotePlayer extends Creature {
     this.isRemotePlayer = true;
     this.isPlayer = false;
     this.gear = info.gear || null;
+    this.banner = info.banner || null;
+    this.bannerCanvas = info.banner ? getBannerSkin(info.banner) : null;
+    this.bannerRoll = info.banner ? getBannerRoll(info.banner) : null;
     this.spriteH = 60;
     this.hp = 100;
     this.maxHp = 100;
@@ -147,19 +151,24 @@ export class RemotePlayer extends Creature {
   gearFx() {
     if (G.settings.gearFx === false) return null;
     const eq = this.gear || {};
-    const fx = gearFxOf(eq.body, this.classId) || gearFxOf(eq.head, this.classId);
+    const bodyItem = eq.body, headItem = eq.head;
+    const bodyFx = bodyItem && gearFxOf(bodyItem, this.classId);
+    const headFx = headItem && gearFxOf(headItem, this.classId);
+    const fx = bodyFx || headFx;
     if (!fx) return null;
-    const fin = (gearFxOf(eq.body, this.classId) ? finishOf(eq.body, this.classId) : finishOf(eq.head, this.classId)) || 'iron';
-    return { fx, col: fxColor(fx, fin) };
+    const item = bodyFx ? bodyItem : headItem;
+    const fin = (item ? finishOf(item, this.classId) : null) || 'iron';
+    const rarity = item?.rarity ?? 2;
+    return { fx, col: fxColor(fx, fin, rarity) };
   }
 
   drawArtLayer(ctx, layer, art) {
     if (art) {
       const g = this.gearFx();
       if (g) drawGearFx(ctx, this, g.fx, g.col, layer, art);
-      if (layer === 'front' && this.heldArt) drawHeldLayer(ctx, this, this.heldArt.held, this.heldArt.base, 'front');
+      if (layer === 'front' && this.heldArt && G.settings.heldGear !== false) drawHeldLayer(ctx, this, this.heldArt.held, this.heldArt.base, art);
     }
-    if (layer === 'back' && this.classId === 'death_knight') bladeOnBack(ctx, this);
+    if (layer === 'back' && this.classId === 'death_knight') bladeOnBack(ctx, this, art, this.heldArt?.base);
   }
 
   updateFromNetwork(state) {
@@ -204,6 +213,16 @@ export class RemotePlayer extends Creature {
       if (this._gearKey !== key) {
         this._gearKey = key;
         this.updateGear(state.gear);
+      }
+    }
+
+    if (state.banner !== undefined) {
+      this.banner = state.banner;
+      if (this.char) this.char.banner = state.banner;
+      this.bannerCanvas = state.banner ? getBannerSkin(state.banner) : null;
+      this.bannerRoll = state.banner ? getBannerRoll(state.banner) : null;
+      if (this.sig?.s) {
+        this.sig.s.cloth = null;
       }
     }
   }

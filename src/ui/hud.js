@@ -114,7 +114,7 @@ export const HUD = {
       const entry = { d, icon, cd, cdt, cnt, nomana, map, last: {} };
       this.slots.push(entry);
       if (typeof map === 'string') {
-        d.title = { hp: 'Healing Potion (Z)', mp: 'Mana Potion (X)', rejuv: 'Rejuvenation Potion (C)', fury: 'Elixir of Fury (V)' }[map];
+        d.title = { hp: 'Healing Potion (Z)', mp: 'Mana Potion (X)', rejuv: 'Rejuvenation Potion (R)', fury: 'Elixir of Fury (V)' }[map];
         d.addEventListener('pointerdown', (e) => { e.stopPropagation(); G.player && G.player.usePotion(map); });
       } else {
         d.title = `Skill slot ${SLOT_LABELS[map]}`;
@@ -424,10 +424,22 @@ export const HUD = {
         if (id && SKILLS[id]) { s.icon.src = skillIconURL(SKILLS[id]); s.icon.style.display = 'block'; } else s.icon.style.display = 'none';
       }
     }
-    const sp = $('#sp-badge'), stb = $('#stat-badge');
-    const totalSkillOrTalentPts = (c.skillPoints || 0) + (c.talentPoints || 0);
-    sp.textContent = totalSkillOrTalentPts; sp.classList.toggle('hidden', !totalSkillOrTalentPts);
-    stb.textContent = c.statPoints; stb.classList.toggle('hidden', !c.statPoints);
+    const sp = $('#sp-badge'), stb = $('#stat-badge'), tb = $('#talent-badge');
+    if (sp) {
+      const skillPts = c.skillPoints || 0;
+      sp.textContent = skillPts;
+      sp.classList.toggle('hidden', !skillPts);
+    }
+    if (tb) {
+      const talentPts = c.talentPoints || 0;
+      tb.textContent = talentPts;
+      tb.classList.toggle('hidden', !talentPts);
+    }
+    if (stb) {
+      const statPts = c.statPoints || 0;
+      stb.textContent = statPts;
+      stb.classList.toggle('hidden', !statPts);
+    }
     if (G.touchUI) G.touchUI.refresh();
   },
 
@@ -468,7 +480,15 @@ export const HUD = {
       }
       const mad = $('#madness');
       if (mad) mad.className = v;
-      if (v === 'full') { sfx('levelup', 0.4); UI.log('MADNESS is full: press the MADNESS button (G) to unleash it.', '#ff6090'); }
+      if (v === 'full') {
+        sfx('ready_madness');
+        if (btn) {
+          btn.classList.remove('just-ready');
+          void btn.offsetWidth;
+          btn.classList.add('just-ready');
+        }
+        UI.log('MADNESS is full: press the MADNESS button (G) to unleash it.', '#ff6090');
+      }
     });
     set('madt', on ? `${Math.ceil(c.madT)}s` : ready ? 'READY' : `${Math.floor(madPct * 100)}%`, (v) => {
       const st = $('#madness-btn .special-status');
@@ -522,6 +542,15 @@ export const HUD = {
         smiteTrack.classList.toggle('full', v === 'full');
         smiteTrack.classList.toggle('armed', v === 'armed');
       }
+      if (v === 'full') {
+        sfx('ready_ultimate');
+        if (btn) {
+          btn.classList.remove('just-ready');
+          void btn.offsetWidth;
+          btn.classList.add('just-ready');
+        }
+        UI.log(`${ult.name} is ready! Press (F) to aim and strike.`, '#ffd860');
+      }
     });
     set('smitet', sArmed ? 'AIM' : sReady ? 'READY' : `${Math.floor(smitePct * 100)}%`, (v) => {
       const st = $('#smite-btn .special-status');
@@ -544,6 +573,12 @@ export const HUD = {
       btn.classList.toggle('casting', v === 'casting');
       btn.classList.toggle('idle', v === 'idle'); // full, but in town: nowhere to return from
       btn.classList.toggle('charging', !v);
+      if (v === 'full') {
+        sfx('ready_hearth');
+        btn.classList.remove('just-ready');
+        void btn.offsetWidth;
+        btn.classList.add('just-ready');
+      }
     });
     const hLeft = hearthSecondsLeft(c);
     set('hearthtx', hChan ? '...' : hPct >= 1 ? 'READY' : `${Math.floor(hLeft / 60)}:${String(hLeft % 60).padStart(2, '0')}`, (v) => {
@@ -820,7 +855,7 @@ export const HUD = {
 };
 
 function slotTip(map) {
-  if (typeof map === 'string') return `<b>${{ hp: 'Healing Potion', mp: 'Mana Potion', rejuv: 'Rejuvenation Potion', fury: 'Elixir of Fury' }[map]}</b><div class="dim">Key ${{ hp: 'Z', mp: 'X', rejuv: 'C', fury: 'V' }[map]} · Buy more from the Alchemist</div>`;
+  if (typeof map === 'string') return `<b>${{ hp: 'Healing Potion', mp: 'Mana Potion', rejuv: 'Rejuvenation Potion', fury: 'Elixir of Fury' }[map]}</b><div class="dim">Key ${{ hp: 'Z', mp: 'X', rejuv: 'R', fury: 'V' }[map]} · Buy more from the Alchemist</div>`;
   const id = G.char.bar[map];
   if (!id) return `<b>Empty slot [${SLOT_LABELS[map]}]</b><div class="dim">Click to choose a skill, or drag one here from the Skill Book (B).</div>`;
   const sk = SKILLS[id];

@@ -403,7 +403,15 @@ export class Player extends Creature {
       case 'item': {
         if (g.lootId) g.item._lootId = g.lootId;
         const ok = addToBag(c, g.item);
-        if (!ok) { if (!g.warned) { g.warned = true; floatText(this.x, this.y, 50, 'Inventory full', '#ff8080', 12); sfx('error'); } return false; }
+        if (!ok) {
+          if (!g.warned) {
+            g.warned = true;
+            const fullMsg = g.item.type === 'gem' ? 'Gem Bag full' : 'Inventory full';
+            floatText(this.x, this.y, 50, fullMsg, '#ff8080', 12);
+            sfx('error');
+          }
+          return false;
+        }
         sfx('pickup');
         if (G.room && g.lootId) net.sendLootPickup(g.lootId);
         if (G.ui) { G.ui.log(`Picked up <span style="color:${g.color}">${g.label}</span>`); G.ui.refresh(); }
@@ -735,12 +743,17 @@ export class Player extends Creature {
   }
 }
 
-/** Put an item in the first free bag slot (gems stack). */
+/** Put an item in the first free bag slot (gems go to gemBag and stack; gear goes to bag). */
 export function addToBag(c, item) {
   if (c === G.char) noteFind(item); // the Codex (game/reliquary.js) records relics and Sigils as they come in
   if (item.type === 'gem') {
-    const same = c.bag.find((b) => b && b.type === 'gem' && b.gem === item.gem && b.tier === item.tier);
+    if (!Array.isArray(c.gemBag)) c.gemBag = Array(30).fill(null);
+    const same = c.gemBag.find((b) => b && b.type === 'gem' && b.gem === item.gem && b.tier === item.tier);
     if (same) { same.count = (same.count || 1) + (item.count || 1); return true; }
+    const i = c.gemBag.findIndex((b) => !b);
+    if (i < 0) return false;
+    c.gemBag[i] = item;
+    return true;
   }
   const i = c.bag.findIndex((b) => !b);
   if (i < 0) return false;

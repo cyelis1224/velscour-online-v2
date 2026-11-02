@@ -664,6 +664,69 @@ button {
   animation: specialReadyPulse 1.8s ease-in-out infinite;
 }
 
+.special-btn.ready::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: specialRingAura 2s ease-in-out infinite;
+}
+
+.special-btn.smite.ready::after {
+  box-shadow: 0 0 14px 2px rgba(255, 204, 51, 0.65);
+}
+
+.special-btn.madness.ready::after {
+  box-shadow: 0 0 16px 2px rgba(255, 37, 112, 0.7);
+}
+
+.special-btn.hearth.ready::after {
+  box-shadow: 0 0 14px 2px rgba(127, 216, 255, 0.65);
+}
+
+.special-btn.just-ready {
+  animation: specialJustReadyPop 0.85s cubic-bezier(0.18, 0.89, 0.32, 1.28) 1 !important;
+}
+
+@keyframes specialJustReadyPop {
+  0% {
+    transform: scale(0.92);
+    filter: brightness(2) saturate(1.8);
+  }
+
+  35% {
+    transform: scale(1.28);
+    filter: brightness(2.5) saturate(2);
+    box-shadow: 0 0 36px 10px rgba(255, 255, 255, 0.9), inset 0 0 16px #fff;
+  }
+
+  65% {
+    transform: scale(1.08);
+    filter: brightness(1.5) saturate(1.4);
+    box-shadow: 0 0 24px 6px rgba(255, 215, 80, 0.8), inset 0 0 10px #ffe060;
+  }
+
+  100% {
+    transform: scale(1);
+    filter: brightness(1) saturate(1);
+  }
+}
+
+@keyframes specialRingAura {
+
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.98);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
 .special-btn.ready .special-icon {
   opacity: 1;
   filter: saturate(1.2) brightness(1.2);
@@ -2728,7 +2791,7 @@ body.touch #sealed-btn i {
   justify-content: center;
   opacity: .9;
   pointer-events: none;
-  transform: translateY(22px);
+  transform: translateY(8px);
 }
 
 .paperdoll .portrait img {
@@ -2791,6 +2854,41 @@ body.touch #sealed-btn i {
   max-height: min(60vh, 470px);
   overflow-y: auto;
   padding-right: 4px;
+}
+
+.jewelbox-panel {
+  border-color: #8c42c7 !important;
+  box-shadow: 0 0 0 2px #080605, 0 20px 50px #000c, inset 0 0 0 1px #5c2885, 0 0 24px rgba(160, 60, 255, 0.22) !important;
+}
+
+.jewelbox-panel .panel-head {
+  background: linear-gradient(180deg, #3d1b54, #211030 72%, #180a22) !important;
+  border-bottom: 1px solid #994fd4 !important;
+}
+
+.jewelbox-panel .panel-head h2 {
+  color: #eed6ff !important;
+  text-shadow: 0 2px 4px #000, 0 0 10px rgba(200, 120, 255, 0.5) !important;
+}
+
+.jewelbox-dropzone {
+  border-color: #7938a8 !important;
+  background: rgba(45, 18, 65, 0.35) !important;
+  color: #dfc8f8 !important;
+}
+
+.jewelbox-dropzone:hover {
+  border-color: #bb66ff !important;
+  background: rgba(75, 25, 110, 0.45) !important;
+}
+
+.jewelbox-grid .bslot {
+  background: radial-gradient(circle at center, #241432 0%, #150a20 100%);
+  border-color: #4b236d;
+}
+
+.jewelbox-grid .bslot:hover {
+  border-color: #aa55ff;
 }
 
 .reliquary-panel {
@@ -3086,11 +3184,28 @@ body.touch .reliquary-panel .codex-cell {
 .vanity-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px;
-  background: radial-gradient(#1e1428, #0b0710);
+  gap: 10px;
+  padding: 8px;
+  background: radial-gradient(circle at top left, #1e1428, #0b0710);
   border: 1px solid var(--line);
   border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.vanity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 52px);
+  grid-template-rows: repeat(2, 52px);
+  gap: 6px;
+}
+
+.vanity-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
 }
 
 .vanity-title {
@@ -3099,22 +3214,55 @@ body.touch .reliquary-panel .codex-cell {
   font-family: Cinzel, serif;
   font-size: 12px;
   color: #d8c8ff;
-  margin-right: auto;
+  letter-spacing: 0.8px;
 }
 
 .vanity-title .dim {
   font-size: 9px;
+  color: #a08ebd;
+}
+
+.vanity-helm-btn {
+  width: fit-content;
+  font-size: 11px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.vanity-note {
+  font-size: 10px;
+  color: #8c7b9e;
+  line-height: 1.2;
 }
 
 .vslot {
-  width: 64px;
-  height: 64px;
+  width: 52px;
+  height: 52px;
   border-style: dashed;
   border-color: #5a4a78;
+  position: relative;
+  box-sizing: border-box;
 }
 
 .vslot.hidden-look {
   opacity: .4;
+}
+
+.vslot.inactive-look {
+  opacity: .5;
+  filter: grayscale(60%);
+  border-color: #b04040;
+  border-style: dotted;
+}
+
+.vslot.inactive-look::after {
+  content: '⚠️';
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 10px;
+  line-height: 1;
+  pointer-events: none;
 }
 
 /* the Bard's Tabs (loaded Music Sheets) and the sheet editor (ui/sheets.js) */
@@ -3234,6 +3382,146 @@ body.touch .reliquary-panel .codex-cell {
   background: rgba(0, 0, 0, .4);
   padding: 0 3px;
   border-radius: 2px;
+}
+
+/* ------------------------------------------------ Lancer War Banner Customizer */
+.banner-customizer-dialog {
+  width: min(720px, 94vw);
+  max-width: min(720px, 94vw);
+  text-align: left;
+}
+
+.banner-cust-wrap {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 10px 0 16px;
+}
+
+.banner-preview-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 160px;
+}
+
+.banner-canvas-frame {
+  border: 2px solid #8e6a3c;
+  background: radial-gradient(#20160d, #0b0805);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: inset 0 0 24px #000, 0 4px 16px rgba(0, 0, 0, 0.8);
+}
+
+.banner-live-canvas {
+  display: block;
+  width: 144px;
+  height: 288px;
+  image-rendering: pixelated;
+}
+
+.banner-unfurl-ctrl {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  font-size: 11px;
+  text-align: center;
+}
+
+.banner-unfurl-slider {
+  width: 100%;
+  accent-color: #ffd860;
+  cursor: pointer;
+}
+
+.banner-options-pane {
+  flex: 1 1 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 280px;
+}
+
+.banner-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.banner-section-title {
+  font: 700 12px var(--font-head);
+  color: #f1cc89;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid #5a3c1e;
+  padding-bottom: 3px;
+}
+
+.banner-btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.banner-sel-btn {
+  font-size: 11px !important;
+  padding: 4px 9px !important;
+  border: 1px solid #5a3e22 !important;
+  background: rgba(30, 20, 13, 0.8) !important;
+  color: #d2c0a2 !important;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.banner-sel-btn:hover {
+  background: #3e2a18 !important;
+  border-color: #dfaa4e !important;
+  color: #ffffff !important;
+}
+
+.banner-sel-btn.active {
+  background: linear-gradient(180deg, #6c4b24, #3a220d) !important;
+  border-color: #ffd860 !important;
+  color: #ffd860 !important;
+  box-shadow: 0 0 8px rgba(255, 216, 96, 0.45);
+  font-weight: 700;
+}
+
+.banner-swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.banner-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid #1a1008;
+  box-shadow: 0 0 0 1px #5a3c1e, 0 2px 4px #000;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.banner-swatch:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px #f0c850, 0 3px 6px #000;
+}
+
+.banner-swatch.sel {
+  transform: scale(1.22);
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px #ffd860, 0 0 12px rgba(255, 216, 96, 0.7);
 }
 
 /* tooltip */
@@ -5193,7 +5481,7 @@ body.touch.portrait #hud-buttons {
   grid-area: buttons;
   display: grid;
   grid-template-columns: repeat(2, 32px);
-  grid-template-rows: repeat(3, 34px);
+  grid-template-rows: repeat(4, 34px);
   gap: 4px;
   margin: 0;
   max-width: none;
@@ -5456,7 +5744,7 @@ body.touch .paperdoll {
 }
 
 body.touch .paperdoll .portrait {
-  transform: translateY(18px);
+  transform: translateY(8px);
 }
 
 body.touch .paperdoll .portrait img {
@@ -6591,6 +6879,8 @@ body:not(.touch) .panel.moving .panel-head {
 }
 
 .panel[data-panel="inventory"],
+.panel[data-panel="character"],
+.character-panel,
 .vendor-panel,
 .stash-panel,
 .reliquary-panel {
@@ -6601,6 +6891,8 @@ body:not(.touch) .panel.moving .panel-head {
 }
 
 .panel[data-panel="inventory"] .panel-head,
+.panel[data-panel="character"] .panel-head,
+.character-panel .panel-head,
 .vendor-panel .panel-head,
 .stash-panel .panel-head,
 .reliquary-panel .panel-head {
@@ -6611,6 +6903,8 @@ body:not(.touch) .panel.moving .panel-head {
 }
 
 .panel[data-panel="inventory"] .panel-head h2,
+.panel[data-panel="character"] .panel-head h2,
+.character-panel .panel-head h2,
 .vendor-panel .panel-head h2,
 .stash-panel .panel-head h2,
 .reliquary-panel .panel-head h2 {
@@ -6621,6 +6915,8 @@ body:not(.touch) .panel.moving .panel-head {
 }
 
 .panel[data-panel="inventory"] .panel-body,
+.panel[data-panel="character"] .panel-body,
+.character-panel .panel-body,
 .vendor-panel .panel-body,
 .stash-panel .panel-body,
 .reliquary-panel .panel-body {
@@ -6628,7 +6924,12 @@ body:not(.touch) .panel.moving .panel-head {
 }
 
 body:not(.touch) .panel[data-panel="inventory"] {
-  width: min(810px, calc(100vw - 24px));
+  width: min(496px, calc(100vw - 24px));
+}
+
+body:not(.touch) .panel[data-panel="character"],
+body:not(.touch) .character-panel {
+  width: min(460px, calc(100vw - 24px));
 }
 
 body:not(.touch) .vendor-panel,
@@ -6640,40 +6941,152 @@ body:not(.touch) .reliquary-panel {
   width: min(570px, calc(100vw - 24px));
 }
 
-body:not(.touch) #panels:has(.vendor-panel, .stash-panel, .reliquary-panel) .panel[data-panel="inventory"] {
-  width: min(760px, 62vw);
-}
-
 body:not(.touch) #panels:has(.vendor-panel, .stash-panel, .reliquary-panel) .vendor-panel,
 body:not(.touch) #panels:has(.vendor-panel, .stash-panel, .reliquary-panel) .stash-panel,
 body:not(.touch) #panels:has(.vendor-panel, .stash-panel, .reliquary-panel) .reliquary-panel {
   width: min(460px, 35vw);
 }
 
-body:not(.touch) .inv-wrap {
+body:not(.touch) .character-panel .inv-wrap,
+body:not(.touch) .inv-wrap.character-view {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 226px minmax(0, 1fr);
+  gap: 12px;
   align-items: start;
   justify-content: start;
 }
 
-.inv-view-tabs {
+body:not(.touch) .character-panel .paperdoll {
+  grid-template-columns: repeat(4, 52px);
+  grid-template-rows: repeat(4, 52px);
+}
+
+body:not(.touch) .character-panel .vslot {
+  width: 52px;
+  height: 52px;
+}
+
+body:not(.touch) .character-panel .paperdoll .portrait img {
+  max-height: 110px;
+  max-width: 64px;
+}
+
+body.touch:not(.portrait) .panel[data-panel="inventory"],
+body.touch:not(.portrait) .inventory-panel {
+  width: min(470px, calc(100vw - 20px));
+  order: 2 !important;
+}
+
+body.touch:not(.portrait) #panels:has(> .panel:nth-child(2)) .panel[data-panel="inventory"],
+body.touch:not(.portrait) #panels:has(> .panel:nth-child(2)) .inventory-panel {
+  max-width: 58vw;
+}
+
+body.touch:not(.portrait) .panel[data-panel="character"],
+body.touch:not(.portrait) .character-panel {
+  width: min(265px, calc(100vw - 20px));
+  order: 1 !important;
+}
+
+body.touch:not(.portrait) #panels:has(> .panel:nth-child(2)) .panel[data-panel="character"],
+body.touch:not(.portrait) #panels:has(> .panel:nth-child(2)) .character-panel {
+  max-width: 38vw;
+}
+
+body.touch:not(.portrait) .character-panel .inv-wrap {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+body.touch:not(.portrait) .character-panel .inv-equipment {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+body.touch:not(.portrait) .character-panel .character-card {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+body.touch:not(.portrait) .character-panel .panel-body {
+  padding: 8px 10px;
+}
+
+body.touch:not(.portrait) .character-panel .paperdoll {
+  grid-template-columns: repeat(4, 42px);
+  grid-template-rows: repeat(4, 42px);
   gap: 4px;
-  margin: 0 0 12px;
-  border-bottom: 1px solid #70502d;
 }
 
-.inv-view-tabs .tab {
-  border-bottom: 0;
-  border-radius: 4px 4px 0 0;
-  padding: 7px 12px;
+body.touch:not(.portrait) .character-panel .paperdoll .portrait img {
+  max-height: 98px;
+  max-width: 58px;
 }
 
-.inv-view-tabs .tab.active {
-  background: #64421f;
-  color: #ffe3a8;
+body.touch:not(.portrait) .character-panel .vanity-row {
+  padding: 4px 6px;
+  gap: 6px;
+}
+
+body.touch:not(.portrait) .character-panel .vanity-grid {
+  grid-template-columns: repeat(2, 40px);
+  grid-template-rows: repeat(2, 40px);
+  gap: 4px;
+}
+
+body.touch:not(.portrait) .character-panel .vslot {
+  width: 40px;
+  height: 40px;
+}
+
+body.touch.portrait .character-panel .vanity-row {
+  padding: 6px 8px;
+  gap: 8px;
+}
+
+body.touch.portrait .character-panel .vanity-grid {
+  grid-template-columns: repeat(2, 48px);
+  grid-template-rows: repeat(2, 48px);
+  gap: 5px;
+}
+
+body.touch.portrait .character-panel .vslot {
+  width: 48px;
+  height: 48px;
+}
+
+body:not(.touch) .inventory-panel .inv-wrap,
+body:not(.touch) .inv-wrap.bag-view {
+  display: block;
+}
+
+.inv-title-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: #f1cc89;
+  font: 700 12px var(--font-head);
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+}
+
+.inv-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.inv-title-actions .btn,
+.inv-section-title .btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  margin-left: 0;
+  line-height: 1.2;
 }
 
 .inv-wrap>.col {
@@ -6683,7 +7096,8 @@ body:not(.touch) .inv-wrap {
 .inv-section-title {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
+  min-height: 24px;
   margin: 0 0 5px;
   padding: 0 1px 5px;
   border-bottom: 1px solid #6b4b29;
@@ -6691,6 +7105,41 @@ body:not(.touch) .inv-wrap {
   font: 700 12px var(--font-head);
   letter-spacing: 1.1px;
   text-transform: uppercase;
+}
+
+.inv-section-title.gem-bag-title {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #4a3522;
+  border-bottom: 1px solid #553e6c;
+  color: #e2caff;
+}
+
+.inv-section-title.gem-bag-title .inv-title-label {
+  color: #dfcbff;
+}
+
+.inv-section-title.gem-bag-title span {
+  color: #b09ac8;
+}
+
+.gem-bag {
+  margin-bottom: 4px;
+}
+
+.gem-bag .gem-slot {
+  background: radial-gradient(circle at 50% 30%, #1c1528 0%, #100b18 100%);
+  border-color: #553e6c;
+}
+
+.gem-bag .gem-slot:hover {
+  border-color: #a47fe0;
+  box-shadow: 0 0 7px rgba(180, 130, 255, 0.4);
+}
+
+.gem-bag .gem-slot.sel {
+  border-color: #e0b0ff;
+  box-shadow: 0 0 10px rgba(220, 170, 255, 0.7);
 }
 
 .inv-section-title span {
@@ -6849,11 +7298,6 @@ body:not(.touch) .inv-wrap {
   padding-top: 7px;
 }
 
-body:not(.touch) #panels:has(.vendor-panel, .stash-panel, .reliquary-panel) .inv-bag .bag {
-  grid-template-columns: repeat(10, 38px);
-  grid-auto-rows: 38px;
-}
-
 body:not(.touch) .inv-wrap.character-view .character-card {
   grid-column: auto;
 }
@@ -6970,29 +7414,8 @@ body:not(.touch) #panels:has(.reliquary-panel) .reliquary-panel .rel-grid {
 }
 
 @media (max-width: 1250px) {
-  body:not(.touch) #panels:has(.vendor-panel, .stash-panel, .reliquary-panel) .inv-wrap {
-    grid-template-columns: 254px minmax(0, 1fr);
-    gap: 10px;
-  }
-
-  body:not(.touch) #panels:has(.vendor-panel, .stash-panel, .reliquary-panel) .paperdoll {
-    grid-template-columns: repeat(4, 56px);
-    grid-template-rows: repeat(4, 56px);
-  }
-
-  body:not(.touch) #panels:has(.vendor-panel, .stash-panel, .reliquary-panel) .inv-bag .bag {
-    grid-template-columns: repeat(10, 31px);
-    grid-auto-rows: 31px;
-  }
-
   body:not(.touch) .vendor-panel .shop-grid {
     grid-template-columns: repeat(6, 44px);
-  }
-}
-
-@media (max-width: 1030px) {
-  body:not(.touch) .inv-wrap {
-    grid-template-columns: 290px minmax(0, 1fr);
   }
 }
 
@@ -7296,7 +7719,7 @@ body.touch .macros-panel .mc-why {
     z-index: 30 !important;
   }
 
-  #panels > .panel,
+  #panels>.panel,
   body.touch .vendor-panel,
   body.touch .stash-panel,
   body.touch .reliquary-panel,
@@ -7317,25 +7740,25 @@ body.touch .macros-panel .mc-why {
   }
 
   /* Single panel in portrait: full height */
-  #panels:not(.multi-panel):not(:has(> .panel:nth-child(2))) > .panel {
+  #panels:not(.multi-panel):not(:has(> .panel:nth-child(2)))>.panel {
     flex: 0 1 auto !important;
     max-height: 100% !important;
   }
 
   /* Multiple panels in portrait (e.g. shop + inventory): 50/50 top/bottom split */
-  #panels.multi-panel > .panel,
-  #panels:has(> .panel:nth-child(2)) > .panel {
+  #panels.multi-panel>.panel,
+  #panels:has(> .panel:nth-child(2))>.panel {
     flex: 1 1 50% !important;
     height: calc(50% - 3px) !important;
     max-height: calc(50% - 3px) !important;
     min-height: 0 !important;
   }
 
-  #panels > .panel .panel-head {
+  #panels>.panel .panel-head {
     flex-shrink: 0 !important;
   }
 
-  #panels > .panel .panel-body {
+  #panels>.panel .panel-body {
     flex: 1 1 auto !important;
     min-height: 0 !important;
     overflow-y: auto !important;
@@ -7348,6 +7771,32 @@ body.touch .macros-panel .mc-why {
     align-items: center !important;
     gap: 8px !important;
   }
+
+  .bag {
+    grid-template-columns: repeat(6, clamp(36px, calc((100vw - 52px) / 6), 46px)) !important;
+    grid-auto-rows: clamp(36px, calc((100vw - 52px) / 6), 46px) !important;
+    justify-content: center !important;
+  }
+
+  #panels>.panel[data-panel="character"],
+  #panels>.character-panel {
+    order: 1 !important;
+  }
+
+  #panels>.panel[data-panel="inventory"],
+  #panels>.inventory-panel {
+    order: 2 !important;
+  }
+}
+
+body.portrait #panels>.panel[data-panel="character"],
+body.portrait #panels>.character-panel {
+  order: 1 !important;
+}
+
+body.portrait #panels>.panel[data-panel="inventory"],
+body.portrait #panels>.inventory-panel {
+  order: 2 !important;
 }
 
 body.portrait #panels {
@@ -7368,7 +7817,7 @@ body.portrait #panels {
   z-index: 30 !important;
 }
 
-body.portrait #panels > .panel,
+body.portrait #panels>.panel,
 body.portrait.touch .vendor-panel,
 body.portrait.touch .stash-panel,
 body.portrait.touch .reliquary-panel,
@@ -7388,24 +7837,24 @@ body.portrait:not(.touch) .panel[data-panel="inventory"] {
   flex-direction: column !important;
 }
 
-body.portrait #panels:not(.multi-panel):not(:has(> .panel:nth-child(2))) > .panel {
+body.portrait #panels:not(.multi-panel):not(:has(> .panel:nth-child(2)))>.panel {
   flex: 0 1 auto !important;
   max-height: 100% !important;
 }
 
-body.portrait #panels.multi-panel > .panel,
-body.portrait #panels:has(> .panel:nth-child(2)) > .panel {
+body.portrait #panels.multi-panel>.panel,
+body.portrait #panels:has(> .panel:nth-child(2))>.panel {
   flex: 1 1 50% !important;
   height: calc(50% - 3px) !important;
   max-height: calc(50% - 3px) !important;
   min-height: 0 !important;
 }
 
-body.portrait #panels > .panel .panel-head {
+body.portrait #panels>.panel .panel-head {
   flex-shrink: 0 !important;
 }
 
-body.portrait #panels > .panel .panel-body {
+body.portrait #panels>.panel .panel-body {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   overflow-y: auto !important;
@@ -7418,6 +7867,20 @@ body.portrait .inv-wrap {
   align-items: center !important;
   gap: 8px !important;
 }
+
+body.portrait .inv-bag {
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+body.portrait .bag {
+  grid-template-columns: repeat(6, clamp(36px, calc((100vw - 52px) / 6), 46px)) !important;
+  grid-auto-rows: clamp(36px, calc((100vw - 52px) / 6), 46px) !important;
+  justify-content: center !important;
+}
+
 
 
 /* ------------------------------------------------ Portrait Orientation Panel Stacking */
@@ -7441,7 +7904,7 @@ body.portrait .inv-wrap {
     z-index: 30 !important;
   }
 
-  #panels > .panel,
+  #panels>.panel,
   body.touch .vendor-panel,
   body.touch .stash-panel,
   body.touch .reliquary-panel,
@@ -7462,25 +7925,25 @@ body.portrait .inv-wrap {
   }
 
   /* Single panel in portrait: full height */
-  #panels:not(.multi-panel):not(:has(> .panel:nth-child(2))) > .panel {
+  #panels:not(.multi-panel):not(:has(> .panel:nth-child(2)))>.panel {
     flex: 0 1 auto !important;
     max-height: 100% !important;
   }
 
   /* Multiple panels in portrait (e.g. shop + inventory): 50/50 top/bottom split */
-  #panels.multi-panel > .panel,
-  #panels:has(> .panel:nth-child(2)) > .panel {
+  #panels.multi-panel>.panel,
+  #panels:has(> .panel:nth-child(2))>.panel {
     flex: 1 1 50% !important;
     height: calc(50% - 3px) !important;
     max-height: calc(50% - 3px) !important;
     min-height: 0 !important;
   }
 
-  #panels > .panel .panel-head {
+  #panels>.panel .panel-head {
     flex-shrink: 0 !important;
   }
 
-  #panels > .panel .panel-body {
+  #panels>.panel .panel-body {
     flex: 1 1 auto !important;
     min-height: 0 !important;
     overflow-y: auto !important;
@@ -7493,6 +7956,32 @@ body.portrait .inv-wrap {
     align-items: center !important;
     gap: 8px !important;
   }
+
+  .bag {
+    grid-template-columns: repeat(6, clamp(36px, calc((100vw - 52px) / 6), 46px)) !important;
+    grid-auto-rows: clamp(36px, calc((100vw - 52px) / 6), 46px) !important;
+    justify-content: center !important;
+  }
+
+  #panels>.panel[data-panel="character"],
+  #panels>.character-panel {
+    order: 1 !important;
+  }
+
+  #panels>.panel[data-panel="inventory"],
+  #panels>.inventory-panel {
+    order: 2 !important;
+  }
+}
+
+body.portrait #panels>.panel[data-panel="character"],
+body.portrait #panels>.character-panel {
+  order: 1 !important;
+}
+
+body.portrait #panels>.panel[data-panel="inventory"],
+body.portrait #panels>.inventory-panel {
+  order: 2 !important;
 }
 
 body.portrait #panels {
@@ -7513,7 +8002,7 @@ body.portrait #panels {
   z-index: 30 !important;
 }
 
-body.portrait #panels > .panel,
+body.portrait #panels>.panel,
 body.portrait.touch .vendor-panel,
 body.portrait.touch .stash-panel,
 body.portrait.touch .reliquary-panel,
@@ -7533,24 +8022,24 @@ body.portrait:not(.touch) .panel[data-panel="inventory"] {
   flex-direction: column !important;
 }
 
-body.portrait #panels:not(.multi-panel):not(:has(> .panel:nth-child(2))) > .panel {
+body.portrait #panels:not(.multi-panel):not(:has(> .panel:nth-child(2)))>.panel {
   flex: 0 1 auto !important;
   max-height: 100% !important;
 }
 
-body.portrait #panels.multi-panel > .panel,
-body.portrait #panels:has(> .panel:nth-child(2)) > .panel {
+body.portrait #panels.multi-panel>.panel,
+body.portrait #panels:has(> .panel:nth-child(2))>.panel {
   flex: 1 1 50% !important;
   height: calc(50% - 3px) !important;
   max-height: calc(50% - 3px) !important;
   min-height: 0 !important;
 }
 
-body.portrait #panels > .panel .panel-head {
+body.portrait #panels>.panel .panel-head {
   flex-shrink: 0 !important;
 }
 
-body.portrait #panels > .panel .panel-body {
+body.portrait #panels>.panel .panel-body {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   overflow-y: auto !important;
@@ -7562,4 +8051,17 @@ body.portrait .inv-wrap {
   flex-direction: column !important;
   align-items: center !important;
   gap: 8px !important;
+}
+
+body.portrait .inv-bag {
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+body.portrait .bag {
+  grid-template-columns: repeat(6, clamp(36px, calc((100vw - 52px) / 6), 46px)) !important;
+  grid-auto-rows: clamp(36px, calc((100vw - 52px) / 6), 46px) !important;
+  justify-content: center !important;
 }

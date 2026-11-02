@@ -2,12 +2,20 @@
 import { getServerBaseUrl } from '../ui/updater.js';
 import { newCharData, migrate } from '../game/save.js';
 import { endgame } from '../game/endgame.js';
+import { adoptOnlineReliquary, setReliquaryOnlineHooks, resetReliquaryCache } from '../game/reliquary.js';
 
 const SESSION_KEY = 'dagyr_online_session_v1';
 
 let currentToken = '';
 let currentAccount = null;
 let cachedCharacters = [];
+let cachedReliquary = null;
+
+setReliquaryOnlineHooks({
+  getAccount: () => currentAccount,
+  isLoggedIn: () => isOnlineLoggedIn(),
+  saveReliquary: (rel) => saveOnlineReliquary(rel),
+});
 
 function loadStoredSession() {
   try {
@@ -110,6 +118,10 @@ export async function registerOnlineAccount(email, password) {
   });
   persistSession(data.token, data.account);
   cachedCharacters = normalizeCharList(data.characters);
+  if (data.reliquary !== undefined) {
+    cachedReliquary = data.reliquary || null;
+    adoptOnlineReliquary(cachedReliquary);
+  }
   return { account: currentAccount, characters: cachedCharacters };
 }
 
@@ -120,6 +132,10 @@ export async function loginOnlineAccount(email, password) {
   });
   persistSession(data.token, data.account);
   cachedCharacters = normalizeCharList(data.characters);
+  if (data.reliquary !== undefined) {
+    cachedReliquary = data.reliquary || null;
+    adoptOnlineReliquary(cachedReliquary);
+  }
   return { account: currentAccount, characters: cachedCharacters };
 }
 
@@ -129,6 +145,11 @@ export async function logoutOnlineAccount() {
       await savePromiseChain;
     } catch (e) { }
   }
+  if (reliquarySavePromiseChain) {
+    try {
+      await reliquarySavePromiseChain;
+    } catch (e) { }
+  }
   try {
     if (currentToken) {
       await apiRequest('/api/auth/logout', { method: 'POST', body: { token: currentToken } });
@@ -136,6 +157,8 @@ export async function logoutOnlineAccount() {
   } catch (e) { }
   persistSession('', null);
   cachedCharacters = [];
+  cachedReliquary = null;
+  resetReliquaryCache();
 }
 
 export async function fetchOnlineSession() {
@@ -146,11 +169,17 @@ export async function fetchOnlineSession() {
     const data = await apiRequest('/api/auth/session', { method: 'GET' });
     persistSession(currentToken, data.account);
     cachedCharacters = normalizeCharList(data.characters);
+    if (data.reliquary !== undefined) {
+      cachedReliquary = data.reliquary || null;
+      adoptOnlineReliquary(cachedReliquary);
+    }
     return { account: currentAccount, characters: cachedCharacters };
   } catch (err) {
     if (err && err.status === 401) {
       persistSession('', null);
       cachedCharacters = [];
+      cachedReliquary = null;
+      resetReliquaryCache();
     }
     return null;
   }
@@ -203,9 +232,63 @@ export async function deleteOnlineCharacter(charId) {
 }
 
 let savePromiseChain = Promise.resolve(true);
+let reliquarySavePromiseChain = Promise.resolve(true);
 
 export function flushOnlineSave() {
-  return savePromiseChain;
+  return Promise.all([savePromiseChain, reliquarySavePromiseChain]);
+}
+
+export function flushOnlineReliquarySave() {
+  return reliquarySavePromiseChain;
+}
+
+export function getOnlineReliquary() {
+  return cachedReliquary;
+}
+
+export async function fetchOnlineReliquary() {
+  if (!currentToken) return null;
+  try {
+    const data = await apiRequest('/api/online/reliquary', { method: 'GET' });
+    if (data && data.ok) {
+      cachedReliquary = data.reliquary || null;
+      adoptOnlineReliquary(cachedReliquary);
+      return cachedReliquary;
+    }
+  } catch (err) {
+    console.warn('[Dagyr Online] Failed to fetch online reliquary:', err);
+  }
+  return null;
+}
+
+export function saveOnlineReliquary(relData) {
+  if (!relData || !currentToken) return Promise.resolve(false);
+  cachedReliquary = relData;
+  reliquarySavePromiseChain = reliquarySavePromiseChain
+    .then(async () => {
+      if (!currentToken) return false;
+      try {
+        await apiRequest('/api/online/reliquary', {
+          method: 'PUT',
+          body: { reliquary: relData },
+        });
+        return true;
+      } catch (e) {
+        console.warn('[Dagyr Online] Failed to save online reliquary over HTTP:', e);
+        if (typeof window !== 'undefined' && window.net && window.net.connected) {
+          try {
+            window.net.send({ type: 'save_reliquary', reliquary: relData, accountId: currentAccount?.id || null });
+          } catch (netErr) { }
+        }
+        return false;
+      }
+    })
+    .catch((err) => {
+      console.warn('[Dagyr Online] Reliquary save promise chain recovered:', err);
+      return false;
+    });
+
+  return reliquarySavePromiseChain;
 }
 
 export function saveOnlineCharacter(char) {

@@ -235,8 +235,12 @@ function armorPixels(id, pi, src = S) {
 const recolouredHelms = new Map();
 /** The shared atlas cell for this class and design, with the item's finish applied. */
 function helmetPixels(cls, id, pi, set, src = S) {
-  const data = src[set + 'Helms'], [cw, ch] = data.meta.frame;
+  const actualSrc = (src && src.cls) ? src : (S.cls ? S : classGearCache.get(cls) || S);
+  const data = actualSrc?.[set + 'Helms'] || S[set + 'Helms'];
+  if (!data?.meta || !data?.atlas) return { px: new Uint8ClampedArray(0), box: [0, 0, 0, 0] };
+  const [cw, ch] = data.meta.frame;
   const col = data.meta.classes.indexOf(cls), sx = col * cw, sy = (id - 1) * ch, aw = data.atlas.width;
+  if (col < 0) return { px: new Uint8ClampedArray(cw * ch * 4), box: [0, 0, 0, 0] };
   const key = set + '|' + cls + '|' + id + '|' + pi;
   let result = recolouredHelms.get(key);
   if (result) return result;
@@ -248,15 +252,21 @@ function helmetPixels(cls, id, pi, set, src = S) {
     out[o + 2] = data.atlas.data[si * 4 + 2]; out[o + 3] = data.atlas.data[si * 4 + 3];
     if (L) recolorPx(out, o, pi, L, pal.k);
   }
-  result = { px: out, box: data.boxes[(id - 1) * data.meta.cols + col] };
+  result = { px: out, box: data.boxes[(id - 1) * data.meta.cols + col] || [0, 0, cw, ch] };
   if (recolouredHelms.size >= 24) recolouredHelms.delete(recolouredHelms.keys().next().value);
   recolouredHelms.set(key, result);
   return result;
 }
 
 function helmetPlacement(meta, box, design, set, src = S) {
-  const helmets = src[set + 'Helms'], [cw, ch] = helmets.meta.frame;
-  const f = resolveHelmetFit(helmets.meta, helmets.placements, src.cls, design, meta.headTop);
+  const actualSrc = (src && src.cls) ? src : (S.cls ? S : classGearCache.get(S.cls));
+  const helmets = actualSrc?.[set + 'Helms'] || S[set + 'Helms'];
+  const headTop = meta?.headTop ?? 75;
+  if (!helmets?.meta || !box) {
+    return { dx: 0, dy: 0, dw: 0, dh: 0, rotation: 0, center: [0, 0], box: box || [0, 0, 0, 0] };
+  }
+  const [cw, ch] = helmets.meta.frame;
+  const f = resolveHelmetFit(helmets.meta, helmets.placements, actualSrc?.cls || S.cls, design, headTop);
   const { x: dx, y: dy, scaleX: sx, scaleY: sy, rotation = 0 } = f;
   const [x0, y0, x1, y1] = box;
   const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
@@ -307,11 +317,11 @@ export function heroLook(cls, body, head, src = null, outCache = looks) {
   x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
   x.scale(HD, HD);
   c._res = HD;
-  if (hl) {
+  if (hl && actualSrc?.[set + 'Helms']?.meta) {
     const { px: hp, box } = helmetPixels(cls, hl[0], hl[1], set, actualSrc);
     const place = helmetPlacement(meta, box, hl[0], set, actualSrc), [x0,y0,x1,y1] = box;
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-    const [hdx, hdy] = meta.armor.head?.[bl[0] - 1] || [0, 0]; // the helmet follows this armor's head
+    const [hdx, hdy] = meta.armor?.head?.[bl[0] - 1] || [0, 0]; // the helmet follows this armor's head
     x.save(); x.translate(place.center[0] + hdx, place.center[1] + hdy); x.rotate(place.rotation * Math.PI / 180);
     x.scale(place.dw / actualSrc[set + 'Helms'].meta.frame[0], place.dh / actualSrc[set + 'Helms'].meta.frame[1]);
     x.drawImage(toCanvas(hp, ...actualSrc[set + 'Helms'].meta.frame), -cx, -cy); x.restore();
@@ -324,7 +334,7 @@ export function heroLook(cls, body, head, src = null, outCache = looks) {
 /** Draw parameters of the hero canvas: feet anchor and world px per art px for a hero `spriteH` tall. */
 export function heroFrame(cls, spriteH) {
   const m = gearMeta(cls);
-  return m && { ax: m.frame[0] / 2 * HD, ay: m.feet * HD, k: spriteH / (m.feet - m.headTop) / HD };
+  return m && m.headTop != null && { ax: m.frame[0] / 2 * HD, ay: m.feet * HD, k: spriteH / (m.feet - m.headTop) / HD };
 }
 
 // ------------------------------------------------------------------ icons
@@ -345,12 +355,18 @@ export function gearIcon(item, w = 48, h = w) {
   const key = item.slot + set + l[0] + '|' + l[1] + '|' + w + 'x' + h;
   let c = icons.get(key);
   if (!c) {
-    const { meta } = S;
-    if (item.slot === 'body') c = fitCanvas(toCanvas(armorPixels(l[0], l[1]), meta.frame[0], meta.frame[1]), meta.armor.box[l[0] - 1], w, h);
-    else {
-      const { px, box } = helmetPixels(S.cls, l[0], l[1], set);
-      const placement = helmetPlacement(meta, box, l[0], set);
-      const rotated = rotatedHelmetCanvas(px, S[set + 'Helms'].meta.frame, box, placement.rotation);
+    const actualSrc = gearSrc(S.cls);
+    const meta = actualSrc?.meta || S.meta;
+    if (!meta || !meta.armor?.box) return null;
+    if (item.slot === 'body') {
+      if (!actualSrc?.armor) return null;
+      c = fitCanvas(toCanvas(armorPixels(l[0], l[1], actualSrc), meta.frame[0], meta.frame[1]), meta.armor.box[l[0] - 1] || [0, 0, meta.frame[0], meta.frame[1]], w, h);
+    } else {
+      const helms = actualSrc?.[set + 'Helms'] || S[set + 'Helms'];
+      if (!helms?.meta) return null;
+      const { px, box } = helmetPixels(actualSrc?.cls || S.cls, l[0], l[1], set, actualSrc);
+      const placement = helmetPlacement(meta, box, l[0], set, actualSrc);
+      const rotated = rotatedHelmetCanvas(px, helms.meta.frame, box, placement.rotation);
       c = fitCanvas(rotated, [0, 0, rotated.width, rotated.height], w, h);
     }
     if (icons.size > 300) icons.clear();
@@ -364,15 +380,22 @@ export function heroPortrait(cls, body, head, w, h, over = null, extra = null) {
   const c0 = heroLook(cls, body, head);
   if (!c0) return null;
   const c = over || c0; // `over`: the hero holding his gear (src/gfx/heldart.js heldPortraitArgs), `extra` its box
-  const m = S.meta, b = [0, Infinity, 0, 0];
+  const actualSrc = gearSrc(cls);
+  const m = gearMeta(cls) || actualSrc?.meta || S.meta;
+  if (!m || !m.armor?.box) return null;
+  const b = [0, Infinity, 0, 0];
   // the armor box widened by the helm's
-  const ab = m.armor.box[(body ? itemLook(body)[0] : 1) - 1];
+  const ab = m.armor.box[(body ? itemLook(body, actualSrc)?.[0] || 1 : 1) - 1] || [0, 0, m.frame?.[0] || 128, m.frame?.[1] || 192];
   b[0] = ab[0]; b[1] = ab[1]; b[2] = ab[2]; b[3] = ab[3];
   if (head) {
-    const set = helmetSet(head), { box } = helmetPixels(cls, itemLook(head)[0], itemLook(head)[1], set);
-    const hb = helmetPlacement(m, box, itemLook(head)[0], set).box;
-    b[0] = Math.min(b[0], hb[0]); b[1] = Math.min(b[1], hb[1]);
-    b[2] = Math.max(b[2], hb[2]); b[3] = Math.max(b[3], hb[3]);
+    const set = helmetSet(head);
+    const hl = itemLook(head, actualSrc);
+    if (hl && (actualSrc?.[set + 'Helms'] || S[set + 'Helms'])) {
+      const { box } = helmetPixels(cls, hl[0], hl[1], set, actualSrc);
+      const hb = helmetPlacement(m, box, hl[0], set, actualSrc).box;
+      b[0] = Math.min(b[0], hb[0]); b[1] = Math.min(b[1], hb[1]);
+      b[2] = Math.max(b[2], hb[2]); b[3] = Math.max(b[3], hb[3]);
+    }
   }
   if (extra) { b[0] = Math.min(b[0], extra[0]); b[2] = Math.max(b[2], extra[2]); b[3] = Math.max(b[3], extra[3]); b[1] = Math.min(b[1], Math.max(extra[1], b[1] - 14)); }
   return fitCanvas(c, b.map((v) => v * HD), w, h);

@@ -82,8 +82,9 @@ import { HUD } from '../ui/hud.js';
 import { TouchUI } from '../ui/touch.js';
 import { Vendor } from '../ui/vendor.js';
 import { Stash } from '../ui/stash.js';
+import { JewelBox } from '../ui/jewelbox.js';
 import { startTownLife } from './townlife.js';
-import { toggleInventory } from '../ui/inventory.js';
+import { toggleInventory, toggleCharacter } from '../ui/inventory.js';
 import { toggleTree, toggleBook } from '../ui/skills.js';
 import { toggleFriends } from '../ui/friends.js';
 import { toggleTalents } from '../ui/talents.js';
@@ -339,7 +340,7 @@ function attachNetListeners() {
           G.remotePlayers.delete(oldId);
         }
       }
-      rp = new RemotePlayer({ id: state.id, name: state.name || 'Hero', classId: state.classId || 'paladin', level: state.level || 1, gear: state.gear });
+      rp = new RemotePlayer({ id: state.id, name: state.name || 'Hero', classId: state.classId || 'paladin', level: state.level || 1, gear: state.gear, banner: state.banner });
       G.remotePlayers.set(state.id, rp);
     }
     rp._lastState = state;
@@ -378,7 +379,7 @@ function attachNetListeners() {
       if (typeof state.maxHp === 'number') rp.maxHp = state.maxHp;
       if (typeof state.mana === 'number') rp.mana = state.mana;
       if (typeof state.maxMana === 'number') rp.maxMana = state.maxMana;
-      if (state.gear) rp.updateFromNetwork({ gear: state.gear, level: state.level, classId: state.classId });
+      if (state.gear || state.banner !== undefined) rp.updateFromNetwork({ gear: state.gear, banner: state.banner, level: state.level, classId: state.classId });
       rp.dead = (rp.hp <= 0);
     }
   });
@@ -386,8 +387,16 @@ function attachNetListeners() {
   net.on('game_player_gear', (data) => {
     if (!data || data.id === net.myId) return;
     const rp = G.remotePlayers?.get(data.id);
-    if (rp && data.gear) {
-      rp.updateFromNetwork({ gear: data.gear, level: data.level });
+    if (rp) {
+      rp.updateFromNetwork({ gear: data.gear, banner: data.banner, level: data.level });
+    }
+  });
+
+  net.on('game_player_banner', (data) => {
+    if (!data || data.id === net.myId) return;
+    const rp = G.remotePlayers?.get(data.id);
+    if (rp) {
+      rp.updateFromNetwork({ banner: data.banner });
     }
   });
 
@@ -865,6 +874,9 @@ export const game = {
     }
     c.marks = JSON.parse(JSON.stringify(endgame().marks));
     G.selectedChar = c;
+    if (c.isOnline) {
+      import('../net/online.js').then(({ fetchOnlineReliquary }) => fetchOnlineReliquary().catch(() => {})).catch(() => {});
+    }
     openLobby(c, onBack);
   },
 
@@ -890,6 +902,14 @@ export const game = {
     }
     if (room.dungeonSeed) {
       G.room.dungeonSeed = room.dungeonSeed;
+    }
+
+    if (c?.classId) {
+      loadGearArt(c.classId, true).catch(() => {});
+    }
+
+    if (c?.isOnline) {
+      import('../net/online.js').then(({ fetchOnlineReliquary }) => fetchOnlineReliquary().catch(() => {})).catch(() => {});
     }
 
     this.startChar(c, false, room);
@@ -1145,6 +1165,10 @@ export const game = {
       let [rx, ry] = [t.start[0] - 1.5, t.start[1] - 0.5];
       if (!t.map.walkable(rx, ry) || Math.hypot(rx - x, ry - y) < 1.5) [rx, ry] = t.map.randomNear(t.start[0] - 1, t.start[1], 2.5);
       world.npcs.push({ stash: true, reliquary: true, name: 'The Reliquary', x: rx, y: ry, reach: 1.6, flip: false, use: () => G.ui.reliquary.open() });
+      // the Jewel Box, dedicated vault for gems & runes (ui/jewelbox.js)
+      let [jx, jy] = [t.start[0], t.start[1] - 1.6];
+      if (!t.map.walkable(jx, jy) || Math.hypot(jx - x, jy - y) < 1.2 || Math.hypot(jx - rx, jy - ry) < 1.2) [jx, jy] = t.map.randomNear(t.start[0], t.start[1] - 1, 2.5);
+      world.npcs.push({ stash: true, jewelBox: true, name: 'Jewel Box', x: jx, y: jy, reach: 1.6, flip: false, use: () => JewelBox.open() });
     }
     // the Altar of Heresy (ui/heresies.js), a dark obelisk at the plaza's edge: the Endgame's door (docs/ENDGAME.md)
     if (t.altar) world.npcs.push({ altar: true, name: 'Altar of Heresy', x: t.altar.x, y: t.altar.y, reach: 1.7, flip: false, use: () => Heresies.open() });
@@ -2423,7 +2447,8 @@ export const game = {
 
   hudAction(act) {
     switch (act) {
-      case 'inventory': case 'character': toggleInventory(); break;
+      case 'inventory': toggleInventory(); break;
+      case 'stats': case 'character': toggleCharacter(); break;
       case 'skills': toggleTree(); break;
       case 'talents': toggleTalents(); break;
       case 'friends': case 'book': toggleFriends(); break;
@@ -2440,6 +2465,7 @@ export const game = {
     const ui = UI;
     if (!ui.modal) {
       if (input.consume('KeyI')) toggleInventory();
+      if (input.consume('KeyC') || input.consume('KeyU')) toggleCharacter();
       if (input.consume('KeyK')) toggleTree();
       if (input.consume('KeyT')) toggleTalents();
       if (input.consume('KeyB')) toggleFriends();
@@ -2556,11 +2582,19 @@ export const game = {
           }
           const gearPayload = gearChanged ? gearObj : null;
 
+          const bannerKeyStr = G.char?.banner ? JSON.stringify(G.char.banner) : '';
+          const bannerChanged = (!this._lastSentBannerKey || this._lastSentBannerKey !== bannerKeyStr || gearChanged);
+          if (bannerChanged) {
+            this._lastSentBannerKey = bannerKeyStr;
+          }
+          const bannerPayload = bannerChanged ? (G.char?.banner || null) : undefined;
+
           net.sendPlayerState({
             name: G.char?.name || 'Hero',
             classId: p.classId,
             level: G.char?.level || 1,
             gear: gearPayload,
+            banner: bannerPayload,
             x: p.x,
             y: p.y,
             z: Math.round(p.z || 0),

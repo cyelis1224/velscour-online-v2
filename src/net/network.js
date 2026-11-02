@@ -5,6 +5,7 @@ import { shownEquip } from '../data/items.js';
 import { itemLook, gearSrc } from '../core/gearart.js';
 import { heldLook } from '../gfx/heldart.js';
 import { sfx } from '../core/audio.js';
+import { getOnlineAccount } from './online.js';
 
 export function serializeGearItem(item, slot, classId = null) {
   if (!item) return null;
@@ -211,8 +212,10 @@ class NetworkManager {
       this.reconnectAttempts = 0;
       this.startHeartbeat();
       const activeRoom = this.activeRoomName || (this.currentRoom ? this.currentRoom.name : null) || (G.room ? G.room.name : null);
+      const onlineAcc = typeof getOnlineAccount === 'function' ? getOnlineAccount() : null;
       this.send({
         type: 'enter_lobby',
+        accountId: (this.charData && this.charData.accountId) || (onlineAcc && onlineAcc.id) || null,
         charId: this.charData.id || null,
         name: this.charData.name,
         classId: this.charData.classId,
@@ -222,6 +225,7 @@ class NetworkManager {
         reconnectRoom: activeRoom || null,
         clientVersion: getClientVersion(),
         gear: serializeShownGear(this.charData),
+        banner: this.charData?.banner || null,
       });
       if (isReconnect && G.game && G.char) {
         G.game.autosave();
@@ -348,6 +352,20 @@ class NetworkManager {
 
   handleServerMessage(msg) {
     switch (msg.type) {
+      case 'reliquary_updated':
+        if (msg.reliquary) {
+          import('../game/reliquary.js').then(({ adoptOnlineReliquary }) => {
+            adoptOnlineReliquary(msg.reliquary);
+            import('../ui/ui.js').then(({ UI }) => {
+              if (UI.refresh) UI.refresh();
+            }).catch(() => { });
+            if (G.ui?.reliquary?.active) {
+              G.ui.reliquary.refresh();
+            }
+          }).catch(() => { });
+        }
+        break;
+
       case 'lobby_welcome':
         this.myId = msg.id;
         this.channelPlayers = msg.players || [];
@@ -524,6 +542,10 @@ class NetworkManager {
         this.emit('game_player_gear', msg);
         break;
 
+      case 'game_player_banner':
+        this.emit('game_player_banner', msg);
+        break;
+
       case 'game_skill_cast':
         this.emit('game_skill_cast', msg);
         break;
@@ -616,7 +638,7 @@ class NetworkManager {
           title: msg.title,
           gear: msg.gear,
         });
-        this.emit('lobby_update', { players: this.channelPlayers, rooms: this.rooms, channel: 'Dagyr Online En-1' });
+        this.emit('lobby_update', { players: this.channelPlayers, rooms: this.rooms, channel: 'USEast-1' });
       } else if (msg.type === 'chat') {
         this.emit('chat', msg);
       }
@@ -721,11 +743,11 @@ class NetworkManager {
 
     this.simWelcomeTimeout = setTimeout(() => {
       this.simWelcomeTimeout = null;
-      this.emit('chat', { type: 'chat', text: 'You have joined channel: Dagyr Online En-1', color: '#3a8aff', kind: 'system' });
+      this.emit('chat', { type: 'chat', text: 'You have joined channel: USEast-1', color: '#3a8aff', kind: 'system' });
       this.emit('chat', { type: 'chat', text: 'There are currently 28,528 users playing 30,596 games of DAGYR ONLINE.', color: '#5a9aff', kind: 'system' });
       this.emit('chat', { type: 'chat', text: '# Email Service # whispers: Welcome back to Sanctuary.', color: '#48e868', kind: 'system' });
       this.emit('chat', { type: 'chat', text: 'is diablo 2 dead?', from: 'Pladinson', classId: 'paladin', color: '#e9dcc4' });
-      this.emit('lobby_update', { players: this.channelPlayers, rooms: this.rooms, channel: 'Dagyr Online En-1' });
+      this.emit('lobby_update', { players: this.channelPlayers, rooms: this.rooms, channel: 'USEast-1' });
     }, 200);
 
     // Periodically post bot banter in chat
@@ -876,7 +898,16 @@ class NetworkManager {
     this.send({
       type: 'update_gear',
       gear,
+      banner: charData.banner || null,
       level: charData.level || 1,
+    });
+  }
+
+  sendBannerUpdate(banner) {
+    if (!this.currentRoom) return;
+    this.send({
+      type: 'update_banner',
+      banner: banner || null,
     });
   }
 

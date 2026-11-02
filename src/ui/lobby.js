@@ -599,7 +599,7 @@ export function openLobby(char, onBack) {
     renderPedestal(data.players || []);
     renderRoomList(data.rooms || []);
     const disp = $('#d2-channel-display');
-    if (disp) disp.textContent = `DAGYR ONLINE SANCTUARY (${data.channel || 'En-1'})`;
+    if (disp) disp.textContent = `DAGYR ONLINE (${data.channel || 'USEast-1'})`;
     updateConnectionBadge();
   };
 

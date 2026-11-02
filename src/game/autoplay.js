@@ -27,6 +27,7 @@ import { equipFromBag, socketGem, dropFromBag, changed } from '../ui/inventory.j
 import { GLYPHWORDS, glyphOf } from '../data/relics.js';
 import { Vendor, fuseAll } from '../ui/vendor.js';
 import { Stash, addToStash } from '../ui/stash.js';
+import { JewelBox, addToJewelBox } from '../ui/jewelbox.js';
 import { activeFilter, filterPasses, filterKeeps } from './lootfilter.js';
 import { addToBag } from './player.js';
 import { Delayed, Area, Whirl, Fissure } from './hazards.js';
@@ -801,15 +802,19 @@ export const Auto = {
         const it = c.equip[slot];
         if (!it || it.locked || it.gems.length >= it.sockets) continue;
         const tried = new Set();
-        c.bag.forEach((g, gi) => {
+        const gemSources = [
+          ...((c.gemBag || []).map((g, gi) => ({ g, gi, where: 'gemBag' }))),
+          ...((c.bag || []).map((g, gi) => ({ g, gi, where: 'bag' }))),
+        ];
+        gemSources.forEach(({ g, gi, where }) => {
           if (!g || g.type !== 'gem' || GEMS[g.gem].sigil || tried.has(g.gem + g.tier)) return; // Sigils wait for a Glyphword
           tried.add(g.gem + g.tier);
           const s = simulate(p, () => { it.gems.push({ gem: g.gem, tier: g.tier }); return () => { it.gems.pop(); }; });
-          if (s > bs) { bs = s; best = { gi, slot }; }
+          if (s > bs) { bs = s; best = { gi, slot, where }; }
         });
       }
       if (!best) break;
-      socketGem(best.gi, { where: 'equip', slot: best.slot });
+      socketGem(best.gi, { where: 'equip', slot: best.slot }, best.where);
       any = true;
     }
     return any;
@@ -833,7 +838,8 @@ export const Auto = {
     if (g.kind === 'potion') return (c.potions[g.item.kind] || 0) < 30;
     if (g.kind !== 'item') return false;
     const it = g.item, free = bagFree(c), f = activeFilter();
-    if (it.type === 'gem') return (!f || f.gems) && (free > 0 || c.bag.some((b) => b && b.type === 'gem' && b.gem === it.gem && b.tier === it.tier) || this.worstBag(itemValue(it)) >= 0);
+    const gemFree = (c.gemBag || []).filter(b => !b).length;
+    if (it.type === 'gem') return filterPasses(it) && (gemFree > 0 || (c.gemBag || c.bag).some((b) => b && b.type === 'gem' && b.gem === it.gem && b.tier === it.tier));
     if (it.type !== 'gear' || it.sealed) return free > 0; // a sealed treasure is Epic or better: always worth a slot
     if (f) { // the player's loot filter (game/lootfilter.js) decides, plus upgrades to wear unless that's off too
       if (!filterPasses(it) && !(f.upgrades && canEquipItem(c, it) && this.isUpgrade(it))) return false;
@@ -1356,8 +1362,16 @@ export const Auto = {
       return true;
     }
     this.setStatus(best.kind === 'item' ? `Picking up ${best.label}` : 'Collecting');
-    if (best.kind === 'item' && best.item.type !== 'potion' && bagFree(c) === 0 && !(best.item.type === 'gem' && c.bag.some((b) => b && b.type === 'gem' && b.gem === best.item.gem && b.tier === best.item.tier))) {
-      if (!this.makeRoom(best.item)) { this.ignore.add(best.item); return false; }
+    const gemFree = (c.gemBag || []).filter(b => !b).length;
+    if (best.kind === 'item' && best.item.type !== 'potion') {
+      if (best.item.type === 'gem') {
+        if (gemFree === 0 && !(c.gemBag && c.gemBag.some((b) => b && b.type === 'gem' && b.gem === best.item.gem && b.tier === best.item.tier))) {
+          this.ignore.add(best.item);
+          return false;
+        }
+      } else if (bagFree(c) === 0) {
+        if (!this.makeRoom(best.item)) { this.ignore.add(best.item); return false; }
+      }
     }
     p.lootTarget = best.kind === 'item' || best.kind === 'potion' ? best : null;
     this.goTo(best.x, best.y, 0.25, dt);
@@ -2036,7 +2050,11 @@ export const Auto = {
       this.watchStuck(dt);
       return;
     }
-    const npc = step.stash ? w.npcs.find((n) => n.stash) : vendorNpc(w, step.vendor);
+    const npc = step.jewelBox
+      ? w.npcs.find((n) => n.jewelBox)
+      : step.stash
+        ? w.npcs.find((n) => n.stash && !n.reliquary && !n.jewelBox)
+        : vendorNpc(w, step.vendor);
     if (!npc) { T.i++; return; }
     T.t += dt;
     if (T.phase === 'walk') {
@@ -2058,7 +2076,11 @@ export const Auto = {
       return;
     }
     if (T.phase === 'open') {
-      try { if (step.stash) Stash.open(); else Vendor.open(step.vendor); } catch (e) { console.warn('auto-play could not open a vendor', e); }
+      try {
+        if (step.jewelBox) JewelBox.open();
+        else if (step.stash) Stash.open();
+        else Vendor.open(step.vendor);
+      } catch (e) { console.warn('auto-play could not open a storage/vendor', e); }
       T.phase = 'act'; T.t = 0;
       return;
     }
@@ -2118,17 +2140,20 @@ export const Auto = {
   townPlan() {
     const c = G.char;
     const steps = [];
-    if (c.stash && c.stash.some((b) => b && (b.type === 'gem' || this.stashUpgrade(b)))) steps.push({ stash: true, label: 'Checking the storage chest', fn: () => this.unstash() });
+    if (c.stash && c.stash.some((b) => b && this.stashUpgrade(b))) steps.push({ stash: true, label: 'Checking the storage chest', fn: () => this.unstash() });
     const gear = (k) => () => this.gearGain(Vendor.stock[k]);
     steps.push({ vendor: 'weapons', label: 'Selling loot', want: () => c.bag.some((b) => b && b.type !== 'gem' && b.type !== 'sheet' && !b.sealed && !upgraded(b)) || this.gearGain(Vendor.stock.weapons), fn: () => { this.sellJunk(); if (this.buyGear(Vendor.stock.weapons)) this.sellJunk(); } }); // sell what the new piece replaced too: a nearly full bag has no slot for it
     steps.push({ vendor: 'alchemist', label: 'Buying potions', want: () => this.potionsWanted(), fn: () => this.buyPotions() });
     steps.push({ vendor: 'armor', label: 'Browsing armor', want: gear('armor'), fn: () => { if (this.buyGear(Vendor.stock.armor)) this.sellJunk(); } });
-    if (c.bag.some((b) => b && b.type === 'gem') || c.gold > 2000) steps.push({ vendor: 'gems', label: 'Visiting the gem merchant', fn: () => this.gemShop() });
-    steps.push({ vendor: 'socket', label: 'Visiting the jeweler', want: () => c.bag.some((b) => b && b.type === 'gem') || this.equipped().some((it) => it.sockets < it.maxSockets && socketCost(it) <= this.budget(0.3)) || this.gearGain(Vendor.stock.rings), fn: () => this.jeweler() });
+    const hasGems = ((c.gemBag || []).concat(c.bag || [])).some((b) => b && b.type === 'gem');
+    if (hasGems || c.gold > 2000) steps.push({ vendor: 'gems', label: 'Visiting the gem merchant', fn: () => this.gemShop() });
+    steps.push({ vendor: 'socket', label: 'Visiting the jeweler', want: () => hasGems || this.equipped().some((it) => it.sockets < it.maxSockets && socketCost(it) <= this.budget(0.3)) || this.gearGain(Vendor.stock.rings), fn: () => this.jeweler() });
     steps.push({ vendor: 'upgrade', chat: true, label: 'Visiting Homunculus the Proud', want: () => this.equipped().some((it) => (it.upg || 0) < 10 && upgradeCost(it) <= this.budget(0.45)), fn: () => this.blacksmith() });
     steps.push({ vendor: 'enchant', label: 'Enchanting gear', want: () => this.equipped().some((it) => it.rarity >= 1 && enchantCost(it, true) <= this.budget(0.2)), fn: () => this.enchanter() });
     steps.push({ vendor: 'gamble', label: 'Gambling', want: () => c.gold >= Math.round(180 * Math.pow(1.065, goldLvl(Math.max(c.level, depthLevel(c.depth || 1))))) * GAMBLE_GOLD && bagFree(c) >= 3, fn: () => { this.gamble(); this.sellJunk(); } });
-    steps.push({ stash: true, label: 'Stashing gems and gear for later', want: () => c.bag.some((b) => b && forChest(b, c)), fn: () => this.stashExtras() });
+    // Storage: visit both the jewel box and storage chest
+    steps.push({ jewelBox: true, label: 'Stashing gems in the jewel box', want: () => ((c.gemBag || []).concat(c.bag || [])).some((b) => b && b.type === 'gem'), fn: () => this.stashJewels() });
+    steps.push({ stash: true, label: 'Stashing gear in the storage chest', want: () => (c.bag || []).some((b) => b && b.type !== 'gem' && forChest(b, c)), fn: () => this.stashExtras() });
     return steps;
   },
   wants(f) { try { return !!f(); } catch (e) { return true; } },
@@ -2148,32 +2173,60 @@ export const Auto = {
     return ['hp', 'mp', 'rejuv'].some((k) => c.potions[k] < (k === 'mp' ? 5 : POT_TARGET[k]) && c.gold >= potionPrice(k, c) && (k === 'hp' || c.gold - potionPrice(k, c) > potionPrice('hp', c) * 4));
   },
   /** Stored gear to take out: an upgrade now, or what auto-play put away until the hero could wear it (to wear or sell).
-   *  What the player stored stays put: auto-play would sell it. */
+   *  What the player stored stays put: auto-play would sell it. Gems remain stored. */
   stashUpgrade(it) { return it.type === 'gear' && !it.sealed && !it.locked && canEquipItem(G.char, it) && ((it.autoStash === true && bagFree(G.char) >= 12) || this.isUpgrade(it)); },
-  /** Storage chest: take out the gems (for the jeweler and fusing) and the stored gear that's an upgrade now. */
+  /** Storage chest: take out stored gear that's an upgrade now. Never pulls out gems or locked/sealed items. */
   unstash() {
     const c = G.char;
     c.stash.forEach((it, i) => {
-      if (!it || (it.type === 'gear' && (bagFree(c) < 2 || !this.stashUpgrade(it)))) return;
+      if (!it || it.type !== 'gear' || bagFree(c) < 2 || !this.stashUpgrade(it)) return;
       if (!addToBag(c, it)) return;
       c.stash[i] = null;
-      if (it.type !== 'gear') return;
       this.optimizeGear();
       const j = c.bag.indexOf(it);
       if (j >= 0 && it.autoStash !== true) { c.bag[j] = null; c.stash[i] = it; } // not worn after all (rings weigh each other): a stored keeper goes back, unsold
     });
     changed();
   },
-  /** Storage chest: put away every gem, the +N gear and the good gear the hero is still too low-level to wear. */
+  /** Jewel Box: put away every gem and sigil from gemBag and bag. */
+  stashJewels() {
+    const c = G.char;
+    let n = 0;
+    if (c.gemBag) {
+      c.gemBag.forEach((it, i) => {
+        if (!it || it.type !== 'gem') return;
+        if (addToJewelBox(c, it)) { c.gemBag[i] = null; n++; }
+      });
+    }
+    if (c.bag) {
+      c.bag.forEach((it, i) => {
+        if (!it || it.type !== 'gem') return;
+        if (addToJewelBox(c, it)) { c.bag[i] = null; n++; }
+      });
+    }
+    if (n) G.ui.log(`Auto-play stored ${n} gem${n > 1 ? 's' : ''} in the Jewel Box.`, '#d8b4fe');
+    changed();
+  },
+  /** Storage chest: put away the +N gear, keepers, and the good gear the hero is still too low-level to wear. */
   stashExtras() {
     const c = G.char;
     let n = 0;
-    const store = () => c.bag.forEach((it, i) => {
-      if (!it || !forChest(it, c)) return;
-      // future gear comes back out once the hero can wear it; keepers (+N, the loot filter's) only as an upgrade
-      if (it.type === 'gear') it.autoStash = filterKeeps(it) || upgraded(it) ? 'keep' : true;
-      if (addToStash(c, it)) { c.bag[i] = null; n++; } else delete it.autoStash;
-    });
+    const store = () => {
+      // 1. Store eligible gear and keepers from regular bag
+      c.bag.forEach((it, i) => {
+        if (!it || !forChest(it, c)) return;
+        // future gear comes back out once the hero can wear it; keepers (+N, the loot filter's) only as an upgrade
+        if (it.type === 'gear') it.autoStash = filterKeeps(it) || upgraded(it) ? 'keep' : true;
+        if (addToStash(c, it)) { c.bag[i] = null; n++; } else delete it.autoStash;
+      });
+      // 2. If any gems remain in gemBag (e.g. Jewel Box was full), fallback to storage chest
+      if (c.gemBag) {
+        c.gemBag.forEach((it, i) => {
+          if (!it || !forChest(it, c)) return;
+          if (addToStash(c, it)) { c.gemBag[i] = null; n++; }
+        });
+      }
+    };
     store();
     // a full chest: make room by selling the weakest gear auto-play stored (+N gear last, then lowest rarity and item
     // level), then store the rest
@@ -2194,26 +2247,22 @@ export const Auto = {
     return Math.max(0, (c.gold - reserve) * frac);
   },
 
-  /** Sell everything in the bag that isn't an upgrade or a near-future one; keep gems unless the bag is crowded, and
-   *  +N gear (for the chest). */
+  /** Sell everything in the bag that isn't an upgrade or a near-future one; gems and sigils are never sold (stored in the jewel box), nor sheets, keepers, or +N gear. */
   sellJunk() {
     const p = G.player, c = G.char;
     this.optimizeGear();
     let gold = 0, n = 0;
     const future = {};
     c.bag.forEach((it, i) => {
-      if (!it || it.sealed || it.locked || it.type === 'sheet' || filterKeeps(it) || upgraded(it)) return; // only the player breaks a seal or sells what's locked; keepers and +N gear go to the chest
-      if (it.type === 'gem') {
-        const top = Math.max(0, ...SLOTS.flatMap((s) => (c.equip[s] ? c.equip[s].gems.map((g) => g.tier) : [])), ...c.bag.filter((b) => b && b.type === 'gem').map((b) => b.tier));
-        if (bagFree(c) > 15 || GEMS[it.gem].special || GEMS[it.gem].sigil || it.tier >= top - 1) return;
-      } else if (it.type === 'gear' && (it.req || 1) > c.level && (it.req || 1) <= c.level + 6 && it.rarity >= 2 && !future[it.slot]) {
+      if (!it || it.type === 'gem' || it.sealed || it.locked || it.type === 'sheet' || filterKeeps(it) || upgraded(it)) return; // only the player breaks a seal or sells what's locked; keepers and +N gear go to the chest; gems are never sold
+      if (it.type === 'gear' && (it.req || 1) > c.level && (it.req || 1) <= c.level + 6 && it.rarity >= 2 && !future[it.slot]) {
         const s = fitScore(p, it).s;
         if (s > simulate(p, () => () => { }) + 0.02) { future[it.slot] = true; return; }
       }
       // gems socketed in gear we're selling: pry them out when that's cheap compared to their worth
       if (it.type === 'gear' && it.gems.length) {
         const worth = it.gems.reduce((a, g) => a + itemValue(makeGem(g.gem, g.tier)) / 4, 0);
-        if (worth > unsocketCost(it) * 1.5 && c.gold >= unsocketCost(it) && bagFree(c) >= it.gems.length) {
+        if (worth > unsocketCost(it) * 1.5 && c.gold >= unsocketCost(it)) {
           c.gold -= unsocketCost(it);
           for (const g of it.gems) addToBag(c, makeGem(g.gem, g.tier));
           it.gems = [];
@@ -2333,7 +2382,7 @@ export const Auto = {
     const c = G.char, p = G.player;
     if (!gearOn()) return false;
     const have = {};
-    for (const b of c.bag) if (b && b.type === 'gem' && GEMS[b.gem].sigil) have[b.tier] = (have[b.tier] || 0) + (b.count || 1);
+    for (const b of ((c.gemBag || []).concat(c.bag || []))) if (b && b.type === 'gem' && GEMS[b.gem].sigil) have[b.tier] = (have[b.tier] || 0) + (b.count || 1);
     if (!Object.keys(have).length) return false;
     const lvl = Math.max(1, c.level);
     for (const gw of [...GLYPHWORDS].reverse()) { // the deepest words first
@@ -2355,7 +2404,15 @@ export const Auto = {
       while (it.sockets < n) { cost += socketCost(it); it.sockets++; }
       if (cost > c.gold) { it.sockets = s0; continue; }
       c.gold -= cost;
-      for (const r of gw.sig) { const gi = c.bag.findIndex((b) => b && b.type === 'gem' && b.gem === 'sig' && b.tier === r); socketGem(gi, { where: 'bag', idx: c.bag.indexOf(it) }); }
+      for (const r of gw.sig) {
+        let gi = c.gemBag ? c.gemBag.findIndex((b) => b && b.type === 'gem' && b.gem === 'sig' && b.tier === r) : -1;
+        let where = 'gemBag';
+        if (gi < 0) {
+          gi = c.bag.findIndex((b) => b && b.type === 'gem' && b.gem === 'sig' && b.tier === r);
+          where = 'bag';
+        }
+        socketGem(gi, { where: 'bag', idx: c.bag.indexOf(it) }, where);
+      }
       if (glyphOf(it)) { G.ui.log(`Auto-play wrote the Glyphword <b style="color:#f2e2b0">${escapeHtml(gw.name)}</b>.`, '#f2e2b0'); this.optimizeGear(); return true; }
     }
     return false;

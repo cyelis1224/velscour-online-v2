@@ -21,9 +21,9 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Alegreya+Sans:wght@400;700&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=0.2.1">
-  <link rel="stylesheet" href="css/lobby.css?v=0.2.1">
-  <link rel="stylesheet" href="css/chat.css?v=0.2.1">
+  <link rel="stylesheet" href="css/style.css?v=0.2.2">
+  <link rel="stylesheet" href="css/lobby.css?v=0.2.2">
+  <link rel="stylesheet" href="css/chat.css?v=0.2.2">
 </head>
 
 <body>
@@ -67,10 +67,15 @@
         </div>
         <div id="hud-btncol">
           <div id="hud-buttons">
-            <button class="hbtn" data-act="inventory" title="Inventory and hero (I)"><img src="assets/ui/btn_bag.webp"
-                alt="Bag" draggable="false"><b id="stat-badge" class="badge hidden"></b></button>
-            <button class="hbtn" data-act="skills" title="Skill Tree (K) · Passive Talents (T)"><img
+            <button class="hbtn" data-act="character" title="Character & Stats (C)"><img src="assets/ui/btn_stats.webp"
+                alt="Stats" draggable="false"><b id="stat-badge" class="badge hidden"></b></button>
+            <button class="hbtn" data-act="inventory" title="Inventory & Bag (I)"><img src="assets/ui/btn_bag.webp"
+                alt="Bag" draggable="false"></button>
+            <button class="hbtn" data-act="skills" title="Skill Tree (K)"><img
                 src="assets/ui/btn_skills.webp" alt="Skills" draggable="false"><b id="sp-badge"
+                class="badge hidden"></b></button>
+            <button class="hbtn" data-act="talents" title="Passive Talents (T)"><img
+                src="assets/ui/btn_talent.webp" alt="Talents" draggable="false"><b id="talent-badge"
                 class="badge hidden"></b></button>
             <button class="hbtn" data-act="friends" title="Friends List (B)"><img src="assets/ui/btn_book.webp" alt="Friends"
                 draggable="false"></button>

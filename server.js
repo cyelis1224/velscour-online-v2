@@ -52,7 +52,22 @@ function loadAccountCharacters(accountId) {
 
 function saveAccountCharacters(accountId, characters) {
   const file = path.join(CHARS_DIR, `${accountId}.json`);
-  writeJsonAtomic(file, { characters });
+  const data = readJsonSafe(file, {});
+  data.characters = characters;
+  writeJsonAtomic(file, data);
+}
+
+function loadAccountReliquary(accountId) {
+  const file = path.join(CHARS_DIR, `${accountId}.json`);
+  const data = readJsonSafe(file, {});
+  return data.reliquary || null;
+}
+
+function saveAccountReliquary(accountId, reliquary) {
+  const file = path.join(CHARS_DIR, `${accountId}.json`);
+  const data = readJsonSafe(file, {});
+  data.reliquary = reliquary;
+  writeJsonAtomic(file, data);
 }
 
 function saveAccountsToDisk() {
@@ -708,6 +723,7 @@ const server = http.createServer((req, res) => {
         token: session.token,
         account: { id: account.id, email: account.email, createdAt: account.createdAt },
         characters: [],
+        reliquary: null,
       });
     }).catch(err => {
       sendJson(res, 400, { ok: false, error: err.message || 'Invalid request' });
@@ -730,11 +746,13 @@ const server = http.createServer((req, res) => {
       saveAccountsToDisk();
       const session = createSession(account);
       const characters = loadAccountCharacters(account.id);
+      const reliquary = loadAccountReliquary(account.id);
       sendJson(res, 200, {
         ok: true,
         token: session.token,
         account: { id: account.id, email: account.email, createdAt: account.createdAt },
         characters,
+        reliquary,
       });
     }).catch(err => {
       sendJson(res, 400, { ok: false, error: err.message || 'Invalid request' });
@@ -789,10 +807,12 @@ const server = http.createServer((req, res) => {
       return sendJson(res, 401, { ok: false, error: 'Session expired or not logged in.' });
     }
     const characters = loadAccountCharacters(auth.account.id);
+    const reliquary = loadAccountReliquary(auth.account.id);
     return sendJson(res, 200, {
       ok: true,
       account: { id: auth.account.id, email: auth.account.email, createdAt: auth.account.createdAt },
       characters,
+      reliquary,
     });
   }
 
@@ -960,6 +980,44 @@ const server = http.createServer((req, res) => {
       deletedId: charId,
       characters,
     });
+  }
+
+  if (pathname === '/api/online/reliquary' && req.method === 'GET') {
+    const auth = getAuthAccount(req, parsedUrl);
+    if (!auth) {
+      return sendJson(res, 401, { ok: false, error: 'Session expired or not logged in.' });
+    }
+    const reliquary = loadAccountReliquary(auth.account.id);
+    return sendJson(res, 200, { ok: true, reliquary });
+  }
+
+  if (pathname === '/api/online/reliquary' && (req.method === 'PUT' || req.method === 'POST')) {
+    readJsonBody(req).then(body => {
+      const auth = getAuthAccount(req, parsedUrl, body);
+      if (!auth) {
+        return sendJson(res, 401, { ok: false, error: 'Session expired or not logged in.' });
+      }
+      const relData = body.reliquary || body;
+      saveAccountReliquary(auth.account.id, relData);
+
+      // Broadcast reliquary update to all other connected clients of the same account
+      const updateJson = JSON.stringify({ type: 'reliquary_updated', reliquary: relData });
+      for (const [ws, c] of clients) {
+        let accId = c.accountId;
+        if (!accId && c.name) {
+          const reg = onlineCharNames.get(c.name.trim().toLowerCase());
+          if (reg) accId = reg.accountId;
+        }
+        if (accId === auth.account.id && ws && ws.readyState === WebSocket.OPEN) {
+          try { ws.send(updateJson); } catch (e) { }
+        }
+      }
+
+      return sendJson(res, 200, { ok: true, reliquary: relData });
+    }).catch(err => {
+      sendJson(res, 400, { ok: false, error: err.message || 'Invalid request' });
+    });
+    return;
   }
 
   // 1. API: Version & Update metadata
@@ -1240,7 +1298,7 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 let clientIdSeq = 1;
 const clients = new Map(); // ws -> clientData
 const rooms = new Map();   // roomName -> roomData
-const DEFAULT_CHANNEL = 'Dagyr Online En-1';
+const DEFAULT_CHANNEL = 'USEast-1';
 const ROOM_GRACE_PERIOD_MS = 90000; // 90s grace period before tearing down an empty room on unexpected disconnect
 
 function broadcastToChannel(channel, msg, excludeWs = null) {
@@ -1933,13 +1991,14 @@ wss.on('connection', (ws) => {
         }
 
         const charReg = onlineCharNames.get(incomingNameLower);
-        clientData.accountId = (charReg && charReg.accountId) || msg.accountId || null;
+        clientData.accountId = msg.accountId || (charReg && charReg.accountId) || null;
         clientData.charId = incomingCharId;
         clientData.name = incomingName;
         clientData.classId = msg.classId || 'paladin';
         clientData.level = parseInt(msg.level, 10) || 1;
         clientData.title = msg.title || (clientData.level >= 50 ? 'Matriarch' : clientData.level >= 20 ? 'Slayer' : 'Hero');
         clientData.gear = msg.gear || null;
+        clientData.banner = msg.banner || null;
         clientData.channel = DEFAULT_CHANNEL;
         clientData.disconnected = false;
         clientData.kicked = false;
@@ -2216,6 +2275,7 @@ wss.on('connection', (ws) => {
               level: p.level,
               title: p.title,
               gear: p.gear,
+              banner: p.banner || null,
               bardTabs: p.bardTabs || null,
             })),
           },
@@ -2271,6 +2331,7 @@ wss.on('connection', (ws) => {
             level: clientData.level,
             title: clientData.title,
             gear: clientData.gear,
+            banner: clientData.banner || null,
             bardTabs: clientData.bardTabs || null,
           },
         }, ws);
@@ -2295,6 +2356,7 @@ wss.on('connection', (ws) => {
               level: p.level,
               title: p.title,
               gear: p.gear,
+              banner: p.banner || null,
               bardTabs: p.bardTabs || null,
             })),
           },
@@ -2438,9 +2500,35 @@ wss.on('connection', (ws) => {
         break;
       }
 
+      case 'save_reliquary': {
+        const relData = msg.reliquary;
+        if (!relData) break;
+        let accountId = clientData.accountId;
+        if (!accountId && msg.accountId) accountId = msg.accountId;
+        if (!accountId && clientData.name) {
+          const charInfo = onlineCharNames.get(clientData.name.trim().toLowerCase());
+          if (charInfo) accountId = charInfo.accountId;
+        }
+        if (!accountId) break;
+        saveAccountReliquary(accountId, relData);
+        const updateJson = JSON.stringify({ type: 'reliquary_updated', reliquary: relData });
+        for (const [otherWs, c] of clients) {
+          let cAcc = c.accountId;
+          if (!cAcc && c.name) {
+            const reg = onlineCharNames.get(c.name.trim().toLowerCase());
+            if (reg) cAcc = reg.accountId;
+          }
+          if (cAcc === accountId && otherWs !== ws && otherWs.readyState === WebSocket.OPEN) {
+            try { otherWs.send(updateJson); } catch (e) { }
+          }
+        }
+        break;
+      }
+
       // ------------------------------------------------ In-Game State Relay
       case 'game_player_state': {
         if (msg.gear) clientData.gear = msg.gear;
+        if (msg.banner !== undefined) clientData.banner = msg.banner;
         if (typeof msg.level === 'number' && msg.level !== clientData.level) {
           clientData.level = msg.level;
           broadcastLobbyUpdate(); // a level-up mid-game shows in the lobby's player and room lists right away
@@ -2451,14 +2539,28 @@ wss.on('connection', (ws) => {
         break;
       }
 
+      case 'update_banner': {
+        clientData.banner = msg.banner || null;
+        if (clientData.room) {
+          broadcastToRoom(clientData.room, {
+            type: 'game_player_banner',
+            id: clientData.id,
+            banner: clientData.banner,
+          }, ws);
+        }
+        break;
+      }
+
       case 'update_gear': {
         clientData.gear = msg.gear || null;
+        if (msg.banner !== undefined) clientData.banner = msg.banner || null;
         if (typeof msg.level === 'number') clientData.level = msg.level;
         if (clientData.room) {
           broadcastToRoom(clientData.room, {
             type: 'game_player_gear',
             id: clientData.id,
             gear: clientData.gear,
+            banner: clientData.banner,
             level: clientData.level,
           }, ws);
         }

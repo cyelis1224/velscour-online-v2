@@ -53,9 +53,89 @@ export const tierOf = (ilvl) => clamp(Math.floor((ilvl - 1) / 10), 0, 9);
 
 export const RING_SLOTS = ['ring1', 'ring2', 'ring3', 'ring4'];
 export const SLOTS = ['weapon', 'offhand', 'head', 'body', 'hands', 'legs', 'feet', ...RING_SLOTS];
-export const VANITY_SLOTS = ['head', 'body']; // looks only (G.char.vanity): worn over the real gear's look, no stats
-/** The gear the hero shows: his real gear with the vanity looks over head and body (c.hideHelm: no helmet at all). */
-export const shownEquip = (c) => { const v = c.vanity, e = c.equip; return v && (v.body || v.head) || c.hideHelm ? { ...e, body: v?.body || e.body, head: c.hideHelm ? null : v?.head || e.head } : e; };
+export const VANITY_SLOTS = ['head', 'body', 'weapon', 'offhand']; // looks only (G.char.vanity): worn over real gear, no stats
+
+/** Base weapon or off-hand family/archetype (e.g. 'sword', 'axe', 'shield', 'drum'). */
+export function itemBaseType(item) {
+  if (!item || item.type !== 'gear') return null;
+  if (item.base) return item.base;
+  if (item.slot === 'weapon') return catalogBase(item.name) || 'sword';
+  if (item.slot === 'offhand') return 'shield';
+  return item.slot;
+}
+
+/** Human-readable display name for an item's base type (e.g. 'Sword', 'Shield', 'Tambourine / Drum'). */
+export function itemBaseDisplayName(item) {
+  if (!item) return '';
+  const b = itemBaseType(item);
+  if (!b) return '';
+  if (b === 'head') return 'Helmet';
+  if (b === 'body') return 'Armor';
+  if (b === 'drum') return 'Tambourine / Drum';
+  return b.charAt(0).toUpperCase() + b.slice(1);
+}
+
+/** Returns whether an item can be worn as a vanity look in the specified vanity slot for character c. */
+export function canWearVanity(c, item, slot) {
+  if (!c || !item || item.type !== 'gear') return { ok: false, reason: 'Invalid item.' };
+  if (item.unid) return { ok: false, reason: 'Identify it first (buy it from the Gambler).' };
+  if (item.sealed) return { ok: false, reason: 'Break the seal first.' };
+
+  if (slot === 'head') {
+    if (item.slot !== 'head') return { ok: false, reason: 'This slot only accepts helmets.' };
+    return { ok: true };
+  }
+  if (slot === 'body') {
+    if (item.slot !== 'body') return { ok: false, reason: 'This slot only accepts body armor.' };
+    return { ok: true };
+  }
+  if (slot === 'weapon') {
+    if (item.slot !== 'weapon') return { ok: false, reason: 'This slot only accepts weapons.' };
+    const eqW = c.equip?.weapon;
+    if (!eqW) return { ok: false, reason: 'Equip a main-hand weapon first before setting a vanity weapon look.' };
+    const eqBase = itemBaseType(eqW);
+    const itBase = itemBaseType(item);
+    if (eqBase !== itBase) {
+      const eqName = itemBaseDisplayName(eqW);
+      const itName = itemBaseDisplayName(item);
+      return { ok: false, reason: `A ${itName} cannot be used as a vanity look for an equipped ${eqName}. Both must be the same weapon type.` };
+    }
+    return { ok: true };
+  }
+  if (slot === 'offhand') {
+    const isOff = item.slot === 'offhand' || (c.classId === 'barbarian' && item.slot === 'weapon');
+    if (!isOff) return { ok: false, reason: 'This slot only accepts off-hand items.' };
+    const eqO = c.equip?.offhand;
+    if (!eqO) return { ok: false, reason: 'Equip an off-hand item first before setting a vanity off-hand look.' };
+    const eqBase = itemBaseType(eqO);
+    const itBase = itemBaseType(item);
+    if (eqBase !== itBase) {
+      const eqName = itemBaseDisplayName(eqO);
+      const itName = itemBaseDisplayName(item);
+      return { ok: false, reason: `A ${itName} cannot be used as a vanity look for an equipped ${eqName}. Both must be the same item type.` };
+    }
+    return { ok: true };
+  }
+  return { ok: false, reason: 'Invalid vanity slot.' };
+}
+
+/** The gear the hero shows: his real gear with the vanity looks over head, body, weapon, and offhand (c.hideHelm: no helmet at all). */
+export const shownEquip = (c) => {
+  if (!c) return {};
+  const v = c.vanity, e = c.equip || {};
+  if (!v && !c.hideHelm) return e;
+  const res = { ...e };
+  if (c.hideHelm) res.head = null;
+  else if (v?.head) res.head = v.head;
+  if (v?.body) res.body = v.body;
+  if (v?.weapon && e?.weapon && itemBaseType(v.weapon) === itemBaseType(e.weapon)) {
+    res.weapon = v.weapon;
+  }
+  if (v?.offhand && e?.offhand && itemBaseType(v.offhand) === itemBaseType(e.offhand)) {
+    res.offhand = v.offhand;
+  }
+  return res;
+};
 export const SLOT_NAMES = { weapon: 'Weapon', offhand: 'Off-hand', head: 'Head', body: 'Body', hands: 'Hands', legs: 'Legs', feet: 'Feet', ring: 'Ring', ring1: 'Ring', ring2: 'Ring', ring3: 'Ring', ring4: 'Ring' };
 /** Can item it go in equipment slot `slot`? (A ring fits any of the four ring slots.) */
 export const fitsSlot = (it, slot, classId = null) => !!it && it.type === 'gear' && (it.slot === slot || (it.slot === 'ring' && RING_SLOTS.includes(slot)) || (classId === 'barbarian' && slot === 'offhand' && it.slot === 'weapon'));
@@ -606,6 +686,7 @@ export function itemName(item) {
   if (item.type === 'gem') return gemName(item.gem, item.tier);
   if (item.type === 'potion') return item.name;
   if (item.type === 'sheet') return sheetName(item);
+  if (item.type === 'banner_kit') return item.name || "Lancer's Banner Kit";
   if (item.rname) return item.rname + (item.upg ? ` +${item.upg}` : '');
   if (item.uname) return item.uname + (item.upg ? ` +${item.upg}` : '');
   const base = `${MATERIALS[item.tier]?.name || ''} ${item.baseName || item.base || 'Item'}`.trim();
@@ -625,6 +706,7 @@ export function itemColor(item) {
   if (item.type === 'gem') return GEMS[item.gem].sigil ? '#ffd88a' : GEMS[item.gem].special ? '#ff9a2a' : '#c8f0ff';
   if (item.type === 'potion') return '#ffffff';
   if (item.type === 'sheet') return item.inked ? '#ffd88a' : '#e8dcc0';
+  if (item.type === 'banner_kit') return '#ffd860';
   if (item.relic) return RELIC_COLORS[item.relic];
   if (item.type === 'gear' && RELIC_HOOK.glyph && RELIC_HOOK.glyph(item)) return RELIC_COLORS.glyph;
   return RARITY[item.rarity].color;
@@ -652,6 +734,7 @@ export function itemArmor(item) { return Math.round((item.armor || 0) * upgMult(
 
 export function itemValue(item) {
   if (item.type === 'sheet') return SHEET_PRICE;
+  if (item.type === 'banner_kit') return BANNER_KIT_PRICE;
   if (item.type === 'gem') return GEMS[item.gem].sigil ? Math.round(goldPile(depthLevelOf(item.tier * 24 + 12)) * 8) : Math.round((GEMS[item.gem].special ? 400 : 60) * Math.pow(2.6, item.tier));
   const base = 12 * Math.pow(1.06, goldLvl(item.ilvl)) * [1, 2.5, 6, 15, 40, 100, 250][item.rarity] * (item.relic ? { heir: 2.5, cov: 2 }[item.relic] : RELIC_HOOK.glyph && RELIC_HOOK.glyph(item) ? 60 : 1);
   return Math.round(base * (1 + item.affixes.length * 0.15) * (1 + item.sockets * 0.2) * (1 + (item.upg || 0) * 0.3));
@@ -725,3 +808,16 @@ export const POTION_INFO = {
   rejuv: 'Instantly restores 35% Life and Mana.',
   fury: '+30% Damage and Attack Speed for 15 seconds.',
 };
+
+export const BANNER_KIT_PRICE = 75;
+/**
+ * A Lancer's Banner Kit (Fortunato sells them): allows a Lancer to customize their 3D war banner.
+ */
+export function bannerKitItem() {
+  return {
+    uid: newUid(),
+    type: 'banner_kit',
+    name: "Lancer's Banner Kit",
+    rarity: 2,
+  };
+}

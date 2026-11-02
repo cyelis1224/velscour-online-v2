@@ -135,7 +135,7 @@ export const UI = {
   layoutPanels() {
     if (!this.panelsEl) return;
     const isPortrait = document.body.classList.contains('portrait') || window.innerHeight > window.innerWidth;
-    if (isPortrait) {
+    if (isPortrait || !this.desktopPanels()) {
       for (const [, p] of this.panels) {
         p.root.style.left = '';
         p.root.style.top = '';
@@ -143,10 +143,9 @@ export const UI = {
       }
       return;
     }
-    if (!this.desktopPanels()) return;
     const host = this.panelsEl.getBoundingClientRect();
     const inventory = this.panels.get('inventory');
-    const partner = [...this.panels].find(([name]) => ['vendor', 'stash', 'reliquary'].includes(name));
+    const partner = [...this.panels].find(([name]) => ['vendor', 'stash', 'reliquary', 'character', 'jewelbox'].includes(name));
     const canPair = inventory && partner && host.width >= inventory.root.offsetWidth + partner[1].root.offsetWidth + 22;
     for (const [name, p] of this.panels) {
       const saved = this.windowPositions.get(name);
