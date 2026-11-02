@@ -850,7 +850,11 @@ export const HUD = {
     }
   },
 
-  setArea(name, sub) { $('#area-name').textContent = name; $('#area-sub').textContent = sub || ''; },
+  setArea(name, sub) {
+    const an = $('#area-name'), as = $('#area-sub');
+    if (an) an.textContent = name;
+    if (as) as.textContent = sub || '';
+  },
   show(v) { $('#hud').classList.toggle('hidden', !v); if (v) { this.layoutMobile(); this.applyVisibilitySettings(); } },
 };
 

@@ -2035,16 +2035,18 @@ export const Auto = {
       }
       T.sealNote = false;
       if (this.townSocial(dt)) return;
-      // done: through the portal (the purple one when auto-play was told to take the Breach)
+      // done: through the portal (the purple one when auto-play was told to take the Breach, or Hearthstone portal)
       const breach = this.dest === 'breach' && w.portals.find((q) => q.breach);
       const rift = this.dest === 'rift' && endgameUnlocked(c) && w.portals.find((q) => q.rift);
-      const po = breach || rift || w.portals[0];
-      this.setStatus(breach ? `To THE ETERNAL BREACH — Floor ${this.breachFloor()}` : rift ? `To the Abyssal Rift — Tier ${this.riftTier()}` : `To the portal — Depth ${c.depth}`);
+      const hearth = !breach && !rift && w.portals.find((q) => q.hearth);
+      const po = breach || rift || hearth || w.portals[0];
+      this.setStatus(breach ? `To THE ETERNAL BREACH — Floor ${this.breachFloor()}` : rift ? `To the Abyssal Rift — Tier ${this.riftTier()}` : hearth ? `Returning through Hearthstone portal` : `To the portal — Depth ${c.depth}`);
       if (this.goTo(po.x, po.y, 1.3, dt)) {
         G.ui.closeAll();
         this.transitT = 4;
         this.sinceTown = 0;
-        if (breach) G.game.enterBreach(this.breachFloor());
+        if (hearth) po.use();
+        else if (breach) G.game.enterBreach(this.breachFloor());
         else if (rift) G.game.enterRift(this.riftTier());
         else G.game.enterDungeon();
       }

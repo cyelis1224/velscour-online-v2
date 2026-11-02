@@ -1485,11 +1485,6 @@ export const game = {
       html: `<p>Select a biome. Your current depth will be reforged with a fresh path.</p><label class="Dagyr-message-label" for="Dagyr-biome">Destination biome</label><select id="Dagyr-biome" class="Dagyr-biome-select">${options}</select>`,
       buttons: [
         { label: 'Cancel' },
-    if (biome.sea) {   // the scenario is picked now, so its fleet's models and its own monsters' art load with the rest
-      const c = G.char, sc = pickSeaVariant(c?.seaVariant, c?.lastSeaVariant, c?.seaSeen || {});
-      G.seaNext = sc.id;
-      return Promise.all([loadFleet([...(sc.fleet || []), 'longboat', 'cutter', 'brig']), preloadTownSheets(['05_road_guard', '25_royal_heir', '41_friar']), sc.art ? loadArtFor(sc.art) : null]);
-    }
         {
           label: 'Teleport', cls: 'red', fn: () => {
             let id = dialog.box.querySelector('#Dagyr-biome').value;
@@ -1579,6 +1574,11 @@ export const game = {
     if (biome.challenge) return loadBiomeArt(biome); // the Breach's two packs (pack, wallPack, moreFloors/morePacks)
     if (biome.id === 'mountainside') return Promise.all([loadBiomeArt(BIOME_BY_ID.dark_forest), loadDarkForestTrees()]); // its floors, props and pines
     if (biome.id === 'skyship') return Promise.all([loadBaked('assets/tiles/skyship/'), preloadTownSheets(TOWNSFOLK_KNIGHTS)]); // the baked ironclad, boats and galleon; the sky-knights
+    if (biome.sea) {   // the scenario is picked now, so its fleet's models and its own monsters' art load with the rest
+      const c = G.char, sc = pickSeaVariant(c?.seaVariant, c?.lastSeaVariant, c?.seaSeen || {});
+      G.seaNext = sc.id;
+      return Promise.all([loadFleet([...(sc.fleet || []), 'longboat', 'cutter', 'brig']), preloadTownSheets(['05_road_guard', '25_royal_heir', '41_friar']), sc.art ? loadArtFor(sc.art) : null]);
+    }
     if (biome.tower) return loadTower3D(); // three.js and the tower's textures
     if (biome.cave) {
       G.caveNext = G.room ? (Math.abs(G.room.dungeonSeed || G.room.seed || 1) % CAVE_VARIANTS.length) : (G.caveVariant ?? Math.floor(Math.random() * CAVE_VARIANTS.length));
