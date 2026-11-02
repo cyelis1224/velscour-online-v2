@@ -117,7 +117,7 @@ import { Macros } from './macros.js';
 
 const PICK_WAIT = 8; // seconds auto-play gives the player to choose a portal down (portalChoice)
 
-const STEP_SURFACE = { sunken: 'water', plague: 'water', sewers: 'water', serpent: 'water', library: 'wood', gilded: 'wood', sea_of_sand: 'sand', dark_forest: 'wood', skyship: 'wood', pirate_seas: 'wood' };   // footstep sounds; default stone
+const STEP_SURFACE = { sunken: 'water', plague: 'water', sewers: 'water', serpent: 'water', library: 'wood', gilded: 'wood', sea_of_sand: 'sand', dark_forest: 'wood', skyship: 'wood', pirate_seas: 'wood', mountainside: 'dirt' };   // footstep sounds; default stone
 
 const DAGYR_TAUNT_STARTS = [
   'YOUR VOICE ECHOES THROUGH THE ASHEN HALLS',
@@ -1729,6 +1729,10 @@ export const game = {
         const m = makeMonster(world, s.arch, biome, lvl + 2, 'boss', s.x, s.y, 0, s.look, rndVal);
         m.netId = `boss_${si}`;
         m.idx = monsterSeq++;
+        if (biome.id === 'mountainside') {
+          m.name = 'The Summit Warden';
+          m.title = 'Guardian of the Peak';
+        }
         world.add(m);
         world.boss = m;
         if (m.isDagyr) setupDagyr(world, m, gen); // his five-phase last stand (game/dagyr.js)
@@ -1893,7 +1897,7 @@ export const game = {
     this.setWorld(world, gen.start, old);
     announceHappenings(world);
     if (biome.id === 'castle') { addCastleStory(world, gen); world.ambientFx = gen.variant?.look?.ambient || null; c.lastCastle = gen.variant?.id; }
-    if (biome.overworld && !sky && !sea && !biome.cave && !gen.dunes) {
+    if (biome.overworld && !sky && !sea && !biome.cave && !gen.dunes && biome.id !== 'mountainside') {
       // townsfolk on the road: reachable landmarks to walk between (game/wanderers.js)
       const spots = [], map = gen.map;
       for (let i = 0; i < 60 && spots.length < 9; i++) {

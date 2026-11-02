@@ -5,6 +5,10 @@ import { UI } from '../ui/ui.js';
 
 export function createMountainRun(world, gen, biome, onSuccess) {
   const [sx, sy] = gen.summit, map = world.map;
+  if (world.boss) {
+    world.boss.name = 'The Summit Warden';
+    world.boss.title = 'Guardian of the Peak';
+  }
   const run = {
     id: 'mountainside', type: 'climb', completed: false, failed: false, active: true, reached: false,
     markers: [], route: [], stage: 0, escort: null, routeIndex: 0,

@@ -22,10 +22,16 @@ const AUTO = process.argv[3] !== 'noauto';
       const { G, game } = window.DAGYR;
       const { BIOMES, BETA_BIOMES, drawBiome, OVERWORLD_BIOME_IDS } = await import('/src/data/biomes.js');
       const bad = [];
-      // never drawn: 3000 draws with every guarantee path
-      const c = { biomeBag: [], overworldMisses: 0 };
-      for (let i = 0; i < 3000; i++) { c.overworldMisses = i % 4; const id = drawBiome(c, 10 + (i % 30)); if (id === 'mountainside') { bad.push('drawn into the rotation'); break; } c.lastBiome = id; }
-      if (OVERWORLD_BIOME_IDS.includes('mountainside') || BIOMES.some((b) => b.id === 'mountainside')) bad.push('listed with the regular biomes');
+      // in active rotation: verify it is present in BIOMES and OVERWORLD_BIOME_IDS
+      if (!OVERWORLD_BIOME_IDS.includes('mountainside')) bad.push('not in OVERWORLD_BIOME_IDS');
+      if (!BIOMES.some((b) => b.id === 'mountainside')) bad.push('not listed in BIOMES');
+      const c = { biomeBag: [], overworldMisses: 3 };
+      let drawn = false;
+      for (let i = 0; i < 100; i++) {
+        c.overworldMisses = 3;
+        if (drawBiome(c, 10 + (i % 30)) === 'mountainside') { drawn = true; break; }
+      }
+      if (!drawn) bad.push('never drawn in overworld guarantee rotation');
       // first on HAIL DAGYR!'s list
       game.openDagyrTeleport();
       const opt = document.querySelector('#Dagyr-biome option');

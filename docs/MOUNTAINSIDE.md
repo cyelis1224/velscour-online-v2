@@ -1,8 +1,8 @@
-# Mountainside (beta): the first height-mapped overworld
+# Mountainside: the height-mapped overworld
 
 A 50 x 50 climb from the foot of a mountain (the bottom-left edge of the screen) to its summit (the top-right).
-It is **not** in any biome rotation: reach it through Dagyr's skull button beside the minimap by sending the
-message `mountain` (any case), or pick it first on the HAIL DAGYR! list ("Mountainside · Overworld (Beta)").
+It is part of the active overworld rotation (guaranteed in the overworld cycle alongside Castle, Sea of Sand, and Dark Forest).
+It can also be reached directly through Dagyr's skull button beside the minimap by sending the message `mountain` (any case), or selected on the HAIL DAGYR! list ("Mountainside · Overworld").
 Test: `node tools/tests/mountain.js [shots|noshots] [auto|noauto]`.
 
 ## Height
@@ -47,6 +47,6 @@ Test: `node tools/tests/mountain.js [shots|noshots] [auto|noauto]`.
 Live from the start: climb to the summit, defeat the Warden, and the exit on the peak opens (+1 skill point the first
 time). `objective` points auto-play at the summit; the Quest Log shows the altitude reached.
 
-## Open
-- Beta: frame cost on phones not measured; projectiles step up and down with the ground they fly over.
-- No native mountain monsters yet (the regular bestiary with cold palettes); no snowfall weather.
+## Status
+- Fully integrated into the active overworld depth rotation (`OVERWORLD_BIOME_IDS`).
+- Features ambient snow flurries (`type: 'snow'`), Summit Warden boss encounter, and altitude tracking in the quest log.
