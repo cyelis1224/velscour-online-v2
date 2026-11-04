@@ -39,14 +39,14 @@ function loadSheet(kind) {
           kind === 'wildSupplemental' ? WILD_SUPPLEMENTAL : MONSTER;
       if (img.naturalWidth !== size.w * size.cols ||
         img.naturalHeight !== size.h * size.rows) {
-        console.warn('DAGYR approved art has wrong atlas dimensions:', kind);
+        console.warn('VELSCOUR approved art has wrong atlas dimensions:', kind);
         return resolve(null);
       }
       sheets.set(kind, img);
       resolve(img);
     };
     img.onerror = () => {
-      console.warn('DAGYR approved artwork unavailable:', ART_DIR + urls[kind]);
+      console.warn('VELSCOUR approved artwork unavailable:', ART_DIR + urls[kind]);
       resolve(null); // Original generated graphics continue to work offline.
     };
     img.src = ART_DIR + urls[kind];

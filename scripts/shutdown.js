@@ -66,7 +66,7 @@ const req = http.request({
 });
 
 req.on('error', (err) => {
-  console.error(`❌ Could not connect to Dagyr Online server on 127.0.0.1:8124: ${err.message}`);
+  console.error(`❌ Could not connect to Velscour Online server on 127.0.0.1:8124: ${err.message}`);
   process.exit(1);
 });
 

@@ -8,7 +8,7 @@ art expansion. The user selected **currently used placeholder sprites** for this
 
 | Runtime use | New sprites | Integration |
 |---|---:|---|
-| Demon Lord Dagyr and raid ward crystal | 2 | Boss keeps its existing scale, attacks and collision; wards retain elemental tint |
+| Demon Lord Velscour and raid ward crystal | 2 | Boss keeps its existing scale, attacks and collision; wards retain elemental tint |
 | Summons without painted art | 56 | Each `SUMMONS` entry now has its own `look.art`; includes totems, machines and spectral allies |
 | Town vendors and villagers | 12 | Eight named vendors and Tobin, Mira, Cael and Gorm |
 | Generic equipment | 21 | Weapons, offhands, armor fallback, gloves, legs, boots; existing class/gear libraries take precedence |
@@ -60,7 +60,7 @@ hit flashes and corpse shading; no combat/save data changes are made.
 - `flow.js`, `boss.js`, `raid.js 5`, `town.js 1337`, `ui.js`, `mobile.js`, `hud.js`: pass.
 - The UI test now waits for Escape to be processed before opening the next panel, and
   explicitly verifies sapphire fusion rather than swallowing a failed click.
-- Screenshots reviewed: full gallery, Dagyr, inventory, town and mobile UI.
+- Screenshots reviewed: full gallery, Velscour, inventory, town and mobile UI.
 
 Tests ran in desktop Chromium. `TEST_FROM_DISK=1` in the harness routes local files through
 Playwright at the normal HTTP URLs when a sandbox cannot expose a loopback port. Native

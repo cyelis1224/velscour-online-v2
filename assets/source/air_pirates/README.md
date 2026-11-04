@@ -1,4 +1,4 @@
-# Air Pirates — Dagyr Character Pack
+# Air Pirates — Velscour Character Pack
 
 30 humanoid Air Pirate enemies and 10 humanoid Air Pirate bosses, designed as original opponents who board and attack other airships. Individual PNGs are transparent, hard-alpha, and palette-limited to the Grim Nocturne guidance.
 

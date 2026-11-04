@@ -46,7 +46,7 @@ python tools/darkforestpack.py "path/to/THE_DARK_FOREST_Biome_Pack.zip"   # or t
 ```
 
 The zip is 101.7 MB, over GitHub's 100 MB file limit, so it stays outside the repo (the user keeps it under
-`F:\!  DAGYR\AI ASSETS\Biome Packs\`). The floors, walls, arches, doors and props go through the regular biome
+`F:\!  VELSCOUR\AI ASSETS\Biome Packs\`). The floors, walls, arches, doors and props go through the regular biome
 importer (`biomepack.import_pack`: walls raised by `ZSCALE` and cut into depth-sorted arms). The trees are cropped,
 halved (they draw at about a third of a native pixel per world pixel) and packed into `trees.webp` + `trees.json` with
 their pivots and the row where the pack's canopy layer starts. Never hand-edit the outputs.

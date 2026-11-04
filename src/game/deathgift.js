@@ -1,4 +1,4 @@
-// "DEATH IS THE ONLY WAY OUT, MY KIND SIR." sent to Dagyr: level 350, the best gear of the hero's class (Mythic,
+// "DEATH IS THE ONLY WAY OUT, MY KIND SIR." sent to Velscour: level 350, the best gear of the hero's class (Mythic,
 // +10, perfect rolls and an extra enchanted line, Eternal gems, max-power ring augments), every skill and mastery
 // maxed, a full potion belt, a fortune in gold, and the way down opened to Depth 500. It is a cheat: the hero is marked
 // for good (c.cheated) and never listed on the Honour Board (game/leaderboard.js).
@@ -98,7 +98,7 @@ export function grantDeathGift() {
     if (old && !addToBag(c, old)) { const k = c.stash.findIndex((x) => !x); if (k >= 0) c.stash[k] = old; }
     c.equip[s] = it;
   }
-  // the rest of the best: a full belt, a fortune, and the way to Dagyr
+  // the rest of the best: a full belt, a fortune, and the way to Velscour
   c.potions = { ...c.potions, hp: 30, mp: 30, rejuv: 30, fury: 30 };
   c.gold = Math.max(c.gold, 999999999);
   c.depth = FINAL_DEPTH;
@@ -109,8 +109,8 @@ export function grantDeathGift() {
   sfx('levelup', 1);
   if (G.ui) {
     if (G.ui.hud) G.ui.hud.levelUp(c.level, levelUpFanfare());
-    G.ui.log('<b style="color:#ff3020">Dagyr answers.</b> Level 350, his finest arms, and the road to Depth 500. Come die properly.', '#ffd860');
-    G.ui.log('This hero took Dagyr\'s gift: it will never be listed on the Honour Board.', '#ff9070');
+    G.ui.log('<b style="color:#ff3020">Velscour answers.</b> Level 350, his finest arms, and the road to Depth 500. Come die properly.', '#ffd860');
+    G.ui.log('This hero took Velscour\'s gift: it will never be listed on the Honour Board.', '#ff9070');
     G.ui.refresh();
   }
 }

@@ -1,4 +1,4 @@
-// Sound for DAGYR DEFENSE: Dagyr's samples (assets/audio/sfx), its music and ambience beds, and the harpsichord
+// Sound for VELSCOUR DEFENSE: Velscour's samples (assets/audio/sfx), its music and ambience beds, and the harpsichord
 // (assets/audio/inst/harpsichord) for the Bard's Crescendo, the one moment music plays in battle. Its own AudioContext.
 import { assetURL, ART } from './assets.js';
 import { D } from '../state.js';
@@ -97,7 +97,7 @@ function note(midi, at, dur, vel) {
 let jingleI = Math.floor(Math.random() * 400);
 const melodyKeys = (j) => [...j.mel.map((n) => n[2]), ...j.bass];
 const nextMelody = () => ART.jingles?.[jingleI % ART.jingles.length];
-/** One of the Bard's melodies from DAGYR: two bars on the harpsichord, a bass note under every chord. */
+/** One of the Bard's melodies from VELSCOUR: two bars on the harpsichord, a bass note under every chord. */
 export function playJingle() {
   if (!ac || !ART.jingles) return;
   const j = nextMelody(); jingleI++;

@@ -15,7 +15,7 @@ const CLS = process.env.DODGE_CLASS || 'paladin';
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
   await page.evaluate(async (cls) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar(cls, 'Dodger');
     document.querySelectorAll('.screen').forEach((s) => s.remove());
     G.ui.modalCount = 0;
@@ -26,7 +26,7 @@ const CLS = process.env.DODGE_CLASS || 'paladin';
   let fights = 0;
   for (let li = 0; fights < FIGHTS && li < 20; li++) {
     const r = await page.evaluate(async ([li, want, secs]) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { BIOMES } = await import('/src/data/biomes.js');
       const { makeMonster } = await import('/src/game/monster.js');
       const { Fissure } = await import('/src/game/hazards.js');

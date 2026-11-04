@@ -4,7 +4,7 @@ async function run() {
   const { browser, page, errors } = await openGame({ width: 1280, height: 800 });
 
   const results = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('lancer', 'JewelLord');
 
     const { Auto } = await import('/src/game/autoplay.js');

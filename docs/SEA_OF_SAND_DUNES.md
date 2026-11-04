@@ -11,7 +11,7 @@ from its sarcophagus. When it falls, a portal opens over the sarcophagus.
 
 The classic flat Sea of Sand (the five-area maze, [SEA_OF_SAND.md](SEA_OF_SAND.md)) stays in the rotation as
 variant 0 of 11. Entering the Sea of Sand picks one of the eleven at random, never the one seen last
-(`c.lastSand`). A kept run (`c.seaOfSandRuns[depth]`) rebuilds the same variant. Dagyr's skull goes straight to a
+(`c.lastSand`). A kept run (`c.seaOfSandRuns[depth]`) rebuilds the same variant. Velscour's skull goes straight to a
 random dune variant: send `pyramid`, `pyramids`, `dunes` or `tomb`. `G.sandVariant = 1..10` forces one (tests).
 
 | File | What |
@@ -38,7 +38,7 @@ random dune variant: send `pyramid`, `pyramids`, `dunes` or `tomb`. `G.sandVaria
 | copper | The Copper Dunes | The Ziggurat of the Sun (7 tiers) | 184 | 8 | Golden Sunscale / Sun-Eater Djinn |
 | bone | The Bone Wastes | The Ossuary Pyramid (5 tiers) | 176 | 7 | Bone Leviathan / Ossuary Golem |
 | emerald | The Emerald Mirage | The Pyramid of the Serpent | 180 | 7 | The Amber Hydra / Oracle of the Dry Sea |
-| storm | The Storm Sands | The Pyramid of the Djinn | 188 | 9 | Dagyr's Dune Herald / Glassstorm Roc |
+| storm | The Storm Sands | The Pyramid of the Djinn | 188 | 9 | Velscour's Dune Herald / Glassstorm Roc |
 
 The monsters are hand-picked from the painted bestiary for each variant (`roster`, built from shared desert lists:
 scarabs, scorpions, mummies, sand worms, djinn, golems, cultists), every one palette-swapped and tinted in the

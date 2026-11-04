@@ -6,7 +6,7 @@
 // and damaged cloud copies change nothing, a device without IndexedDB (no backups) changes nothing, the 5-minute push,
 // the Abyssal Rifts' honour board (one entry per player that only a better run replaces, read signed out),
 // the Endgame's account record (Infernal Marks earned on two devices apart add up, never lowered). Then a smoke test of the real SDK (12.19.0 from npm when the
-// gstatic CDN is blocked): it loads, the popup goes to Dagyr.firebaseapp.com, and Firestore refuses a signed-out read.
+// gstatic CDN is blocked): it loads, the popup goes to Velscour.firebaseapp.com, and Firestore refuses a signed-out read.
 // node tools/tests/cloud.js [nosdk]
 const fs = require('fs');
 const path = require('path');
@@ -50,7 +50,7 @@ function backend(op, a) {
 }
 async function device(name, user, noIdb, opts) {
   const d = await openGame(opts);
-  if (noIdb) { await d.page.addInitScript(() => { Object.defineProperty(window, 'indexedDB', { value: undefined }); }); await d.page.reload(); await d.page.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden')); }
+  if (noIdb) { await d.page.addInitScript(() => { Object.defineProperty(window, 'indexedDB', { value: undefined }); }); await d.page.reload(); await d.page.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden')); }
   await d.ctx.route(SDK + '*', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE[r.request().url().split('/').pop()] }));
   await d.page.exposeFunction('__store', backend);
   if (user) await d.page.addInitScript((u) => { window.__FAKE_USER = u; }, user);
@@ -133,7 +133,7 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
 
     // 3. B plays the paladin, quits: A syncs and has the new gold
     await B.page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { heroesByClass } = await import('/src/game/save.js');
       await game.loadChar(heroesByClass().paladin);
       G.char.gold = 5555; game.autosave();
@@ -149,7 +149,7 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
     // 4. both play the paladin, A offline: back on the title, A is asked which to keep and keeps the cloud
     await A.page.evaluate(() => { window.__OFFLINE = true; });
     await A.page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { heroesByClass } = await import('/src/game/save.js');
       await game.loadChar(heroesByClass().paladin);
       G.char.gold = 1111; game.autosave();
@@ -159,7 +159,7 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
     let s = await run(A.page, 'status');
     check(s.status === 'offline', `A offline: status ${s.status} (${s.error})`, fails);
     await B.page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { heroesByClass } = await import('/src/game/save.js');
       await game.loadChar(heroesByClass().paladin);
       G.char.gold = 2222; game.autosave(); game.quitToTitle();
@@ -172,7 +172,7 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
     const log = await A.page.evaluate(() => document.body.innerText);
     check(/also played on another device/.test(log), 'A in game: the warning is in the log', fails);
     check((await cloudHero(A.page, 'paladin')).gold === 2222, 'A in game: the cloud copy was not overwritten', fails);
-    await A.page.evaluate(() => window.DAGYR.game.quitToTitle());
+    await A.page.evaluate(() => window.VELSCOUR.game.quitToTitle());
     await A.page.waitForSelector('.cloud-conflict', { timeout: 8000 }).catch(() => { });
     check(!!await A.page.$('.cloud-conflict'), 'A on the title: the conflict dialog is up', fails);
     await A.shot('cloud_conflict');
@@ -200,7 +200,7 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
 
     // 6. A reloads: the session resumes on boot without a click
     await A.page.reload();
-    await A.page.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await A.page.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
     await A.page.waitForFunction(async () => { const { Cloud } = await import('/src/game/cloud.js'); return Cloud.status === 'ok'; }, null, { timeout: 8000 }).catch(() => { });
     s = await run(A.page, 'status');
     check(s.signedIn && s.status === 'ok', `A reloaded: signed in, status ${s.status}`, fails);
@@ -226,7 +226,7 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
     } finally { await C.browser.close(); }
 
     // 8. a hero gone from this device without a delete (lost, cleared) comes back from the cloud; the cloud keeps it
-    await A.page.evaluate(() => { const k = 'Dagyr_saves_v1'; localStorage.setItem(k, JSON.stringify(JSON.parse(localStorage.getItem(k)).filter((c) => c.classId !== 'ranger'))); });
+    await A.page.evaluate(() => { const k = 'Velscour_saves_v1'; localStorage.setItem(k, JSON.stringify(JSON.parse(localStorage.getItem(k)).filter((c) => c.classId !== 'ranger'))); });
     await sync(A.page);
     check(!!(await run(A.page, 'local')).ranger && !!(await cloudHero(A.page, 'ranger')) && !(await cloudHero(A.page, 'ranger')).deleted, 'A: a ranger lost here (not deleted) came back; the cloud still has it', fails);
     // 9. a hero gone from the cloud without a tombstone is sent again, never deleted here
@@ -235,12 +235,12 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
     check(!!(await run(A.page, 'local')).ranger && !!(await cloudHero(A.page, 'ranger')), 'A: a ranger missing from the cloud was sent again, still here', fails);
     // 10. unreadable saves on this device: cloud sync changes nothing, here or in the cloud
     const snap = JSON.stringify([...store]);
-    const raw = await B.page.evaluate(() => { const r = localStorage.getItem('Dagyr_saves_v1'); localStorage.setItem('Dagyr_saves_v1', '[{"broken'); return r; });
+    const raw = await B.page.evaluate(() => { const r = localStorage.getItem('Velscour_saves_v1'); localStorage.setItem('Velscour_saves_v1', '[{"broken'); return r; });
     await sync(B.page);
     s = await run(B.page, 'status');
     check(s.status === 'error' && /could not be read/.test(s.error), `B unreadable saves: sync paused (${s.status})`, fails);
-    check(await B.page.evaluate(() => localStorage.getItem('Dagyr_saves_v1')) === '[{"broken' && JSON.stringify([...store]) === snap, 'B unreadable saves: the saves and the cloud are untouched', fails);
-    await B.page.evaluate((r) => localStorage.setItem('Dagyr_saves_v1', r), raw);
+    check(await B.page.evaluate(() => localStorage.getItem('Velscour_saves_v1')) === '[{"broken' && JSON.stringify([...store]) === snap, 'B unreadable saves: the saves and the cloud are untouched', fails);
+    await B.page.evaluate((r) => localStorage.setItem('Velscour_saves_v1', r), raw);
     // 11. a damaged cloud copy, newer than this device's: not loaded, the hero here is untouched
     const good = store.get('users/u1/heroes/ranger');
     store.set('users/u1/heroes/ranger', { ...good, gz: null, json: '{"id":', lastPlayed: good.lastPlayed + 1 });
@@ -268,7 +268,7 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
     } finally { await D.browser.close(); }
     // 13. the played hero goes up every 5 minutes (or when play stops), not on every autosave
     const pd = await B.page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { Cloud } = await import('/src/game/cloud.js');
       const { heroesByClass } = await import('/src/game/save.js');
       await Cloud.sync(true);
@@ -278,7 +278,7 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
       return Cloud.PUSH_DELAY;
     });
     check(pd === 300000 && (await cloudHero(B.page, 'ranger')).gold !== 4242, 'B in game: an autosave does not go up at once (PUSH_DELAY 5 min)', fails);
-    await B.page.evaluate(() => window.DAGYR.game.quitToTitle());
+    await B.page.evaluate(() => window.VELSCOUR.game.quitToTitle());
     await idle(B.page);
     check((await cloudHero(B.page, 'ranger')).gold === 4242, 'B: quitting to the title sent it', fails);
     // 14. Settings > Hero backups restores a backed-up hero
@@ -322,7 +322,7 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
       await signIn(F); await idle(F.page);
       let rf = await rec(F);
       check(rf.pts === 10 && rf.spent.life === 4, `account F signs in: sees ${sp(rf)}`, fails);
-      // apart: E offline earns 6 (and slays Dagyr, a paladin rift best); F earns 3, spends 2 on Precision (an earlier unlock, a wizard best)
+      // apart: E offline earns 6 (and slays Velscour, a paladin rift best); F earns 3, spends 2 on Precision (an earlier unlock, a wizard best)
       await E.page.evaluate(() => { window.__OFFLINE = true; });
       await act(E, (M, E) => { M.grantMarks(6, 'test'); E.unlockEndgame(); E.noteRiftBest('paladin', 12, 300); });
       await sync(E.page); await idle(E.page);
@@ -349,7 +349,7 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
       check(rf.pts === 20 && (await rec(E)).pts === 20, `account: one more Mark on E after the mend reaches F once (${rf.pts})`, fails);
       // sign-out keeps the record here and forgets the base
       await E.page.evaluate(async () => { const { Cloud } = await import('/src/game/cloud.js'); await Cloud.signOut(); });
-      const out = await E.page.evaluate(() => ({ rec: JSON.parse(localStorage.getItem('Dagyr_endgame_v1')).marks.pts, base: 'endBase' in JSON.parse(localStorage.getItem('Dagyr_cloud_v1')) }));
+      const out = await E.page.evaluate(() => ({ rec: JSON.parse(localStorage.getItem('Velscour_endgame_v1')).marks.pts, base: 'endBase' in JSON.parse(localStorage.getItem('Velscour_cloud_v1')) }));
       check(out.rec === 20 && !out.base, `account E signs out: its record stays (${out.rec} Marks), the merge base goes`, fails);
     } finally {
       errs.push(...E.errors.map((e) => 'E ' + e), ...F.errors.map((e) => 'F ' + e));
@@ -385,7 +385,7 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
     check(keys === 'at,build,cls,level,marks,name,tier,time,v' && e.v === 1 && Number.isInteger(e.tier) && e.time > 0 && e.cls === 'wizard' && e.build.gear.weapon.rarity === 6 && Array.isArray(e.build.bar), `board: the entry has the fields firestore.rules allows (${keys})`, fails);
     const top = await A.page.evaluate(async () => { const { Board } = await import('/src/game/leaderboard.js'); return (await Board.top('wizard')).map((x) => `${x.name} ${x.tier} ${x.time}`); });
     check(top.join(', ') === 'Cy 15 300, Bo 12 190, Ann 12 220', `board: top() orders Cy, Bo, Ann (${top.join(', ')})`, fails);
-    // a hero that took Dagyr's gift (game/deathgift.js) is never listed: Dax posts clean, takes the gift, and his entry
+    // a hero that took Velscour's gift (game/deathgift.js) is never listed: Dax posts clean, takes the gift, and his entry
     // comes off at once; a gift taken signed out (or on another device) is caught by the next sync
     await as(A, 'u-dax', 'Dax');
     const pDax = await post(A, 'Dax', 14, 200), e0 = await entry('u-dax');
@@ -401,12 +401,12 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
       const c = newCharData('wizard', 'Dax'); c.cheated = true; writeSave(c); await Cloud.sync(true);
     });
     const e3 = await entry('u-dax');
-    check(pDax.ok && e0 && e0.tier === 14 && gifted.barred && !e1 && e2 && !e3, `board: Dax's clean run is listed; with Dagyr's gift his post is refused and his entry comes off (${JSON.stringify(gifted)}), and a sync takes it off again`, fails);
+    check(pDax.ok && e0 && e0.tier === 14 && gifted.barred && !e1 && e2 && !e3, `board: Dax's clean run is listed; with Velscour's gift his post is refused and his entry comes off (${JSON.stringify(gifted)}), and a sync takes it off again`, fails);
     const V = await device('V'), W = await device('W', null, false, { width: 844, height: 390, mobile: true });
     try {
       for (const [d, nm] of [[V, 'rift_board'], [W, 'rift_board_phone']]) {
         const seen = await d.page.evaluate(async () => {
-          const { G, game } = window.DAGYR;
+          const { G, game } = window.VELSCOUR;
           await game.newChar('wizard', 'Viewer');
           document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll();
           const { Cloud } = await import('/src/game/cloud.js');
@@ -424,7 +424,7 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
         await d.page.waitForTimeout(200);
         await d.shot(nm);
       }
-      await V.page.evaluate(async () => { window.__OFFLINE = true; document.querySelectorAll('.screen').forEach((s) => s.remove()); window.DAGYR.G.ui.modalCount = 0; const { Rifts } = await import('/src/ui/rifts.js'); await Rifts.board('wizard').ready; });
+      await V.page.evaluate(async () => { window.__OFFLINE = true; document.querySelectorAll('.screen').forEach((s) => s.remove()); window.VELSCOUR.G.ui.modalCount = 0; const { Rifts } = await import('/src/ui/rifts.js'); await Rifts.board('wizard').ready; });
       check(/Could not reach the board/.test(await V.page.textContent('.rb-list')), 'board: offline, the dialog says it could not reach the board', fails);
     } finally {
       errs.push(...V.errors.map((x) => 'V ' + x).filter((x) => !/client is offline/.test(x)), ...W.errors.map((x) => 'W ' + x));
@@ -462,7 +462,7 @@ const check = (ok, msg, fails) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg);
       let gapi = true;   // the popup waits on Google's auth iframe (apis.google.com), which cloud containers block
       try { execSync('curl -sSf -o /dev/null https://apis.google.com/js/api.js', { stdio: 'ignore', timeout: 15000 }); } catch (e) { gapi = false; }
       if (!gapi) console.log('skip real SDK popup: apis.google.com is unreachable here');
-      else check(/Dagyr\.firebaseapp\.com\/__\/auth\/handler/.test(url) || /about:blank/.test(url), `real SDK: sign-in opened a popup (${url.slice(0, 70)})`, fails);
+      else check(/Velscour\.firebaseapp\.com\/__\/auth\/handler/.test(url) || /about:blank/.test(url), `real SDK: sign-in opened a popup (${url.slice(0, 70)})`, fails);
       check(/permission-denied/.test(r), `real SDK: Firestore refuses a signed-out read: ${r}`, fails);
     } finally { await R.browser.close(); }
   }

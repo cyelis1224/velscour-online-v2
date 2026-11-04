@@ -62,8 +62,8 @@ model loads. Headless software GL measures about 1.8 ms per blade, an upper boun
 ## Frost skulls
 
 The skulls his casts and hits throw off (`classfx.js`, `vfx.js` particle `skull`) and Death Coil (`shapes.js`
-`dkskull`, set in `Projectile` when the caster is a Death Knight) use the Dagyr contact skull from the button by
-the minimap (`assets/ui/Dagyr_contact_skull.png`), recoloured at load by `src/gfx/dkskull.js`: bone becomes ice
+`dkskull`, set in `Projectile` when the caster is a Death Knight) use the Velscour contact skull from the button by
+the minimap (`assets/ui/Velscour_contact_skull.png`), recoloured at load by `src/gfx/dkskull.js`: bone becomes ice
 (two bone tints, the ones the old drawn skulls used), the red eye dots are taken out so the sockets are dark and empty,
 baked at 64 and 32 px.
 The old drawn skull stands in while the image loads.

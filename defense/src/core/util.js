@@ -1,4 +1,4 @@
-// Small helpers for DAGYR DEFENSE (its own copy: nothing here is shared with the main game's src/).
+// Small helpers for VELSCOUR DEFENSE (its own copy: nothing here is shared with the main game's src/).
 export const TAU = Math.PI * 2;
 export const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -87,7 +87,7 @@ export function timeLeft(ms) {
 let FOK;
 export function filterOK() {
   if (FOK !== undefined) return FOK;
-  if (globalThis.DAGYR_NO_CANVAS_FILTER) return (FOK = false);   // tests: the by-hand path in a browser that has filters
+  if (globalThis.VELSCOUR_NO_CANVAS_FILTER) return (FOK = false);   // tests: the by-hand path in a browser that has filters
   try {
     const a = makeCanvas(1, 1), b = makeCanvas(1, 1), x = b.getContext('2d', { willReadFrequently: true });
     a.getContext('2d').fillStyle = '#fff'; a.getContext('2d').fillRect(0, 0, 1, 1);

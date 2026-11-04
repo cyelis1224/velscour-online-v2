@@ -12,7 +12,7 @@ const { openGame, report, OUT_DIR } = require('./harness');
   try {
     const res = await page.evaluate(async () => {
       const problems = [];
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { A } = await import('/src/core/assets.js');
       const BG = await import('/src/gfx/bonegibs.js');
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');

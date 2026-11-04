@@ -48,7 +48,7 @@ const roll = (d) => rand(d[0], d[1]);
 const EPS = 1e-6;
 
 // ---------------------------------------------------------------- songs heard (never the same song twice)
-const HEARD_KEY = 'Dagyr_bard_heard', HEARD_MAX = 6000, RECENT = 48;
+const HEARD_KEY = 'Velscour_bard_heard', HEARD_MAX = 6000, RECENT = 48;
 let heard = null;
 function heardSet() {
   if (heard) return heard;

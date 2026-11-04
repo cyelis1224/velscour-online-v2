@@ -9,7 +9,7 @@ const { openGame, report } = require('./harness');
       const { loadSeaOfSandPack, seaOfSandFrames } = await import('/src/gfx/seaofsand.js');
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { generateOverworld } = await import('/src/world/overworld.js');
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await loadSeaOfSandPack();
       const errors = [], biome = BIOME_BY_ID.sea_of_sand;
       const counts = { floor: 60, scatter: 40, tree: 18, monster: 60, boss: 10, cliff: 216 };

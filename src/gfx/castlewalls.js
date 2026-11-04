@@ -1,5 +1,5 @@
 // Castle masonry (docs/CASTLE_OVERWORLD.md): the faces of the Castle's height-mapped curtain walls, towers, stairs,
-// halls and bridges, painted with the user's castle artwork (assets/source/biomes/DAGYR_Castle_Artwork_Complete.zip,
+// halls and bridges, painted with the user's castle artwork (assets/source/biomes/VELSCOUR_Castle_Artwork_Complete.zip,
 // cut by tools/castleramparts.py). terrain.js asks drawCastleFace for every column face whose tile has a style in
 // map.faceArt; the textures are level (unsheared) in the atlas and sheared back onto each face here, anchored in world
 // space so the courses run on unbroken from one tile to the next.

@@ -1,5 +1,5 @@
-// DAGYR DEFENSE: boot, the frame loop and the menus' rift backdrop. A separate page from the main game
-// (index.html at the repo root); it reads Dagyr's art and keeps its own save.
+// VELSCOUR DEFENSE: boot, the frame loop and the menus' rift backdrop. A separate page from the main game
+// (index.html at the repo root); it reads Velscour's art and keeps its own save.
 import { D, load, save } from './state.js';
 import { loadArtIndex } from './core/assets.js';
 import { buildCatalog } from './data/cards.js';

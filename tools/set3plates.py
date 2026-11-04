@@ -1,6 +1,6 @@
-"""Cut the DAGYR_Monsters_Enemies_Bosses plates (enemy set 3) into single sprites.
+"""Cut the VELSCOUR_Monsters_Enemies_Bosses plates (enemy set 3) into single sprites.
 
-    python tools/set3plates.py <DAGYR_Monsters_Enemies_Bosses.zip | unpacked folder> [--sheet out.png]
+    python tools/set3plates.py <VELSCOUR_Monsters_Enemies_Bosses.zip | unpacked folder> [--sheet out.png]
 
 Each plate holds 5 (2 rows x 3) or 10 (2 x 5) monsters on a transparent background; the `monsters/` and
 `bosses/` plates print a name under each one, which is removed. Every monster is written to

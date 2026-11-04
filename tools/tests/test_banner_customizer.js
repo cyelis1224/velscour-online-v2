@@ -7,7 +7,7 @@ const fs = require('fs');
   const artifactDir = '/home/dagyr/.gemini/antigravity/brain/12f4836d-bde5-47f7-883a-b8c5863f737c';
 
   const res = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('lancer', 'Galahad');
     const wait = (ms) => new Promise((res) => setTimeout(res, ms));
 
@@ -45,7 +45,7 @@ const fs = require('fs');
 
   // Now click Apply Design
   const applyRes = await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const wait = (ms) => new Promise((res) => setTimeout(res, ms));
     const modal = document.querySelector('.banner-customizer-dialog');
     if (!modal) return { applied: false };

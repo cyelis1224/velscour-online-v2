@@ -6,8 +6,8 @@ passage leads into a shaft whose ledge spirals up its walls, a long climb, to th
 bosses wait. The last one's fall opens a portal there.
 
 It is an overworld biome (`depths_edge` in `src/data/biomes.js`, `overworld: true, cave: true`), so it is in the
-regular draw and the overworld guarantee. Dagyr's skull also reaches it: send the message `caverns` (or `caves`),
-or pick it on the HAIL DAGYR! list.
+regular draw and the overworld guarantee. Velscour's skull also reaches it: send the message `caverns` (or `caves`),
+or pick it on the HAIL VELSCOUR! list.
 
 | File | What |
 |---|---|

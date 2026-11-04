@@ -37,7 +37,7 @@ import { heresyHero, heresyAllows } from './heresies.js';
 import { endgame, saveEndgame } from './endgame.js';
 
 // XP for the next level. The (L/30)^1.5 term paces a hero who clears every depth to stay ~10-50 levels above its
-// monsters and reach ~270 by Dagyr (depth 500, monster level 258); without it a full-clearing hero hit level 300
+// monsters and reach ~270 by Velscour (depth 500, monster level 258); without it a full-clearing hero hit level 300
 // by depth 160. Past level 240 a level costs L/240 times the level-240 price, so in the Endless Torment (depths past
 // 500) a full-clearing hero keeps pace with its monsters. Past 600 a level costs (L/600)^XP_K times the level-600 price
 // (a deep depth's XP grows ~level^1.5), so the hero stays level with the monsters to the cap (MAX_LEVEL, data/depth.js)
@@ -405,10 +405,10 @@ export class Player extends Creature {
         floatText(this.x, this.y, 46, `+${fmtInt(manaAmt)} mana`, '#6a8aff', 11);
         return true;
       }
-      case 'key': { // an Abyssal Key (docs/ENDGAME.md): three open Dagyr Unbound
+      case 'key': { // an Abyssal Key (docs/ENDGAME.md): three open Velscour Unbound
         c.keys = (c.keys | 0) + 1; endgame().keysFound++; saveEndgame();
         sfx('levelup', 0.5); floatText(this.x, this.y, 56, `ABYSSAL KEY ${Math.min(3, c.keys)}/3`, '#20e0ff', 15, { life: 2 });
-        if (G.ui) { G.ui.log(`An <b style="color:#20e0ff">Abyssal Key</b>: ${c.keys} held${c.keys >= 3 ? ' — three open <b>Dagyr Unbound</b> at the Altar of Heresy' : ' (three open Dagyr Unbound)'}.`, '#a0f0ff'); G.ui.refresh(); }
+        if (G.ui) { G.ui.log(`An <b style="color:#20e0ff">Abyssal Key</b>: ${c.keys} held${c.keys >= 3 ? ' — three open <b>Velscour Unbound</b> at the Altar of Heresy' : ' (three open Velscour Unbound)'}.`, '#a0f0ff'); G.ui.refresh(); }
         return true;
       }
       case 'potion':

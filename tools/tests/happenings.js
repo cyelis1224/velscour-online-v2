@@ -1,5 +1,5 @@
 // Happenings (src/game/happenings.js): every omen builds, every shrine/remains/cursed chest is placed reachable and
-// auto-play uses it, the treasure imp flees and drops its hoard, Dagyr's challenge runs, kill streaks fire, each
+// auto-play uses it, the treasure imp flees and drops its hoard, Velscour's challenge runs, kill streaks fire, each
 // town event applies, and Defiance stacks on deaths and clears at the block's end. Screenshots in tools/tests/out/.
 //   node tools/tests/happenings.js
 const { openGame, report } = require('./harness');
@@ -10,13 +10,13 @@ const { openGame, report } = require('./harness');
   const fails = [];
   const ok = (cond, msg) => { if (!cond) fails.push(msg); console.log((cond ? 'ok   ' : 'FAIL ') + msg); };
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('paladin', 'Happy');
     G.godMode = true; // a death screen from the omen checks would fire mid-test
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll();
   });
   const run = (secs) => page.evaluate(async (secs) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     for (let t = 0; t < secs; t += 1 / 30) {
       if (G.mode !== 'game' || !G.world) break;
       G.dt = 1 / 30; G.time += G.dt; G.frame++; game.update(1 / 30);
@@ -27,7 +27,7 @@ const { openGame, report } = require('./harness');
 
   // ---- every omen builds a level and announces
   const omens = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const H = await import('/src/game/happenings.js');
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     const out = {};
@@ -48,7 +48,7 @@ const { openGame, report } = require('./harness');
 
   // ---- a level with every interactable, auto-play on
   const placed = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const H = await import('/src/game/happenings.js');
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     const { Auto } = await import('/src/game/autoplay.js');
@@ -72,10 +72,10 @@ const { openGame, report } = require('./harness');
   ok(placed === 9, `placed 7 shrines + remains + cursed chest (${placed})`);
   await run(1); await shot('happen_interactables');
   // monsters take a few seconds each: 200 s to get round the level
-  for (let i = 0; i < 20; i++) { await run(10); if (process.env.TRACE) console.log('   trace', await page.evaluate(async () => { const { Auto } = await import('/src/game/autoplay.js'); const G = window.DAGYR.G; return G.world.kind + ' D' + G.world.depth + ' ' + Auto.status + ' hp ' + Math.round(G.player.hp) + ' boss ' + (G.world.boss && G.world.boss.dead); })); }
+  for (let i = 0; i < 20; i++) { await run(10); if (process.env.TRACE) console.log('   trace', await page.evaluate(async () => { const { Auto } = await import('/src/game/autoplay.js'); const G = window.VELSCOUR.G; return G.world.kind + ' D' + G.world.depth + ' ' + Auto.status + ' hp ' + Math.round(G.player.hp) + ' boss ' + (G.world.boss && G.world.boss.dead); })); }
   const used = await page.evaluate(() => {
-    const w = window.DAGYR.G.world;
-    return { open: w.chests.filter((c) => c.label && c.opened).map((c) => c.label), shut: w.chests.filter((c) => c.label && !c.opened).map((c) => c.label), buffs: window.DAGYR.G.player.buffs.map((b) => b.id), cursed: window.__cursed && { opened: window.__cursed.opened, done: window.__cursed.done } };
+    const w = window.VELSCOUR.G.world;
+    return { open: w.chests.filter((c) => c.label && c.opened).map((c) => c.label), shut: w.chests.filter((c) => c.label && !c.opened).map((c) => c.label), buffs: window.VELSCOUR.G.player.buffs.map((b) => b.id), cursed: window.__cursed && { opened: window.__cursed.opened, done: window.__cursed.done } };
   });
   console.log('   used:', used.open.join(', '), '| left:', used.shut.join(', '), '| buffs:', used.buffs.join(','));
   ok(used.open.length >= 6, `auto-play used ${used.open.length}/9 interactables`);
@@ -87,7 +87,7 @@ const { openGame, report } = require('./harness');
 
   // ---- treasure imp: flees, auto-play chases it down, it bursts into loot
   const imp = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const H = await import('/src/game/happenings.js');
     const w = G.world;
     for (const m of w.creatures) if (m.team === 'enemy' && m !== w.boss) m.dead = true;
@@ -98,24 +98,24 @@ const { openGame, report } = require('./harness');
   ok(!!imp, `treasure imp spawned ${imp ? imp.name + ' ' + imp.hp + ' hp' : ''}`);
   await run(0.6); await shot('happen_imp');
   await run(34);
-  const impEnd = await page.evaluate(() => { const w = window.DAGYR.G.world; return { left: !!w.happen.imp, loot: w.loot.filter((l) => l.kind === 'item').length }; });
+  const impEnd = await page.evaluate(() => { const w = window.VELSCOUR.G.world; return { left: !!w.happen.imp, loot: w.loot.filter((l) => l.kind === 'item').length }; });
   ok(!impEnd.left, `imp caught or escaped within 34 s (loot items on floor ${impEnd.loot})`);
 
-  // ---- Dagyr's challenge + streak counter
+  // ---- Velscour's challenge + streak counter
   const ch = await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const H = await import('/src/game/happenings.js');
     H.startChallenge(G.world);
     return G.world.happen.ch && G.world.happen.ch.need;
   });
   ok(ch > 0, `challenge started: slay ${ch}`);
   await run(47); // 45 s on the clock
-  const chEnd = await page.evaluate(() => ({ ch: window.DAGYR.G.world.happen.ch, best: window.DAGYR.G.world.happen.best || 0, kills: window.DAGYR.G.world.happen.kills || 0 }));
+  const chEnd = await page.evaluate(() => ({ ch: window.VELSCOUR.G.world.happen.ch, best: window.VELSCOUR.G.world.happen.best || 0, kills: window.VELSCOUR.G.world.happen.kills || 0 }));
   ok(!chEnd.ch, `challenge resolved (kills this level ${chEnd.kills}, best streak ${chEnd.best})`);
 
   // ---- town events
   const town = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const H = await import('/src/game/happenings.js');
     const { Auto } = await import('/src/game/autoplay.js');
     Auto.toggle(false); G.godMode = false;
@@ -152,7 +152,7 @@ const { openGame, report } = require('./harness');
 
   // ---- death goes back to the start of the block with a Defiance stack
   const death = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     G.char.defiance = null;
     G.char.depth = 153; game.buildDungeon(153, BIOME_BY_ID.catacombs);
@@ -170,7 +170,7 @@ const { openGame, report } = require('./harness');
 
   // ---- nemesis: the killer comes back as a unique on a later depth; killing it clears it
   const nem = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const H = await import('/src/game/happenings.js');
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     const { kill } = await import('/src/game/combat.js');

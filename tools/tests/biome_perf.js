@@ -8,7 +8,7 @@ const depth = +(process.argv[3] || 24), rate = +(process.argv[4] || 4), secs = +
 (async () => {
   const { browser, ctx, page, errors } = await openGame({ width: 844, height: 390, mobile: true });
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('wizard', 'Perf');
     document.querySelectorAll('.screen').forEach((s) => s.remove());
     G.ui.modalCount = 0; G.godMode = true;
@@ -22,7 +22,7 @@ const depth = +(process.argv[3] || 24), rate = +(process.argv[4] || 4), secs = +
   const rows = [], hot = {};
   for (const id of ids) {
     await page.evaluate(async ([id, depth]) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { loadBiomeArt } = await import('/src/core/assets.js'); const { loadArtFor } = await import('/src/core/enemyart.js');
       const { Auto } = await import('/src/game/autoplay.js');
@@ -45,7 +45,7 @@ const depth = +(process.argv[3] || 24), rate = +(process.argv[4] || 4), secs = +
     await cdp.send('Emulation.setCPUThrottlingRate', { rate });
     await cdp.send('Profiler.start');
     const r = await page.evaluate((secs) => new Promise((res) => {
-      const { G, game } = window.DAGYR, u = game.update, rd = game.render, s = { u: 0, r: 0, n: 0, worst: 0 };
+      const { G, game } = window.VELSCOUR, u = game.update, rd = game.render, s = { u: 0, r: 0, n: 0, worst: 0 };
       game.update = function (dt) { const t = performance.now(); u.call(this, dt); s.u += performance.now() - t; };
       game.render = function () { const t = performance.now(); rd.call(this); const d = performance.now() - t; s.r += d; s.worst = Math.max(s.worst, d); s.n++; };
       const t0 = performance.now();

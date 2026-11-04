@@ -143,7 +143,7 @@ export function enter(m, kind, from) {
 
 /**
  * The ambush director: every so often a wave of the level's monsters arrives round the hero, hunting from the
- * first moment. Not in BOSS ROOMs or Dagyr's arena, and never while a guardian fight is on.
+ * first moment. Not in BOSS ROOMs or Velscour's arena, and never while a guardian fight is on.
  */
 export function ambushTick(w, dt) {
   if (G.room && !G.game?.isDungeonAuthority(w.depth)) return;

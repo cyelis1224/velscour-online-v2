@@ -14,7 +14,7 @@ const { openGame, report } = require('./harness');
       const { itemIcon } = await import('/src/game/loot.js');
       const { gemIcon, ringIcon, goldIcon } = await import('/src/gfx/pixelart.js');
       const { GEMS } = await import('/src/data/items.js');
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar('necromancer', 'Art QA');
       G.godMode = true;
       const bad = [], check = (ok, message) => { if (!ok) bad.push(message); };

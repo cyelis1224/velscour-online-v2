@@ -14,13 +14,13 @@ import { endgame, adoptEndgame, sameEndgame, fixEndgame, mergeEndgame, onEndgame
 const SDK = 'https://www.gstatic.com/firebasejs/12.19.0/';
 const CONFIG = {
   apiKey: 'AIzaSyAGqRSMtHdwt73HVyrcL0b_47pjoRz_fUg',
-  authDomain: 'Dagyr.firebaseapp.com',
-  projectId: 'Dagyr',
-  storageBucket: 'Dagyr.firebasestorage.app',
+  authDomain: 'Velscour.firebaseapp.com',
+  projectId: 'Velscour',
+  storageBucket: 'Velscour.firebasestorage.app',
   messagingSenderId: '368591862441',
   appId: '1:368591862441:web:77117f1ec81c33192387b8',
 };
-const KEY = 'Dagyr_cloud_v1';
+const KEY = 'Velscour_cloud_v1';
 const PUSH_DELAY = 300e3;  // a played hero goes up at most once every 5 minutes (and when the tab hides or play stops)
 const RETRY = 120e3;       // offline: try again this often
 const RESYNC = 20e3;       // back on the title or the tab: a full sync if the last is older than this
@@ -93,7 +93,7 @@ function firebaseBackend() {
         return { ok: true, kept: false };
       });
     },
-    /** Take this player's entry off a class's board (a hero that took Dagyr's gift, game/deathgift.js). */
+    /** Take this player's entry off a class's board (a hero that took Velscour's gift, game/deathgift.js). */
     delBoard(cls, uid) { return fs.deleteDoc(fs.doc(db, 'boards', cls, 'entries', uid)); },
   };
   function fromDoc(r) { return { ...r, gz: r.gz && r.gz.toUint8Array ? r.gz.toUint8Array() : r.gz || null }; }
@@ -212,7 +212,7 @@ async function syncAll() {
     }
   }
   for (const cls of Object.keys(st.base)) if (!st.base[cls]) delete st.base[cls];
-  // a hero that took Dagyr's gift (game/deathgift.js) is never listed: its class's entry comes off the honour board
+  // a hero that took Velscour's gift (game/deathgift.js) is never listed: its class's entry comes off the honour board
   for (const [cls, h] of Object.entries(heroesByClass())) if (h.cheated && be.delBoard) try { await be.delBoard(cls, st.uid); } catch (e) { console.warn('Honour board:', e); }
   try { await syncAccount(); } catch (e) { if (/offline|unavailable|network|fetch/i.test(String(e && (e.code || e.message)))) throw e; console.warn('Cloud save (account):', e); }
   st.last = Date.now();

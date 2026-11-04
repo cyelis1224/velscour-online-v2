@@ -22,7 +22,7 @@ const levels = +(process.argv[2] || 24), cls = process.argv[3] || 'wizard', secs
     };
   });
   await page.evaluate(async (cls) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar(cls, 'Levelmem');
     G.godMode = true; G.autoOpenSeals = true;
     const { Auto } = await import('/src/game/autoplay.js'); Auto.toggle(true);
@@ -46,7 +46,7 @@ const levels = +(process.argv[2] || 24), cls = process.argv[3] || 'wizard', secs
   const rows = [];
   for (let L = 1; L <= levels; L++) {
     const where = await page.evaluate(async ([L, secs]) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const w0 = G.world;
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
       if (L % 3 === 0) game.enterTown(); else { G.char.depth = Math.max(1, L * 4); G.char.nextBiome = null; game.enterDungeon(); }

@@ -35,7 +35,7 @@ async function boot(browser, name, classId) {
     c.id = 'test-' + name;
     window.__char = c;
     document.querySelector('.title-screen')?.remove();
-    openLobby(c, () => {});
+    openLobby(c, () => { });
   }, { name, classId });
   await waitG(page, 'net.connected && net.myId', 15000, name + ' connect');
   return { page, errs };
@@ -43,10 +43,10 @@ async function boot(browser, name, classId) {
 
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mp-lvl-'));
-  const srv = spawn('node', ['server.js'], { cwd: path.resolve(__dirname, '../..'), env: { ...process.env, PORT: String(PORT), DAGYR_DATA_DIR: dir }, stdio: 'ignore' });
+  const srv = spawn('node', ['server.js'], { cwd: path.resolve(__dirname, '../..'), env: { ...process.env, PORT: String(PORT), VELSCOUR_DATA_DIR: dir }, stdio: 'ignore' });
   let browser;
   try {
-    for (let i = 0; i < 75; i++) { try { if ((await fetch(`${BASE}/api/version`)).ok) break; } catch (e) {} await new Promise(r => setTimeout(r, 200)); }
+    for (let i = 0; i < 75; i++) { try { if ((await fetch(`${BASE}/api/version`)).ok) break; } catch (e) { } await new Promise(r => setTimeout(r, 200)); }
     browser = await chromium.launch({ headless: true, executablePath: '/usr/bin/chromium', args: ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
     const A = await boot(browser, 'Alpha', 'paladin');
     const B = await boot(browser, 'Bravo', 'carrion_witch');

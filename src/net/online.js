@@ -1,4 +1,4 @@
-// Online Account Authentication & Server-Side Character Management for Dagyr Online
+// Online Account Authentication & Server-Side Character Management for Velscour Online
 import { getServerBaseUrl } from '../ui/updater.js';
 import { newCharData, migrate } from '../game/save.js';
 import { endgame } from '../game/endgame.js';
@@ -256,7 +256,7 @@ export async function fetchOnlineReliquary() {
       return cachedReliquary;
     }
   } catch (err) {
-    console.warn('[Dagyr Online] Failed to fetch online reliquary:', err);
+    console.warn('[Velscour Online] Failed to fetch online reliquary:', err);
   }
   return null;
 }
@@ -274,7 +274,7 @@ export function saveOnlineReliquary(relData) {
         });
         return true;
       } catch (e) {
-        console.warn('[Dagyr Online] Failed to save online reliquary over HTTP:', e);
+        console.warn('[Velscour Online] Failed to save online reliquary over HTTP:', e);
         if (typeof window !== 'undefined' && window.net && window.net.connected) {
           try {
             window.net.send({ type: 'save_reliquary', reliquary: relData, accountId: currentAccount?.id || null });
@@ -284,7 +284,7 @@ export function saveOnlineReliquary(relData) {
       }
     })
     .catch((err) => {
-      console.warn('[Dagyr Online] Reliquary save promise chain recovered:', err);
+      console.warn('[Velscour Online] Reliquary save promise chain recovered:', err);
       return false;
     });
 
@@ -319,7 +319,7 @@ export function saveOnlineCharacter(char) {
         });
         return true;
       } catch (e) {
-        console.warn('[Dagyr Online] Failed to save online character to server over HTTP:', e);
+        console.warn('[Velscour Online] Failed to save online character to server over HTTP:', e);
         if (typeof window !== 'undefined' && window.net && window.net.connected) {
           try {
             window.net.send({ type: 'save_character', character: snapshot });
@@ -329,7 +329,7 @@ export function saveOnlineCharacter(char) {
       }
     })
     .catch((err) => {
-      console.warn('[Dagyr Online] Save promise chain recovered from error:', err);
+      console.warn('[Velscour Online] Save promise chain recovered from error:', err);
       return false;
     });
 

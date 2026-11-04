@@ -35,7 +35,7 @@ async function boot(browser, name, classId) {
     c.id = 'test-' + name;
     window.__char = c;
     document.querySelector('.title-screen')?.remove();
-    openLobby(c, () => {});
+    openLobby(c, () => { });
   }, { name, classId });
   await waitG(page, 'net.connected && net.myId', 15000, name + ' connect');
   return { page, errs };
@@ -43,10 +43,10 @@ async function boot(browser, name, classId) {
 
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mp-cam-'));
-  const srv = spawn('node', ['server.js'], { cwd: path.resolve(__dirname, '../..'), env: { ...process.env, PORT: String(PORT), DAGYR_DATA_DIR: dir }, stdio: 'ignore' });
+  const srv = spawn('node', ['server.js'], { cwd: path.resolve(__dirname, '../..'), env: { ...process.env, PORT: String(PORT), VELSCOUR_DATA_DIR: dir }, stdio: 'ignore' });
   let browser;
   try {
-    for (let i = 0; i < 75; i++) { try { if ((await fetch(`${BASE}/api/version`)).ok) break; } catch (e) {} await new Promise(r => setTimeout(r, 200)); }
+    for (let i = 0; i < 75; i++) { try { if ((await fetch(`${BASE}/api/version`)).ok) break; } catch (e) { } await new Promise(r => setTimeout(r, 200)); }
     browser = await chromium.launch({ headless: true, executablePath: '/usr/bin/chromium', args: ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
     const A = await boot(browser, 'Alpha', 'paladin');
     const B = await boot(browser, 'Bravo', process.env.BCLASS || 'carrion_witch');
@@ -128,8 +128,10 @@ async function boot(browser, name, classId) {
           const p = G.player;
           const wx = isoX(p.x, p.y) + camera.leadX, wy = isoY(p.x, p.y) - 24 + camera.leadY;
           const rp = G.remotePlayers && [...G.remotePlayers.values()][0];
-          return { off: Math.round(Math.hypot(wx - camera.x, wy - camera.y)), me: [+p.x.toFixed(1), +p.y.toFixed(1)], rp: rp ? [+rp.x.toFixed(1), +rp.y.toFixed(1), rp.world === G.world] : null,
-            cine: !!G.cine, zoom: +camera.zoom.toFixed(2), darkK: G.world.darkK, lead: [camera.leadX, camera.leadY], gp: G.player === G.world.player, auto: G.autoplayOn };
+          return {
+            off: Math.round(Math.hypot(wx - camera.x, wy - camera.y)), me: [+p.x.toFixed(1), +p.y.toFixed(1)], rp: rp ? [+rp.x.toFixed(1), +rp.y.toFixed(1), rp.world === G.world] : null,
+            cine: !!G.cine, zoom: +camera.zoom.toFixed(2), darkK: G.world.darkK, lead: [camera.leadX, camera.leadY], gp: G.player === G.world.player, auto: G.autoplayOn
+          };
         });
         console.log('follow', JSON.stringify(st));
       }

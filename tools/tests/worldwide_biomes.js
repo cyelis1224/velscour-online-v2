@@ -10,7 +10,7 @@ const FULL = process.argv.includes('--all');
   const { browser, page, errors, shot } = await openGame({ width: 1440, height: 900 });
   try {
     const result = await page.evaluate(async (full) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar('paladin', 'Worldwide Biome QA');
       document.querySelectorAll('.screen').forEach(s => s.remove());
       G.ui.modalCount = 0; G.godMode = true;

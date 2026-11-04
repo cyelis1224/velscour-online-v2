@@ -23,7 +23,7 @@ async function testMobileOrbText() {
       isMobile: true,
       hasTouch: true,
     });
-    await contextP.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
+    await contextP.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
     const pageP = await contextP.newPage();
     await pageP.goto('http://localhost:8124');
 
@@ -41,7 +41,7 @@ async function testMobileOrbText() {
     await pageP.waitForSelector('button:has-text("Enter World")', { timeout: 10000 });
     await pageP.click('button:has-text("Enter World")');
 
-    await pageP.waitForFunction(() => window.DAGYR?.G?.mode === 'game', null, { timeout: 15000 });
+    await pageP.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game', null, { timeout: 15000 });
     await sleep(1000);
 
     const lifeValP = await pageP.locator('#life-text').textContent();
@@ -100,7 +100,7 @@ async function testMobileOrbText() {
       isMobile: true,
       hasTouch: true,
     });
-    await contextL.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
+    await contextL.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
     const pageL = await contextL.newPage();
     await pageL.goto('http://localhost:8124');
 
@@ -118,7 +118,7 @@ async function testMobileOrbText() {
     await pageL.waitForSelector('button:has-text("Enter World")', { timeout: 10000 });
     await pageL.click('button:has-text("Enter World")');
 
-    await pageL.waitForFunction(() => window.DAGYR?.G?.mode === 'game', null, { timeout: 15000 });
+    await pageL.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game', null, { timeout: 15000 });
     await sleep(1000);
 
     const lifeValL = await pageL.locator('#life-text').textContent();

@@ -7,7 +7,7 @@ const { openGame, report, OUT_DIR } = require('./harness');
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 900 });
   try {
     const info = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { isoX, isoY } = await import('/src/core/view.js');
       const { torchAtWallSegment } = await import('/src/world/dungeon.js');
@@ -81,7 +81,7 @@ const { openGame, report, OUT_DIR } = require('./harness');
       const ctx = cv.getContext('2d');
       ctx.fillStyle = '#211f27'; ctx.fillRect(0, 0, cv.width, cv.height);
       ctx.font = 'bold 20px sans-serif'; ctx.fillStyle = '#f2dbad';
-      ctx.fillText('DAGYR - 20 TORCH HOLDERS / FOUR WALL ANGLES', 12, 30);
+      ctx.fillText('VELSCOUR - 20 TORCH HOLDERS / FOUR WALL ANGLES', 12, 30);
       for (let d = 0; d < 20; d++)for (let k = 0; k < 4; k++) {
         const [dir, front] = directions[k];
         const t = torchAtWallSegment({ mx: 20, my: 25, dir, front, depth: 45 });

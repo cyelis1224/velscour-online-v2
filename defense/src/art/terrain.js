@@ -1,4 +1,4 @@
-// The battlefield in Dagyr's iso tiles: each region dresses a map in one of the main game's floor/prop packs
+// The battlefield in Velscour's iso tiles: each region dresses a map in one of the main game's floor/prop packs
 // (assets/tiles/*), recoloured where a region needs it (Frostfang's ice, the Rift's blood). A map becomes a set of
 // tile columns (top floor + cliff faces down to the next tile or the diorama's base), cached once per battle.
 import { makeCanvas, RNG, shade, rgba, drawFiltered } from '../core/util.js';

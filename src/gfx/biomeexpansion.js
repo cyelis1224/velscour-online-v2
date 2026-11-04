@@ -1,5 +1,5 @@
 // Per-biome generated floor/wall/terrain expansion. Every artifact is drawn
-// in DAGYR's original 160×80 iso tile and ground-pivot conventions. The
+// in VELSCOUR's original 160×80 iso tile and ground-pivot conventions. The
 // source pack provides approved material grain and proven architectural depth
 // slices, not pre-existing re-labelled sprite geometry.
 import { makeCanvas } from '../core/util.js';

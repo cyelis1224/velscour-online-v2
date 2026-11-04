@@ -9,7 +9,7 @@ const { openGame, report } = require('./harness');
   const seeds = process.argv[2] ? process.argv[2].split(',').map(Number) : [1337, ...[0, 1, 2].map(() => (Math.random() * 1e9) | 0)];
   for (const seed of seeds) {
     const info = await page.evaluate((seed) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       G.char.townSeed = seed; game.enterTown();
       const w = G.world, m = w.map, p = G.player;
       // Follow only visible paving, never the walkable grass between roads.
@@ -52,7 +52,7 @@ const { openGame, report } = require('./harness');
     if (info.angleMismatches) errors.push(`town ${seed}: nearby buildings have inconsistent entry angles`);
     const view = async (name, [x, y], zoom = 1) => {
       await page.evaluate(([x, y, zoom]) => {
-        const { G } = window.DAGYR; G.player.x = x; G.player.y = y;
+        const { G } = window.VELSCOUR; G.player.x = x; G.player.y = y;
         return import('/src/core/view.js').then((v) => { v.camera.zoom = zoom; v.camera.follow(x, y, 0, true); });
       }, [x, y, zoom]);
       await page.waitForTimeout(500); await shot(name);
@@ -61,7 +61,7 @@ const { openGame, report } = require('./harness');
     await view(`town_${seed}_portal`, info.views.portal);
     await view(`town_${seed}_wide`, info.views.mid, 0.42);
     const rain = await page.evaluate(() => {
-      const { G } = window.DAGYR; G.world.raining = true;
+      const { G } = window.VELSCOUR; G.world.raining = true;
       return Promise.all([import('/src/world/town.js'), import('/src/core/view.js')]).then(([town, view]) => {
         view.camera.zoom = 1; view.camera.follow(G.player.x, G.player.y, 0, true);
         return {
@@ -73,7 +73,7 @@ const { openGame, report } = require('./harness');
     const rainDrops = await page.evaluate(() => import('/src/gfx/vfx.js').then(({ particles }) => particles.filter((p) => p.type === 'streak').length));
     if (!rain.belowThreshold || rain.atThreshold || !rainDrops) errors.push(`town ${seed}: rain roll or rain particles failed`);
     await shot(`town_${seed}_rain`);
-    await page.evaluate(() => { window.DAGYR.G.world.raining = false; });
+    await page.evaluate(() => { window.VELSCOUR.G.world.raining = false; });
   }
   report(errors);
   await browser.close();

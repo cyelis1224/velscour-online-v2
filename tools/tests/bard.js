@@ -98,7 +98,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
 
   // ------------------------------------------------------------ 2. composition rules
   const comp = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('bard', 'Minstrel');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -166,7 +166,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
 
   // ------------------------------------------------------------ 2b. the sampler and the performed bar
   const mus = await page.evaluate(async () => {
-    const { G } = window.DAGYR, p = G.player;
+    const { G } = window.VELSCOUR, p = G.player;
     const { initAudio } = await import('/src/core/audio.js');
     const { loadInstruments, keysLoaded } = await import('/src/core/sampler.js');
     const { melodies } = await import('/src/data/melodies.js');
@@ -203,7 +203,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
 
   // ------------------------------------------------------------ 3. showcase shots, stepped frame by frame
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     // an open Wilds map, gore off, a closer camera: readable showcase shots
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     game.buildDungeon(4, BIOME_BY_ID.overworld);
@@ -232,7 +232,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
   for (const [name, levels, frames] of SHOW) {
     for (const L of levels) {
       const ok = await page.evaluate(async ([name, L]) => {
-        const { G } = window.DAGYR, p = G.player, w = G.world;
+        const { G } = window.VELSCOUR, p = G.player, w = G.world;
         const { CLASS_SKILLS } = await import('/src/data/skills.js');
         const { camera } = await import('/src/core/view.js');
         const sk = CLASS_SKILLS.bard.find((s) => s.name === name);
@@ -273,7 +273,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
   }
   // the measure over the head, part-filled, and a Cadence leaving the staff
   await page.evaluate(async () => {
-    const { G } = window.DAGYR, p = G.player;
+    const { G } = window.VELSCOUR, p = G.player;
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
     if (p.score.play) p.score.play.done = true;
     p.score.notes.length = 0; p.score.beats = 0; p.score.harmony = 3; p.score.harmonyT = 99; p.score.key = 'treble';
@@ -282,7 +282,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
   await step(20);
   await page.screenshot({ path: `${OUT_DIR}/bard_measure.png`, clip });
   await page.evaluate(async () => {
-    const { G } = window.DAGYR, p = G.player;
+    const { G } = window.VELSCOUR, p = G.player;
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
     const sk = CLASS_SKILLS.bard.find((s) => s.name === 'Plucked Note'); p.castLock = 0; p.cooldowns = {}; p.tryUseSkill(sk, p.x + 4, p.y);
     p.castLock = 0; p.cooldowns = {}; p.tryUseSkill(sk, p.x + 4, p.y); // 2 + 1 + 1 beats: the bar is performed
@@ -293,7 +293,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
 
   // ------------------------------------------------------------ 4. auto-play
   const auto = await page.evaluate(async (minutes) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     game.update = window.__realUpdate; G.bardStats = { cad: 0, dis: 0 };
     await game.newChar('bard', 'Autobard');
     const { Auto } = await import('/src/game/autoplay.js');

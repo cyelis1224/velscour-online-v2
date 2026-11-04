@@ -1,6 +1,6 @@
-# Dagyr Online - Changelog
+# Velscour Online - Changelog
 
-All notable changes to Dagyr Online are documented in this file.
+All notable changes to Velscour Online are documented in this file.
 
 ---
 
@@ -8,7 +8,7 @@ All notable changes to Dagyr Online are documented in this file.
 
 ### Added
 - **Boss Arena Mid-Fight Join**:
-  - Players who arrive at a sealed boss arena (Raid Boss or Demon Lord Dagyr) after the encounter has begun can interact with or touch the entrance barrier to receive a confirmation prompt to enter the battle.
+  - Players who arrive at a sealed boss arena (Raid Boss or Demon Lord Velscour) after the encounter has begun can interact with or touch the entrance barrier to receive a confirmation prompt to enter the battle.
   - Upon accepting, players are teleported inside the arena past the barrier with arrival VFX and audio.
   - Arena boundaries remain locked so players cannot retreat until the boss is defeated.
   - Autoplay accounts for sealed gates and enters boss arenas smoothly.
@@ -25,7 +25,7 @@ All notable changes to Dagyr Online are documented in this file.
     - Champion monsters drop 1 guaranteed orb plus a 50% chance for a second orb.
     - Unique monsters drop 1 guaranteed orb plus a 75% chance for a second orb.
     - Dungeon chests now have a 75% chance to contain a health orb.
-    - Bosses drop 2 to 4 health orbs upon defeat, and 2 orbs drop upon shattering raid crystal seals or surviving Demon Lord Dagyr's phase transitions (Seals, Abyss).
+    - Bosses drop 2 to 4 health orbs upon defeat, and 2 orbs drop upon shattering raid crystal seals or surviving Demon Lord Velscour's phase transitions (Seals, Abyss).
 - **Cutscene Presentation & Input Handling**:
   - Chat UI and landscape chat handles are automatically hidden during cutscenes and restored upon cinematic conclusion or skip.
   - Player speech bubbles and ambient dialogue bubbles are suppressed during cutscenes.
@@ -98,7 +98,7 @@ All notable changes to Dagyr Online are documented in this file.
 ## [0.2.0] - 2026-10-31
 
 ### Added
-- **Endgame Expansion**: Heresies of the Hollow, Abyssal Rifts, Dagyr Unbound, and Infernal Marks.
+- **Endgame Expansion**: Heresies of the Hollow, Abyssal Rifts, Velscour Unbound, and Infernal Marks.
 - **Level Cap 3000 & Endless Torment**: Progression extended up to Depth 6600 with uncapped Infernal Marks.
 - **Skill Macros**: 5 customizable skill macro slots per hero with automatic buff recast.
 - **Thorns Scaling & Weapon Base Display**: Normalized weapon damage and fortitude-scaled thorns.

@@ -1,7 +1,7 @@
 {
-  "name": "DAGYR ONLINE",
-  "short_name": "Dagyr Online",
-  "description": "An isometric retro-pixel action RPG. Descend 100 depths and slay Demon Lord Dagyr.",
+  "name": "VELSCOUR ONLINE",
+  "short_name": "Velscour Online",
+  "description": "An isometric retro-pixel action RPG. Descend 100 depths and slay Demon Lord Velscour.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",

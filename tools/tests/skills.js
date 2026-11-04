@@ -10,7 +10,7 @@ const CLASSES = process.argv[2] ? process.argv[2].split(',') : ALL_CLASSES;
   const { browser, page, errors, shot } = await openGame();
   for (const cls of CLASSES) {
     const res = await page.evaluate(async (cls) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const out = [];
       await game.newChar(cls, 'T');
       document.querySelectorAll('.screen').forEach((s) => s.remove());

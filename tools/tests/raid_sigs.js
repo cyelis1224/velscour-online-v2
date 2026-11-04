@@ -6,7 +6,7 @@ const only = (process.argv[2] || '').split(',').filter(Boolean), secs = +(proces
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
   await page.evaluate(async (cls) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar(cls, 'Raider');
     document.querySelectorAll('.screen').forEach((s) => s.remove());
     G.ui.modalCount = 0;
@@ -24,7 +24,7 @@ const only = (process.argv[2] || '').split(',').filter(Boolean), secs = +(proces
   const fails = [];
   for (const id of ids) {
     const r = await page.evaluate(async (id) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { RAID_BOSSES } = await import('/src/game/raid.js');
       const { loadArtFor } = await import('/src/core/enemyart.js');
@@ -52,7 +52,7 @@ const only = (process.argv[2] || '').split(',').filter(Boolean), secs = +(proces
     await shot(`raidsig_${id}`);
     // auto-play fights it: a hero a little over the depth, no god mode
     const f = await page.evaluate(async ([id, secs]) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { RAID_BOSSES } = await import('/src/game/raid.js');
       const { Auto } = await import('/src/game/autoplay.js');
@@ -91,7 +91,7 @@ const only = (process.argv[2] || '').split(',').filter(Boolean), secs = +(proces
     if (r.bad.length) fails.push(`${id}: ${r.bad.join(',')}`);
     // reset the hero for the next one (the death screen shows 1.7 s after a death)
     await page.waitForTimeout(2200);
-    await page.evaluate(async () => { const { G, game } = window.DAGYR; if (G.player.dead) { G.player.dead = false; G.player.hp = G.player.maxHp; } document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; });
+    await page.evaluate(async () => { const { G, game } = window.VELSCOUR; if (G.player.dead) { G.player.dead = false; G.player.hp = G.player.maxHp; } document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; });
   }
   console.log(fails.length ? 'FAIL\n' + fails.join('\n') : 'PASS');
   if (fails.length) process.exitCode = 1;

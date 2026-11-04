@@ -10,7 +10,7 @@ const selected = ['catacombs', 'ice_temple', 'desert_temple', 'hell',
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 844, height: 390, mobile: true });
   try {
-    await page.evaluate(() => window.DAGYR.game.newChar('wizard', 'Mobile QA'));
+    await page.evaluate(() => window.VELSCOUR.game.newChar('wizard', 'Mobile QA'));
     const ids = await page.evaluate(async () => {
       const { BIOMES } = await import('/src/data/biomes.js');
       return BIOMES.map(b => b.id);
@@ -19,7 +19,7 @@ const selected = ['catacombs', 'ice_temple', 'desert_temple', 'hell',
     for (const id of targets) {
       try {
         await page.evaluate(async (id) => {
-          const { G, game } = window.DAGYR;
+          const { G, game } = window.VELSCOUR;
           const { BIOME_BY_ID } = await import('/src/data/biomes.js');
           const { loadBiomeArt } = await import('/src/core/assets.js');
           const { loadSeaOfSandPack } = await import('/src/gfx/seaofsand.js');
@@ -32,7 +32,7 @@ const selected = ['catacombs', 'ice_temple', 'desert_temple', 'hell',
         }, id);
         await page.waitForTimeout(300);
         const stats = await page.evaluate(() => new Promise(resolve => {
-          const { game, G } = window.DAGYR;
+          const { game, G } = window.VELSCOUR;
           const render = game.render, update = game.update;
           const times = [], updates = [], start = performance.now();
           game.render = function (...args) {

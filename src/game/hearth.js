@@ -196,7 +196,7 @@ function finish() {
     if (!townMap.walkable(tx, ty)) {
       const near = townMap.randomNear(G.player.x, G.player.y, 2.0);
       if (near) [tx, ty] = near;
-      else [tx, ty] = [G.player.x, G.player.y];
+      else[tx, ty] = [G.player.x, G.player.y];
     }
 
     const townPortal = {
@@ -252,7 +252,7 @@ function returnFromHearth() {
     sparkle(dungeonX, dungeonY, 30, '#bfeaff', 26, 0.8);
     camera.shake(3);
 
-    const title = dungeonWorld.unbound ? 'Dagyr Unbound' : `Depth ${dungeonWorld.depth}`;
+    const title = dungeonWorld.unbound ? 'Velscour Unbound' : `Depth ${dungeonWorld.depth}`;
     const sub = dungeonWorld.biome ? dungeonWorld.biome.name : 'Dungeon';
     HUD.setArea(title, sub);
     playMusic('wilds', { delay: 2 });

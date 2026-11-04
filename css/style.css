@@ -1,4 +1,4 @@
-/* DAGYR - UI styles */
+/* VELSCOUR - UI styles */
 :root {
   --gold: #d8b26a;
   --gold-dim: #8a6a34;
@@ -1612,7 +1612,7 @@ body.touch #sealed-btn i {
 }
 
 #velscour-skull,
-#Dagyr-skull {
+#Velscour-skull {
   pointer-events: auto;
   display: grid;
   place-items: center;
@@ -1630,7 +1630,7 @@ body.touch #sealed-btn i {
 }
 
 #velscour-skull img,
-#Dagyr-skull img {
+#Velscour-skull img {
   display: block;
   width: 30px;
   height: 30px;
@@ -1640,13 +1640,13 @@ body.touch #sealed-btn i {
 }
 
 #velscour-skull:hover,
-#Dagyr-skull:hover {
+#Velscour-skull:hover {
   border-color: var(--gold-bright);
   box-shadow: 0 0 10px rgba(255, 170, 70, .55);
 }
 
 #velscour-skull:active,
-#Dagyr-skull:active {
+#Velscour-skull:active {
   transform: scale(.94);
 }
 
@@ -1755,7 +1755,7 @@ body.touch #sealed-btn i {
 #boss-name {
   font: 900 18px var(--font-head);
   color: #ff6a3a;
-  text-shadow: 0 0 6px #000, 0 0 10px #a00;
+  text-shadow: 0 0 2px #000, 0 1px 2px #000, 0 0 6px #000, 0 0 10px #a00;   /* (dark outline: the title stays legible over the snow) */
   letter-spacing: 2px;
 }
 
@@ -1863,6 +1863,8 @@ body.touch #sealed-btn i {
 }
 
 /* the level-up banner holds the top of the screen */
+body.at-sea #levelup { top: 31%; } /* the Pirate Seas: the top band is the scenario's banners and its meter */
+#center-msg.top { top: 64px; font-size: clamp(16px, 2.4vw, 26px); letter-spacing: 2px; } /* a fight's running banners, under the boss bar */
 #center-msg small {
   display: block;
   font-size: .45em;
@@ -2377,7 +2379,7 @@ body.at-sea #levelup {
   animation: lu-in 1.4s 2.6s forwards, lu-flicker 2.3s 4s steps(1) infinite;
 }
 
-/* Dagyr's mood (src/data/taunts.js) colours the second line: dread is the blood-red flicker above */
+/* Velscour's mood (src/data/taunts.js) colours the second line: dread is the blood-red flicker above */
 #levelup[data-mood="mock"] #lu-l2 {
   color: #9cc838;
   text-shadow: 0 0 3px #000, 0 2px 0 #000, 0 0 14px rgba(110, 190, 0, .7);
@@ -4664,16 +4666,16 @@ body.touch .reliquary-panel .codex-cell {
   justify-content: center;
 }
 
-.Dagyr-contact-dialog {
+.Velscour-contact-dialog {
   width: min(560px, 92vw);
 }
 
-.Dagyr-taunt {
+.Velscour-taunt {
   color: #d2b994;
   font: 700 15px/1.5 var(--font-head);
 }
 
-.Dagyr-message-label {
+.Velscour-message-label {
   display: block;
   margin: 16px 0 6px;
   color: var(--gold);
@@ -4682,24 +4684,24 @@ body.touch .reliquary-panel .codex-cell {
   text-transform: uppercase;
 }
 
-.Dagyr-message-row {
+.Velscour-message-row {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
 
-.Dagyr-message-row .name-input {
+.Velscour-message-row .name-input {
   width: min(360px, 68vw);
 }
 
-#Dagyr-message-count {
+#Velscour-message-count {
   min-width: 44px;
   color: var(--text-dim);
   font-size: 11px;
 }
 
-.Dagyr-biome-select {
+.Velscour-biome-select {
   max-width: 82vw;
   padding: 9px 12px;
   border: 2px solid var(--gold-dim);
@@ -5905,7 +5907,7 @@ body.touch.portrait #hud-dials {
 }
 
 body.touch.portrait #velscour-skull,
-body.touch.portrait #Dagyr-skull {
+body.touch.portrait #Velscour-skull {
   grid-area: skull;
   position: static;
   width: 34px;
@@ -5917,7 +5919,7 @@ body.touch.portrait #Dagyr-skull {
 }
 
 body.touch.portrait #velscour-skull img,
-body.touch.portrait #Dagyr-skull img {
+body.touch.portrait #Velscour-skull img {
   width: 26px;
   height: 26px;
 }
@@ -6415,7 +6417,7 @@ body.touch .skill-detail {
 }
 
 /* THE ETERNAL BREACH: the purple portal's floor dialog (game.confirmBreach) */
-.breach-dialog .Dagyr-biome-select {
+.breach-dialog .Velscour-biome-select {
   width: 100%;
   border-color: #7a40b0;
   color: #e0c0ff;
@@ -7053,7 +7055,7 @@ body.touch .mk-btns {
   text-shadow: 0 0 10px rgba(32, 224, 255, .45);
 }
 
-.rift-dialog .Dagyr-biome-select {
+.rift-dialog .Velscour-biome-select {
   width: 100%;
 }
 
@@ -7231,7 +7233,7 @@ body.touch .rift-board .rb-note {
   display: none;
 }
 
-body.touch .rift-board .Dagyr-biome-select {
+body.touch .rift-board .Velscour-biome-select {
   padding: 5px 10px;
 }
 

@@ -13,7 +13,7 @@ const only = (process.argv.slice(2).find((a) => !a.startsWith('--')) || '').spli
       const { CASTLE_VARIANTS } = await import('/src/data/castles.js');
       return arg === 'all' ? CASTLE_VARIANTS.map((v) => v.id) : arg ? arg.split(',') : [CASTLE_VARIANTS[0].id];
     }, castleArg);
-    await page.evaluate(async () => { await window.DAGYR.game.newChar('paladin', 'Castle 3D QA'); });
+    await page.evaluate(async () => { await window.VELSCOUR.game.newChar('paladin', 'Castle 3D QA'); });
     // every story line wraps into its teller's three-line bubble at the real font (townspeech.js: 196 px less 24)
     const over = await page.evaluate(async () => {
       const { CASTLE_VARIANTS } = await import('/src/data/castles.js');
@@ -25,7 +25,7 @@ const only = (process.argv.slice(2).find((a) => !a.startsWith('--')) || '').spli
     if (over.length) errors.push('[castle3d] story lines too long for a three-line bubble: ' + over.join(' / '));
     for (const id of ids) {
       const info = await page.evaluate(async (id) => {
-        const { G, game } = window.DAGYR;
+        const { G, game } = window.VELSCOUR;
         await (await import('/src/gfx/castle.js')).loadCastlePack();
         await (await import('/src/gfx/castle3dart.js')).loadCastle3D(id);
         G.char.depth = 19; G.godMode = true; G.castleVariant = id;
@@ -67,7 +67,7 @@ const only = (process.argv.slice(2).find((a) => !a.startsWith('--')) || '').spli
       const first = id === 'ironcrown';
       for (const [name, x, y, zoom] of views.filter((v) => !only.length || only.includes(v[0]))) {
         await page.evaluate(async ([x, y, zoom, name]) => {
-          const { G } = window.DAGYR, { camera } = await import('/src/core/view.js');
+          const { G } = window.VELSCOUR, { camera } = await import('/src/core/view.js');
           if (name === 'drawbridge_up') { const D = G.world.map.drawbridge; D.down = false; D.lowering = false; for (const i of D.tiles) G.world.map.block[i] = 1; }
           G.player.x = x; G.player.y = y;
           G.settings.zoom = 1; camera.computeZoom(); G.settings.zoom = zoom / camera.zoom; camera.computeZoom();
@@ -76,14 +76,14 @@ const only = (process.argv.slice(2).find((a) => !a.startsWith('--')) || '').spli
         await page.waitForTimeout(name === 'overview' ? 4000 : name === 'drawbridge_down' ? 3600 : 1200);
         await shot('castle3d_' + (first ? '' : id + '_') + name);
         if (name === 'drawbridge_down') {
-          const st = await page.evaluate(() => { const { G } = window.DAGYR, D = G.world.map.drawbridge; return { down: D.down, open: D.tiles.every((i) => !G.world.map.block[i]) }; });
+          const st = await page.evaluate(() => { const { G } = window.VELSCOUR, D = G.world.map.drawbridge; return { down: D.down, open: D.tiles.every((i) => !G.world.map.block[i]) }; });
           if (!st.down || !st.open) errors.push(`[castle3d ${id}] the drawbridge did not come down and open the crossing`);
         }
       }
       // the keep's whole roof fades off as the hero steps inside and back on once the hero leaves (render.js roofFade)
       if (!only.length || only.includes('roof_fade')) {
         const step = (x, y, ms) => page.evaluate(async ([x, y, ms]) => {
-          const { G } = window.DAGYR, { camera } = await import('/src/core/view.js');
+          const { G } = window.VELSCOUR, { camera } = await import('/src/core/view.js');
           G.player.x = x; G.player.y = y; G.settings.zoom = 1; camera.computeZoom(); camera.follow(x, y, 0, true);
           if (ms) await new Promise((r) => setTimeout(r, ms));
           else await new Promise((r) => requestAnimationFrame(r));   // one frame into the fade (a frame steps it at most 55%)

@@ -1,5 +1,5 @@
 // Layered Banner Generator for Lancer 3D Cloth Banner (48 x 96 px texels, 2 texels/world px)
-// Generates custom skins in DAGYR's Grim Nocturne dark fantasy chivalric style.
+// Generates custom skins in VELSCOUR's Grim Nocturne dark fantasy chivalric style.
 
 export const BANNER_SHAPES = {
   pointed: {

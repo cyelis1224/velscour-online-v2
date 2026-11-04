@@ -34,7 +34,7 @@ Do one sheet per message, in order, in one chat, so the style stays consistent.
 Replace the bracketed part with your biome.
 
 ```text
-We are making art for DAGYR, a retro isometric pixel-art action RPG in the style of Diablo II.
+We are making art for VELSCOUR, a retro isometric pixel-art action RPG in the style of Diablo II.
 New dungeon biome: [NAME] - [materials, mood, culture, colour accents; e.g. "a drowned elven temple:
 green-black basalt, verdigris bronze, pale coral, kelp, bioluminescent teal accents"].
 

@@ -324,7 +324,7 @@ export function dropLoot(world, m) {
   // gear
   const items = more(rank === 'boss' ? randi(2, 3) + (world.depth % 10 === 0 ? 1 : 0) : rank === 'unique' ? randi(1, 2) : rank === 'champion' ? (chance(0.3) ? randi(1, 2) : 0) : (chance(0.0425 * (world.lootMul || 1)) ? 1 : 0)); // lootMul: omens (game/happenings.js)
   const bonus = rank === 'boss' ? 1.8 : rank === 'unique' ? 0.7 : rank === 'champion' ? 0.35 : 0;
-  const boost = (world.raid || m.isRaid || m.isDagyr ? 3 : 1) * (world.relicMul || 1); // BOSS ROOMs triple the Covenant odds (data/relics.js); Heresies raise them
+  const boost = (world.raid || m.isRaid || m.isVelscour ? 3 : 1) * (world.relicMul || 1); // BOSS ROOMs triple the Covenant odds (data/relics.js); Heresies raise them
   for (let i = 0; i < items; i++) {
     const ilvl = lvl + (rank === 'boss' ? 2 : rank === 'normal' ? 0 : 1) + randi(-1, 1);
     add('item', { item: maybeRelic(rollItem(ilvl, { mf: st.magicFind + (world.mfAdd || 0), bonus }), boost) });

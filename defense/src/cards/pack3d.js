@@ -162,7 +162,7 @@ async function packTexture(pack) {
   try { await loadHeroArt(cls); const img = heroCanvas(heroBaseLook(hero), 3); if (img) { const k = 620 / (img.feet - img.headTop * 0.7); x.globalAlpha = 0.95; x.drawImage(img, 300 - img.width * k / 2, 860 - img.feet * k, img.width * k, img.height * k); x.globalAlpha = 1; } } catch { /* art optional */ }
   const v = x.createLinearGradient(0, 520, 0, 900); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.85)'); x.fillStyle = v; x.fillRect(0, 520, 600, 380);
   x.textAlign = 'center'; x.fillStyle = '#fff'; x.shadowColor = col; x.shadowBlur = 20;
-  x.font = '900 34px Cinzel, serif'; x.fillText('DAGYR DEFENSE', 300, 100);
+  x.font = '900 34px Cinzel, serif'; x.fillText('VELSCOUR DEFENSE', 300, 100);
   x.font = '900 54px Cinzel, serif'; x.fillText(pack.name.toUpperCase(), 300, 760);
   x.shadowBlur = 0; x.font = '600 26px "Alegreya Sans", sans-serif'; x.fillStyle = '#e8e0f0'; x.fillText(pack.sub, 300, 806);
   x.font = '800 24px "Alegreya Sans", sans-serif'; x.fillText(pack.kind === 'hero' ? '1 RIFT CARD' : `${pack.count} RIFT CARDS`, 300, 846);

@@ -1,4 +1,4 @@
-// Title screen: the DAGYR logo rises out of the dark in time with "Hymn of the Abyss" and bursts into flame on the
+// Title screen: the VELSCOUR logo rises out of the dark in time with "Hymn of the Abyss" and bursts into flame on the
 // song's first hit. The separate Credits screen owns the studio credit cards.
 // Timeline (song time, s): visuals start with scheduled music, then re-sync to its clock when playback is available.
 // If the browser hasn't let audio start yet, a prompt asks for a click first.
@@ -112,7 +112,7 @@ export function attachTitleFx(screen, logoEl, els = {}) {
     creditsAt = t0; creditsClockAnchored = true; ts = Math.max(ts, songT);
     light(true);
   }
-  if (window.DAGYR_TEST_MENU) screen.classList.add('title-ready');   // headless tests click the menu straight away
+  if (window.VELSCOUR_TEST_MENU) screen.classList.add('title-ready');   // headless tests click the menu straight away
   const c0 = musicClock();
   if (c0 && c0.kind === 'title') { phase = 'intro'; light(true); }      // back from a sub-menu: the song is still playing
   else if (audioReady()) begin();
@@ -354,7 +354,7 @@ export function attachTitleFx(screen, logoEl, els = {}) {
     }
   }
 
-  const watcher = () => {};
+  const watcher = () => { };
 
   // ------------------------------------------------------------------ draw fire & embers
   function draw() {

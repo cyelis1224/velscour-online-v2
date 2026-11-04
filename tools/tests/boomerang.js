@@ -9,7 +9,7 @@ const casts = +(process.argv[2] || 6), json = process.argv[3] === 'json', only =
 (async () => {
   const { browser, page, errors, shot } = await openGame();
   const res = await page.evaluate(async ({ casts, only }) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('boomerang_knight', 'Rang' + Math.random());
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
@@ -110,7 +110,7 @@ const casts = +(process.argv[2] || 6), json = process.argv[3] === 'json', only =
   for (const f of res.fails) console.log('FAIL ' + f);
   if (res.fails.length) process.exitCode = 1;
   for (const n of [5, 8]) {
-    await page.evaluate((n) => { const { G } = window.DAGYR; const s = G.player.sig && G.player.sig.s; if (s) { s.n = n; s.busy = 0; } }, n);
+    await page.evaluate((n) => { const { G } = window.VELSCOUR; const s = G.player.sig && G.player.sig.s; if (s) { s.n = n; s.busy = 0; } }, n);
     await page.waitForTimeout(600);
     await shot(`boomerang_ring_${n}`);
     for (const k of [0, 1]) { // close-ups a moment apart, so the ring turns
@@ -120,14 +120,14 @@ const casts = +(process.argv[2] || 6), json = process.argv[3] === 'json', only =
   }
   // in play, mid-throw: a pack ahead, a few skills thrown at once
   await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const { makeMonster } = await import('/src/game/monster.js');
     const p = G.player, w = G.world; G.settings.zoom = 1.4;
     for (let k = 0; k < 6; k++) { const m = makeMonster(w, 'skeleton', w.biome, 6, 'normal', p.x + 3 + (k % 3) * 0.8, p.y + 1 + Math.floor(k / 3)); m.maxHp = m.hp = 1e9; m.speed = 0; m.dmg = [0, 0]; w.add(m); }
   });
   for (const [i, names] of [['Tri-Rang', 'Rang Storm'], ['Chakram', 'Heavy Rang', 'Orbiting Rangs'], ['Rang Rain']].entries()) {
     await page.evaluate(async (names) => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       const { CLASS_SKILLS } = await import('/src/data/skills.js');
       const p = G.player; p.mana = p.maxMana = 99999;
       for (const n of names) { p.castLock = 0; p.cooldowns = {}; p.tryUseSkill(CLASS_SKILLS.boomerang_knight.find((s) => s.name === n), p.x + 4, p.y + 1.5, null); }

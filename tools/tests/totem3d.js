@@ -54,7 +54,7 @@ const MOBILE = process.argv.includes('mobile');
     }
     // 2. in play, stepped frame by frame
     await page.evaluate(async (MOBILE) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar('totem_master', 'Totemic');
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -88,7 +88,7 @@ const MOBILE = process.argv.includes('mobile');
     }, MOBILE);
     const step = async (k) => { await page.evaluate((k) => { window.__step = k; }, k); await page.waitForFunction(() => window.__step === 0); };
     const at = async () => page.evaluate(async () => {
-      const { G } = window.DAGYR, h = G.world.hazards.find((q) => q.constructor.name === 'GreatTotem');
+      const { G } = window.VELSCOUR, h = G.world.hazards.find((q) => q.constructor.name === 'GreatTotem');
       const { camera } = await import('/src/core/view.js');
       const q = h && camera.tileToScreen(h.x, h.y, 0), r = document.querySelector('canvas').getBoundingClientRect(), f = r.width / G.W;   // the page may be scaled (phones)
       return h ? { t: h.t, xy: [r.left + q[0] * f, r.top + q[1] * f] } : null;
@@ -117,9 +117,9 @@ const MOBILE = process.argv.includes('mobile');
     }, [shots, cw, ch]);
     save('totem_rise' + (MOBILE ? '_mobile' : ''), sheet);
     await step(80);
-    const gone = await page.evaluate(() => window.DAGYR.G.world.hazards.some((q) => q.constructor.name === 'GreatTotem'));
+    const gone = await page.evaluate(() => window.VELSCOUR.G.world.hazards.some((q) => q.constructor.name === 'GreatTotem'));
     ok(!gone, 'the totem has sunk away after its 8.7 s');
-    const fx = await page.evaluate(() => (window.DAGYR.G.sigStats || {}).totem_master || {});
+    const fx = await page.evaluate(() => (window.VELSCOUR.G.sigStats || {}).totem_master || {});
     ok(fx.fire === 1, 'the signature fired once');
   } catch (e) { console.log('FAIL ' + e.stack); process.exitCode = 1; }
   report(errors);

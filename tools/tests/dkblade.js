@@ -17,7 +17,7 @@ const DESIGN = +(process.argv[2] ?? 46);
   const save = (name, url) => fs.writeFileSync(path.join(OUT_DIR, name + '.png'), Buffer.from(url.split(',')[1], 'base64'));
   try {
     const info = await page.evaluate(async (D) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar('death_knight', 'Rime');
       document.querySelectorAll('.screen').forEach((s) => s.remove());
       G.ui.modalCount = 0;
@@ -42,7 +42,7 @@ const DESIGN = +(process.argv[2] ?? 46);
 
     // the dungeon, no monsters, close up
     await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       game.buildDungeon(6, BIOME_BY_ID.catacombs);
       G.godMode = true; G.settings.zoom = 2.2; G.settings.gore = 0; G.paused = false;
@@ -53,7 +53,7 @@ const DESIGN = +(process.argv[2] ?? 46);
     const six = ['frost', 'frost', 'unholy', 'blood', 'blood', 'frost'];
     // n world steps, then the sword's state as given, then a frame
     const frame = (mode, n, o) => page.evaluate(({ mode, n, o }) => {
-      const { G, game } = window.DAGYR, p = G.player;
+      const { G, game } = window.VELSCOUR, p = G.player;
       G.settings.dkBlade = mode;
       for (let i = 0; i < n; i++) { G.time += 1 / 30; G.world.update(1 / 30); }
       Object.assign(p.sig.s, { wait: 99, flash: 0, runes: [] }, o.s);
@@ -75,33 +75,33 @@ const DESIGN = +(process.argv[2] ?? 46);
       shots[mode] = row;
       // the fight brings it off his back
       const fly = await page.evaluate(() => {
-        const { G } = window.DAGYR, p = G.player, s = p.sig.s;
+        const { G } = window.VELSCOUR, p = G.player, s = p.sig.s;
         s.idle = 99; s.rest = 1; p.flip = false;
         import('/src/game/sigs/deathknight.js').then((m) => m.default.hit(p, s, p, 10, 'cold', {}));
         return null;
       });
       await page.waitForTimeout(50);
-      const off = await page.evaluate(() => { const { G } = window.DAGYR, s = G.player.sig.s; for (let i = 0; i < 20; i++) G.world.update(1 / 30); return s.rest; });
+      const off = await page.evaluate(() => { const { G } = window.VELSCOUR, s = G.player.sig.s; for (let i = 0; i < 20; i++) G.world.update(1 / 30); return s.rest; });
       ok(off === 0, `${mode}: a blow brings it off his back (rest ${off})`);
-      const back = await page.evaluate(() => { const { G } = window.DAGYR, s = G.player.sig.s; for (let i = 0; i < 30 * 4; i++) G.world.update(1 / 30); return s.rest; });
+      const back = await page.evaluate(() => { const { G } = window.VELSCOUR, s = G.player.sig.s; for (let i = 0; i < 30 * 4; i++) G.world.update(1 / 30); return s.rest; });
       ok(back === 1, `${mode}: 3 s out of a fight it is back on his back (rest ${back})`);
     }
     // RUNIC OBLITERATION, both looks
     for (const mode of ['sprite', 'model']) {
       await page.evaluate(async (mode) => {
-        const { G } = window.DAGYR, p = G.player, s = p.sig.s;
+        const { G } = window.VELSCOUR, p = G.player, s = p.sig.s;
         G.settings.dkBlade = mode;
         const M = (await import('/src/game/sigs/deathknight.js')).default;
         s.runes = ['frost', 'frost', 'frost', 'unholy', 'blood', 'frost']; s.swing = 0; p.facing = 0.4; M.fire(p, s);
         for (let i = 0; i < 9; i++) G.world.update(1 / 30);
-        window.DAGYR.game.render();
+        window.VELSCOUR.game.render();
       }, mode);
       shots[mode].push(await page.screenshot({ clip: big }));
-      await page.evaluate(() => { const { G } = window.DAGYR; for (let i = 0; i < 40; i++) G.world.update(1 / 30); });
+      await page.evaluate(() => { const { G } = window.VELSCOUR; for (let i = 0; i < 40; i++) G.world.update(1 / 30); });
     }
     // in town: always on his back
     await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.enterTown();
       document.querySelectorAll('.screen').forEach((s) => s.remove());
       G.ui.modalCount = 0; G.paused = false;

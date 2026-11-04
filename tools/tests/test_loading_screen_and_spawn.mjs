@@ -11,11 +11,11 @@ async function testLoadingScreenAndSpawn() {
 
   const page = await browser.newPage();
   await page.addInitScript(() => {
-    window.DAGYR_TEST_MENU = true;
+    window.VELSCOUR_TEST_MENU = true;
   });
 
   await page.goto('http://127.0.0.1:8124', { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !!window.DAGYR && !!window.LoadingScreen);
+  await page.waitForFunction(() => !!window.VELSCOUR && !!window.LoadingScreen);
 
   // 1. Verify LoadingScreen UI elements exist in DOM
   const elementsCheck = await page.evaluate(() => {
@@ -100,11 +100,11 @@ async function testLoadingScreenAndSpawn() {
   // 3. Test In-Game Character Creation & Spawn Protection
   console.log('3. Starting a character and testing spawn state...');
   await page.evaluate(async () => {
-    await window.DAGYR.game.newChar('barbarian', 'TestHero');
+    await window.VELSCOUR.game.newChar('barbarian', 'TestHero');
   });
 
   const heroSpawnedCheck = await page.evaluate(() => {
-    const p = window.DAGYR.G.player;
+    const p = window.VELSCOUR.G.player;
     return {
       hasPlayer: !!p,
       spawned: p ? p.spawned : false,
@@ -120,8 +120,8 @@ async function testLoadingScreenAndSpawn() {
   // 4. Test Loading Protection during Dungeon Descent
   console.log('4. Testing spawn protection during descent...');
   const descentCheck = await page.evaluate(async () => {
-    const G = window.DAGYR.G;
-    const game = window.DAGYR.game;
+    const G = window.VELSCOUR.G;
+    const game = window.VELSCOUR.game;
     const LS = window.LoadingScreen;
 
     // Trigger loading state manually to inspect player protection
@@ -163,7 +163,7 @@ async function testLoadingScreenAndSpawn() {
   // 5. Test Remote Player Loading Protection Sync
   console.log('5. Testing remote player loading protection sync...');
   const remoteSyncCheck = await page.evaluate(() => {
-    const G = window.DAGYR.G;
+    const G = window.VELSCOUR.G;
     const p = G.player;
     // Test that unspawned / alpha 0 creature does not draw
     let drawCalls = 0;

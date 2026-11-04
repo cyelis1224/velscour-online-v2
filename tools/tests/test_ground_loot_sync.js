@@ -22,15 +22,15 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     p2.on('console', m => console.log('[P2 browser]', m.text()));
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
     }
 
     console.log('Navigating players to game...');
     await p1.goto(BASE_URL + '/index.html');
     await p2.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Inject hero saves
     await p1.evaluate(async () => {
@@ -76,7 +76,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.fill('#d2-create-name', roomName);
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
-    await p1.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
+    await p1.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
     console.log('P1 created and entered game in town.');
 
     // P2 joins room
@@ -90,7 +90,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
+    await p2.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
     console.log('P2 joined and entered game in town.');
 
     await p1.waitForTimeout(1000);
@@ -99,7 +99,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // STEP 1: Give P1 an item in bag[0] and drop it
     console.log('\n--- TEST STEP 1: P1 drops an item on the ground ---');
     const dropResult = await p1.evaluate(async () => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       const { dropFromBag } = await import('/src/ui/inventory.js');
       // Place custom legendary sword in bag slot 0
       G.char.bag[0] = {
@@ -135,12 +135,12 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // STEP 2: Check that P2 sees the item on the ground via network
     console.log('\n--- TEST STEP 2: P2 sees the dropped item on the ground ---');
     await p2.waitForFunction((id) => {
-      const { G } = window.DAGYR || {};
+      const { G } = window.VELSCOUR || {};
       return G?.world?.loot?.some(l => l.lootId === id);
     }, droppedLootId, { timeout: 8000 });
 
     const p2Loot = await p2.evaluate((id) => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       const l = G.world.loot.find(item => item.lootId === id);
       return {
         lootId: l.lootId,
@@ -161,7 +161,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // STEP 3: P2 picks up the item
     console.log('\n--- TEST STEP 3: P2 picks up the item ---');
     const p2Pickup = await p2.evaluate((id) => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       const l = G.world.loot.find(item => item.lootId === id);
       const picked = G.player.pickup(l);
       // Remove from world loot if picked (just like update loop does)
@@ -188,12 +188,12 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // STEP 4: Check that the item disappears from P1's ground
     console.log('\n--- TEST STEP 4: Verify item disappears from P1 ground ---');
     await p1.waitForFunction((id) => {
-      const { G } = window.DAGYR || {};
+      const { G } = window.VELSCOUR || {};
       return !G?.world?.loot?.some(l => l.lootId === id);
     }, droppedLootId, { timeout: 8000 });
 
     const p1LootCheck = await p1.evaluate((id) => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       return G.world.loot.some(l => l.lootId === id);
     }, droppedLootId);
 
@@ -205,7 +205,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // STEP 5: Reverse test: P2 drops an item, P1 picks it up
     console.log('\n--- TEST STEP 5: Reverse test (P2 drops, P1 picks up) ---');
     const p2DropRes = await p2.evaluate(async () => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       const { dropFromBag } = await import('/src/ui/inventory.js');
       // P2 drops a Crown
       G.char.bag[1] = {
@@ -230,7 +230,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // P1 sees Crown on ground
     await p1.waitForFunction((id) => {
-      const { G } = window.DAGYR || {};
+      const { G } = window.VELSCOUR || {};
       return G?.world?.loot?.some(l => l.lootId === id);
     }, crownLootId, { timeout: 8000 });
 
@@ -238,7 +238,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // P1 picks up Crown
     const p1PickupRes = await p1.evaluate((id) => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       const l = G.world.loot.find(item => item.lootId === id);
       const picked = G.player.pickup(l);
       if (picked) {
@@ -256,7 +256,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // P2 sees Crown disappear
     await p2.waitForFunction((id) => {
-      const { G } = window.DAGYR || {};
+      const { G } = window.VELSCOUR || {};
       return !G?.world?.loot?.some(l => l.lootId === id);
     }, crownLootId, { timeout: 8000 });
 

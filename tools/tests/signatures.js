@@ -23,7 +23,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
   const { browser, page, errors } = await openGame();
   const results = {};
   const setup = (cls) => page.evaluate(async (cls) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     if (window.__realUpdate) game.update = window.__realUpdate;
     await game.newChar(cls, 'Showcase');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
@@ -51,7 +51,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
   }, cls);
   // a pack in front of the hero; tough = they will not die (payoff shots)
   const pack = (tough) => page.evaluate(async (tough) => {
-    const { G } = window.DAGYR, p = G.player, w = G.world;
+    const { G } = window.VELSCOUR, p = G.player, w = G.world;
     const { makeMonster } = await import('/src/game/monster.js');
     for (const c of w.creatures) if (c.team === 'enemy') c.dead = true;
     w.creatures = w.creatures.filter((c) => c.team !== 'enemy');
@@ -66,7 +66,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
   }, tough);
   // cast the class's damaging skills at the nearest foe; returns { fill, fired }
   const fight = (secs, stopAt, stepped) => page.evaluate(async ([secs, stopAt, stepped]) => {
-    const { G } = window.DAGYR, p = G.player, w = G.world;
+    const { G } = window.VELSCOUR, p = G.player, w = G.world;
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
     const S = await import('/src/game/signature.js');
     const M = S.SIGNATURES[p.classId];
@@ -116,7 +116,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
   const step = async (n) => { await page.evaluate((k) => { window.__step = k; }, n); await page.waitForFunction(() => window.__step === 0); };
   // clear the skills' own effects so the signature reads; zoom: the camera zoom setting
   const clean = (zoom) => page.evaluate(async (zoom) => {
-    const { G } = window.DAGYR, p = G.player, w = G.world;
+    const { G } = window.VELSCOUR, p = G.player, w = G.world;
     const { effects, texts, particles } = await import('/src/gfx/vfx.js');
     const { camera } = await import('/src/core/view.js');
     w.hazards = w.hazards.filter((h) => h.constructor.name === 'SigBack');
@@ -128,7 +128,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
   for (const cls of process.argv.includes('noshots') ? [] : CLASSES) {
     if (await setup(cls)) continue;
     await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { camera } = await import('/src/core/view.js'); G.settings.zoom = 1.35; camera.computeZoom();
       const upd = window.__realUpdate = window.__realUpdate || game.update.bind(game);
       window.__step = 0;
@@ -142,12 +142,12 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
     // the charge, close up
     await clean(2.1);
     await step(3);
-    const hc = await page.evaluate(async () => { const { G } = window.DAGYR, p = G.player; const { camera } = await import('/src/core/view.js'); return camera.tileToScreen(p.x, p.y, 40); });
+    const hc = await page.evaluate(async () => { const { G } = window.VELSCOUR, p = G.player; const { camera } = await import('/src/core/view.js'); return camera.tileToScreen(p.x, p.y, 40); });
     const cc = { width: 620, height: 400 };
     await page.screenshot({ path: `${OUT_DIR}/sig_${cls}_0.png`, clip: { ...cc, x: Math.max(0, Math.min(vp.width - cc.width, hc[0] - cc.width / 2)), y: Math.max(0, Math.min(vp.height - cc.height, hc[1] - cc.height / 2)) } });
     // the payoff on a crowd that stays put
     const info = await page.evaluate(async () => {
-      const { G } = window.DAGYR, p = G.player;
+      const { G } = window.VELSCOUR, p = G.player;
       const S = await import('/src/game/signature.js');
       const M = S.SIGNATURES[p.classId];
       return { name: M.name, desc: M.desc, color: M.color };
@@ -155,7 +155,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
     await clean(1.35);
     await pack(true);
     await page.evaluate(async () => {
-      const { G } = window.DAGYR, p = G.player;
+      const { G } = window.VELSCOUR, p = G.player;
       const S = await import('/src/game/signature.js');
       if (p.classId === 'gunner' || p.classId === 'carrion_witch') { // they paint what they hit: hit every foe once
         const { hit } = await import('/src/game/combat.js');
@@ -176,7 +176,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
   if (AUTO > 0) {
     for (const cls of CLASSES) {
       const a = await page.evaluate(async ([cls, secs]) => {
-        const { G, game } = window.DAGYR;
+        const { G, game } = window.VELSCOUR;
         if (window.__realUpdate) game.update = window.__realUpdate;
         G.godMode = false; G.sigStats = {};
         await game.newChar(cls, 'Autosig');

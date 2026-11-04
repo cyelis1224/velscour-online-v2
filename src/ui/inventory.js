@@ -20,7 +20,7 @@ import { openSeal } from './sealed.js';
 import { glyphOf } from '../data/relics.js';
 import { noteFind } from '../game/reliquary.js';
 import { marksTotal, marksFree, capXp } from '../game/marks.js';
-import { bagRows, nextBagRowCost, canBuyBagRow, buyBagRow, BAG_MAX_ROWS, gemBagRows, nextGemBagRowCost, canBuyGemBagRow, buyGemBagRow, GEM_BAG_MAX_ROWS } from '../data/bag.js';
+import { bagRows, nextRowCost, buyBagRow, BAG_MAX_ROWS, gemBagRows, nextGemBagRowCost, canBuyGemBagRow, buyGemBagRow, GEM_BAG_MAX_ROWS } from '../data/bag.js';
 import { heresyRankOf } from '../game/heresies.js';
 import { endgameUnlocked } from '../game/endgame.js';
 import { sparkle, floatText } from '../gfx/vfx.js';
@@ -943,15 +943,13 @@ export function renderInventory(body) {
   const bag = el('div', 'bag');
   for (let i = 0; i < c.bag.length; i++) bag.appendChild(bagSlot(i));
   mid.appendChild(bag);
-
-  const bagBuyBtn = bagRowButton(c);
-  if (bagBuyBtn) mid.appendChild(bagBuyBtn);
+  if (nextRowCost(c)) mid.appendChild(bagRowButton());
 
   // 2. Dedicated Gem Bag (Half-size: 30 slots for gems and runes)
   const gemTitleRow = el('div', 'inv-section-title gem-bag-title');
   const gemLabel = el('div', 'inv-title-label');
-  const gemUsed = c.gemBag.filter(Boolean).length;
-  gemLabel.innerHTML = `Gem Bag <span>${gemUsed} / ${c.gemBag.length}</span>`;
+  const gemUsed = c.gemBag ? c.gemBag.filter(Boolean).length : 0;
+  gemLabel.innerHTML = `Gem Bag <span>${gemUsed} / ${c.gemBag ? c.gemBag.length : 30}</span>`;
   gemTitleRow.appendChild(gemLabel);
 
   const gemActions = el('div', 'inv-title-actions');
@@ -963,7 +961,7 @@ export function renderInventory(body) {
   mid.appendChild(gemTitleRow);
 
   const gemBagEl = el('div', 'bag gem-bag');
-  for (let i = 0; i < c.gemBag.length; i++) gemBagEl.appendChild(gemBagSlot(i));
+  for (let i = 0; i < (c.gemBag ? c.gemBag.length : 30); i++) gemBagEl.appendChild(gemBagSlot(i));
   mid.appendChild(gemBagEl);
 
   const gemBagBuyBtn = gemBagRowButton(c);
@@ -1003,34 +1001,20 @@ export function renderInventory(body) {
   body.appendChild(wrap);
 }
 
-function bagRowButton(c) {
-  const rows = bagRows(c);
-  if (rows >= BAG_MAX_ROWS) return null;
-  const next = rows + 1;
-  const cost = nextBagRowCost(c);
-  const can = canBuyBagRow(c);
-  const b = el('button', 'btn small bag-buy' + (can ? '' : ' poor'), `+ Bag row ${next} of ${BAG_MAX_ROWS} (${cost} Marks)`);
-  b.title = can ? `Buy another row of 10 slots for ${cost} Infernal Marks` : `Requires ${cost} unspent Infernal Marks (you have ${marksFree()})`;
+/** Buy the next bag row: 10 more slots, each row twice the gold of the last (data/bag.js). */
+function bagRowButton() {
+  const c = G.char, cost = nextRowCost(c), row = bagRows(c) + 1;
+  const b = el('button', 'btn small bag-buy' + (c.gold < cost ? ' poor' : ''), `+ Bag row ${row} of ${BAG_MAX_ROWS} · <span class="gold-text">${fmtInt(cost)} gold</span>`);
+  b.title = '10 more bag slots. Each row costs twice the last.';
   b.onclick = () => {
+    if (G.char.gold < cost) { UI.log(`Bag row ${row} costs ${fmtInt(cost)} gold.`, '#ff8080'); sfx('error'); return; }
     sfx('ui');
-    if (!canBuyBagRow(c)) {
-      UI.log(`You need ${cost} free Infernal Marks to buy row ${next}.`, '#ff8080');
-      return;
-    }
-    UI.dialog({
-      title: `Bag row ${next} of ${BAG_MAX_ROWS}`,
-      html: `<p>Expand your bag by 1 row (10 slots) for <b style="color:#ffd860">${cost} Infernal Marks</b>?</p>`,
-      buttons: [
-        { label: 'Cancel' },
-        { label: `Buy for ${cost} Marks`, cls: 'red', fn: () => {
-          if (buyBagRow(c)) {
-            changed();
-            const panel = UI.panels?.get('inventory');
-            if (panel) renderInventory(panel.body);
-          }
-        }},
-      ],
-    });
+    UI.confirm('Buy a Bag Row', `Add bag row <b>${row}</b> (10 slots) for <b class="gold-text">${fmtInt(cost)} gold</b>?`, () => {
+      if (!buyBagRow(G.char)) { sfx('error'); return; }
+      sfx('gold');
+      UI.log(`Your bag grows: row <b>${row}</b> added for ${fmtInt(cost)} gold.`, '#ffd860');
+      changed();
+    }, 'Buy');
   };
   return b;
 }

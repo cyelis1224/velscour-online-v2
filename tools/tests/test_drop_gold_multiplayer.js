@@ -19,8 +19,8 @@ async function run() {
     const p1 = await ctx1.newPage();
     const p2 = await ctx2.newPage();
 
-    await p1.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
-    await p2.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
+    await p1.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
+    await p2.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
 
     console.log('1. Loading both players...');
     await Promise.all([
@@ -29,8 +29,8 @@ async function run() {
     ]);
 
     await Promise.all([
-      p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden')),
-      p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden')),
+      p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden')),
+      p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden')),
     ]);
 
     // Setup characters with gold
@@ -73,7 +73,7 @@ async function run() {
     await p1.fill('#d2-create-name', roomName);
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
-    await p1.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
+    await p1.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
     console.log('P1 created and entered game in town.');
 
     // P2 joins room
@@ -87,7 +87,7 @@ async function run() {
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
+    await p2.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
     console.log('P2 entered game in town.');
 
     await p1.waitForTimeout(800);
@@ -140,7 +140,7 @@ async function run() {
     });
 
     // Verify P1 gold decreased to 4250
-    const p1RemainingGold = await p1.evaluate(() => window.DAGYR.G.char.gold);
+    const p1RemainingGold = await p1.evaluate(() => window.VELSCOUR.G.char.gold);
     console.log('P1 remaining gold:', p1RemainingGold);
     if (p1RemainingGold !== 4250) {
       throw new Error(`Expected P1 to have 4250 gold, got ${p1RemainingGold}`);
@@ -149,7 +149,7 @@ async function run() {
 
     // Verify gold item appeared on the floor for P1
     const p1GoldLoot = await p1.evaluate(() => {
-      const l = window.DAGYR.G.world.loot.find(item => item.kind === 'gold' && item.amount === 750);
+      const l = window.VELSCOUR.G.world.loot.find(item => item.kind === 'gold' && item.amount === 750);
       return l ? { amount: l.amount, lootId: l.lootId, x: l.x, y: l.y } : null;
     });
     console.log('P1 sees gold on ground:', p1GoldLoot);
@@ -158,12 +158,12 @@ async function run() {
     // 5. Verify P2 sees the 750 gold pile in their world!
     console.log('5. Checking if P2 sees the 750 gold pile...');
     await p2.waitForFunction(() => {
-      const loot = window.DAGYR?.G?.world?.loot || [];
+      const loot = window.VELSCOUR?.G?.world?.loot || [];
       return loot.some(l => l.kind === 'gold' && l.amount === 750);
     }, { timeout: 6000 });
 
     const p2GoldLoot = await p2.evaluate(() => {
-      const l = window.DAGYR.G.world.loot.find(item => item.kind === 'gold' && item.amount === 750);
+      const l = window.VELSCOUR.G.world.loot.find(item => item.kind === 'gold' && item.amount === 750);
       return l ? { amount: l.amount, lootId: l.lootId, x: l.x, y: l.y } : null;
     });
     console.log('✓ P2 sees gold on ground across network:', p2GoldLoot);
@@ -175,7 +175,7 @@ async function run() {
     // 6. P2 walks over / picks up the 750 gold!
     console.log('6. P2 picking up the 750 gold...');
     await p2.evaluate(() => {
-      const G = window.DAGYR.G;
+      const G = window.VELSCOUR.G;
       const goldItem = G.world.loot.find(l => l.kind === 'gold' && l.amount === 750);
       if (goldItem) {
         G.player.x = goldItem.x;
@@ -185,7 +185,7 @@ async function run() {
     });
 
     // Verify P2 gold increased by 750 (100 + 750 = 850)
-    const p2GoldAfterPickup = await p2.evaluate(() => window.DAGYR.G.char.gold);
+    const p2GoldAfterPickup = await p2.evaluate(() => window.VELSCOUR.G.char.gold);
     console.log('P2 gold after pickup:', p2GoldAfterPickup);
     if (p2GoldAfterPickup !== 850) {
       throw new Error(`Expected P2 to have 850 gold, got ${p2GoldAfterPickup}`);
@@ -195,12 +195,12 @@ async function run() {
     // 7. Verify the gold pile disappears for P1 and P2!
     console.log('7. Verifying gold disappears for both players...');
     await p1.waitForFunction(() => {
-      const loot = window.DAGYR?.G?.world?.loot || [];
+      const loot = window.VELSCOUR?.G?.world?.loot || [];
       return !loot.some(l => l.kind === 'gold' && l.amount === 750);
     }, { timeout: 6000 });
 
     const p1HasGoldPile = await p1.evaluate(() => {
-      return (window.DAGYR?.G?.world?.loot || []).some(l => l.kind === 'gold' && l.amount === 750);
+      return (window.VELSCOUR?.G?.world?.loot || []).some(l => l.kind === 'gold' && l.amount === 750);
     });
     console.log('P1 still has 750 gold pile on ground (expected false):', p1HasGoldPile);
     if (p1HasGoldPile) throw new Error('Gold pile did not disappear from P1 screen after P2 picked it up');

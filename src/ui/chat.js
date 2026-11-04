@@ -1,5 +1,5 @@
 // ==========================================================================
-// DAGYR MODERN GAME CHAT SYSTEM
+// VELSCOUR MODERN GAME CHAT SYSTEM
 // Tabs, filters, scrollable history, cross-room/lobby whispers, and auto-reply.
 // ==========================================================================
 import { G } from '../state.js';
@@ -86,7 +86,7 @@ export const GameChat = {
 
     // Load saved All tab channel filters
     try {
-      const saved = JSON.parse(localStorage.getItem('Dagyr_chat_all_filters') || 'null');
+      const saved = JSON.parse(localStorage.getItem('Velscour_chat_all_filters') || 'null');
       if (saved && typeof saved === 'object') {
         Object.assign(this.allFilters, saved);
       }
@@ -250,7 +250,7 @@ export const GameChat = {
     this.landscapeBackdropEl = backdrop;
 
     try {
-      this.isPinned = localStorage.getItem('Dagyr_chat_pinned') === '1';
+      this.isPinned = localStorage.getItem('Velscour_chat_pinned') === '1';
     } catch (e) { }
 
     this.applyDesktopMode();
@@ -770,7 +770,7 @@ export const GameChat = {
       hasCustomPos: true,
     };
     try {
-      localStorage.setItem('Dagyr_chat_layout', JSON.stringify(layout));
+      localStorage.setItem('Velscour_chat_layout', JSON.stringify(layout));
     } catch (e) { }
   },
 
@@ -779,7 +779,7 @@ export const GameChat = {
     if (this.isDesktop()) return; // docked in the pickup log's spot
     if (G.touch || document.body.classList.contains('touch')) return;
     try {
-      const raw = localStorage.getItem('Dagyr_chat_layout');
+      const raw = localStorage.getItem('Velscour_chat_layout');
       if (!raw) return;
       const layout = JSON.parse(raw);
       if (layout.width) {
@@ -1026,7 +1026,7 @@ export const GameChat = {
 
   saveFilters() {
     try {
-      localStorage.setItem('Dagyr_chat_all_filters', JSON.stringify(this.allFilters));
+      localStorage.setItem('Velscour_chat_all_filters', JSON.stringify(this.allFilters));
     } catch (e) { }
   },
 
@@ -1114,7 +1114,7 @@ export const GameChat = {
   togglePin(force = null) {
     this.isPinned = force != null ? !!force : !this.isPinned;
     try {
-      localStorage.setItem('Dagyr_chat_pinned', this.isPinned ? '1' : '0');
+      localStorage.setItem('Velscour_chat_pinned', this.isPinned ? '1' : '0');
     } catch (e) { }
     this.updatePinUI();
     if (this.isPinned) this.wake();

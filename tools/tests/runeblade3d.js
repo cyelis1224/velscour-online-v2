@@ -16,7 +16,7 @@ const { openGame, report, OUT_DIR } = require('./harness');
   const save = (name, url) => fs.writeFileSync(path.join(OUT_DIR, name + '.png'), Buffer.from(url.split(',')[1], 'base64'));
   try {
     const r = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar('death_knight', 'Rime');
       document.querySelectorAll('.screen').forEach((s) => s.remove());
       G.ui.modalCount = 0;
@@ -87,7 +87,7 @@ const { openGame, report, OUT_DIR } = require('./harness');
 
     // in play: the hovering sword
     const frame = (n, runes, flash, level) => page.evaluate(({ n, runes, flash, level }) => {
-      const { G, game } = window.DAGYR, p = G.player;
+      const { G, game } = window.VELSCOUR, p = G.player;
       if (level) G.char.level = level;
       for (let i = 0; i < n; i++) G.world.update(1 / 30);
       G.settings.dkBlade = 'runeblade'; // (the default flies his equipped sword: tools/tests/dkblade.js)
@@ -100,7 +100,7 @@ const { openGame, report, OUT_DIR } = require('./harness');
     ok(await frame(10, [], 0, 1), 'Death Knight has his signature');
     // reaching level 10 reforges the blade: a new band, a twirl and the announcement
     const reforge = await page.evaluate(() => {
-      const { G } = window.DAGYR, p = G.player, s = p.sig.s, b0 = s.band;
+      const { G } = window.VELSCOUR, p = G.player, s = p.sig.s, b0 = s.band;
       G.char.level = 10; G.world.update(1 / 30);
       return { b0, b1: s.band, twirl: s.flash > 0 };
     });
@@ -115,13 +115,13 @@ const { openGame, report, OUT_DIR } = require('./harness');
     // RUNIC OBLITERATION: the same model, scaled up, swung
     const swing = [];
     await page.evaluate(async () => {
-      const { G } = window.DAGYR, p = G.player, s = p.sig.s;
+      const { G } = window.VELSCOUR, p = G.player, s = p.sig.s;
       const M = (await import('/src/game/sigs/deathknight.js')).default;
       s.runes = ['frost', 'frost', 'frost', 'unholy', 'blood', 'frost'];
       p.facing = 0.4; M.fire(p, s);
     });
     for (const n of [3, 4, 3, 5]) {
-      await page.evaluate((n) => { const { G, game } = window.DAGYR; for (let i = 0; i < n; i++) G.world.update(1 / 30); game.render(); }, n);
+      await page.evaluate((n) => { const { G, game } = window.VELSCOUR; for (let i = 0; i < n; i++) G.world.update(1 / 30); game.render(); }, n);
       swing.push(await page.screenshot({ clip: { x: 640 - 260, y: 360 - 300, width: 520, height: 420 } }));
     }
     const strip = (list, w, h) => page.evaluate(async ({ list, w, h }) => {

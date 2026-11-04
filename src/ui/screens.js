@@ -55,7 +55,7 @@ export function titleScreen() {
   G.mode = 'title';
   const s = el('div', 'screen');
   s.classList.add('title-screen');
-  s.innerHTML = `<img class="title-logo intro" src="assets/ui/logo.webp" alt="DAGYR ONLINE"><div class="title-tag">A world built upon something that should have stayed dead.</div>`;
+  s.innerHTML = `<img class="title-logo intro" src="assets/ui/logo.webp" alt="VELSCOUR ONLINE"><div class="title-tag">A world built upon something that should have stayed dead.</div>`;
 
   // Update button in top right corner - ONLY shown when an update is available from server
   const updateBtn = el('button', 'title-update-btn hidden');
@@ -96,8 +96,8 @@ export function titleScreen() {
     onlineBtn.id = 'title-online-btn';
 
     add('Settings', settingsDialog, 'btn');
-    add('Classes', () => window.open('classes.html', '_blank'), 'btn');
-    add('Bestiary', () => window.open('bestiary.html', '_blank'), 'btn');
+    // add('Classes', () => window.open('classes.html', '_blank'), 'btn');
+    // add('Bestiary', () => window.open('bestiary.html', '_blank'), 'btn');
     add('Credits', () => creditsScreen(titleScreen), 'btn');
     add('How to Play', helpDialog, 'btn');
   };
@@ -126,7 +126,7 @@ if (typeof addEventListener === 'function') {
     UI.dialog({ title: 'Not saving', html: '<p>The heroes saved in this browser could not be read, and there was no room to set them aside, so the game is not saving over them. Free some browser storage (or use another browser) and reload.</p>', buttons: [{ label: 'OK' }] });
   };
   addEventListener('velscour-save-blocked', onBlocked);
-  addEventListener('Dagyr-save-blocked', onBlocked);
+  addEventListener('Velscour-save-blocked', onBlocked);
 }
 
 // ------------------------------------------------------------ cloud saves (game/cloud.js)
@@ -399,7 +399,7 @@ export function onlineAuthScreen(initialTab = 'login', back = titleScreen) {
   const panel = el('div', 'online-auth-panel');
   panel.innerHTML = `
     <div class="online-auth-header">
-      <div class="online-auth-badge">DAGYR ONLINE REALM</div>
+      <div class="online-auth-badge">VELSCOUR ONLINE REALM</div>
       <h2 class="online-auth-title" id="online-auth-title">ACCOUNT LOGIN</h2>
       <p class="online-auth-sub" id="online-auth-sub">Sign in with your email to access your server-saved online characters</p>
     </div>
@@ -1222,8 +1222,8 @@ export function settingsDialog() {
         showUpdateDialog(info);
       } else {
         UI.dialog({
-          title: 'Dagyr Online Updater',
-          html: `<p style="text-align:center;padding:12px 0;line-height:1.5;">You are running the latest version of Dagyr Online (<strong>v${getClientVersion()}</strong>).</p>`,
+          title: 'Velscour Online Updater',
+          html: `<p style="text-align:center;padding:12px 0;line-height:1.5;">You are running the latest version of Velscour Online (<strong>v${getClientVersion()}</strong>).</p>`,
           buttons: [{ label: 'OK' }]
         });
       }
@@ -1338,8 +1338,8 @@ export function pauseMenu() {
       { label: 'Resume' },
       { label: 'Settings', fn: settingsDialog },
       { label: 'Macros', fn: () => G.ui.macros.open() },
-      { label: 'Classes', fn: () => window.open('classes.html', '_blank') },
-      { label: 'Bestiary', fn: () => window.open('bestiary.html', '_blank') },
+      // { label: 'Classes', fn: () => window.open('classes.html', '_blank') },
+      // { label: 'Bestiary', fn: () => window.open('bestiary.html', '_blank') },
       { label: 'How to Play', fn: helpDialog },
       {
         label: 'Save & Quit',

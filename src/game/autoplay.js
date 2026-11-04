@@ -30,6 +30,7 @@ import { Stash, addToStash } from '../ui/stash.js';
 import { JewelBox, addToJewelBox } from '../ui/jewelbox.js';
 import { activeFilter, filterPasses, filterKeeps } from './lootfilter.js';
 import { addToBag } from './player.js';
+import { nextRowCost, buyBagRow } from '../data/bag.js';
 import { Delayed, Area, Whirl, Fissure } from './hazards.js';
 import { hit } from './combat.js';
 import { bountyGoal } from './wanderers.js';
@@ -1228,7 +1229,7 @@ export const Auto = {
     else if (ct && !foes.includes(ct)) foes.push(ct);
     // retreat to the town portal when nearly dead with nothing left to heal with
     const healLeft = c.potions.hp + c.potions.rejuv > 0 || this.readySkill((s) => s.kind === 'heal');
-    const sealed = (w.raid && w.raid.sealed) || (w.Dagyr && w.Dagyr.phase > 0 && !w.Dagyr.m.dead); // no way out of a sealed boss room or Dagyr's arena
+    const sealed = (w.raid && w.raid.sealed) || (w.Velscour && w.Velscour.phase > 0 && !w.Velscour.m.dead); // no way out of a sealed boss room or Velscour's arena
     if (!this.retreat && p.hp < p.maxHp * stanceOf(c).retreat && !healLeft && foes.length && !sealed) this.retreat = true;
     if (this.retreat && (p.hp > p.maxHp * 0.75 || !foes.length && p.hp > p.maxHp * 0.5)) this.retreat = false;
     if (this.retreat) {
@@ -1456,7 +1457,7 @@ export const Auto = {
     this.transitT = 3;
     if (w.breach) { G.game.breachExit(w, { auto: true, town }); return; }
     if (w.rift) { G.game.riftExit(w, { auto: true, town }); return; }
-    if (w.unbound || w.depth >= FINAL_DEPTH || w.biome?.id === 'throne' || w.boss?.isDagyr) { G.ui.log('Auto-play heads back to town.', '#8fe0ff'); G.game.enterTown(); return; }
+    if (w.unbound || w.depth >= FINAL_DEPTH || w.biome?.id === 'throne' || w.boss?.isVelscour) { G.ui.log('Auto-play heads back to town.', '#8fe0ff'); G.game.enterTown(); return; }
     // the three portals down (game.portalChoice): the player has a few seconds to pick before auto-play does
     if (G.game.portalChoice) { G.game.portalChoice(w, { auto: true, town }); return; }
     c.depth = next;
@@ -1559,7 +1560,7 @@ export const Auto = {
   },
   inDanger(list, x, y) {
     for (const d of list) {
-      if (d.outside) { if (((x - d.x) / d.rx) ** 2 + ((y - d.y) / d.ry) ** 2 > 1) return true; continue; } // Dagyr's lava tide
+      if (d.outside) { if (((x - d.x) / d.rx) ** 2 + ((y - d.y) / d.ry) ** 2 > 1) return true; continue; } // Velscour's lava tide
       if (d.ring) {
         const r = Math.hypot(x - d.x, y - d.y);
         if (r > d.r0 && r < d.r1 && Math.abs(angleDiff(d.gap, Math.atan2(y - d.y, x - d.x))) > d.gapW / 2) return true;
@@ -2078,7 +2079,11 @@ export const Auto = {
     const p = G.player, w = G.world, c = G.char;
     this.navT -= dt;
     if (!this.nav || this.navT <= 0) this.buildNav();
-    if (!this.town) this.town = { steps: this.townPlan(), i: 0, phase: 'walk', t: 0 };
+    if (!this.town) {
+      // a bigger bag when the gold is idle: the next row at a quarter of the purse (data/bag.js)
+      if (gearOn() && nextRowCost(c) && c.gold >= nextRowCost(c) * 4) { const cost = nextRowCost(c); if (buyBagRow(c)) { G.ui.log(`Auto-play buys a bag row for ${fmtInt(cost)} gold.`, '#ffd860'); changed(); } }
+      this.town = { steps: this.townPlan(), i: 0, phase: 'walk', t: 0 };
+    }
     const T = this.town;
     // skip errands with nothing to do there (a fresh hero heads straight for the portal); checked on arrival at
     // each step, so gold from the first sale still counts

@@ -1,4 +1,4 @@
-// Electron Main Process for DAGYR ONLINE
+// Electron Main Process for VELSCOUR ONLINE
 const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
 const http = require('http');
@@ -56,7 +56,7 @@ function createWindow() {
     height: 800,
     minWidth: 960,
     minHeight: 640,
-    title: 'Dagyr Online',
+    title: 'Velscour Online',
     backgroundColor: '#050303',
     icon: path.join(__dirname, '../assets/ui/icon-1024.png'),
     autoHideMenuBar: true,

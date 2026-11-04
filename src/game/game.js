@@ -33,11 +33,10 @@ import { loadSeaOfSandPack, releaseSeaOfSandPack } from '../gfx/seaofsand.js';
 import { createDarkForestRun } from './darkforest.js';
 import { generateDarkForest } from '../world/darkforest.js';
 import { loadDarkForestTrees } from '../gfx/darkforest.js';
-import { generateMountain } from '../world/mountain.js';
 import { generateBreach } from '../world/breach.js';
 import { createBreachRun, chestAt, breachMonster } from './breach.js';
 import { breachDepth, breachLevel, BREACH_ART, BREACH_ARCHS } from '../data/breach.js';
-import { createMountainRun } from './mountain.js';
+import { useAlpine } from './alpine.js';
 import { castle3dTick } from './castle3d.js';
 import { useTerrain, terrainOf } from '../gfx/terrain.js';
 import { generateTower } from '../world/tower.js';
@@ -104,7 +103,7 @@ import { RemotePlayer } from '../net/remoteplayer.js';
 import { updateAutomapPartyRoster } from '../ui/partyroster.js';
 import { GameChat } from '../ui/chat.js';
 import { LoadingScreen } from '../ui/loading.js';
-// the Endgame (docs/ENDGAME.md): Heresies, Abyssal Rifts, Dagyr Unbound, Infernal Marks
+// the Endgame (docs/ENDGAME.md): Heresies, Abyssal Rifts, Velscour Unbound, Infernal Marks
 import { endgameUnlocked, unlockEndgame, endgame, adoptEndgame } from './endgame.js';
 import { heresySpawns, heresyWorld, heresyBegin, heresyTick, heresiesOf, heresyRank, worldRank, MARKS_RANK } from './heresies.js';
 import { createRiftRun, riftTick, riftOpen, riftDepth, riftLevel, fmtTime, riftLeave, RIFT_QUOTA, RIFT_DENSITY } from './rifts.js';
@@ -114,6 +113,8 @@ import { Heresies } from '../ui/heresies.js';
 import { Rifts } from '../ui/rifts.js';
 import { Marks } from '../ui/marks.js';
 import { MacrosUI } from '../ui/macros.js';
+import { REGIONS, regionOf, parseRegionWord, regionNeeds, rollRegionVariant } from './regions.js';
+import './regions/index.js';
 import { Macros } from './macros.js';
 
 const PICK_WAIT = 8; // seconds auto-play gives the player to choose a portal down (portalChoice)
@@ -143,7 +144,6 @@ const VELSCOUR_TAUNT_ENDS = [
   'Your next of kin may appreciate the initiative.',
 ];
 const VELSCOUR_TAUNTS = VELSCOUR_TAUNT_STARTS.flatMap((start) => VELSCOUR_TAUNT_ENDS.map((end) => `${start}? ${end}`));
-const DAGYR_TAUNTS = VELSCOUR_TAUNTS;
 
 let townCache = null, townTiles = null;
 let saveT = 0;
@@ -190,7 +190,7 @@ async function warmLevelArt(w) {
 // (The painted biome packs stay: there are only a few, and fetching one again decoded a second copy while the
 // browser still held the first, which cost more renderer memory than it saved.)
 function releaseLevelArt(biome) {
-  if (biome?.id !== 'castle') releaseCastlePack();
+  if (biome?.id !== 'castle' && !regionOf(biome)?.castleArt) releaseCastlePack(); // (a region drawn with its masonry keeps it)
   if (biome?.id !== 'castle' && biome?.id !== 'skyship') releaseCastle3D();
   if (biome?.id !== 'sea_of_sand') releaseSeaOfSandPack(); // loadArtFor fetches it again for ss_ monsters elsewhere
   if (!biome?.overworld && biome?.id !== 'town') releaseTownSheets();
@@ -566,7 +566,7 @@ function attachNetListeners() {
           }
         };
       }
-      const velBoss = G.world.velscour || G.world.Dagyr;
+      const velBoss = G.world.velscour || G.world.Velscour;
       if (data.vk && velBoss) {
         velBoss.parts.push(m);
         if (data.vk === 'shard') {
@@ -575,7 +575,7 @@ function attachNetListeners() {
             if (!bm || bm.dead) return;
             const cut = bm.maxHp * 0.05;
             bm.hp = Math.max(bm.maxHp * 0.3, bm.hp - cut);
-            const vb = G.world.velscour || G.world.Dagyr;
+            const vb = G.world.velscour || G.world.Velscour;
             if (vb) vb.lastHp = bm.hp;
             addEffect(new Column(m.x, m.y, '#ff3050', 1, 60, 300));
             floatText(m.x, m.y, 80, '-5% VELSCOUR', '#ff6080', 16, { life: 1.6 });
@@ -898,7 +898,7 @@ export const game = {
     c.marks = JSON.parse(JSON.stringify(endgame().marks));
     G.selectedChar = c;
     if (c.isOnline) {
-      import('../net/online.js').then(({ fetchOnlineReliquary }) => fetchOnlineReliquary().catch(() => {})).catch(() => {});
+      import('../net/online.js').then(({ fetchOnlineReliquary }) => fetchOnlineReliquary().catch(() => { })).catch(() => { });
     }
     openLobby(c, onBack);
   },
@@ -928,11 +928,11 @@ export const game = {
     }
 
     if (c?.classId) {
-      loadGearArt(c.classId, true).catch(() => {});
+      loadGearArt(c.classId, true).catch(() => { });
     }
 
     if (c?.isOnline) {
-      import('../net/online.js').then(({ fetchOnlineReliquary }) => fetchOnlineReliquary().catch(() => {})).catch(() => {});
+      import('../net/online.js').then(({ fetchOnlineReliquary }) => fetchOnlineReliquary().catch(() => { })).catch(() => { });
     }
 
     this.startChar(c, false, room);
@@ -1051,7 +1051,7 @@ export const game = {
         await this.autosave();
         await flushOnlineSave();
       } catch (e) {
-        console.warn('[Dagyr Online] Error saving before exit:', e);
+        console.warn('[Velscour Online] Error saving before exit:', e);
       }
     }
     UI.closeAll();
@@ -1172,6 +1172,7 @@ export const game = {
     useTower(world); // the Serpentine Tower lays the grid onto its spiral stair (game/tower.js)
     useCaverns(world); // the Depth's Edge Caverns lift everything onto their smooth height field (game/caverns.js)
     useDunes(world); // so do the Sea of Sand's dunes and pyramids (game/dunes.js)
+    useAlpine(world); // and the mountains: the Mountainside and the Snowy Summit (game/alpine.js)
     useSea(world); // the Pirate Seas' three.js scene goes when the hero leaves the Dawnwake (game/seabattle.js)
     camera.computeZoom();
     if (p) {
@@ -1290,9 +1291,9 @@ export const game = {
     // THE ETERNAL BREACH's purple portal (game.confirmBreach, docs/ETERNAL_BREACH.md)
     if (t.breach) world.portals.push({ x: t.breach.x, y: t.breach.y, active: true, breach: true, color: '#a040ff', reach: 2.2, label: 'THE ETERNAL BREACH', use: () => this.confirmBreach() });
     // the Abyssal Rift gate (game.confirmRift): lit once the Endgame is open
-    // the Riftgate to DAGYR DEFENSE (defense/: its own page and save), across the square from the dungeon portal
+    // the Riftgate to VELSCOUR DEFENSE (defense/: its own page and save), across the square from the dungeon portal
     const rg = t.riftgate || (t.riftgate = riftgateSpot(t));
-    if (rg) world.portals.push({ x: rg.x, y: rg.y, active: true, color: '#3a6cff', reach: 1.7, riftgate: true, label: 'The Riftgate: DAGYR DEFENSE', use: () => this.confirmRiftgate() });
+    if (rg) world.portals.push({ x: rg.x, y: rg.y, active: true, color: '#3a6cff', reach: 1.7, riftgate: true, label: 'The Riftgate: VELSCOUR DEFENSE', use: () => this.confirmRiftgate() });
     if (t.rift) world.portals.push({ x: t.rift.x, y: t.rift.y, rift: true, color: '#20e0ff', reach: 1.7, get active() { return endgameUnlocked(); }, set active(v) { }, get label() { return endgameUnlocked() ? `Abyssal Rift — Tier ${riftOpen()}` : 'Abyssal Rift (sealed)'; }, use: () => this.confirmRift() });
     // the hero steps out of the portal, a little way down its road toward the square
     const P = t.portal, C = t.center, l = Math.hypot(C.x - P.x, C.y - P.y) || 1;
@@ -1324,7 +1325,7 @@ export const game = {
   confirmRiftgate() {
     UI.dialog({
       title: 'The Riftgate',
-      html: `<p>A blue-black wound in the air, far older and stranger than the dungeon portal. Beyond it Dagyr's horde marches on the Bastion, and sixteen heroes wait for a Commander.</p><p class="dim">DAGYR DEFENSE is a separate game with its own cards and save; your hero here is not touched. A way back waits on the other side.</p>`,
+      html: `<p>A blue-black wound in the air, far older and stranger than the dungeon portal. Beyond it Velscour's horde marches on the Bastion, and sixteen heroes wait for a Commander.</p><p class="dim">VELSCOUR DEFENSE is a separate game with its own cards and save; your hero here is not touched. A way back waits on the other side.</p>`,
       buttons: [{ label: 'Not yet' }, { label: 'Step through', cls: 'red', fn: () => { this.autosave(); location.href = 'defense/index.html'; } }],
     });
   },
@@ -1411,13 +1412,14 @@ export const game = {
    */
   confirmDungeon() {
     const c = G.char;
+    if (regionNeeds(BIOME_BY_ID[c.nextBiome], c.level)) c.nextBiome = drawBiome(c, c.depth); // a region above his level (game/regions.js)
     const current = clamp((G.room && G.room.depth != null) ? G.room.depth : (c.depth || 1), 1, FINAL_DEPTH);
     const maxFloor = Math.min(FINAL_DEPTH, Math.max(current, this.maxPortalFloor(c)));
     const currentBiome = this.getSharedRoomBiome(G.room, current, c.nextBiome);
 
     const describe = (d) => {
       let tail = '';
-      if (d === FINAL_DEPTH) tail = '<br><b style="color:#ff4020">Demon Lord Dagyr awaits.</b>';
+      if (d === FINAL_DEPTH) tail = '<br><b style="color:#ff4020">Demon Lord Velscour awaits.</b>';
       if (d === current) {
         if (d !== FINAL_DEPTH && !currentBiome.overworld && isRaidDepth(d)) tail = '<br><b style="color:#ff6030">A BOSS ROOM lies at the end of this depth.</b>';
         return `<p>The portal hums. Beyond lies <b style="color:#ffb070">${escapeHtml(currentBiome.name)}</b>.</p><p class="dim">${this.biomeBlurb(currentBiome)}${tail}</p>`;
@@ -1515,56 +1517,56 @@ export const game = {
       html: `<p class="velscour-taunt">${escapeHtml(taunt)}</p><label class="velscour-message-label" for="velscour-message">Send a message into the abyss</label><div class="velscour-message-row"><input id="velscour-message" class="name-input" type="text" maxlength="50" autocomplete="off" placeholder="50 characters, tops"><span id="velscour-message-count">0 / 50</span></div>`,
       buttons: [
         { label: 'Close' },
-        {
-          label: 'Send', cls: 'red', keepOpen: true, fn: (close) => {
-            const message = document.getElementById('velscour-message')?.value || '';
-            if (['HAIL VELSCOUR!', 'HAIL DAGYR!', '13', '65', '69', '666', '6669'].includes(message)) {
-              close();
-              this.openVelscourTeleport();
-            } else if (message === DEATH_PHRASE) { // exact, case sensitive
-              close();
-              if (Auto.on) Auto.toggle(false);
-              grantDeathGift();
-              if (G.world?.kind !== 'town') this.enterTown(); // the town portal now opens on Depth 500
-              else this.autosave();
-            } else if (message.trim().toLowerCase() === 'mountain') {
-              close();
-              this.teleportToBiome(BIOME_BY_ID.mountainside); // the Mountainside beta
-            } else if (/^(seas?|naval|dawnwake)(\s|$)/i.test(message.trim())) {
-              // the Pirate Seas; 'sea fog', 'sea redwater'... picks its battle
-              const want = message.trim().toLowerCase().split(/\s+/)[1];
-              G.char.seaVariant = SEA_VARIANTS.find((v) => v.id === want || v.weather === want || v.name.toLowerCase().includes(want || '#'))?.id;
-              close();
-              this.teleportToBiome(BIOME_BY_ID.pirate_seas);
-            } else if (/^(sky|airship|air|pirates?)(\s|$)/i.test(message.trim())) {
-              // the Sky Battle; 'sky storm', 'sky night'... picks its scenario
-              const want = message.trim().toLowerCase().split(/\s+/)[1];
-              G.char.skyVariant = SKY_ALL.find((v) => v.id === want || v.weather.toLowerCase().includes(want || '#') || v.name.toLowerCase().includes(want || '#'))?.id;
-              close();
-              this.teleportToBiome(BIOME_BY_ID.skyship);
-            } else if (['final boss', 'finalboss', 'velscour', 'dagyr'].includes(message.trim().toLowerCase())) {
-              close();
-              this.finalBoss(); // straight into Velscour's arena, scaled to this depth
-            } else if (['unbound', 'velscour unbound', 'dagyr unbound'].includes(message.trim().toLowerCase())) {
-              close();
-              this.enterUnbound(); // the rematch, for three Abyssal Keys (docs/ENDGAME.md)
-            } else if (['heresy', 'heresies', 'altar'].includes(message.trim().toLowerCase())) { close(); Heresies.open(); }
-            else if (['marks', 'infernal marks'].includes(message.trim().toLowerCase())) { close(); Marks.open(); }
-            else if (['macro', 'macros'].includes(message.trim().toLowerCase())) { close(); MacrosUI.open(); }
-            else if (['rift', 'rifts', 'abyssal rift'].includes(message.trim().toLowerCase())) { close(); this.confirmRift(); }
-            else if (message.trim().toLowerCase() === 'tower') {
-              close();
-              this.teleportToBiome(BIOME_BY_ID.serpentine_tower);
-            } else if (['caverns', 'caves', 'cave', 'depths edge', "depth's edge"].includes(message.trim().toLowerCase())) {
-              close();
-              this.teleportToBiome(BIOME_BY_ID.depths_edge);
-            } else if (['pyramid', 'pyramids', 'dunes', 'tomb'].includes(message.trim().toLowerCase())) {
-              close();
-              G.sandVariant = 1 + Math.floor(Math.random() * DUNE_VARIANTS.length);   // one of the dune variants, not the flat maze
-              this.teleportToBiome(BIOME_BY_ID.sea_of_sand).finally(() => { G.sandVariant = undefined; });
-            }
+        { label: 'Send', cls: 'red', keepOpen: true, fn: (close) => {
+          const message = document.getElementById('velscour-message')?.value || '';
+          if (['HAIL VELSCOUR!', '13', '65', '69', '666', '6669'].includes(message)) {
+            close();
+            this.openVelscourTeleport();
+          } else if (message === DEATH_PHRASE) { // exact, case sensitive
+            close();
+            if (Auto.on) Auto.toggle(false);
+            grantDeathGift();
+            if (G.world?.kind !== 'town') this.enterTown(); // the town portal now opens on Depth 500
+            else this.autosave();
+          } else if (parseRegionWord(message)) {
+            const { region, want } = parseRegionWord(message);
+            close();
+            if (want) (G.regionWant ||= {})[region.id] = want; // 'train 3': that variant
+            this.teleportToBiome(BIOME_BY_ID[region.id]); // a new region (game/regions.js; the mountains too)
+          } else if (/^(seas?|naval|dawnwake)(\s|$)/i.test(message.trim())) {
+            // the Pirate Seas; 'sea fog', 'sea redwater'... picks its battle
+            const want = message.trim().toLowerCase().split(/\s+/)[1];
+            G.char.seaVariant = SEA_VARIANTS.find((v) => v.id === want || v.weather === want || v.name.toLowerCase().includes(want || '#'))?.id;
+            close();
+            this.teleportToBiome(BIOME_BY_ID.pirate_seas);
+          } else if (/^(sky|airship|air|pirates?)(\s|$)/i.test(message.trim())) {
+            // the Sky Battle; 'sky storm', 'sky night'... picks its scenario
+            const want = message.trim().toLowerCase().split(/\s+/)[1];
+            G.char.skyVariant = SKY_ALL.find((v) => v.id === want || v.weather.toLowerCase().includes(want || '#') || v.name.toLowerCase().includes(want || '#'))?.id;
+            close();
+            this.teleportToBiome(BIOME_BY_ID.skyship);
+          } else if (['final boss', 'finalboss', 'velscour'].includes(message.trim().toLowerCase())) {
+            close();
+            this.finalBoss(); // straight into Velscour's arena, scaled to this depth
+          } else if (['unbound', 'velscour unbound'].includes(message.trim().toLowerCase())) {
+            close();
+            this.enterUnbound(); // the rematch, for three Abyssal Keys (docs/ENDGAME.md)
+          } else if (['heresy', 'heresies', 'altar'].includes(message.trim().toLowerCase())) { close(); Heresies.open(); }
+          else if (['marks', 'infernal marks'].includes(message.trim().toLowerCase())) { close(); Marks.open(); }
+          else if (['macro', 'macros'].includes(message.trim().toLowerCase())) { close(); MacrosUI.open(); }
+          else if (['rift', 'rifts', 'abyssal rift'].includes(message.trim().toLowerCase())) { close(); this.confirmRift(); }
+          else if (message.trim().toLowerCase() === 'tower') {
+            close();
+            this.teleportToBiome(BIOME_BY_ID.serpentine_tower);
+          } else if (['caverns', 'caves', 'cave', 'depths edge', "depth's edge"].includes(message.trim().toLowerCase())) {
+            close();
+            this.teleportToBiome(BIOME_BY_ID.depths_edge);
+          } else if (['pyramid', 'pyramids', 'dunes', 'tomb'].includes(message.trim().toLowerCase())) {
+            close();
+            G.sandVariant = 1 + Math.floor(Math.random() * DUNE_VARIANTS.length);   // one of the dune variants, not the flat maze
+            this.teleportToBiome(BIOME_BY_ID.sea_of_sand).finally(() => { G.sandVariant = undefined; });
           }
-        },
+        } },
       ],
     });
     const inputEl = dialog.box.querySelector('#velscour-message');
@@ -1572,10 +1574,11 @@ export const game = {
     inputEl?.addEventListener('input', () => { countEl.textContent = `${inputEl.value.length} / 50`; });
   },
 
-  openDagyrContact() { return this.openVelscourContact(); },
+  openVelscourContact() { return this.openVelscourContact(); },
 
   openVelscourTeleport() {
-    const options = [...BETA_BIOMES, ...BIOMES].map((biome) => `<option value="${escapeHtml(biome.id)}">${escapeHtml(biome.name)}${biome.overworld ? ' · Overworld' : ''}${biome.beta ? ' (Beta)' : ''}</option>`).join('')
+    const options = [...BETA_BIOMES, ...BIOMES].map((biome) => { const need = regionNeeds(biome, G.char?.level); return `<option value="${escapeHtml(biome.id)}"${need ? ' disabled' : ''}>${escapeHtml(biome.name)}${biome.overworld ? ' · Overworld' : ''}${biome.beta ? ' (Beta)' : ''}${need ? ` · Reach level ${need}` : ''}</option>`; }).join('')
+      + Object.values(REGIONS).flatMap((r) => { const b = BIOME_BY_ID[r.id], need = regionNeeds(b, G.char?.level); return (r.variants || []).map((v) => `<option value="${escapeHtml(r.id)}:${escapeHtml(v.id)}"${need ? ' disabled' : ''}>${escapeHtml(b.name)}: ${escapeHtml(v.name)}${need ? ` · Reach level ${need}` : ''}</option>`); }).join('')
       + SKY_ALL.map((v) => `<option value="skyship:${v.id}">${escapeHtml(BIOME_BY_ID.skyship.name)}: ${escapeHtml(v.name)} (${escapeHtml(v.weather)})</option>`).join('')
       + SEA_VARIANTS.map((v) => `<option value="pirate_seas:${v.id}">${escapeHtml(BIOME_BY_ID.pirate_seas.name)}: ${escapeHtml(v.name)} (${escapeHtml(v.weatherName)})</option>`).join('');
     const dialog = UI.dialog({
@@ -1584,25 +1587,25 @@ export const game = {
       html: `<p>Select a biome. Your current depth will be reforged with a fresh path.</p><label class="velscour-message-label" for="velscour-biome">Destination biome</label><select id="velscour-biome" class="velscour-biome-select">${options}</select>`,
       buttons: [
         { label: 'Cancel' },
-        {
-          label: 'Teleport', cls: 'red', fn: () => {
-            let id = dialog.box.querySelector('#velscour-biome').value;
-            if (id.startsWith('skyship:')) { G.char.skyVariant = id.slice(8); id = 'skyship'; }
-            const biome = BIOME_BY_ID[id];
-            if (biome) this.teleportToBiome(biome);
-          }
-        },
+        { label: 'Teleport', cls: 'red', fn: () => {
+          let id = dialog.box.querySelector('#velscour-biome').value;
+          if (id.startsWith('skyship:')) { G.char.skyVariant = id.slice(8); id = 'skyship'; }
+          if (id.startsWith('pirate_seas:')) { G.char.seaVariant = id.slice(12); id = 'pirate_seas'; }
+          if (REGIONS[id.split(':')[0]] && id.includes(':')) { (G.regionWant ||= {})[id.split(':')[0]] = id.split(':')[1]; id = id.split(':')[0]; } // a region's variant
+          const biome = BIOME_BY_ID[id];
+          if (biome) this.teleportToBiome(biome);
+        } },
       ],
     });
   },
 
-  openDagyrTeleport() { return this.openVelscourTeleport(); },
+  openVelscourTeleport() { return this.openVelscourTeleport(); },
 
   /** The skull's "final boss": Velscour's throne at the hero's depth, the hero set down inside his arena. */
   async finalBoss() {
     await this.teleportToBiome(BIOME_BY_ID.throne);
     const w = G.world, p = G.player;
-    const vBoss = w && (w.velscour || w.Dagyr);
+    const vBoss = w && (w.velscour || w.Velscour);
     if (!w || !vBoss || !p) return;
     const [x, y] = w.map.nudge(22.5, 26.5, 0.4);
     p.x = x; p.y = y; p.path = null; p.moveTarget = null; p.attackTarget = null;
@@ -1615,6 +1618,11 @@ export const game = {
   async teleportToBiome(biome) {
     const c = G.char;
     if (!c || !biome) return;
+    const need = regionNeeds(biome, c.level); // a region's level gate (game/regions.js)
+    if (need) {
+      UI.dialog({ title: 'VELSCOUR SAYS NO', cls: 'velscour-contact-dialog', html: `<p class="velscour-taunt">LEVEL ${c.level}? ADORABLE. Come back at level ${need}. ${escapeHtml(biome.name)} does not hunt snacks.</p>`, buttons: [{ label: 'Close' }] });
+      return;
+    }
     if (Auto.on) Auto.toggle(false);
     const depth = clamp(Math.max(1, G.world?.kind === 'dungeon' ? G.world.depth : c.depth || 1), 1, FINAL_DEPTH);
     c.depth = depth;
@@ -1625,6 +1633,8 @@ export const game = {
       delete c.seaOfSandRuns[depth];
     }
     if (biome.id === 'dark_forest' && c.darkForestRuns) delete c.darkForestRuns[depth];
+    if (c.mountainRuns) delete c.mountainRuns[depth];   // the mountains keep their maps per depth: a teleport forges new ones
+    if (c.summitRuns) delete c.summitRuns[depth];
     LoadingScreen.show({
       title: (biome.name || 'ABYSSAL REALM').toUpperCase(),
       subtitle: `Depth ${depth}`,
@@ -1654,11 +1664,45 @@ export const game = {
     }
   },
 
+  /**
+   * Straight on into a follow-on region at the same depth (the Mountainside's summit into the Snowy Summit): the loot
+   * lying round the hero comes along, auto-play stays on, and a trip to town comes back to it (c.nextBiome).
+   */
+  async continueTo(id) {
+    const c = G.char, old = G.world, biome = BIOME_BY_ID[id];
+    if (!c || !old || !biome || this._continuing) return;
+    this._continuing = true;
+    const p = G.player, depth = old.depth, carry = p ? old.loot.filter((l) => Math.hypot(l.x - p.x, l.y - p.y) < 14) : [];
+    c.nextBiome = id;
+    if (id === 'snowy_summit' && c.summitRuns) delete c.summitRuns[depth];   // a fresh range above a fresh summit
+    const loading = document.getElementById('loading');
+    document.getElementById('loading-text').textContent = `Depth ${depth} — ${biome.name}…`;
+    loading.classList.remove('hidden');
+    sfx('portal');
+    try {
+      await this.loadLevelArt(biome, null);
+      this.buildDungeon(depth, biome, null);
+      const w = G.world;
+      for (const l of carry) { const [x, y] = w.map.randomNear(p.x, p.y, 1.8); l.x = x; l.y = y; l.z = 0; l.vx = l.vy = 0; l.vz = 40; w.addLoot(l); }
+      if (carry.length) UI.log('The spoils of the summit came with you.', '#ffe2a0');
+      await loadArtFor([...w.creatures.map((m) => m.art), ...(w.looks ? w.looks.ids() : [])], true).catch((e) => console.warn(e));
+      await warmLevelArt(w);
+      releaseLevelArt(biome);
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      this._continuing = false;
+      loading.classList.add('hidden');
+      this.autosave();
+    }
+  },
+
   /** Pre-build the current level's monster sprites (what the loading screen does after buildDungeon; for tests). */
   warmArt() { return warmLevelArt(G.world); },
 
-  // the art a level of this biome needs before it can be generated (the portal and Dagyr's level select share it)
+  // the art a level of this biome needs before it can be generated (the portal and Velscour's level select share it)
   loadLevelArt(biome, mix = null) {
+    if (regionOf(biome)) { rollRegionVariant(regionOf(biome)); return regionOf(biome).load(biome); } // a new region and its variant (game/regions.js)
     if (biome.id === 'sea_of_sand') { // the flat cliff maze (0) or one of the ten dune variants with their pyramids (src/data/dunes.js), never the one seen last
       if (G.room) {
         const s = G.room.dungeonSeed || G.room.seed || 1;
@@ -1683,7 +1727,6 @@ export const game = {
     }
     if (biome.id === 'dark_forest') return Promise.all([loadBiomeArt(biome), loadDarkForestTrees()]);
     if (biome.challenge) return loadBiomeArt(biome); // the Breach's two packs (pack, wallPack, moreFloors/morePacks)
-    if (biome.id === 'mountainside') return Promise.all([loadBiomeArt(BIOME_BY_ID.dark_forest), loadDarkForestTrees()]); // its floors, props and pines
     if (biome.id === 'skyship') return Promise.all([loadBaked('assets/tiles/skyship/'), preloadTownSheets(TOWNSFOLK_KNIGHTS)]); // the baked ironclad, boats and galleon; the sky-knights
     if (biome.sea) {   // the scenario is picked now, so its fleet's models and its own monsters' art load with the rest
       const c = G.char, sc = pickSeaVariant(c?.seaVariant, c?.lastSeaVariant, c?.seaSeen || {});
@@ -1695,7 +1738,7 @@ export const game = {
       G.caveNext = G.room ? (Math.abs(G.room.dungeonSeed || G.room.seed || 1) % CAVE_VARIANTS.length) : (G.caveVariant ?? Math.floor(Math.random() * CAVE_VARIANTS.length));
       return loadCave3D(G.caveNext);
     } // three.js and this cave's textures
-    if (biome.id === 'throne') return Promise.all([loadBiomeArt(biome), loadDagyrThrone()]); // his recoloured throne
+    if (biome.id === 'throne') return Promise.all([loadBiomeArt(biome), loadVelscourThrone()]); // his recoloured throne
     if (!biome.overworld) return Promise.all([loadBiomeArt(biome), mix && loadBiomeArt(mix)]);
     return Promise.resolve();
   },
@@ -1707,7 +1750,7 @@ export const game = {
     const depth = clamp((G.room && G.room.depth != null) ? G.room.depth : (c.depth || 1), 1, FINAL_DEPTH);
     c.depth = depth;
     if (G.room) G.room.depth = depth;
-    if (depth !== FINAL_DEPTH && (!c.nextBiome || c.nextBiome === 'throne')) c.nextBiome = drawBiome(c, depth);
+    if (depth !== FINAL_DEPTH && (!c.nextBiome || c.nextBiome === 'throne' || regionNeeds(BIOME_BY_ID[c.nextBiome], c.level))) c.nextBiome = drawBiome(c, depth);
     const biome = this.getSharedRoomBiome(G.room, depth, c.nextBiome);
     let dungeonSeed = G.room ? this.getSharedRoomDungeonSeed(G.room, depth) : (Math.floor(Math.random() * 1e9) + 1);
     if (G.room) {
@@ -1766,13 +1809,15 @@ export const game = {
     c.depth = depth;
     if (G.room) G.room.depth = depth;
     if (biome.tower && !tower3dReady()) { UI.log('Clouds hide the Serpentine Tower today (three.js could not be loaded).', '#a0a0a0'); biome = BIOME_BY_ID.overworld; }
+    if (regionOf(biome) && regionOf(biome).ready && !regionOf(biome).ready()) { UI.log(`The way to ${biome.name} is closed today (its art could not be loaded).`, '#a0a0a0'); biome = BIOME_BY_ID.overworld; }
     if (biome.cave && !cave3dReady()) { UI.log("A rockfall seals the Depth's Edge Caverns today (three.js could not be loaded).", '#a0a0a0'); biome = BIOME_BY_ID.overworld; }
     if (biome.sea && !sea3dReady()) { UI.log('A storm keeps the Dawnwake in harbour today (three.js could not be loaded).', '#a0a0a0'); biome = BIOME_BY_ID.overworld; }
     const old = G.world;
     const forest = biome.id === 'dark_forest';
     c.seaOfSandRuns ||= {}; c.darkForestRuns ||= {};
     // the two overworlds that save their progress per depth rebuild the same map after a town trip
-    const kept = biome.id === 'sea_of_sand' ? c.seaOfSandRuns[depth] : forest ? c.darkForestRuns[depth] : null;
+    const reg = regionOf(biome);
+    const kept = biome.id === 'sea_of_sand' ? c.seaOfSandRuns[depth] : forest ? c.darkForestRuns[depth] : reg && reg.kept ? reg.kept(c, depth) : null;
     const seed = (G.room && G.room.dungeonSeed) ? G.room.dungeonSeed : (kept ? kept.seed : (G.room?.seed ? (G.room.seed + depth * 7919) | 0 : (Math.random() * 1e9) | 0));
     const tileset = forest ? biomeTileSet(biome) : biome.overworld ? biomeTileSet(TOWN_BIOME) : mix ? mixedTileSet(biome, mix, G.room ? ((seed % 2) === 0) : Math.random() < 0.5) : biomeTileSet(biome);
     keepTileSets(tileset);
@@ -1781,13 +1826,13 @@ export const game = {
     const caveVar = G.room ? (seed % CAVE_VARIANTS.length) : (G.caveVariant ?? G.caveNext);
     const sandVar = G.room ? (Math.abs(seed) % (DUNE_VARIANTS.length + 1)) : (G.sandVariant ?? G.sandNext);
     const castleVar = G.room ? (Math.abs(seed) % CASTLE_VARIANTS.length) : (G.castleVariant ?? G.castleNext);
-    const gen = forest ? generateDarkForest(depth, biome, tileset, seed) : biome.id === 'mountainside' ? generateMountain(depth, biome, seed)
+    const gen = reg ? reg.generate(depth, biome, seed) : forest ? generateDarkForest(depth, biome, tileset, seed)
       : sky ? generateSkyship(depth, biome, seed, castle3dState())
-        : sea ? generateSeaship(depth, biome, seed, SEA_VARIANTS.find((q) => q.id === (G.seaNext || c.seaVariant))?.size)
-          : biome.tower ? generateTower(depth, biome, seed, towerVar)
-            : biome.cave ? generateCaverns(depth, biome, seed, caveVar)
-              : biome.id === 'sea_of_sand' && sandVar > 0 && dunes3dReady() ? generateDunes(depth, biome, seed, sandVar - 1)
-                : biome.overworld ? generateOverworld(depth, biome, seed, biome.id === 'castle' ? castleVar : null) : generateDungeon(depth, biome, tileset, seed);
+      : sea ? generateSeaship(depth, biome, seed, SEA_VARIANTS.find((q) => q.id === (G.seaNext || c.seaVariant))?.size)
+      : biome.tower ? generateTower(depth, biome, seed, towerVar)
+      : biome.cave ? generateCaverns(depth, biome, seed, caveVar)
+      : biome.id === 'sea_of_sand' && sandVar > 0 && dunes3dReady() ? generateDunes(depth, biome, seed, sandVar - 1)
+      : biome.overworld ? generateOverworld(depth, biome, seed, biome.id === 'castle' ? castleVar : null) : generateDungeon(depth, biome, tileset, seed);
     if (biome.id === 'sea_of_sand') { c.lastSand = gen.dunes ? 1 + DUNE_VARIANTS.indexOf(gen.variant) : 0; if (gen.dunes) c.seaOfSandRuns[depth] = { seed, dunes: c.lastSand }; }
     const world = new World('dungeon', { map: gen.map, tileset, biome, depth, props: gen.props, torches: gen.torches, wallHangings: gen.wallHangings, looks: gen.looks, townTiles: gen.townTiles || null, buildings: gen.buildings || [] });
     world._generatingDungeon = true;
@@ -1827,8 +1872,8 @@ export const game = {
     ];
     // monsters
     const lvl = depthLevel(depth);
-    world.unbound = biome.id === 'throne' && !!G.unboundNext; G.unboundNext = false; // Dagyr Unbound (game/unbound.js)
-    world.practice = biome.id === 'throne' && depth !== FINAL_DEPTH && !world.unbound; // "final boss" from the skull: Dagyr at this depth
+    world.unbound = biome.id === 'throne' && !!G.unboundNext; G.unboundNext = false; // Velscour Unbound (game/unbound.js)
+    world.practice = biome.id === 'throne' && depth !== FINAL_DEPTH && !world.unbound; // "final boss" from the skull: Velscour at this depth
     const heresies = G.room ? (G.room.heresies || []) : heresyBegin(world, c);
     if (G.room) {
       world.heresy = { ids: heresies, rank: heresyRank(heresies) };
@@ -1858,7 +1903,7 @@ export const game = {
         }
         world.add(m);
         world.boss = m;
-        if (m.isDagyr) setupDagyr(world, m, gen); // his five-phase last stand (game/dagyr.js)
+        if (m.isVelscour) setupVelscour(world, m, gen); // his five-phase last stand (game/dagyr.js)
         continue;
       }
       const n = s.n;
@@ -1898,7 +1943,7 @@ export const game = {
       if (!exit.active) {
         exit.active = true;
         exit.color = '#40a0ff';
-        exit.label = (world.unbound || world.depth >= FINAL_DEPTH || isDagyr || biome.id === 'throne') ? 'Exit — to town' : 'Exit — continue';
+        exit.label = (world.unbound || world.depth >= FINAL_DEPTH || isVelscour || biome.id === 'throne') ? 'Exit — to town' : 'Exit — continue';
       }
     }
     world.roster = [...new Set(gen.spawns.filter((s) => s.arch && !['raid', 'boss'].includes(s.rank)).map((s) => s.arch))];
@@ -1909,12 +1954,12 @@ export const game = {
     tickBlessing(c);
     world._generatingDungeon = false;
     world.onBossAwake = (m) => {
-      UI.centerMsg(m.name, m.isDagyr ? 'The Demon Lord rises' : m.raid ? `${m.title}${m.raid.mods.length ? ' · ' + m.raid.modText() : ''}` : 'Guardian of the Exit', 3);
+      UI.centerMsg(m.name, m.isVelscour ? 'The Demon Lord rises' : m.raid ? `${m.title}${m.raid.mods.length ? ' · ' + m.raid.modText() : ''}` : 'Guardian of the Exit', 3);
       sfx('boss');
     };
     world.onBossKilled = (m) => {
       if (biome.overworld) return;
-      if (m.raid && m.raid.court) return; // one of Dagyr Unbound's court: not the fight's end
+      if (m.raid && m.raid.court) return; // one of Velscour Unbound's court: not the fight's end
       if (G.room) {
         if (!G.room.unsealedDepths) G.room.unsealedDepths = new Set();
         G.room.unsealedDepths.add(depth);
@@ -1922,7 +1967,7 @@ export const game = {
           net.sendFloorUnsealed(depth, m.netId || m.idx, m.name);
         }
       }
-      this.unsealDungeonExit(world, m.name, m.isDagyr, !!m.raid);
+      this.unsealDungeonExit(world, m.name, m.isVelscour, !!m.raid);
     };
     if (sky) {   // the Sky Battle (game/skybattle.js): one of eight weathers or thirty stories, never the last one twice
       world.overworldScenario = createSkyBattle(world, gen, biome, depth, { variant: c.skyVariant, last: c.lastSkyVariant, seen: c.skySeen || {} }, () => {
@@ -1947,6 +1992,17 @@ export const game = {
         sfx('gate'); UI.refresh(); this.autosave();
       });
       c.lastSeaVariant = world.seaRun.variant.id; delete c.seaVariant; G.seaNext = undefined;
+    } else if (reg) {   // a new region (game/regions.js)
+      world.overworldScenario = reg.createRun(world, gen, biome, depth, () => {
+        exit.active = true; exit.color = '#40a0ff'; exit.label = 'Exit — continue';
+        const first = !c.cleared[depth];
+        c.cleared[depth] = true;
+        c.deepest = Math.max(c.deepest || 0, depth);
+        this.brokeThrough(depth);
+        if (first) { c.skillPoints++; UI.log(reg.winText || 'Bonus skill point for clearing a new depth!', '#ffd860'); }
+        addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#40a0ff', 5));
+        sfx('gate'); UI.refresh(); this.autosave();
+      }) || world.overworldScenario;
     } else if (gen.dunes) createDuneRun(world, gen, biome, () => {
       exit.active = true; exit.color = '#40a0ff'; exit.label = 'Exit — continue';
       const first = !c.cleared[depth];
@@ -1974,16 +2030,6 @@ export const game = {
       c.deepest = Math.max(c.deepest || 0, depth);
       greedCleared(world, c);
       if (first) { c.skillPoints++; UI.log('Bonus skill point for stilling the Heart of the Forest!', '#ffd860'); }
-      addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#40a0ff', 5));
-      sfx('gate'); UI.refresh(); this.autosave();
-    });
-    else if (biome.id === 'mountainside') world.overworldScenario = createMountainRun(world, gen, biome, () => {
-      exit.active = true; exit.color = '#40a0ff'; exit.label = 'Exit — continue';
-      const first = !c.cleared[depth];
-      c.cleared[depth] = true;
-      c.deepest = Math.max(c.deepest || 0, depth);
-      this.brokeThrough(depth);
-      if (first) { c.skillPoints++; UI.log('Bonus skill point for taking the summit!', '#ffd860'); }
       addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#40a0ff', 5));
       sfx('gate'); UI.refresh(); this.autosave();
     });
@@ -2020,7 +2066,7 @@ export const game = {
     this.setWorld(world, gen.start, old);
     announceHappenings(world);
     if (biome.id === 'castle') { addCastleStory(world, gen); world.ambientFx = gen.variant?.look?.ambient || null; c.lastCastle = gen.variant?.id; }
-    if (biome.overworld && !sky && !sea && !biome.cave && !gen.dunes && biome.id !== 'mountainside') {
+    if (biome.overworld && !sky && !sea && !biome.cave && !gen.dunes && (!reg || reg.wilds)) {
       // townsfolk on the road: reachable landmarks to walk between (game/wanderers.js)
       const spots = [], map = gen.map;
       for (let i = 0; i < 60 && spots.length < 9; i++) {
@@ -2038,14 +2084,14 @@ export const game = {
     }
     if (!biome.beta) recordBiomeVisit(c, biome, depth); // a beta biome leaves the overworld guarantee alone
     c.lastBiome = biome.id;
-    HUD.setArea(world.unbound ? 'Dagyr Unbound' : `Depth ${depth}${depth > FINAL_DEPTH ? ' — Endless Torment' : ''}`, (biome.overworld ? `${gen.variant ? gen.variant.name : biome.name} · ${world.overworldScenario.title}` : gen.raid ? `${biome.name} · Boss Room` : biome.name) + (worldRank(world) ? ` · Heresy ${worldRank(world)}` : ''));
-    playMusic('wilds', { delay: 4 + Math.random() * 20 }); setAmbience(sky ? world.sky.v.amb : sea ? world.seaRun.variant.amb : biome.id);
+    HUD.setArea(world.unbound ? 'Velscour Unbound' : `Depth ${depth}${depth > FINAL_DEPTH ? ' — Endless Torment' : ''}`, (biome.overworld ? `${gen.variant ? gen.variant.name : biome.name} · ${world.overworldScenario.title}` : gen.raid ? `${biome.name} · Boss Room` : biome.name) + (worldRank(world) ? ` · Heresy ${worldRank(world)}` : ''));
+    playMusic('wilds', { delay: 4 + Math.random() * 20 }); setAmbience(sky ? world.sky.v.amb : sea ? world.seaRun.variant.amb : reg?.amb || biome.id);
     const kin = tileset.mixed && BIOME_BY_ID[tileset.mixed];
     if (!sky && !sea) UI.centerMsg((gen.variant ? gen.variant.name : biome.name).toUpperCase(), `Depth ${depth}${kin ? ` · bleeding into the ${kin.name}` : ''}`, 2.4);
     if (world.night) UI.log(world.raining ? 'Night has fallen, and the rain with it.' : 'Night has fallen over the land.', '#a0b0d0');
-    if (gen.dunes) UI.log(`${gen.variant.name}: ${gen.variant.intro} ${gen.dunes.camps.length} waystones stand between you and its door.`, '#ffe2a0');
+    if (reg) { const t = reg.intro && reg.intro(world, gen); if (t) UI.log(t, '#ffe2a0'); }
+    else if (gen.dunes) UI.log(`${gen.variant.name}: ${gen.variant.intro} ${gen.dunes.camps.length} waystones stand between you and its door.`, '#ffe2a0');
     else if (biome.id === 'sea_of_sand') UI.log(`Secure ${gen.scenarioCount} marked scenario area${gen.scenarioCount === 1 ? '' : 's'} to open the exit. Rewards improve with each clear.`, '#ffe2a0');
-    else if (biome.id === 'mountainside') UI.log('The trail switchbacks up the cliffs to the summit. A ledge a hop high can be climbed; taller cliffs only jumped down.', '#ffe2a0');
     else if (sky) UI.log(`${world.sky.v.name}: ${world.sky.v.story ? world.sky.v.blurb + ' Hold the deck.' : 'hold the deck against the Air Pirates\' boarding waves.'} ${world.sky.v.hazardText || ''}`, '#ffe2a0');
     else if (sea) UI.log(`${world.seaRun.variant.name}: ${world.seaRun.variant.blurb} Hold the Dawnwake's deck against the Black Tide's boarders.`, '#ffe2a0');
     else if (biome.tower) UI.log(`${gen.variant.name}: ${gen.variant.epithet}. Climb the stair; things wait on the floors above, and some will not wait.`, '#ffe2a0');
@@ -2063,7 +2109,7 @@ export const game = {
     const w = G.world;
     UI.dialog({
       title: 'Return to Town?',
-      html: `<p>You will return to Herrington Hollow. ${w?.breach ? `Floor ${w.breach.floor} of the Eternal Breach` : w?.rift ? `The Rift (Tier ${w.rift.tier}) collapses behind you; it` : w?.unbound ? 'Dagyr Unbound' : `Depth ${w?.depth || G.char.depth}`} will be re-forged when you come back.</p>`,
+      html: `<p>You will return to Herrington Hollow. ${w?.breach ? `Floor ${w.breach.floor} of the Eternal Breach` : w?.rift ? `The Rift (Tier ${w.rift.tier}) collapses behind you; it` : w?.unbound ? 'Velscour Unbound' : `Depth ${w?.depth || G.char.depth}`} will be re-forged when you come back.</p>`,
       buttons: [{ label: 'Stay' }, {
         label: 'Return', fn: () => {
           sfx('portal');
@@ -2077,7 +2123,7 @@ export const game = {
     });
   },
 
-  unsealDungeonExit(world, bossName = null, isDagyr = false, isRaid = false) {
+  unsealDungeonExit(world, bossName = null, isVelscour = false, isRaid = false) {
     if (!world || world.kind !== 'dungeon' || world.biome?.overworld) return;
     const exit = world.portals?.find(p => p.type === 'exit');
     if (!exit) return;
@@ -2085,13 +2131,13 @@ export const game = {
 
     exit.active = true;
     exit.color = '#40a0ff';
-    exit.label = (world.unbound || world.depth >= FINAL_DEPTH || isDagyr || world.biome?.id === 'throne') ? 'Exit — to town' : 'Exit — continue';
+    exit.label = (world.unbound || world.depth >= FINAL_DEPTH || isVelscour || world.biome?.id === 'throne') ? 'Exit — to town' : 'Exit — continue';
 
     const c = G.char;
     if (c) {
       if (world.unbound) {
         c.unbound.wins = (c.unbound.wins || 0) + 1;
-        UI.centerMsg('DAGYR UNBOUND HAS FALLEN', `${c.unbound.wins} time${c.unbound.wins > 1 ? 's' : ''} · the exit is open`, 4);
+        UI.centerMsg('VELSCOUR UNBOUND HAS FALLEN', `${c.unbound.wins} time${c.unbound.wins > 1 ? 's' : ''} · the exit is open`, 4);
       } else {
         const first = !c.cleared[world.depth];
         c.cleared[world.depth] = true;
@@ -2111,7 +2157,7 @@ export const game = {
     sfx('gate');
     UI.refresh();
 
-    if (isDagyr && !world.practice) {
+    if (isVelscour && !world.practice) {
       if (unlockEndgame()) UI.log('<b style="color:#20e0ff">The Endgame opens.</b> The Altar of Heresy and the Abyssal Rift gate in Herrington Hollow answer to every hero now.', '#a0f0ff');
       setTimeout(() => victoryScreen(() => { }), 3200);
     }
@@ -2136,10 +2182,10 @@ export const game = {
     }
     if (world.breach) this.breachExit(world);
     else if (world.rift) this.riftExit(world);
-    else if (world.unbound || world.depth >= FINAL_DEPTH || world.boss?.isDagyr || world.biome?.id === 'throne') {
+    else if (world.unbound || world.depth >= FINAL_DEPTH || world.boss?.isVelscour || world.biome?.id === 'throne') {
       UI.dialog({
-        title: world.unbound ? 'Dagyr Unbound Defeated' : 'Demon Lord Dagyr Defeated',
-        html: `<p>Demon Lord Dagyr has fallen. The descent is complete!</p><p class="dim">The portal behind the throne leads back to town.</p>`,
+        title: world.unbound ? 'Velscour Unbound Defeated' : 'Demon Lord Velscour Defeated',
+        html: `<p>Demon Lord Velscour has fallen. The descent is complete!</p><p class="dim">The portal behind the throne leads back to town.</p>`,
         closable: true,
         cls: 'portal-choice throne-portal-choice',
         buttons: [
@@ -2164,8 +2210,11 @@ export const game = {
           { label: 'Stay in Throne Room' }
         ],
       });
+    } else {
+      if (c.mountainRuns) delete c.mountainRuns[world.depth];   // the mountains of a depth left behind are done with
+      if (c.summitRuns) delete c.summitRuns[world.depth];
+      this.portalChoice(world);
     }
-    else this.portalChoice(world);
   },
 
   /**
@@ -2176,7 +2225,7 @@ export const game = {
    */
   portalChoice(world, opts = {}) {
     if (this.pick) return;
-    if (world.depth >= FINAL_DEPTH || world.biome?.id === 'throne' || world.boss?.isDagyr) {
+    if (world.depth >= FINAL_DEPTH || world.biome?.id === 'throne' || world.boss?.isVelscour) {
       const c = G.char;
       if (c) {
         c.depth = Math.min(FINAL_DEPTH, c.depth || FINAL_DEPTH);
@@ -2189,8 +2238,8 @@ export const game = {
         }
       }
       UI.dialog({
-        title: world.unbound ? 'Dagyr Unbound Defeated' : 'Demon Lord Dagyr Defeated',
-        html: `<p>Demon Lord Dagyr has fallen. The descent is complete!</p><p class="dim">The portal behind the throne leads back to town.</p>`,
+        title: world.unbound ? 'Velscour Unbound Defeated' : 'Demon Lord Velscour Defeated',
+        html: `<p>Demon Lord Velscour has fallen. The descent is complete!</p><p class="dim">The portal behind the throne leads back to town.</p>`,
         closable: true,
         cls: 'portal-choice throne-portal-choice',
         buttons: [
@@ -2249,7 +2298,7 @@ export const game = {
       return { id: biome.id, biome, omen: omenable(next, biome) ? rollOmen(next) || (heresiesOf(c).includes('omens') ? anyOmen() : null) : heresiesOf(c).includes('omens') && next > FINAL_DEPTH && !biome.overworld && !isRaidDepth(next) ? anyOmen() : undefined, comm: comm && LINE_BY_ID[comm.id].name }; // Black Omens: always one
     });
     let sel = 0, chosen = false;
-    const tag = (cd) => (cd.biome.id === 'throne' ? '<b style="color:#ff4020">Demon Lord Dagyr awaits</b>' : cd.biome.id === 'skyship' ? 'Sky battle' : cd.biome.sea ? 'Sea battle' : cd.biome.overworld ? 'Overworld trial' : isRaidDepth(next) ? '<b style="color:#ff6030">BOSS ROOM</b>' : 'Dungeon');
+    const tag = (cd) => (cd.biome.id === 'throne' ? '<b style="color:#ff4020">Demon Lord Velscour awaits</b>' : cd.biome.id === 'skyship' ? 'Sky battle' : cd.biome.sea ? 'Sea battle' : cd.biome.overworld ? 'Overworld trial' : isRaidDepth(next) ? '<b style="color:#ff6030">BOSS ROOM</b>' : 'Dungeon');
     const omenLine = (cd) => (cd.omen === undefined ? '' : cd.omen ? `<span class="pc-omen" style="color:${OMENS[cd.omen].color}"><b>${OMENS[cd.omen].name}</b>${OMENS[cd.omen].text}</span>` : '<span class="pc-omen dim"><b>No omen</b>A quiet depth.</span>');
     const html = `<p class="dim">${cards.length > 1 ? `Depth ${next} lies beyond ${['', 'one', 'two', 'three'][cards.length]} portals. Choose your way down.` : `The way down opens onto Depth ${next}.`}</p>
       <div class="pc-row">${cards.map((cd, i) => `<button type="button" class="pc-card${i === sel ? ' sel' : ''}" data-i="${i}" style="--pc:${cd.biome.torch || '#ff8040'}"><i class="pc-swirl"></i><b class="pc-name">${escapeHtml(cd.biome.name)}</b><span class="pc-tag">${tag(cd)}</span>${cd.comm ? `<span class="pc-omen" style="color:#8fe0ff"><b>Commission</b>${escapeHtml(cd.comm)}</span>` : ''}${omenLine(cd)}</button>`).join('')}</div>
@@ -2323,7 +2372,7 @@ export const game = {
     if (worldRank(G.world) >= MARKS_RANK && !G.world.markPaid) { G.world.markPaid = true; grantMarks(1, `for a depth cleared at Heresy rank ${worldRank(G.world)}`); } // (docs/ENDGAME.md)
     if (!clearDefiance(c, depth)) return;
     if (G.player) G.player.recompute();
-    UI.log(`The wall is broken. <b style="color:#ff6a3a">Defiance ${had}</b> fades — Dagyr takes note.`, '#ffb080');
+    UI.log(`The wall is broken. <b style="color:#ff6a3a">Defiance ${had}</b> fades — Velscour takes note.`, '#ffb080');
   },
 
   onPlayerDeath(src) {
@@ -2353,6 +2402,7 @@ export const game = {
           c.depth = clamp(blockStart(depth), 1, FINAL_DEPTH);
           c.nextBiome = drawBiome(c, c.depth);
         }
+        delete c.mountainRuns; delete c.summitRuns;   // the mountains' checkpoints don't outlive a death
         const p = G.player;
         p.dead = false;
         p.buffs = [];
@@ -2393,7 +2443,7 @@ export const game = {
       title: 'THE ETERNAL BREACH', cls: 'breach-dialog',
       html: `<p>The purple portal opens on <b style="color:#c080ff">a broken world floating in the void</b>: sixteen islands joined by walkways, held by the Breach's own monsters.</p>
         <p class="dim">Win the shrines on the medium and large islands (scenarios and boss fights), lifting the wards on the walkways as you go; then face the floor's keeper at the Breach Heart. Floor N is as deadly as standard Depth 10&times;N. Falling here costs no Defiance and leaves your descent where it is.</p>
-        <label class="Dagyr-message-label" for="breach-floor">Floor</label><select id="breach-floor" class="Dagyr-biome-select">${floors.join('')}</select>
+        <label class="Velscour-message-label" for="breach-floor">Floor</label><select id="breach-floor" class="Velscour-biome-select">${floors.join('')}</select>
         <p class="breach-warn" id="breach-warn"></p>`,
       buttons: [{ label: 'Not yet' }, { label: 'Enter the Breach', cls: 'red', fn: () => this.enterBreach(+d.box.querySelector('#breach-floor').value) }],
     });
@@ -2520,7 +2570,7 @@ export const game = {
   // ------------------------------------------------------------ ABYSSAL RIFTS (docs/ENDGAME.md)
   /** The rift gate: pick a tier (ui/rifts.js) and step in. Refused until the Endgame is open. */
   confirmRift(tier) {
-    if (!endgameUnlocked()) { UI.log('<b style="color:#20e0ff">The Abyssal Rift</b> is sealed: Dagyr still sits his throne. Slay him at Depth 500 and it opens for every hero.', '#a0f0ff'); sfx('error'); return null; }
+    if (!endgameUnlocked()) { UI.log('<b style="color:#20e0ff">The Abyssal Rift</b> is sealed: Velscour still sits his throne. Slay him at Depth 500 and it opens for every hero.', '#a0f0ff'); sfx('error'); return null; }
     return Rifts.open(tier);
   },
   enterRift(tier) {
@@ -2637,18 +2687,18 @@ export const game = {
     }, 1700);
   },
 
-  // ------------------------------------------------------------ DAGYR UNBOUND (docs/ENDGAME.md)
+  // ------------------------------------------------------------ VELSCOUR UNBOUND (docs/ENDGAME.md)
   /** Three Abyssal Keys: the rematch on his throne, at the hero's depth (500 at the least), the hero set down in the arena. */
   async enterUnbound() {
     const c = G.char;
-    if (!unboundReady(c)) { UI.log(`<b style="color:#20e0ff">Dagyr Unbound</b> needs three Abyssal Keys (you hold ${keysOf(c)})${endgameUnlocked(c) ? '' : ' and Dagyr slain at Depth 500'}. Keys drop from BOSS ROOM bosses past Depth 600 under Heresy rank 10, and from Abyssal Rift Guardians from Tier 10.`, '#a0f0ff'); sfx('error'); return false; }
+    if (!unboundReady(c)) { UI.log(`<b style="color:#20e0ff">Velscour Unbound</b> needs three Abyssal Keys (you hold ${keysOf(c)})${endgameUnlocked(c) ? '' : ' and Velscour slain at Depth 500'}. Keys drop from BOSS ROOM bosses past Depth 600 under Heresy rank 10, and from Abyssal Rift Guardians from Tier 10.`, '#a0f0ff'); sfx('error'); return false; }
     if (Auto.on) Auto.toggle(false);
     spendKeys(c);
     const depth = Math.max(FINAL_DEPTH, G.world?.kind === 'dungeon' && !G.world.rift ? G.world.depth : c.depth || 1), biome = BIOME_BY_ID.throne;
     LoadingScreen.show({
-      title: 'DAGYR UNBOUND',
+      title: 'VELSCOUR UNBOUND',
       subtitle: `Depth ${depth}`,
-      text: `Dagyr Unbound — Depth ${depth}…`,
+      text: `Velscour Unbound — Depth ${depth}…`,
       progress: 10
     });
     try {
@@ -2659,19 +2709,19 @@ export const game = {
       this.buildDungeon(depth, biome);
       const w = G.world;
       LoadingScreen.setProgress(75, 'Awakening the demon lord…');
-      await loadArtFor([...w.creatures.map((m) => m.art), ...(w.looks ? w.looks.ids() : []), ...(w.Dagyr ? w.Dagyr.courtArt || [] : [])], true).catch((e) => console.warn(e)); // (his court steps in later)
+      await loadArtFor([...w.creatures.map((m) => m.art), ...(w.looks ? w.looks.ids() : []), ...(w.Velscour ? w.Velscour.courtArt || [] : [])], true).catch((e) => console.warn(e)); // (his court steps in later)
       LoadingScreen.setProgress(90, 'Preparing the battleground…');
       await warmLevelArt(w);
       releaseLevelArt(biome);
       const p = G.player;
-      if (w.Dagyr && p) {
+      if (w.Velscour && p) {
         const [x, y] = w.map.nudge(22.5, 26.5, 0.4);
         p.x = x; p.y = y; p.path = null; p.moveTarget = null; p.attackTarget = null;
         for (const s of w.creatures) if (s.team === 'player' && s !== p) [s.x, s.y] = w.map.randomNear(x, y, 1.5);
         w.map.reveal(x, y, 30);
         camera.follow(x, y, 0, true);
       }
-      UI.log('<b style="color:#ff4020">Dagyr Unbound.</b> The keys turn; the Demon Lord rises with his court at his side. There is no practice here.', '#ffb0a0');
+      UI.log('<b style="color:#ff4020">Velscour Unbound.</b> The keys turn; the Demon Lord rises with his court at his side. There is no practice here.', '#ffb0a0');
       LoadingScreen.setProgress(100, 'Arriving…');
     } catch (e) {
       console.warn(e); G.unboundNext = false;
@@ -2684,7 +2734,7 @@ export const game = {
     }
     return true;
   },
-  /** Death in Dagyr Unbound: back to town; no Defiance, the keys are spent. */
+  /** Death in Velscour Unbound: back to town; no Defiance, the keys are spent. */
   unboundDeath(src) {
     const c = G.char;
     c.deaths = (c.deaths || 0) + 1;
@@ -2697,8 +2747,8 @@ export const game = {
         const p = G.player;
         p.dead = false; p.buffs = []; p.recompute(); p.hp = p.maxHp; p.mana = p.maxMana;
         this.enterTown();
-        UI.log('Dagyr Unbound keeps his throne. Three more Abyssal Keys buy another try.', '#ffb0a0');
-      }, { where: "on Dagyr's throne", note: 'Your gear, levels and skills endure, and your descent is untouched. The three keys are spent.' });
+        UI.log('Velscour Unbound keeps his throne. Three more Abyssal Keys buy another try.', '#ffb0a0');
+      }, { where: "on Velscour's throne", note: 'Your gear, levels and skills endure, and your descent is untouched. The three keys are spent.' });
     }, 1700);
   },
 

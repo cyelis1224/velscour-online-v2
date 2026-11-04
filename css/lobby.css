@@ -1,4 +1,4 @@
-/* DAGYR Online - Diablo II Style Lobby Styles */
+/* VELSCOUR Online - Diablo II Style Lobby Styles */
 
 /* Stylistic slim scrollbars across all lobby screens, rails, lists, and chat */
 #d2-lobby,
@@ -1957,7 +1957,7 @@ body.portrait #d2-lobby .d2-chat-area {
 
 /* Mobile Landscape for Online Character Screen: 3-column grid on left, info panel on right with buttons below */
 @media (orientation: landscape) and (max-height: 560px),
-       (orientation: landscape) and (max-width: 950px) {
+(orientation: landscape) and (max-width: 950px) {
   .online-char-screen {
     padding: max(4px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)) !important;
     overflow: hidden !important;

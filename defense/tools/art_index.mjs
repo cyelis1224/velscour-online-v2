@@ -1,4 +1,4 @@
-// The one place DAGYR DEFENSE reads the main game's code: it snapshots the data it needs from src/data/ into
+// The one place VELSCOUR DEFENSE reads the main game's code: it snapshots the data it needs from src/data/ into
 // defense/data/art_index.json, so the Defense page never imports a main-game module (and can't disturb it).
 // Re-run after the main game adds classes, finishes, held sets, monsters or jingles:
 //   node defense/tools/art_index.mjs

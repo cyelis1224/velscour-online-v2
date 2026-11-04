@@ -19,10 +19,10 @@ for (const [name, file] of Object.entries({ render: 'game/render', world: 'game/
   const mobile = process.argv.includes('mobile');
   const { browser, page, errors, shot } = await openGame(mobile ? { width: 844, height: 390, mobile } : {});
   try {
-    await page.evaluate(() => window.DAGYR.game.newChar('wizard', 'Effects QA'));
+    await page.evaluate(() => window.VELSCOUR.game.newChar('wizard', 'Effects QA'));
     for (const id of ['catacombs', 'ice_temple', 'hell', 'astral_plane', 'heavenly', 'overworld']) {
       const result = await page.evaluate(async id => {
-        const { G, game } = window.DAGYR;
+        const { G, game } = window.VELSCOUR;
         const { BIOME_BY_ID } = await import('/src/data/biomes.js');
         const { loadBiomeArt } = await import('/src/core/assets.js');
         const { renderWorld } = await import('/src/game/render.js');

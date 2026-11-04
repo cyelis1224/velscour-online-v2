@@ -12,7 +12,7 @@ game-scale WebP atlases in `assets/tiles/approved_biomes/`. These are
 
 The floor/prop row mapping, in the exact order of the supplied artwork:
 
-| Sheet row (0-based) | DAGYR biome | Theme |
+| Sheet row (0-based) | VELSCOUR biome | Theme |
 | --- | --- | --- |
 | 0 | `desert_temple` | Sandstone, lapis and Egyptian-style gold |
 | 1 | `ice_temple` | Icy slate, frost blue, snow and silver |

@@ -2,7 +2,7 @@
 // here, in IndexedDB (not localStorage, so backups never eat the saves' quota). Settings > Hero backups restores them.
 // A backup that can't be written rejects, and cloud.js then changes nothing. The 'raw' store keeps unreadable save
 // data that save.js set aside when localStorage had no room for the copy.
-const DB = 'Dagyr_backups', STORE = 'heroes', RAW = 'raw', KEEP = 12;   // newest copies kept per class
+const DB = 'Velscour_backups', STORE = 'heroes', RAW = 'raw', KEEP = 12;   // newest copies kept per class
 
 let dbP = null;
 function open() {

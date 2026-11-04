@@ -7,7 +7,7 @@
 > floor/prop/wall atlases described below were removed. Dungeon biomes now use the painted packs only; see
 > [BIOME_ART.md](BIOME_ART.md).
 
-## What this adds to DAGYR
+## What this adds to VELSCOUR
 
 **HEAVENLY** is a distinct, randomly selected, **indoor dungeon**. It has
 sunlit marble halls, pearl-and-opal flooring, golden arches, radiant reliefs,

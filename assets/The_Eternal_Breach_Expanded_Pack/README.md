@@ -15,7 +15,7 @@ This package extends **The Eternal Breach** into a two-zone setting and adds its
 
 ## Art direction
 
-The added work follows the attached Dagyr and Grim Nocturne references: compact pixel clusters, deliberate high-contrast silhouettes, top-left highlights, cool shadow colors, and a controlled bone, slate, rust, and violet palette. Purple is used more visibly as trim, rift glass, inlaid seams, eyes, and magical fissures across the new surface terrain, scatter, monsters, and bosses.
+The added work follows the attached Velscour and Grim Nocturne references: compact pixel clusters, deliberate high-contrast silhouettes, top-left highlights, cool shadow colors, and a controlled bone, slate, rust, and violet palette. Purple is used more visibly as trim, rift glass, inlaid seams, eyes, and magical fissures across the new surface terrain, scatter, monsters, and bosses.
 
 The attached archives served as visual references. Their embedded text was not treated as instructions that supersede the user's request.
 

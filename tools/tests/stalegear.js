@@ -10,10 +10,10 @@ const { openGame, report } = require('./harness');
   const { browser, page, errors } = await openGame({ width: 1280, height: 720 });
   let fails = 0;
   const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };
-  await page.evaluate(async () => { await window.DAGYR.game.newChar('paladin', 'Stalebot'); });
+  await page.evaluate(async () => { await window.VELSCOUR.game.newChar('paladin', 'Stalebot'); });
   await page.waitForTimeout(800);
   const r = await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const items = await import('/src/data/items.js');
     const { addToBag } = await import('/src/game/player.js');
     const { Auto } = await import('/src/game/autoplay.js');

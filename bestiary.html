@@ -1,14 +1,18 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#090706">
-  <title>DAGYR ONLINE - Bestiary Compendium</title>
+  <title>VELSCOUR ONLINE - Bestiary Compendium</title>
   <link rel="icon" type="image/x-icon" href="assets/ui/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Alegreya+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Alegreya+Sans:wght@400;500;700&display=swap"
+    rel="stylesheet">
   <style>
     :root {
       --bg: #090706;
@@ -30,7 +34,11 @@
       --font-body: 'Alegreya Sans', sans-serif;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
       background: var(--bg);
@@ -40,17 +48,31 @@
       line-height: 1.5;
       min-height: 100vh;
       overflow-x: hidden;
-      background-image: 
+      background-image:
         radial-gradient(ellipse at 50% 0%, rgba(138, 28, 12, 0.22) 0%, rgba(9, 7, 6, 0) 70%),
         radial-gradient(ellipse at 50% 100%, rgba(60, 20, 10, 0.3) 0%, rgba(9, 7, 6, 0) 80%);
       background-attachment: fixed;
     }
 
     /* Scrollbars */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: #0c0807; }
-    ::-webkit-scrollbar-thumb { background: #382519; border-radius: 4px; border: 1px solid #1a120e; }
-    ::-webkit-scrollbar-thumb:hover { background: #603d25; }
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #0c0807;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #382519;
+      border-radius: 4px;
+      border: 1px solid #1a120e;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #603d25;
+    }
 
     /* Header */
     header {
@@ -233,7 +255,7 @@
       display: none;
     }
 
-    .search-box input:not(:placeholder-shown) + .clear-btn {
+    .search-box input:not(:placeholder-shown)+.clear-btn {
       display: block;
     }
 
@@ -435,8 +457,15 @@
     }
 
     @keyframes pulse {
-      from { opacity: 0.15; transform: scale(0.95); }
-      to { opacity: 0.4; transform: scale(1.05); }
+      from {
+        opacity: 0.15;
+        transform: scale(0.95);
+      }
+
+      to {
+        opacity: 0.4;
+        transform: scale(1.05);
+      }
     }
 
     /* Card Details */
@@ -625,8 +654,15 @@
       color: #fff;
     }
 
-    .modal-nav-prev { left: 8px; border-radius: 4px 0 0 4px; }
-    .modal-nav-next { right: 8px; border-radius: 0 4px 4px 0; }
+    .modal-nav-prev {
+      left: 8px;
+      border-radius: 4px 0 0 4px;
+    }
+
+    .modal-nav-next {
+      right: 8px;
+      border-radius: 0 4px 4px 0;
+    }
 
     .modal-content {
       display: grid;
@@ -852,14 +888,17 @@
       .modal-content {
         grid-template-columns: 1fr;
       }
+
       .modal-showcase {
         border-right: none;
         border-bottom: 1px solid var(--border);
       }
+
       .modal-canvas-wrap {
         width: 220px;
         height: 220px;
       }
+
       .modal-nav-btn {
         display: none;
       }
@@ -870,15 +909,19 @@
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 12px;
       }
+
       .sprite-stage {
         height: 140px;
       }
+
       .card-title {
         font-size: 13px;
       }
+
       .stat-pips {
         grid-template-columns: repeat(2, 1fr);
       }
+
       .header-top {
         flex-direction: column;
         align-items: flex-start;
@@ -886,22 +929,24 @@
     }
   </style>
 </head>
+
 <body>
 
   <!-- Header -->
   <header>
     <div class="header-top">
       <div class="brand-wrap">
-        <img class="brand-logo" src="assets/ui/dagyr_contact_skull.png" alt="Dagyr Online">
+        <img class="brand-logo" src="assets/ui/dagyr_contact_skull.png" alt="Velscour Online">
         <div class="brand-titles">
-          <h1>DAGYR <span>ONLINE</span> · BESTIARY</h1>
+          <h1>VELSCOUR <span>ONLINE</span> · BESTIARY</h1>
           <p>Compendium of every fiend, guardian, and colossus of the Abyss</p>
         </div>
       </div>
       <div class="header-actions">
         <a href="home.html" class="btn-action">Home</a>
         <a href="classes.html" class="btn-action">Hero Classes</a>
-        <a href="https://mmo.dagyr.me/" class="btn-action" style="color:var(--gold-bright);border-color:var(--gold);">Play Now →</a>
+        <a href="https://mmo.dagyr.me/" class="btn-action"
+          style="color:var(--gold-bright);border-color:var(--gold);">Play Now →</a>
         <a href="/" class="btn-action">Client</a>
       </div>
     </div>
@@ -920,7 +965,8 @@
       <!-- Row 1: Search & Major Filters -->
       <div class="toolbar-row">
         <div class="search-box">
-          <input type="search" id="search-input" placeholder="Search by name, ID, archetype, or ability (e.g. Cleaver, Lich, Colossus, combo)...">
+          <input type="search" id="search-input"
+            placeholder="Search by name, ID, archetype, or ability (e.g. Cleaver, Lich, Colossus, combo)...">
           <button class="clear-btn" id="clear-search" aria-label="Clear Search">✕</button>
         </div>
 
@@ -934,7 +980,7 @@
           <option value="depths_edge">Depths Edge & Catacombs (60)</option>
           <option value="air">The Pirate Skies (40)</option>
           <option value="heavenly">The Heavenly Sanctum (60)</option>
-          <option value="dagyr">Lords of Dagyr (Demon Lord)</option>
+          <option value="dagyr">Lords of Velscour (Demon Lord)</option>
         </select>
 
         <select class="filter-select" id="filter-rank" title="Filter by Encounter Rank">
@@ -1075,12 +1121,18 @@
           <div class="dossier-section">
             <h4>Base Archetype Attributes</h4>
             <div class="dossier-stats-grid">
-              <div class="dossier-stat-card"><span class="label">Health Mult</span><span class="value" id="modal-hp">1.0x</span></div>
-              <div class="dossier-stat-card"><span class="label">Damage Mult</span><span class="value" id="modal-dmg">1.0x</span></div>
-              <div class="dossier-stat-card"><span class="label">Move Speed</span><span class="value" id="modal-spd">2.5</span></div>
-              <div class="dossier-stat-card"><span class="label">World Height</span><span class="value" id="modal-h">54 px</span></div>
-              <div class="dossier-stat-card"><span class="label">Hit Radius</span><span class="value" id="modal-r">0.32</span></div>
-              <div class="dossier-stat-card"><span class="label">Pack Size</span><span class="value" id="modal-pack">3 - 6</span></div>
+              <div class="dossier-stat-card"><span class="label">Health Mult</span><span class="value"
+                  id="modal-hp">1.0x</span></div>
+              <div class="dossier-stat-card"><span class="label">Damage Mult</span><span class="value"
+                  id="modal-dmg">1.0x</span></div>
+              <div class="dossier-stat-card"><span class="label">Move Speed</span><span class="value"
+                  id="modal-spd">2.5</span></div>
+              <div class="dossier-stat-card"><span class="label">World Height</span><span class="value" id="modal-h">54
+                  px</span></div>
+              <div class="dossier-stat-card"><span class="label">Hit Radius</span><span class="value"
+                  id="modal-r">0.32</span></div>
+              <div class="dossier-stat-card"><span class="label">Pack Size</span><span class="value" id="modal-pack">3 -
+                  6</span></div>
             </div>
           </div>
 
@@ -1168,7 +1220,7 @@
 
     // Expansion category helper
     function getExpansion(sheet, id) {
-      if (id === 'va_Dagyr') return { key: 'dagyr', name: 'Lords of Dagyr' };
+      if (id === 'va_Velscour') return { key: 'dagyr', name: 'Lords of Velscour' };
       if (sheet.startsWith('set1/')) return { key: 'set1', name: 'Set 1: Undead & Demonic' };
       if (sheet.startsWith('set2/')) return { key: 'set2', name: 'Set 2: Giants & Colossi' };
       if (sheet.startsWith('set3/')) return { key: 'set3', name: 'Set 3: Lords of the Deep & Arena' };
@@ -1180,10 +1232,10 @@
       return { key: 'other', name: 'Other' };
     }
 
-    // Assemble the full catalogue (injecting Demon Lord Dagyr)
-    const DAGYR_LORD = {
-      id: 'va_Dagyr',
-      name: 'Demon Lord Dagyr',
+    // Assemble the full catalogue (injecting Demon Lord Velscour)
+    const VELSCOUR_LORD = {
+      id: 'va_Velscour',
+      name: 'Demon Lord Velscour',
       arch: 'dagyr',
       sheet: 'replacements',
       h: 94,
@@ -1195,7 +1247,7 @@
       desc: 'The ancient Demon Lord entombed beneath the world, whose dark fiery will fuels the nightmare depths of the Abyss.'
     };
 
-    const CATALOGUE = [DAGYR_LORD, ...BESTIARY].map((raw, index) => {
+    const CATALOGUE = [VELSCOUR_LORD, ...BESTIARY].map((raw, index) => {
       const archKey = raw.arch || 'skeleton';
       const arch = ARCH[archKey] || ARCH[archKey.toLowerCase()] || ARCH.skeleton || {};
       const moves = ARCH_MOVES[archKey] || ARCH_MOVES[archKey.toLowerCase()] || [];
@@ -1660,4 +1712,5 @@
     applyFilters();
   </script>
 </body>
+
 </html>

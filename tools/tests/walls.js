@@ -12,7 +12,7 @@ const { openGame, report } = require('./harness');
   await page.waitForTimeout(800);
   for (let n = 0; n < biomes.length; n++) {
     await page.evaluate(async (b) => {
-      const { G, game } = window.DAGYR; G.godMode = true;
+      const { G, game } = window.VELSCOUR; G.godMode = true;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { loadBiomeArt } = await import('/src/core/assets.js');
       await loadBiomeArt(BIOME_BY_ID[b]);
@@ -20,7 +20,7 @@ const { openGame, report } = require('./harness');
     }, biomes[n]);
     await page.waitForTimeout(1200);
     await page.evaluate((n) => {
-      const { G } = window.DAGYR; const m = G.world.map;
+      const { G } = window.VELSCOUR; const m = G.world.map;
       for (const c of G.world.creatures) if (c !== G.player) { c.x = -999; c.y = -999; }
       // a walkable tile with plenty of void around it (corridor bends, room corners); vary the pick per shot
       const spots = [];

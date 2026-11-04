@@ -7,7 +7,7 @@ async function run() {
   const artifactDir = '/home/dagyr/.gemini/antigravity/brain/12f4836d-bde5-47f7-883a-b8c5863f737c';
 
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('lancer', 'JewelLord');
 
     const { JewelBox } = await import('/src/ui/jewelbox.js');

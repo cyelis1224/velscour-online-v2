@@ -7,7 +7,7 @@ const path = require('path');
   const { browser, page, errors, shot } = await openGame({ width: 1440, height: 960 });
   try {
     const result = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { loadBiomeArt, biomeTileSet } = await import('/src/core/assets.js');
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { HEAVENLY_MONSTERS } = await import('/src/data/heavenly.js');
@@ -21,7 +21,7 @@ const path = require('path');
       const ctx = cv.getContext('2d');
       ctx.fillStyle = '#24202b'; ctx.fillRect(0, 0, cv.width, cv.height);
       ctx.fillStyle = '#ffe5b1'; ctx.font = '22px monospace';
-      ctx.fillText('DAGYR | APPROVED BIOME ART (5 ROWS)', 22, 28);
+      ctx.fillText('VELSCOUR | APPROVED BIOME ART (5 ROWS)', 22, 28);
       await game.newChar('paladin', 'Approved Biome QA');
       document.querySelectorAll('.screen').forEach(e => e.remove());
       G.ui.modalCount = 0; G.godMode = true;

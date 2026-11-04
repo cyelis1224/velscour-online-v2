@@ -40,9 +40,9 @@ function interactableAt(tx, ty, sx, sy) {
       return { x: g.x - 1.5, y: gy, reach: 2.2, use: () => w.raid.promptJoin(G.player, true) };
     }
   }
-  if (w.Dagyr && w.Dagyr.sealed && G.player) {
+  if (w.Velscour && w.Velscour.sealed && G.player) {
     if (tx >= 18 && tx <= 26 && ty >= 31 && ty <= 33.5) {
-      return { x: 22, y: 33.5, reach: 2.2, use: () => w.Dagyr.promptJoin(G.player, true) };
+      return { x: 22, y: 33.5, reach: 2.2, use: () => w.Velscour.promptJoin(G.player, true) };
     }
   }
   return null;

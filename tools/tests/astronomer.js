@@ -32,7 +32,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
 
   // ------------------------------------------------------------ 2. the chart
   const chart = await page.evaluate(async (CLS) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const A = await import('/src/game/astronomer.js');
     const out = {};
     const S = (pts) => pts.map(([x, y]) => ({ x, y }));
@@ -127,7 +127,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
 
   // ------------------------------------------------------------ 3. showcase shots
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { camera } = await import('/src/core/view.js'); G.settings.zoom = 1.3; G.settings.gore = 0; camera.computeZoom();
     const upd = window.__realUpdate = game.update.bind(game);
     window.__step = 0;
@@ -151,7 +151,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
   let shots = 0;
   for (const [name, frames, [dx, dy], L, tag, zoom] of SHOW) {
     const ok = await page.evaluate(async ([name, L, dx, dy, CLS, zoom]) => {
-      const { G } = window.DAGYR, p = G.player, w = G.world;
+      const { G } = window.VELSCOUR, p = G.player, w = G.world;
       const { CLASS_SKILLS } = await import('/src/data/skills.js');
       const { camera } = await import('/src/core/view.js');
       const sk = CLASS_SKILLS[CLS].find((s) => s.name === name);
@@ -182,7 +182,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
   }
   // a chart part drawn (starlines, the orrery) and an ascension
   await page.evaluate(async (CLS) => {
-    const { G } = window.DAGYR, p = G.player;
+    const { G } = window.VELSCOUR, p = G.player;
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
     const { camera } = await import('/src/core/view.js'); G.settings.zoom = 1.3; camera.computeZoom();
     const sk = CLASS_SKILLS[CLS].find((s) => s.name === 'Falling Star');
@@ -191,7 +191,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
   await step(50);
   await page.screenshot({ path: `${OUT_DIR}/astro_chart.png`, clip });
   await page.evaluate(async (CLS) => {
-    const { G } = window.DAGYR, p = G.player;
+    const { G } = window.VELSCOUR, p = G.player;
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
     const sk = CLASS_SKILLS[CLS].find((s) => s.name === 'Falling Star');
     for (const [dx, dy] of [[6, 1], [7, 4]]) { p.castLock = 0; p.cooldowns = {}; p.tryUseSkill(sk, p.x + dx, p.y + dy); }
@@ -202,7 +202,7 @@ const fail = (m) => { console.log('FAIL ' + m); bad++; };
 
   // ------------------------------------------------------------ 4. auto-play
   const auto = await page.evaluate(async ([minutes, CLS]) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     game.update = window.__realUpdate; G.astroStats = {};
     await game.newChar(CLS, 'Autostar');
     const { Auto } = await import('/src/game/autoplay.js');

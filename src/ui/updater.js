@@ -1,20 +1,20 @@
-// DAGYR ONLINE Client Auto-Updater & Differential In-Game OTA Distribution Module
+// VELSCOUR ONLINE Client Auto-Updater & Differential In-Game OTA Distribution Module
 import { UI } from './ui.js';
 import { sfx } from '../core/audio.js';
 
 export const CURRENT_BUILD_VERSION = '0.2.3';
 
-const STORAGE_VERSION_KEY = 'Dagyr_installed_version';
-const STORAGE_MANIFEST_HASH_KEY = 'Dagyr_installed_manifest_hash';
-const STORAGE_LIVE_FILES_KEY = 'Dagyr_live_updated_files';
-const LIVE_CACHE_NAME = 'Dagyr-live-update-v1';
+const STORAGE_VERSION_KEY = 'Velscour_installed_version';
+const STORAGE_MANIFEST_HASH_KEY = 'Velscour_installed_manifest_hash';
+const STORAGE_LIVE_FILES_KEY = 'Velscour_live_updated_files';
+const LIVE_CACHE_NAME = 'Velscour-live-update-v1';
 
 /**
  * Detects whether the client is running on Android (Capacitor native wrapper, Android WebView, or Android test mode).
  */
 export function isAndroidClient() {
   if (typeof window === 'undefined') return false;
-  if (window.DAGYR_TEST_ANDROID) return true;
+  if (window.VELSCOUR_TEST_ANDROID) return true;
   if (window.Capacitor?.isNativePlatform?.()) return true;
   return /Android/i.test(navigator.userAgent || '');
 }
@@ -261,7 +261,7 @@ export async function checkForUpdates({ force = false } = {}) {
 
     let forceTestUpdate = false;
     if (typeof window !== 'undefined') {
-      if (window.DAGYR_TEST_UPDATE) forceTestUpdate = true;
+      if (window.VELSCOUR_TEST_UPDATE) forceTestUpdate = true;
       try {
         if (new URLSearchParams(window.location.search).has('test_update')) forceTestUpdate = true;
       } catch (e) { }
@@ -280,7 +280,7 @@ export async function checkForUpdates({ force = false } = {}) {
       clearTimeout(timeoutId);
 
       if (!res || !res.ok) {
-        if (baseUrl !== 'https://mmo.dagyr.me' && (!window.DAGYR_TEST_MENU || forceTestUpdate)) {
+        if (baseUrl !== 'https://mmo.dagyr.me' && (!window.VELSCOUR_TEST_MENU || forceTestUpdate)) {
           try {
             const fallbackRes = await fetch(`https://mmo.dagyr.me/api/version?_t=${Date.now()}`, { cache: 'no-store' });
             if (fallbackRes && fallbackRes.ok) {
@@ -348,9 +348,9 @@ export async function checkForUpdates({ force = false } = {}) {
             'In-Game Differential Android OTA Updater: downloads and replaces only modified game files in-place without reinstalling the full APK',
           ],
           downloads: {
-            android: { available: true, url: '/download/android', filename: 'DagyrOnline.apk', sizeFormatted: '346 MB' },
-            windows: { available: true, url: '/download/windows', filename: 'DagyrOnline.exe', sizeFormatted: '1.29 GB' },
-            linux: { available: true, url: '/download/linux', filename: 'DagyrOnline.AppImage', sizeFormatted: '1.38 GB' },
+            android: { available: true, url: '/download/android', filename: 'VelscourOnline.apk', sizeFormatted: '346 MB' },
+            windows: { available: true, url: '/download/windows', filename: 'VelscourOnline.exe', sizeFormatted: '1.29 GB' },
+            linux: { available: true, url: '/download/linux', filename: 'VelscourOnline.AppImage', sizeFormatted: '1.38 GB' },
           }
         }
       };
@@ -407,7 +407,7 @@ export async function calculateUpdateDelta(updateInfo = null, { force = false } 
 
     let forceTestUpdate = false;
     if (typeof window !== 'undefined') {
-      if (window.DAGYR_TEST_UPDATE) forceTestUpdate = true;
+      if (window.VELSCOUR_TEST_UPDATE) forceTestUpdate = true;
       try {
         if (new URLSearchParams(window.location.search).has('test_update')) forceTestUpdate = true;
       } catch (e) { }
@@ -673,7 +673,7 @@ export async function performInGameUpdate(updateInfo = null, onProgress = null) 
     label: `Updated ${totalFiles} ${totalFiles === 1 ? 'file' : 'files'} (${formatByteSize(totalBytes)}). Reloading game…`,
   });
 
-  if (typeof window !== 'undefined' && !window.DAGYR_NO_RELOAD_ON_UPDATE) {
+  if (typeof window !== 'undefined' && !window.VELSCOUR_NO_RELOAD_ON_UPDATE) {
     setTimeout(() => {
       hardReload(targetVersion, targetHash);
     }, 450);
@@ -704,7 +704,7 @@ export function triggerApkDownload(updateInfo = null) {
   return {
     type: 'android-apk',
     url: downloadUrl,
-    msg: 'Downloading full DagyrOnline.apk in browser... When finished, tap the notification to install.'
+    msg: 'Downloading full VelscourOnline.apk in browser... When finished, tap the notification to install.'
   };
 }
 
@@ -746,7 +746,7 @@ export function triggerUpdate(updateInfo, onProgress = null) {
   if (isElectron) {
     const route = isWindows ? '/download/windows' : '/download/linux';
     const downloadUrl = `${baseUrl}${route}`;
-    const filename = isWindows ? 'DagyrOnline.exe' : 'DagyrOnline.AppImage';
+    const filename = isWindows ? 'VelscourOnline.exe' : 'VelscourOnline.AppImage';
     const a = document.createElement('a');
     a.href = downloadUrl;
     a.download = filename;
@@ -894,7 +894,7 @@ export function showUpdateDialog(updateInfo) {
   `;
 
   const d = UI.dialog({
-    title: 'Dagyr Online Updater',
+    title: 'Velscour Online Updater',
     html,
     buttons: []
   });
@@ -975,7 +975,7 @@ export function showUpdateDialog(updateInfo) {
             }
           });
           if (statusEl) {
-            statusEl.textContent = 'In-game update applied! Reloading Dagyr Online…';
+            statusEl.textContent = 'In-game update applied! Reloading Velscour Online…';
             statusEl.style.display = 'block';
           }
         } catch (err) {

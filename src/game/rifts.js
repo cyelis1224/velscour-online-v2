@@ -100,7 +100,7 @@ export function riftWin(world, m) {
   drop('item', { item: rollItem(lvl, { rarity: rar, mf: p ? p.st.magicFind : 0 }) });
   for (let i = 0; i < RW.sigils; i++) drop('item', { item: rollSigil(world.depth, RW.sigilBonus) });
   for (let i = 0; i < 4; i++) drop('gold', { amount: Math.round(goldPile(lvl) * rand(2, 4) * (1 + ((p && p.st.goldFind) || 0) / 100)) });
-  // records: this hero's, the account's, the honour board's (a hero that took Dagyr's gift keeps only its own)
+  // records: this hero's, the account's, the honour board's (a hero that took Velscour's gift keeps only its own)
   const cheat = barred(c), best = !cheat && noteRiftBest(c.classId, tier, time);
   R.result = { tier, time, jump, next: tier + jump, marks, first, rarity: rar, best, personal: c.rifts.bestTime[tier] === Math.round(time * 10) / 10 };
   if (cheat) { R.result.board = 'barred'; Board.withdraw(c.classId).catch((e) => console.warn('Honour board:', e)); }

@@ -30,7 +30,7 @@ async function waitForServer(url, timeoutMs = 15000) {
   const tmpDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dagyr-chat-test-'));
   const serverProc = spawn('node', ['server.js'], {
     cwd: path.resolve(__dirname, '../..'),
-    env: { ...process.env, PORT: String(PORT), DAGYR_DATA_DIR: tmpDataDir },
+    env: { ...process.env, PORT: String(PORT), VELSCOUR_DATA_DIR: tmpDataDir },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let browser = null;
@@ -68,7 +68,7 @@ async function waitForServer(url, timeoutMs = 15000) {
 
     await page.evaluate(async () => {
       const { GameChat } = await import('/src/ui/chat.js');
-      localStorage.removeItem('Dagyr_chat_pinned');
+      localStorage.removeItem('Velscour_chat_pinned');
       GameChat.init();
       GameChat.isPinned = false;
       GameChat.FADE_DELAY_MS = 1200;
@@ -132,7 +132,7 @@ async function waitForServer(url, timeoutMs = 15000) {
     s = await st();
     assert(s.cls.includes('gc-pinned') && !s.cls.includes('gc-faded') && !s.cls.includes('gc-fading') && s.opacity === 1, 'Pinned chat stays fully visible');
     assert(s.logVisibility === 'hidden', 'Pickup log hidden while pinned chat visible');
-    const pinnedStored = await page.evaluate(() => localStorage.getItem('Dagyr_chat_pinned'));
+    const pinnedStored = await page.evaluate(() => localStorage.getItem('Velscour_chat_pinned'));
     assert(pinnedStored === '1', 'Pin state persisted');
 
     // Unpin -> fades

@@ -1,4 +1,4 @@
-# Dagyr Online - Agent Directives & Operational Rules
+# Velscour Online - Agent Directives & Operational Rules
 
 ## ⚠️ MANDATORY RULE: Graceful Server Shutdown Before Pushing Updates
 Whenever an agent or developer needs to update code, apply migrations, or restart the server (`server.js`), you **MUST ALWAYS** follow the Graceful Server Shutdown Procedure documented in [docs/SERVER_UPDATE_PROCESS.md](file:///home/dagyr/dagyr-online/Dagyr-Online/docs/SERVER_UPDATE_PROCESS.md).

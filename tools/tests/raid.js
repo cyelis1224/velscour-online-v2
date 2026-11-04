@@ -13,7 +13,7 @@ const DEPTHS = (process.argv[2] || '5,30,55').split(',').map(Number);
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('wizard', 'Raider');
     document.querySelectorAll('.screen').forEach((s) => s.remove());
     G.ui.modalCount = 0;
@@ -21,7 +21,7 @@ const DEPTHS = (process.argv[2] || '5,30,55').split(',').map(Number);
   const fails = [];
   for (const depth of DEPTHS) {
     const r = await page.evaluate(async (depth) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { BIOMES } = await import('/src/data/biomes.js');
       const { dist } = await import('/src/core/util.js');
       const list = BIOMES.filter((b) => b.id !== 'throne' && b.id !== 'town' && !b.overworld); // raids are dungeon rooms
@@ -97,7 +97,7 @@ const DEPTHS = (process.argv[2] || '5,30,55').split(',').map(Number);
   }
   // every boss template: cast its whole pool
   const tpls = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     const { RAID_BOSSES } = await import('/src/game/raid.js');
     const out = [];
@@ -130,7 +130,7 @@ const DEPTHS = (process.argv[2] || '5,30,55').split(',').map(Number);
 
   // screenshots of a fight in progress
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     game.buildDungeon(10, BIOME_BY_ID.molten);
     const w = G.world, p = G.player, R = w.raid, g = R.arena.gate;
@@ -144,7 +144,7 @@ const DEPTHS = (process.argv[2] || '5,30,55').split(',').map(Number);
   await page.waitForTimeout(400);
   await shot('raid_fight');
   await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const w = G.world, b = w.boss, R = w.raid;
     b.hp = b.maxHp * R.marks[0] - 1;
     for (let i = 0; i < 40; i++) w.update(1 / 30);
@@ -154,7 +154,7 @@ const DEPTHS = (process.argv[2] || '5,30,55').split(',').map(Number);
   await page.waitForTimeout(400);
   await shot('raid_wards');
   await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const w = G.world;
     w.player.x = w.raid.arena.gate.x - 1.5; w.player.y = w.raid.arena.gate.y0 + 1.5;
     for (let i = 0; i < 5; i++) w.update(1 / 30);

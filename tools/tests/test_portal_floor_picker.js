@@ -27,12 +27,12 @@ function assert(cond, msg) { if (!cond) throw new Error(`ASSERTION FAILED: ${msg
   const tmpDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dagyr-floor-test-'));
   const serverProc = spawn('node', ['server.js'], {
     cwd: path.resolve(__dirname, '../..'),
-    env: { ...process.env, PORT: String(PORT), DAGYR_DATA_DIR: tmpDataDir },
+    env: { ...process.env, PORT: String(PORT), VELSCOUR_DATA_DIR: tmpDataDir },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let browser = null;
   try {
-    for (let i = 0; i < 75; i++) { try { if ((await fetch(`${BASE_URL}/api/version`)).ok) break; } catch (e) {} await new Promise(r => setTimeout(r, 200)); }
+    for (let i = 0; i < 75; i++) { try { if ((await fetch(`${BASE_URL}/api/version`)).ok) break; } catch (e) { } await new Promise(r => setTimeout(r, 200)); }
     browser = await chromium.launch({ headless: true, executablePath: CHROMIUM_PATH });
     const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
     const errs = [];
@@ -143,6 +143,6 @@ function assert(cond, msg) { if (!cond) throw new Error(`ASSERTION FAILED: ${msg
   } finally {
     if (browser) await browser.close();
     serverProc.kill('SIGTERM');
-    try { fs.rmSync(tmpDataDir, { recursive: true, force: true }); } catch (e) {}
+    try { fs.rmSync(tmpDataDir, { recursive: true, force: true }); } catch (e) { }
   }
 })().catch(err => { console.error(err); process.exit(1); });

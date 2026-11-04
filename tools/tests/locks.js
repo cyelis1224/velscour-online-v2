@@ -6,7 +6,7 @@ const { openGame, report } = require('./harness');
 (async () => {
   const { browser, page, errors } = await openGame();
   const r = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('paladin', 'Locksmith');
     const { Vendor } = await import('/src/ui/vendor.js');
     const { Auto } = await import('/src/game/autoplay.js');

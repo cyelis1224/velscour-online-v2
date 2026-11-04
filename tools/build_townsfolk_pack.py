@@ -1,4 +1,4 @@
-"""Cut the generated Dagyr townsfolk sheets into runtime atlases.
+"""Cut the generated Velscour townsfolk sheets into runtime atlases.
 
 Every pose is found as a connected alpha component (no grid: the source sheets are ragged and poses overhang their
 cells), labelled by hand below, scaled by ONE factor per character (taken from the idle poses, so a raised arm or a
@@ -223,7 +223,7 @@ def main():
         recolour(sheets[base], shift, sat, light).save(OUT / f'townsfolk_{k:03d}.webp', 'WEBP', lossless=True, method=6)
         b = records[base - 1]
         records.append({**b, 'id': f'townsfolk_{k:03d}', 'name': b['name'] + ' (colourway)', 'colourwayOf': b['id']})
-    manifest = {'name': 'Dagyr Townsfolk Animation Pack', 'version': 4, 'frameSize': [FRAME_W, FRAME_H],
+    manifest = {'name': 'Velscour Townsfolk Animation Pack', 'version': 4, 'frameSize': [FRAME_W, FRAME_H],
                 'baseline': BASE_Y, 'standardFrames': STD, 'identities': len(SPECS), 'characters': records}
     (OUT / 'manifest.json').write_text(json.dumps(manifest, indent=1), encoding='utf-8')
     old = OUT / 'townsfolk_animation_pack.zip'

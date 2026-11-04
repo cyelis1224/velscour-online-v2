@@ -85,12 +85,12 @@ async function run() {
     const page = await ctx.newPage();
 
     await page.addInitScript(() => {
-      window.DAGYR_TEST_MENU = true;
-      window.DAGYR_TEST_ANDROID = true;
-      window.DAGYR_NO_RELOAD_ON_UPDATE = true;
+      window.VELSCOUR_TEST_MENU = true;
+      window.VELSCOUR_TEST_ANDROID = true;
+      window.VELSCOUR_NO_RELOAD_ON_UPDATE = true;
     });
     await page.goto(`${BASE_URL}/index.html`, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await page.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
 
     // A) Verify button is hidden when client is on latest version & manifest hash
     const initiallyHidden = await page.evaluate(() => {
@@ -103,7 +103,7 @@ async function run() {
     // B) Simulate update available
     console.log('Simulating update available...');
     await page.evaluate(async () => {
-      window.DAGYR_TEST_UPDATE = true;
+      window.VELSCOUR_TEST_UPDATE = true;
       const { checkForUpdates } = await import('/src/ui/updater.js');
       await checkForUpdates({ force: true });
     });
@@ -137,7 +137,7 @@ async function run() {
       };
     });
 
-    console.log('✓ Dagyr Android Differential Updater Modal verified:', modalInfo);
+    console.log('✓ Velscour Android Differential Updater Modal verified:', modalInfo);
     if (!modalInfo || !modalInfo.hasUpdateBtn || !modalInfo.updateBtnText.includes('Update In-Game')) {
       throw new Error('Update dialog missing in-game update button');
     }
@@ -156,7 +156,7 @@ async function run() {
         pct: document.getElementById('update-progress-pct')?.innerText.trim(),
         text: document.getElementById('update-progress-text')?.innerText.trim(),
         status: document.getElementById('update-action-status')?.innerText.trim(),
-        savedLiveManifest: JSON.parse(localStorage.getItem('Dagyr_live_updated_files') || 'null'),
+        savedLiveManifest: JSON.parse(localStorage.getItem('Velscour_live_updated_files') || 'null'),
       };
     });
     console.log('✓ In-game differential update completed:', {

@@ -18,7 +18,7 @@ through, picked at random on entry (never the last one seen). See [SEA_OF_SAND_D
 | Persistent timer, current beat and objective HUD | `index.html`, `css/style.css`, `src/ui/hud.js` |
 | Browser QA | `tools/tests/sea_of_sand.js` |
 
-The committed lossless atlases are generated from the Dagyr Overworld Biome Set. The packer uses each floor's authored pivot and anchors cropped world props at the bottom center of their visible art. To rebuild them from that pack, run:
+The committed lossless atlases are generated from the Velscour Overworld Biome Set. The packer uses each floor's authored pivot and anchors cropped world props at the bottom center of their visible art. To rebuild them from that pack, run:
 
 ```bash
 python tools/seaofsandpack.py path/to/Sea_of_Sand_Biome_Pack

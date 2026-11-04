@@ -217,11 +217,11 @@ export const BIOMES = [
   {
     // the largest overworld: thick woods, trail mazes, walled labyrinths and twelve forest trials (docs/DARK_FOREST.md)
     id: 'dark_forest', name: 'The Dark Forest', pack: 'dark_forest', overworld: true, packArt: true,
-    palette: null, dark: 0.44, light: 13.0,
+    palette: null, dark: 0.64, light: 11.5,
     ambient: { type: 'firefly', color: '#b8f07a' }, mon: { hue: 70, sat: 0.8, light: -0.02 },
     el: 'poison', blood: '#5e1410', adj: ['Gloomwood', 'Briar-Bound', 'Moonless', 'Root-Choked'],
     roster: ['spider', 'hound', 'shroom', 'wraith', 'golem', 'archer', 'cultist', 'ghoul', 'zombie', 'bat', 'skeleton', 'slime'],
-    torch: '#ffd080', fog: '#0a160d',
+    torch: '#ffc070', fog: '#060c07',
   },
   {
     // the Sky Battle (docs/SKY_BATTLE.md): the heroes' ironclad against the Air Pirates, eight scenarios and their weather
@@ -264,11 +264,13 @@ export const BIOMES = [
     torch: '#ffb060', fog: '#050509',
   },
   {
-    // a height-mapped climb up a mountainside to its summit (world/mountain.js, docs/MOUNTAINSIDE.md)
+    // a switchback climb up a mountainside to its summit, one smooth height field drawn live in three.js
+    // (world/mountain.js, game/mountain.js, gfx/alpine3d.js, docs/MOUNTAINSIDE.md); its summit leads straight on to
+    // the Snowy Summit (below, a region of its own)
     id: 'mountainside', name: 'Mountainside', pack: 'town', overworld: true, painted: false, wallPack: null,
     palette: null, dark: 0.3, light: 13,
-    ambient: { type: 'snow', color: '#e8f4ff' }, mon: { hue: 8, sat: 0.9, light: 0.04 },
-    el: 'cold', blood: '#7c1610', adj: ['Windswept', 'Craggy', 'High', 'Rimed', 'Alpine'],
+    ambient: { type: 'leaf', color: '#d8e6c0' }, mon: { hue: 8, sat: 0.9, light: 0.04 },
+    el: 'cold', blood: '#7c1610', adj: ['Windswept', 'Craggy', 'High', 'Rimed'],
     roster: ['hound', 'golem', 'gargoyle', 'bat', 'archer', 'skeleton', 'knight', 'elemental', 'spider', 'cultist', 'wraith', 'imp'],
     torch: '#ffc078', fog: '#0c1622',
   },
@@ -315,7 +317,7 @@ export const BIOMES = [
     torch: '#ffdfab', fog: '#383647',
   },
   {
-    id: 'throne', name: "Dagyr's Throne", palette: { colorize: [4, 0.72], light: -0.1, contrast: 1.2 }, dark: 0.8, light: 8,
+    id: 'throne', name: "Velscour's Throne", palette: { colorize: [4, 0.72], light: -0.1, contrast: 1.2 }, dark: 0.8, light: 8,
     ambient: { type: 'ember', color: '#ff3a10' }, mon: { hue: -10, sat: 1.5, light: -0.06 }, el: 'fire', blood: '#c00000',
     adj: ['Hellsworn', 'Doom', 'Archfiend'], roster: ['demon', 'imp', 'knight', 'gargoyle', 'abomination', 'hound', 'wraith', 'cultist', 'elemental', 'golem', 'eye', 'skeleton'],
     torch: '#ff2000', fog: '#200000',
@@ -480,8 +482,59 @@ export function mixPartner(biome, rnd = Math.random) {
   return kin.length ? kin[Math.floor(rnd() * kin.length)] : null;
 }
 
-// Beta biomes: empty now that Mountainside has graduated to the full overworld rotation.
-export const BETA_BIOMES = [];
+// Beta biomes and follow-on regions: never in a biome bag or the overworld guarantee. Velscour's skull button reaches
+// them (a region's words, or the HAIL VELSCOUR! list; game.js openVelscourContact).
+export const BETA_BIOMES = [
+  {
+    // THE SNOWY SUMMIT (docs/SNOWY_SUMMIT.md): where the Mountainside's summit leads, never drawn on its own. Thin
+    // ridgelines across a mountain range, plateaus where groups fight, the peak and one of five snow-swapped bosses;
+    // a three.js height field like the Mountainside's, in the Snowy Summit pack (assets/tiles/snowy_summit/)
+    id: 'snowy_summit', name: 'The Snowy Summit', pack: 'snowy_summit', overworld: true, packArt: true, painted: false, wallPack: null, region: true, follows: 'mountainside',
+    palette: null, dark: 0.2, light: 14,
+    ambient: { type: 'snow', color: '#f2f6fc' }, mon: { hue: 200, sat: 0.6, light: 0.1 },
+    el: 'cold', blood: '#7c1424', adj: ['Frostbitten', 'Rime-Bound', 'Howling', 'Snowblind'],
+    roster: ['hound', 'golem', 'gargoyle', 'bat', 'archer', 'skeleton', 'knight', 'elemental', 'wraith', 'cultist', 'imp', 'ghoul'],
+    torch: '#ffc890', fog: '#1a2230',
+  },
+  // the four new regions (src/game/regions/, docs/NEW_REGIONS.md); each region module owns its map, art and run
+  {
+    // the Iron Express, a steam train raiders have taken (id kept: ghost_train): fight car to car while it runs,
+    // stations to stop at, their chief on the tender
+    id: 'ghost_train', name: 'The Iron Express', pack: 'town', overworld: true, beta: true, painted: false, wallPack: null, region: true,
+    palette: null, dark: 0.35, light: 12,
+    ambient: { type: 'dust', color: '#d8c8a8' }, mon: { hue: 15, sat: 0.95, light: 0 },
+    el: 'physical', blood: '#7a1810', adj: ['Rattling', 'Smoke-Choked', 'Runaway', 'Iron-Shod'],
+    roster: ['archer', 'knight', 'cultist', 'hound', 'skeleton', 'zombie', 'ghoul', 'imp', 'bat', 'spider'],
+    torch: '#ffb060', fog: '#141820',
+  },
+  {
+    // a fortress besieged by an undead horde that never stops: hold the walls in waves, repair gates, man ballistae
+    id: 'endless_siege', name: 'The Endless Siege', pack: 'town', overworld: true, beta: true, painted: false, wallPack: null, region: true,
+    palette: null, dark: 0.4, light: 11,
+    ambient: { type: 'ember', color: '#ffb070' }, mon: { hue: 20, sat: 0.8, light: -0.03 },
+    el: 'fire', blood: '#6a1410', adj: ['Besieged', 'Burning', 'Unyielding', 'Battered'],
+    roster: ['skeleton', 'zombie', 'ghoul', 'knight', 'archer', 'golem', 'wraith', 'abomination', 'cultist', 'imp'],
+    torch: '#ffa050', fog: '#160c08',
+  },
+  {
+    // a dwarven mine overrun from below: minecarts between shafts, branching rails, worse the deeper you dig
+    id: 'deep_mines', name: 'The Deep Rail Mines', pack: 'town', overworld: true, beta: true, painted: false, wallPack: null, region: true,
+    palette: null, dark: 0.82, light: 7.5,
+    ambient: { type: 'dust', color: '#c8a070' }, mon: { hue: 30, sat: 0.8, light: -0.04 },
+    el: 'physical', blood: '#7a1810', adj: ['Collapsing', 'Lamp-Lit', 'Bottomless', 'Ore-Veined'],
+    roster: ['spider', 'golem', 'bat', 'skeleton', 'zombie', 'elemental', 'imp', 'abomination', 'worm', 'beetle'],
+    torch: '#ffc070', fog: '#120c08',
+  },
+  {
+    // one colossal beast per hunt: track it by its kills and wounds, wear it down over several fights, corner it in its lair
+    id: 'great_hunt', name: 'The Great Hunt', pack: 'town', overworld: true, beta: true, painted: false, wallPack: null, region: true,
+    palette: null, dark: 0.3, light: 13,
+    ambient: { type: 'leaf', color: '#d0c890' }, mon: { hue: 30, sat: 0.9, light: 0.02 },
+    el: 'physical', blood: '#7c1610', adj: ['Trampled', 'Blood-Trailed', 'Wild', 'Stalked'],
+    roster: ['hound', 'spider', 'bat', 'archer', 'beetle', 'scorpion', 'cultist', 'imp', 'golem', 'gargoyle'],
+    torch: '#ffc078', fog: '#0c1408',
+  },
+];
 
 // THE ETERNAL BREACH (docs/ETERNAL_BREACH.md): the challenge biome behind the purple portal in Herrington Hollow. Never in
 // a biome bag, the overworld guarantee or Velscour's list; its floors are counted apart (c.breach). Island tops and

@@ -1,4 +1,4 @@
-// Hero pictures for the menus: Dagyr's composed hero (heroart.js) cropped and fitted into a canvas.
+// Hero pictures for the menus: Velscour's composed hero (heroart.js) cropped and fitted into a canvas.
 import { makeCanvas } from '../core/util.js';
 import { heroCanvas, loadHeroArt, heroArtReady } from '../art/heroart.js';
 import { heroBaseLook, HERO_BY_ID } from '../data/heroes.js';

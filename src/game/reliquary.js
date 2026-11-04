@@ -6,7 +6,7 @@ import { G } from '../state.js';
 import { GEMS, SIGILS, itemName, itemColor } from '../data/items.js';
 import { codexKey, CODEX_TOTAL, HEIRLOOMS, GLYPHWORDS, PIECE_BY_ID } from '../data/relics.js';
 
-const KEY = 'Dagyr_reliquary_v1';
+const KEY = 'Velscour_reliquary_v1';
 export const VAULT_TABS = 6, VAULT_SIZE = 96;
 export const MILESTONES = [
   { pct: 25, text: 'Vault III opens' },
@@ -30,7 +30,7 @@ export function setReliquaryOnlineHooks(hooks) {
 export function reliquaryStorageKey() {
   try {
     const acc = onlineHooks.getAccount ? onlineHooks.getAccount() : null;
-    if (acc && acc.id) return `Dagyr_reliquary_${acc.id}`;
+    if (acc && acc.id) return `Velscour_reliquary_${acc.id}`;
   } catch (e) { }
   return KEY;
 }

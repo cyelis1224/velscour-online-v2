@@ -10,7 +10,7 @@
 //    rift; level, cap of 8, the clock pauses while a boss is awake), iron/cruel (once, never compounding), ambush (a third
 //    of the wait), omens (every omenable depth, the portal cards, the Nemesis returns), glass (the sheet, only where in
 //    force), hunger (no orbs over 200 kills, no regeneration), gaze (2x aggro range, an awake monster never loses the
-//    hero); none in rifts or Dagyr Unbound; the HUD subtitle, the Quest Log; heresyWorld's dials at rank 26; the
+//    hero); none in rifts or Velscour Unbound; the HUD subtitle, the Quest Log; heresyWorld's dials at rank 26; the
 //    rank-20 Mark; Abyssal Key odds at rank 10 vs 9.
 // 3. auto: auto-play under Dry Throat never calls usePotion while its life is low (and does without the Heresy).
 // 4. balance: depth 520, every Heresy vs none: monsters per level, champion affixes, dials, time to clear the start (god
@@ -28,7 +28,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
 /** Helpers in the page: build a level with a set of Heresies (Math.random seeded for the build), step the game. */
 async function helpers(page) {
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     const seeded = (seed) => { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
     window.HX = {
@@ -71,7 +71,7 @@ async function helpers(page) {
 /** A hero geared for depth 521 the way tools/tests/balance.js does it (BAL_GEAR 8): level, stats, skills, gear, gems, mastery. */
 async function gear521(page) {
   await page.evaluate(async () => {
-    const { G } = window.DAGYR, { Auto } = await import('/src/game/autoplay.js'), { rollItem, rollGem } = await import('/src/data/items.js');
+    const { G } = window.VELSCOUR, { Auto } = await import('/src/game/autoplay.js'), { rollItem, rollGem } = await import('/src/data/items.js');
     const { depthLevel } = await import('/src/data/depth.js'), { xpToNext } = await import('/src/game/player.js');
     const c = G.char, p = G.player, D = 521, L = depthLevel(D), lvl = L + 1;
     c.level = lvl; c.xp = Math.round(xpToNext(lvl) * 0.3); c.statPoints += (lvl - 1) * 5; c.skillPoints += (lvl - 1) + D - 1;
@@ -98,11 +98,11 @@ async function gear521(page) {
   // ================================================================ 1. the altar
   if (parts.includes('altar')) {
     const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
-    await page.evaluate(async () => { await window.DAGYR.game.newChar('wizard', 'Heretic'); });
+    await page.evaluate(async () => { await window.VELSCOUR.game.newChar('wizard', 'Heretic'); });
     await page.waitForTimeout(1500);
     await helpers(page);
     const t = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR, H = await import('/src/game/heresies.js'), E = await import('/src/game/endgame.js');
+      const { G, game } = window.VELSCOUR, H = await import('/src/game/heresies.js'), E = await import('/src/game/endgame.js');
       game.enterTown();
       const w = G.world, a = w.npcs.find((n) => n.altar), p = G.player, rift = w.portals.find((q) => q.rift);
       const path = a && w.map.findPath(p.x, p.y, a.x, a.y, 20000);
@@ -115,27 +115,27 @@ async function gear521(page) {
     check(/sealed/.test(t.rift || ''), `the rift gate is sealed too ("${t.rift}")`);
     // the hero walks to the altar and 'use' opens the panel
     const walk = await page.evaluate(() => {
-      const { G } = window.DAGYR, Heresies = G.ui.heresies;
+      const { G } = window.VELSCOUR, Heresies = G.ui.heresies;
       const p = G.player, a = G.world.npcs.find((n) => n.altar);
       p.interact = a; let n = 0;
-      for (; n < 30 * 40 && !Heresies.active; n++) { G.dt = 1 / 30; G.time += G.dt; G.frame++; window.DAGYR.game.update(1 / 30); }
+      for (; n < 30 * 40 && !Heresies.active; n++) { G.dt = 1 / 30; G.time += G.dt; G.frame++; window.VELSCOUR.game.update(1 / 30); }
       const body = document.querySelector('.heresy-panel');
       return { open: Heresies.active, secs: +(n / 30).toFixed(1), d: +Math.hypot(a.x - p.x, a.y - p.y).toFixed(2), locked: !!(body && body.querySelector('.hx-locked')), rows: body ? body.querySelectorAll('.hx-row').length : 0, disabled: body ? [...body.querySelectorAll('.hx-row input')].every((i) => i.disabled) : false, riftBtn: body && body.querySelector('.hx-rift').disabled, unboundBtn: body && body.querySelector('.hx-unbound').disabled };
     });
     console.log(JSON.stringify(walk));
     check(walk.open && walk.d <= 1.8, `the hero walks to the altar and it opens the panel (${walk.secs} s)`);
-    check(walk.locked && walk.rows === 12 && walk.disabled, 'locked: "Dagyr still sits his throne", twelve rows greyed and disabled');
+    check(walk.locked && walk.rows === 12 && walk.disabled, 'locked: "Velscour still sits his throne", twelve rows greyed and disabled');
     check(walk.riftBtn && walk.unboundBtn, 'locked: the Rift and Unbound doors are disabled');
     await page.click('.hx-row[data-id="twins"]', { force: true }).catch(() => { });
-    check(await page.evaluate(() => window.DAGYR.G.char.heresy.on.length === 0), 'a click on a locked row changes nothing');
+    check(await page.evaluate(() => window.VELSCOUR.G.char.heresy.on.length === 0), 'a click on a locked row changes nothing');
     await shot('heresies_panel_locked');
-    await page.evaluate(() => window.DAGYR.G.ui.closePanel('heresies'));
+    await page.evaluate(() => window.VELSCOUR.G.ui.closePanel('heresies'));
     await page.evaluate(() => window.HX.step(0.3));
     await shot('heresies_altar_locked');
     // the Endgame opens: real clicks toggle
-    await page.evaluate(async () => { const E = await import('/src/game/endgame.js'); E.unlockEndgame(); window.DAGYR.G.ui.heresies.open(); });
+    await page.evaluate(async () => { const E = await import('/src/game/endgame.js'); E.unlockEndgame(); window.VELSCOUR.G.ui.heresies.open(); });
     for (const id of ['twins', 'iron', 'glass', 'twins', 'twins', 'omens']) await page.click(`.hx-row[data-id="${id}"]`);
-    const on = await page.evaluate(async () => { const H = await import('/src/game/heresies.js'), c = window.DAGYR.G.char; return { on: c.heresy.on, rank: H.heresyRankOf(c), shown: document.querySelector('.hx-rank b').textContent, checked: [...document.querySelectorAll('.hx-row.on')].map((r) => r.dataset.id), chips: document.querySelector('.hx-chips').textContent }; });
+    const on = await page.evaluate(async () => { const H = await import('/src/game/heresies.js'), c = window.VELSCOUR.G.char; return { on: c.heresy.on, rank: H.heresyRankOf(c), shown: document.querySelector('.hx-rank b').textContent, checked: [...document.querySelectorAll('.hx-row.on')].map((r) => r.dataset.id), chips: document.querySelector('.hx-chips').textContent }; });
     console.log(JSON.stringify(on));
     check(on.on.slice().sort().join() === 'glass,iron,omens,twins' && on.rank === 8 && on.shown === '8', `clicks toggle: ${on.on.join(',')} = rank ${on.rank}`);
     check(on.checked.slice().sort().join() === 'glass,iron,omens,twins', 'the rows show what is on');
@@ -144,15 +144,15 @@ async function gear521(page) {
     const scrolled = await page.evaluate(() => { const b = document.querySelector('.heresy-panel .panel-body'); b.scrollTop = 1e4; return { h: b.scrollHeight, c: b.clientHeight }; });
     await shot('heresies_panel_desktop_doors');
     console.log('panel body', JSON.stringify(scrolled));
-    await page.evaluate(() => window.DAGYR.G.ui.closePanel('heresies'));
+    await page.evaluate(() => window.VELSCOUR.G.ui.closePanel('heresies'));
     await page.evaluate(() => window.HX.step(1));
     await shot('heresies_altar_lit');
     // saved and loaded again (a page reload)
-    const id = await page.evaluate(async () => { const { writeSave } = await import('/src/game/save.js'); const c = window.DAGYR.G.char; writeSave(c); return c.id; });
+    const id = await page.evaluate(async () => { const { writeSave } = await import('/src/game/save.js'); const c = window.VELSCOUR.G.char; writeSave(c); return c.id; });
     await page.reload();
-    await page.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
+    await page.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
     const back = await page.evaluate(async (id) => {
-      const { G, game } = window.DAGYR, S = await import('/src/game/save.js'), E = await import('/src/game/endgame.js');
+      const { G, game } = window.VELSCOUR, S = await import('/src/game/save.js'), E = await import('/src/game/endgame.js');
       const c = S.listSaves().find((s) => s.id === id);
       await game.loadChar(c);
       const old = JSON.parse(JSON.stringify(G.char)); delete old.heresy;
@@ -166,7 +166,7 @@ async function gear521(page) {
     await page.waitForTimeout(800);
     await helpers(page);
     const doors = await page.evaluate(async () => {
-      const { G } = window.DAGYR; const o = {};
+      const { G } = window.VELSCOUR; const o = {};
       G.ui.heresies.open(); o.unboundOff = document.querySelector('.hx-unbound').disabled;
       document.querySelector('.hx-rift').click(); o.rift = !!document.querySelector('.rift-dialog'); o.panelClosed = !G.ui.heresies.active;
       document.querySelectorAll('.rift-dialog').forEach((d) => { d.closest('.screen').remove(); G.ui.modalCount = Math.max(0, G.ui.modalCount - 1); });
@@ -178,9 +178,9 @@ async function gear521(page) {
     console.log(JSON.stringify(doors));
     check(doors.rift && doors.panelClosed, 'the Rift door opens the rift dialog (game.confirmRift)');
     check(doors.marks, 'the Marks door opens the Infernal Marks panel');
-    check(doors.unboundOff && doors.unboundOn && doors.keys === '3/3 Abyssal Keys', 'Dagyr Unbound: disabled without keys, open with three');
+    check(doors.unboundOff && doors.unboundOn && doors.keys === '3/3 Abyssal Keys', 'Velscour Unbound: disabled without keys, open with three');
     // a dungeon built while the panel changes: the note says the level keeps its set
-    const note = await page.evaluate(() => { const { G } = window.DAGYR; window.HX.build(31, ['twins']); G.char.heresy.on = ['twins', 'iron']; G.ui.heresies.open(); const t = document.querySelector('.hx-note').textContent; G.ui.closeAll(); return t; });
+    const note = await page.evaluate(() => { const { G } = window.VELSCOUR; window.HX.build(31, ['twins']); G.char.heresy.on = ['twins', 'iron']; G.ui.heresies.open(); const t = document.querySelector('.hx-note').textContent; G.ui.closeAll(); return t; });
     check(/built at Heresy 3/.test(note), `inside a level the panel says changes wait for the next one ("${note.slice(-70)}")`);
     report(errors);
     await browser.close();
@@ -189,7 +189,7 @@ async function gear521(page) {
   // ================================================================ 2. every Heresy
   if (parts.includes('effects')) {
     const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
-    await page.evaluate(async () => { const { G, game } = window.DAGYR; await game.newChar('paladin', 'Heretic'); const E = await import('/src/game/endgame.js'); E.unlockEndgame(); G.godMode = true; G.char.level = 280; G.player.recompute(); }); // (no level-up banners over the shots)
+    await page.evaluate(async () => { const { G, game } = window.VELSCOUR; await game.newChar('paladin', 'Heretic'); const E = await import('/src/game/endgame.js'); E.unlockEndgame(); G.godMode = true; G.char.level = 280; G.player.recompute(); }); // (no level-up banners over the shots)
     await page.waitForTimeout(1200);
     await helpers(page);
     // --- twins: the same seeded level with and without
@@ -242,7 +242,7 @@ async function gear521(page) {
     check(ic.all, 'every monster on the level is marked as it appears');
     // --- thirst
     const th = await page.evaluate(() => {
-      const { G } = window.DAGYR, X = window.HX, p = G.player, c = G.char;
+      const { G } = window.VELSCOUR, X = window.HX, p = G.player, c = G.char;
       X.build(12, ['thirst']); c.potions = { hp: 5, mp: 5, rejuv: 2, fury: 1 }; p.potionCd = 0; p.hp = p.maxHp * 0.3;
       for (const k of ['hp', 'mp', 'rejuv', 'fury']) p.usePotion(k);
       const a = { ...c.potions, regen: p.potionRegen.length };
@@ -253,7 +253,7 @@ async function gear521(page) {
     check(th.b === 4, 'without it the same hero drinks');
     // --- the Fifth Phase: a BOSS ROOM at depth 605
     const ff = await page.evaluate(async () => {
-      const { G } = window.DAGYR, X = window.HX, { makeRaidBoss, RAID_BOSSES } = await import('/src/game/raid.js'), { hit, kill } = await import('/src/game/combat.js');
+      const { G } = window.VELSCOUR, X = window.HX, { makeRaidBoss, RAID_BOSSES } = await import('/src/game/raid.js'), { hit, kill } = await import('/src/game/combat.js');
       const { keyChance } = await import('/src/game/unbound.js');
       const out = { mods: [], mods0: [] };
       const w = X.build(605, ['fifth']), R = w.raid, b = w.boss, p = w.player;
@@ -294,9 +294,9 @@ async function gear521(page) {
     check(ff.log.length === 4 && /Phase 5\/5 · Beyond the End/.test(ff.final) && ff.dead, `stepped through every phase: ${ff.log.join(' | ')}`);
     check(Math.abs(ff.keyRank10 - 0.07) < 1e-9 && ff.keyRank9 === 0, `Abyssal Key odds at depth 605: ${ff.keyRank10} at rank 10, ${ff.keyRank9} at rank 9`);
     // --- the Legion: a plain depth, the Breach, never a rift
-    await page.evaluate(async () => { const { G, game } = window.DAGYR, { BIOME_BY_ID } = await import('/src/data/biomes.js'); await game.loadLevelArt(BIOME_BY_ID.catacombs); });
+    await page.evaluate(async () => { const { G, game } = window.VELSCOUR, { BIOME_BY_ID } = await import('/src/data/biomes.js'); await game.loadLevelArt(BIOME_BY_ID.catacombs); });
     const lg = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR, X = window.HX, { depthLevel } = await import('/src/data/depth.js'), { loadArtFor } = await import('/src/core/enemyart.js');
+      const { G, game } = window.VELSCOUR, X = window.HX, { depthLevel } = await import('/src/data/depth.js'), { loadArtFor } = await import('/src/core/enemyart.js');
       const out = {};
       const w = X.build(521, ['legion']); out.t0 = +w.legionT.toFixed(1);
       for (const m of X.foes(w)) if (Math.hypot(m.x - w.player.x, m.y - w.player.y) < 16) m.dead = true; // a clear view of the gate
@@ -304,10 +304,10 @@ async function gear521(page) {
       return out;
     });
     await page.waitForTimeout(3300); // (the level's banner fades on the wall clock)
-    Object.assign(lg, await page.evaluate(() => { const w = window.DAGYR.G.world; w.legionT = 0.05; window.HX.step(0.4); return { gate: w.hazards.length > 0, next: +w.legionT.toFixed(1) }; }));
+    Object.assign(lg, await page.evaluate(() => { const w = window.VELSCOUR.G.world; w.legionT = 0.05; window.HX.step(0.4); return { gate: w.hazards.length > 0, next: +w.legionT.toFixed(1) }; }));
     await shot('heresies_legion_gate');
     const lg2 = await page.evaluate(async () => {
-      const { G } = window.DAGYR, X = window.HX, { depthLevel } = await import('/src/data/depth.js'), w = G.world, out = {};
+      const { G } = window.VELSCOUR, X = window.HX, { depthLevel } = await import('/src/data/depth.js'), w = G.world, out = {};
       X.step(1.2);
       const pit = () => w.creatures.filter((c) => c.pitSpawn && !c.dead);
       const { loadArtFor } = await import('/src/core/enemyart.js'); await loadArtFor(pit().map((c) => c.art).filter(Boolean), true).catch(() => { });
@@ -319,7 +319,7 @@ async function gear521(page) {
     await page.waitForTimeout(600); await page.evaluate(() => window.HX.step(0.6));
     await shot('heresies_legion_demons');
     const lg3 = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR, X = window.HX, w = G.world, out = {};
+      const { G, game } = window.VELSCOUR, X = window.HX, w = G.world, out = {};
       const pit = () => w.creatures.filter((c) => c.pitSpawn && !c.dead).length;
       for (let i = 0; i < 6; i++) { w.legionT = 0.02; X.step(1.4); out.max = Math.max(out.max || 0, pit()); }
       out.cap = pit();
@@ -335,7 +335,7 @@ async function gear521(page) {
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       game.buildRift(1, BIOME_BY_ID.catacombs); const R = G.world; out.rift = { heresy: R.heresy || null, legionT: R.legionT, rank: R.heresy ? R.heresy.rank : 0 };
       X.step(5); out.riftPit = R.creatures.filter((c) => c.pitSpawn).length;
-      // Dagyr Unbound: none either
+      // Velscour Unbound: none either
       G.unboundNext = true; game.buildDungeon(500, BIOME_BY_ID.throne); const U = G.world; out.unbound = { unbound: U.unbound, heresy: U.heresy || null };
       game.enterTown();
       return out;
@@ -349,7 +349,7 @@ async function gear521(page) {
     check(lg3.breach && lg3.breachPit >= 2, `the Eternal Breach too (${lg3.breachPit} demons on floor 3)`);
     check(/Heresy 3/.test(lg3.breachSub), `the Breach's subtitle shows the rank ("${lg3.breachSub}")`);
     check(!lg3.rift.heresy && lg3.rift.legionT === undefined && lg3.riftPit === 0, 'never in an Abyssal Rift (world.heresy null, no clock, no demons)');
-    check(lg3.unbound.unbound && !lg3.unbound.heresy, 'never in Dagyr Unbound');
+    check(lg3.unbound.unbound && !lg3.unbound.heresy, 'never in Velscour Unbound');
     // --- ambush weather
     const am = await page.evaluate(async () => {
       const X = window.HX, { ambushTick } = await import('/src/game/mayhem.js'), out = {};
@@ -365,7 +365,7 @@ async function gear521(page) {
     check(am.on.mul === 3 && am.on.first <= 40 / 3 + 0.01 && am.on.hi <= am.none.lo, `Ambush Weather: the wait a third (first ${am.on.first} s vs ${am.none.first}; then ${am.on.lo}-${am.on.hi} s vs ${am.none.lo}-${am.none.hi})`);
     // --- Black Omens: every omenable depth, the portal cards, the Nemesis
     const om = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR, X = window.HX, out = { on: [], none: [] };
+      const { G, game } = window.VELSCOUR, X = window.HX, out = { on: [], none: [] };
       for (const d of [31, 32, 33, 34, 36, 37, 38, 39]) { out.on.push(X.build(d, ['omens']).happen.omen || null); out.none.push(X.build(d, []).happen.omen || null); }
       const arch = X.build(31, []).roster[0];
       G.char.nemesis = { arch, art: null, swap: null, name: 'Gorrak', title: 'the Gloating', depth: 300, kills: 1 };
@@ -387,7 +387,7 @@ async function gear521(page) {
     check(om.nemOn && !om.nemOff, 'a Nemesis from depth 300 returns at depth 31 under Black Omens (and not without)');
     // --- Glass Cannon: on the sheet only where it is in force
     const gl = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR, X = window.HX, p = G.player, { BIOME_BY_ID } = await import('/src/data/biomes.js');
+      const { G, game } = window.VELSCOUR, X = window.HX, p = G.player, { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const sheet = () => { G.char.blessing = null; p.recompute(); return { hp: p.maxHp, dmg: p.st.dmgPct }; }; // (a town blessing would move the numbers)
       X.on([]); game.enterTown(); const base = sheet();
       X.on(['glass']); const town = sheet();
@@ -404,7 +404,7 @@ async function gear521(page) {
     check(gl.other.hp === gl.base.hp, 'not in a level built without it (the level\'s set rules)');
     // --- Hunger of the Abyss: no orbs over 200 kills, no regeneration
     const hu = await page.evaluate(async () => {
-      const { G } = window.DAGYR, X = window.HX, { makeMonster } = await import('/src/game/monster.js'), { kill } = await import('/src/game/combat.js'), { GroundItem } = await import('/src/game/loot.js');
+      const { G } = window.VELSCOUR, X = window.HX, { makeMonster } = await import('/src/game/monster.js'), { kill } = await import('/src/game/combat.js'), { GroundItem } = await import('/src/game/loot.js');
       const run = (ids) => {
         const w = X.build(21, ids), p = w.player, arch = w.roster[0];
         for (let i = 0; i < 200; i++) { const m = makeMonster(w, arch, w.biome, 21, 'normal', p.x + 3, p.y); w.add(m); kill(m, p, {}); }
@@ -417,9 +417,9 @@ async function gear521(page) {
     console.log('hunger', JSON.stringify(hu));
     check(hu.on.orbs === 0 && hu.on.frenzy === 0 && hu.none.orbs > 10, `Hunger of the Abyss: no orbs from 200 kills (${hu.none.orbs} without), none from other sources`);
     check(hu.on.regen === 0 && hu.none.regen > 0, `no life regeneration (${hu.on.regen} vs ${hu.none.regen}/s)`);
-    // --- Dagyr's Gaze
+    // --- Velscour's Gaze
     const gz = await page.evaluate(async () => {
-      const { G } = window.DAGYR, X = window.HX, H = await import('/src/game/heresies.js'), { makeMonster } = await import('/src/game/monster.js'), out = {};
+      const { G } = window.VELSCOUR, X = window.HX, H = await import('/src/game/heresies.js'), { makeMonster } = await import('/src/game/monster.js'), out = {};
       for (const [k, ids] of [['none', []], ['on', ['gaze']]]) {
         const w = X.build(21, ids, { seed: 2100 }), p = w.player, map = w.map;
         for (const m of X.foes(w)) if (m.rank !== 'boss') m.dead = true;
@@ -439,12 +439,12 @@ async function gear521(page) {
       return out;
     });
     console.log('gaze', JSON.stringify(gz));
-    check(gz.on.gaze && Math.abs(gz.on.range / gz.none.range - 2) < 1e-9, `Dagyr's Gaze: aggro range ${gz.none.range} -> ${gz.on.range} tiles`);
+    check(gz.on.gaze && Math.abs(gz.on.range / gz.none.range - 2) < 1e-9, `Velscour's Gaze: aggro range ${gz.none.range} -> ${gz.on.range} tiles`);
     check(gz.on.target && !gz.none.target, `an awake monster ${gz.on.d0} tiles of path away keeps the hero (without it, it forgets him)`);
     check(gz.on.d1 < gz.on.d0 - 15 && gz.none.home < 4 && !gz.none.tgt, `it comes for him: ${gz.on.d0} -> ${gz.on.d1} tiles of path in 8 s (without: it idles ${gz.none.home} tiles from its spot)`);
     // --- the rank: HUD subtitle, Quest Log, dials at 26, the rank-20 Mark
     const rk = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR, X = window.HX, H = await import('/src/game/heresies.js'), M = await import('/src/game/marks.js'), { toggleQuest } = await import('/src/ui/quest.js');
+      const { G, game } = window.VELSCOUR, X = window.HX, H = await import('/src/game/heresies.js'), M = await import('/src/game/marks.js'), { toggleQuest } = await import('/src/ui/quest.js');
       const ALL = H.HERESIES.map((h) => h.id), out = {}, { OMENS } = await import('/src/game/happenings.js'); // (before the build: an await after it lets a frame mark the monsters)
       const w = X.build(521, ALL);
       out.rank = w.heresy.rank; out.sub = document.getElementById('area-sub').textContent;
@@ -457,11 +457,11 @@ async function gear521(page) {
     });
     await page.evaluate(() => { window.HX.step(0.2); const h = [...document.querySelectorAll('.q-sec h3')].find((e) => e.textContent === 'The Endgame'); if (h) h.scrollIntoView(); });
     await shot('heresies_quest_log');
-    await page.evaluate(() => window.DAGYR.G.ui.closeAll());
+    await page.evaluate(() => window.VELSCOUR.G.ui.closeAll());
     await page.evaluate(() => window.HX.step(3.5));
     await shot('heresies_hud_rank26');
     const mk = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR, X = window.HX, M = await import('/src/game/marks.js');
+      const { G, game } = window.VELSCOUR, X = window.HX, M = await import('/src/game/marks.js');
       const out = {};
       X.build(522, ['twins', 'crowned', 'thirst', 'legion', 'iron', 'cruel', 'fifth', 'ambush', 'omens']); out.r20 = G.world.heresy.rank;
       const a = M.marksTotal(); game.brokeThrough(522); game.brokeThrough(522); out.r20marks = M.marksTotal() - a;
@@ -483,11 +483,11 @@ async function gear521(page) {
   // ================================================================ 3. auto-play under Dry Throat
   if (parts.includes('auto')) {
     const { browser, page, errors } = await openGame({ width: 1280, height: 720 });
-    await page.evaluate(async () => { const { G, game } = window.DAGYR; await game.newChar('wizard', 'Thirsty'); const E = await import('/src/game/endgame.js'); E.unlockEndgame(); });
+    await page.evaluate(async () => { const { G, game } = window.VELSCOUR; await game.newChar('wizard', 'Thirsty'); const E = await import('/src/game/endgame.js'); E.unlockEndgame(); });
     await page.waitForTimeout(1200);
     await helpers(page);
     const au = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR, X = window.HX, { Auto } = await import('/src/game/autoplay.js'), p = G.player, c = G.char, out = {};
+      const { G, game } = window.VELSCOUR, X = window.HX, { Auto } = await import('/src/game/autoplay.js'), p = G.player, c = G.char, out = {};
       for (const [k, ids, secs] of [['thirst', ['thirst', 'twins', 'iron'], 120], ['none', [], 30]]) {
         X.build(4, ids); c.potions = { hp: 10, mp: 10, rejuv: 3, fury: 2 }; G.godMode = true;
         let calls = 0; const use = p.usePotion; p.usePotion = function (kind) { calls++; return use.call(this, kind); };
@@ -509,13 +509,13 @@ async function gear521(page) {
   // ================================================================ 4. depth 520: what every Heresy costs
   if (parts.includes('balance')) {
     const { browser, page, errors } = await openGame({ width: 1280, height: 720 });
-    await page.evaluate(async () => { const { G, game } = window.DAGYR; await game.newChar('paladin', 'Measure'); const E = await import('/src/game/endgame.js'); E.unlockEndgame(); });
+    await page.evaluate(async () => { const { G, game } = window.VELSCOUR; await game.newChar('paladin', 'Measure'); const E = await import('/src/game/endgame.js'); E.unlockEndgame(); });
     await page.waitForTimeout(1200);
     await helpers(page);
     await gear521(page);
     const ALLIDS = JSON.stringify(ALL);
     const bal = await page.evaluate(async (ALL) => {
-      const { G, game } = window.DAGYR, X = window.HX, H = await import('/src/game/heresies.js'), { Auto } = await import('/src/game/autoplay.js'), { OMENS } = await import('/src/game/happenings.js');
+      const { G, game } = window.VELSCOUR, X = window.HX, H = await import('/src/game/heresies.js'), { Auto } = await import('/src/game/autoplay.js'), { OMENS } = await import('/src/game/happenings.js');
       const out = {};
       for (const [k, ids] of [['none', []], ['twins', ['twins']], ['all', ALL]]) {
         const lv = [];
@@ -561,7 +561,7 @@ async function gear521(page) {
   // ================================================================ 4b. each Heresy alone (opt-in: 'each')
   if (parts.includes('each')) {
     const { browser, page, errors } = await openGame({ width: 1280, height: 720 });
-    await page.evaluate(async () => { const { G, game } = window.DAGYR; await game.newChar(window.EACH_CLASS || 'paladin', 'Measure'); const E = await import('/src/game/endgame.js'); E.unlockEndgame(); });
+    await page.evaluate(async () => { const { G, game } = window.VELSCOUR; await game.newChar(window.EACH_CLASS || 'paladin', 'Measure'); const E = await import('/src/game/endgame.js'); E.unlockEndgame(); });
     await page.waitForTimeout(1200);
     await helpers(page);
     await gear521(page);
@@ -578,16 +578,16 @@ async function gear521(page) {
   // ================================================================ 5. phone
   if (parts.includes('phone')) {
     const { browser, page, errors, shot } = await openGame({ width: 844, height: 390, mobile: true });
-    await page.evaluate(async () => { await window.DAGYR.game.newChar('ranger', 'Pocket'); });
+    await page.evaluate(async () => { await window.VELSCOUR.game.newChar('ranger', 'Pocket'); });
     await page.waitForTimeout(1500);
     await helpers(page);
-    await page.evaluate(() => { const { G } = window.DAGYR; const a = G.world.npcs.find((n) => n.altar); G.player.x = a.x + 1; G.player.y = a.y + 1; window.HX.step(0.5); a.use(); });
+    await page.evaluate(() => { const { G } = window.VELSCOUR; const a = G.world.npcs.find((n) => n.altar); G.player.x = a.x + 1; G.player.y = a.y + 1; window.HX.step(0.5); a.use(); });
     await page.waitForTimeout(300);
     await shot('heresies_phone_locked');
-    await page.evaluate(async () => { const E = await import('/src/game/endgame.js'); E.unlockEndgame(); window.DAGYR.G.ui.heresies.open(); });
+    await page.evaluate(async () => { const E = await import('/src/game/endgame.js'); E.unlockEndgame(); window.VELSCOUR.G.ui.heresies.open(); });
     for (const id of ['twins', 'legion', 'gaze']) await page.tap(`.hx-row[data-id="${id}"]`);
     const ph = await page.evaluate(() => {
-      const { G } = window.DAGYR, b = document.querySelector('.heresy-panel'), body = b.querySelector('.panel-body'), r = b.getBoundingClientRect(), row = b.querySelector('.hx-row').getBoundingClientRect(), sw = b.querySelector('.hx-sw').getBoundingClientRect();
+      const { G } = window.VELSCOUR, b = document.querySelector('.heresy-panel'), body = b.querySelector('.panel-body'), r = b.getBoundingClientRect(), row = b.querySelector('.hx-row').getBoundingClientRect(), sw = b.querySelector('.hx-sw').getBoundingClientRect();
       const cols = new Set([...b.querySelectorAll('.hx-row')].map((e) => Math.round(e.getBoundingClientRect().left))).size;
       return { on: G.char.heresy.on, w: Math.round(r.width), h: Math.round(r.height), vw: innerWidth, vh: innerHeight, cols, rowH: Math.round(row.height), sw: [Math.round(sw.width), Math.round(sw.height)], scroll: body.scrollHeight > body.clientHeight, overflowX: body.scrollWidth > body.clientWidth + 1 };
     });
@@ -603,7 +603,7 @@ async function gear521(page) {
     await shot('heresies_phone_doors');
     const doorH = await page.evaluate(() => Math.round(document.querySelector('.hx-door').getBoundingClientRect().height));
     check(doorH >= 44, `the doors are big enough to tap (${doorH} px)`);
-    await page.evaluate(async () => { const { G } = window.DAGYR; G.ui.closeAll(); G.godMode = true; window.HX.build(521, ['twins', 'legion', 'gaze']); window.HX.step(0.5); });
+    await page.evaluate(async () => { const { G } = window.VELSCOUR; G.ui.closeAll(); G.godMode = true; window.HX.build(521, ['twins', 'legion', 'gaze']); window.HX.step(0.5); });
     await page.waitForTimeout(300);
     const sub = await page.evaluate(() => document.getElementById('area-sub').textContent);
     check(/Heresy 8/.test(sub), `the phone HUD subtitle: "${sub}"`);

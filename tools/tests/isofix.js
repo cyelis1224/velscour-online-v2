@@ -10,7 +10,7 @@ const first = +(process.argv[4] || 0), count = +(process.argv[5] || (mode === 'p
   const { browser, page, errors } = await openGame({ width: 1280, height: 800 });
   try {
     await page.evaluate(async (id) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar('paladin', 'Iso Check');
       document.querySelectorAll('.screen').forEach((s) => s.remove());
       G.ui.modalCount = 0; G.godMode = true;
@@ -40,10 +40,10 @@ const first = +(process.argv[4] || 0), count = +(process.argv[5] || (mode === 'p
     await page.evaluate((z) => { window.ZOOM = z; }, +(process.env.ZOOM || 3));
     const shoot = async (name) => { await page.waitForTimeout(500); await page.screenshot({ path: require('path').join(require('./harness').OUT_DIR, name + '.png') }); };
     if (mode === 'props') {
-      const n = await page.evaluate(() => window.DAGYR.G.world.tileset.scatter.length);
+      const n = await page.evaluate(() => window.VELSCOUR.G.world.tileset.scatter.length);
       for (let i = first; i < Math.min(n, first + count); i += 6) {
         await page.evaluate(async (i) => {
-          const { G } = window.DAGYR, w = G.world, [X, Y] = window.__corner, sc = w.tileset.scatter;
+          const { G } = window.VELSCOUR, w = G.world, [X, Y] = window.__corner, sc = w.tileset.scatter;
           w.props = w.props.filter((p) => Math.hypot(p.x - X - 3, p.y - Y - 3) > 7);
           w.wallHangings = []; w.torches = [];
           for (let k = 0; k < 6 && i + k < sc.length; k++)
@@ -56,7 +56,7 @@ const first = +(process.argv[4] || 0), count = +(process.argv[5] || (mode === 'p
     } else {
       for (let i = first; i < first + count; i += 3) {
         await page.evaluate(async ([i, mode]) => {
-          const { G } = window.DAGYR, w = G.world, [X, Y, S] = window.__corner;
+          const { G } = window.VELSCOUR, w = G.world, [X, Y, S] = window.__corner;
           const { wallHangingAtWallSegment } = await import('/src/gfx/wallhangings.js');
           const { torchAtWallSegment } = await import('/src/world/dungeon.js');
           w.props = w.props.filter((p) => Math.hypot(p.x - X - 3, p.y - Y - 3) > 7);

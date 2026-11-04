@@ -16,13 +16,13 @@ const RARITIES = [0, 2, 3, 4, 5];
   const { browser, page, errors } = await openGame({ width: 1400, height: 900 });
   const fail = [];
   const clipOf = () => page.evaluate(async () => {
-    const { G } = window.DAGYR; const { camera } = await import('/src/core/view.js');
+    const { G } = window.VELSCOUR; const { camera } = await import('/src/core/view.js');
     const [x, y] = camera.tileToScreen(G.player.x, G.player.y, 0);
     return { x: Math.max(0, x - 140), y: Math.max(0, y - 250), width: 280, height: 290 };
   });
   for (const cls of CLASSES) {
     await page.evaluate(async (cls) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar(cls, 'Held');
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -36,7 +36,7 @@ const RARITIES = [0, 2, 3, 4, 5];
     const shots = [];
     for (const R of RARITIES) {
       const info = await page.evaluate(async ([cls, R]) => {
-        const { G } = window.DAGYR;
+        const { G } = window.VELSCOUR;
         const { rollItem, GEMS } = await import('/src/data/items.js');
         const { CLASSES } = await import('/src/data/classes.js');
         const C = CLASSES[cls], gems = Object.keys(GEMS).filter((g) => !GEMS[g].special);
@@ -58,7 +58,7 @@ const RARITIES = [0, 2, 3, 4, 5];
       console.log(cls, 'R' + R, JSON.stringify(info));
       if (!info.pieces || info.pieces.length < 1) fail.push(`${cls} R${R}: nothing held`);
       for (const flip of [false, true]) {
-        await page.evaluate((f) => { window.DAGYR.G.player.flip = f; }, flip);
+        await page.evaluate((f) => { window.VELSCOUR.G.player.flip = f; }, flip);
         await page.waitForTimeout(500);
         const file = path.join(OUT_DIR, `heldgear_${cls}_r${R}_${flip ? 'L' : 'R'}.png`);
         await page.screenshot({ path: file, clip: await clipOf() });
@@ -67,7 +67,7 @@ const RARITIES = [0, 2, 3, 4, 5];
     }
     // the settings: held gear off draws the plain hero, effects off keeps the gear
     const off = await page.evaluate(() => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       G.settings.heldFx = false; G.player.artFrame(); const fxOff = !!G.player.heldArt.held;
       G.settings.heldGear = false; const a = G.player.artFrame(); const gearOff = a.img === G.player.heldArt.base && !G.player.heldArt.held;
       G.settings.heldGear = true; G.settings.heldFx = true;
@@ -75,17 +75,17 @@ const RARITIES = [0, 2, 3, 4, 5];
     });
     if (!off.fxOff || !off.gearOff) fail.push(`${cls}: settings ${JSON.stringify(off)}`);
     if (cls === CLASSES[0]) {
-      await page.evaluate(() => { window.DAGYR.G.settings.heldGear = false; });
+      await page.evaluate(() => { window.VELSCOUR.G.settings.heldGear = false; });
       await page.waitForTimeout(300);
       await page.screenshot({ path: path.join(OUT_DIR, 'heldgear_off.png'), clip: await clipOf() });
-      await page.evaluate(() => { window.DAGYR.G.settings.heldGear = true; });
+      await page.evaluate(() => { window.VELSCOUR.G.settings.heldGear = true; });
     }
     console.log(cls, 'shots', shots.length);
   }
 
   // icons: a bag of weapons and off-hands of every rarity; and the same lying on the ground
   await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const { rollItem } = await import('/src/data/items.js');
     const { CLASSES } = await import('/src/data/classes.js');
     const { GroundItem } = await import('/src/game/loot.js');
@@ -98,7 +98,7 @@ const RARITIES = [0, 2, 3, 4, 5];
     G.showLabels = false;
   });
   await page.waitForTimeout(1500);
-  const g = await page.evaluate(async () => { const { G } = window.DAGYR; const { camera } = await import('/src/core/view.js'); const [x, y] = camera.tileToScreen(G.player.x, G.player.y, 0); return { x: Math.max(0, x - 300), y: Math.max(0, y - 260), width: 600, height: 400 }; });
+  const g = await page.evaluate(async () => { const { G } = window.VELSCOUR; const { camera } = await import('/src/core/view.js'); const [x, y] = camera.tileToScreen(G.player.x, G.player.y, 0); return { x: Math.max(0, x - 300), y: Math.max(0, y - 260), width: 600, height: 400 }; });
   await page.screenshot({ path: path.join(OUT_DIR, 'heldgear_ground.png'), clip: g });
   await page.keyboard.press('i');
   await page.waitForTimeout(800);

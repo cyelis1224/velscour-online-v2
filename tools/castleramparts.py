@@ -1,4 +1,4 @@
-"""Cut the user's DAGYR castle artwork (assets/source/biomes/DAGYR_Castle_Artwork_Complete.zip) into the
+"""Cut the user's VELSCOUR castle artwork (assets/source/biomes/VELSCOUR_Castle_Artwork_Complete.zip) into the
 textures the Castle overworld builds its height-mapped walls, towers, stairs and bridges from
 (src/gfx/castlewalls.js, docs/CASTLE_OVERWORLD.md).
 
@@ -22,12 +22,12 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / 'assets/source/biomes/DAGYR_Castle_Artwork_Complete.zip'
+SRC = ROOT / 'assets/source/biomes/VELSCOUR_Castle_Artwork_Complete.zip'
 OUT = ROOT / 'assets/tiles/castle'
 
 
 def sheet(z, name):
-    return np.array(Image.open(io.BytesIO(z.read(f'DAGYR_Castle_{name}.png'))).convert('RGBA')).astype(np.float32)
+    return np.array(Image.open(io.BytesIO(z.read(f'VELSCOUR_Castle_{name}.png'))).convert('RGBA')).astype(np.float32)
 
 
 def unshear(im, x0, y0, w, h, slope):
@@ -159,7 +159,7 @@ def main():
         atlas[y:y + h, x:x + w] = np.clip(parts[k], 0, 255).astype(np.uint8)
     OUT.mkdir(parents=True, exist_ok=True)
     Image.fromarray(atlas).save(OUT / 'ramparts.webp', lossless=True)
-    (OUT / 'ramparts.json').write_text(json.dumps({'source': 'DAGYR_Castle_Artwork_Complete.zip', 'rects': rects}, indent=1))
+    (OUT / 'ramparts.json').write_text(json.dumps({'source': 'VELSCOUR_Castle_Artwork_Complete.zip', 'rects': rects}, indent=1))
     print('ramparts.webp', atlas.shape[1], 'x', atlas.shape[0], {k: v[2:] for k, v in rects.items()})
 
 

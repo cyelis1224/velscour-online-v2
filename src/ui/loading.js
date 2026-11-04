@@ -1,5 +1,5 @@
 // ============================================================================
-// DAGYR ONLINE - ENGAGING GOTHIC LOADING SCREEN & SPAWN CONTROLLER
+// VELSCOUR ONLINE - ENGAGING GOTHIC LOADING SCREEN & SPAWN CONTROLLER
 // Animated occult runic crest, lore tips carousel, smooth progress bar, and
 // player spawn coordination.
 // ============================================================================
@@ -70,7 +70,7 @@ export const LoadingScreen = {
     if (!this.el) return;
 
     if (this.titleEl) {
-      this.titleEl.textContent = opts.title || 'DAGYR ONLINE';
+      this.titleEl.textContent = opts.title || 'VELSCOUR ONLINE';
     }
     if (this.subEl) {
       this.subEl.textContent = opts.subtitle || 'The Abyss Awaits';

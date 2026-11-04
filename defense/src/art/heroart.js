@@ -1,4 +1,4 @@
-// Heroes in Dagyr's Grim Nocturne gear, composed for Defense: an armor frame (assets/sprites/gear/<cls>/), an
+// Heroes in Velscour's Grim Nocturne gear, composed for Defense: an armor frame (assets/sprites/gear/<cls>/), an
 // enclosed helmet (gear/helmets/), palette finishes (the art index's palettes) and the held weapon and off-hand
 // (assets/sprites/held/) laid in the armor's fists. The recolour is the main game's (src/core/gearart.js recolorPx,
 // src/gfx/heldart.js recolor), ported so this page imports none of its modules.

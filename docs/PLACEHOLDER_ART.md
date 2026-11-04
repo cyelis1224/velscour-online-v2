@@ -1,4 +1,4 @@
-# DAGYR: placeholder art inventory and art brief
+# VELSCOUR: placeholder art inventory and art brief
 
 **Historical expansion brief:** the live sprite audit and October 2026 replacement pass are
 in [SPRITE_REPLACEMENTS.md](SPRITE_REPLACEMENTS.md). Summons, NPCs, boss/ward and generic
@@ -17,7 +17,7 @@ The 20 Forsaken Wilds scatter placeholders have also been replaced; see
 - The dungeon's ASCII decor path is a defensive fallback used only when a tileset has no scatter atlas. All current biome packs provide scatter art; normal play uses those pack assets.
 - Remaining generated biome expansions create authored floor motifs and 40 distinct environment props per pack. They are not missing-asset placeholders. UI art and character attack/ability animation assets are outside this pass.
 
-This file lists every graphic in DAGYR that is still placeholder art: ASCII pixel art in `src/gfx/pixelart.js`, shapes
+This file lists every graphic in VELSCOUR that is still placeholder art: ASCII pixel art in `src/gfx/pixelart.js`, shapes
 drawn in code, or real art borrowed and recoloured for something it wasn't made for. It is written so you can give it
 to an image generator (ChatGPT) as the brief: what to draw, how many, what size, and the sheet layout the game's
 importers already read.
@@ -28,7 +28,7 @@ Inventory taken from the code on 2026-10-13 (`main` after PR #22).
 
 ## 0. Instructions for the image generator (read first)
 
-**The game.** DAGYR is a grimdark isometric action RPG in the style of Diablo II, played in the browser. The view
+**The game.** VELSCOUR is a grimdark isometric action RPG in the style of Diablo II, played in the browser. The view
 is 2:1 isometric. Heroes stand about 60 world px tall on a 64 px tile.
 
 **House style.** Match the existing art (the monster sheets, the gear libraries and the Paladin pack):
@@ -87,11 +87,11 @@ Priority: **P1** is seen constantly or is a showpiece, **P2** is seen often, **P
 
 | # | Category | Placeholder now | Count to make | Priority | Delivery format |
 |---|---|---|---|---|---|
-| A | Demon Lord Dagyr (final boss) + raid ward crystal | ASCII pixel art | 2 creatures | **P1** | monster sheet (2x5) |
+| A | Demon Lord Velscour (final boss) + raid ward crystal | ASCII pixel art | 2 creatures | **P1** | monster sheet (2x5) |
 | B | Player summons for 15 classes | ASCII pixel art, or a recoloured hero sprite | ~80 creatures and objects (9 sheets) | **P1** | summon sheets (2x5) |
 | C | Class art packs for the other 15 classes (weapons/shields + ability effects) | pixel weapon icons; skills only have code-drawn VFX | 15 x (60 items + 60 effects) | **P1** | Paladin pack format |
 | D | Biome packs for 24 dungeon biomes | the Catacombs pack, recoloured | 24 packs (8 source images each) | **P2** | Catacombs template |
-| E | Town NPCs (8 vendors + 100 townsfolk) | 25 unique generated Dagyr civilian designs + runtime palette variants | 25 identity sheets, 100 visitor identities | Complete | 11 frames (128×192); knight sheets append 2 attacks |
+| E | Town NPCs (8 vendors + 100 townsfolk) | 25 unique generated Velscour civilian designs + runtime palette variants | 25 identity sheets, 100 visitor identities | Complete | 11 frames (128×192); knight sheets append 2 attacks |
 | F | Generic item icons: gloves, leg armour, boots, off-hand orbs | ASCII pixel art | 3 x 60 + 30 | **P2** | icon sheets (6x10) |
 | G | Gems (21 kinds x 6 tiers), gold piles, health/mana globes | drawn in code | 126 + 3 + 2 | **P2** | icon sheets |
 | H | Skill icons (980 skills) | drawn in code (glow + shape) | 980 (or 16 sheets of 60/80) | P3 | icon sheets (6x10) |
@@ -102,15 +102,15 @@ Priority: **P1** is seen constantly or is a showpiece, **P2** is seen often, **P
 
 ---
 
-## A. Demon Lord Dagyr and the raid ward crystal (P1)
+## A. Demon Lord Velscour and the raid ward crystal (P1)
 
 | Name | Where | Now | Brief |
 |---|---|---|---|
-| **DEMON LORD DAGYR** | Final boss at Depth 100 in Dagyr's Throne (a fire biome) | ASCII pixel demon (`Dagyr` in `pixelart.js`) | A towering demon lord, about 2.5x hero height (~150 world px; draw ~330 px tall like the monster sheets). Horned, crowned, molten cracks, a burning greatsword or claws, ragged wings or a cape of chains. Colours: dried-blood red, black, bone, glowing gold-yellow eyes. He has eight attack patterns and must be the most imposing thing in the game. A second pose for an "enraged" phase would also help. |
+| **DEMON LORD VELSCOUR** | Final boss at Depth 100 in Velscour's Throne (a fire biome) | ASCII pixel demon (`Velscour` in `pixelart.js`) | A towering demon lord, about 2.5x hero height (~150 world px; draw ~330 px tall like the monster sheets). Horned, crowned, molten cracks, a burning greatsword or claws, ragged wings or a cape of chains. Colours: dried-blood red, black, bone, glowing gold-yellow eyes. He has eight attack patterns and must be the most imposing thing in the game. A second pose for an "enraged" phase would also help. |
 | **Warding Crystal** | Raid boss rooms (every 5th depth): 3-5 crystals beam a shield into the boss | ASCII pixel crystal (`crystal`) | A floating shard or cluster of crystal on a small rune base, about 0.7x hero height. Draw it in neutral white/grey: the game tints it to the boss's element. |
 
 Deliver both on one 2x5 monster sheet (section L describes the format), with the other 8 cells free for extra
-Dagyr poses or monsters.
+Velscour poses or monsters.
 
 ---
 
@@ -334,7 +334,7 @@ Then run `build_pack.py` with a new config (60 floor names, 5 walls, 3 arches, 3
 | library | Haunted Library | arcane | bookshelves, floating tomes, candles, lecterns | wraiths, cultists, eyes, imps |
 | necropolis | Moonlit Necropolis | cold | moonlit mausoleums, gravestones, iron fences | skeletons, zombies, ghouls, wraiths |
 | amber | Amber Wastes | fire | amber-sand ruins, fossils, resin | scorpions, beetles, worms, golems |
-| throne | Dagyr's Throne (Depth 100) | fire | hellish throne hall, bone throne, demonic columns | demons, imps, knights + Dagyr |
+| throne | Velscour's Throne (Depth 100) | fire | hellish throne hall, bone throne, demonic columns | demons, imps, knights + Velscour |
 
 Several biomes can share a pack (the game picks a pack per biome with `b.pack`). Suggested order: **throne,
 molten/forge, frozen/necropolis, fungal/plague, desert/amber, library, flesh/blood**.

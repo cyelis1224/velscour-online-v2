@@ -1,4 +1,4 @@
-// DAGYR DEFENSE on an iPhone-sized screen, portrait (390x844) and landscape (844x390), touch: every menu, a briefing,
+// VELSCOUR DEFENSE on an iPhone-sized screen, portrait (390x844) and landscape (844x390), touch: every menu, a briefing,
 // the hero sheet, a gear card, trophies, the Modes, a battle (pinch zoom), a result, a 3D pack and the card inspector.
 // Each view is checked for anything wider or taller than the screen that can't be scrolled to; shots in tests/out/.
 // Serve the repo root first (python -m http.server 8317), then:
@@ -48,7 +48,7 @@ const overflow = () => {
       console.log(bad.length ? 'FIT ' : 'ok  ', name, n, bad.length ? '\n       ' + bad.join('\n       ') : '');
       problems += bad.length ? 1 : 0;
     };
-    await page.addInitScript(() => { try { localStorage.removeItem('Dagyr_defense_v1'); } catch { /* */ } });
+    await page.addInitScript(() => { try { localStorage.removeItem('Velscour_defense_v1'); } catch { /* */ } });
     await page.goto(BASE + '/defense/index.html');
     await page.waitForFunction(() => window.VDEF && !document.getElementById('loading'), null, { timeout: 30000 });
     // a Commander some weeks in: stage 60, gold and shards, a few packs of cards

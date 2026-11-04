@@ -9,16 +9,16 @@
 `import` expects the user's zips unpacked side by side in <dir>:
   gn_art/      Grim_Nocturne_All_16_Classes_Artwork.zip       (96 armors, high-res)
   gn_exports/  Grim_Nocturne_All_16_Classes_Game_Exports.zip   (their natives: only where each head sits)
-  armor96/     DAGYR_96_Additional_Armor_Source_Artwork.zip (96 more armors, high-res source only)
-  helm_exports/ DAGYR_80_Helmets_Game_Exports.zip           (80 helmets, 40x40 pinned at (45,63))
+  armor96/     VELSCOUR_96_Additional_Armor_Source_Artwork.zip (96 more armors, high-res source only)
+  helm_exports/ VELSCOUR_80_Helmets_Game_Exports.zip           (80 helmets, 40x40 pinned at (45,63))
 `import2` finds these anywhere under <dir> (each zip unpacked as is):
-  collection_02/  DAGYR_Collection_02_96_Armor_Source_Artwork.zip (rare a/b, epic, legendary, mythic a/b: armors 13-18)
-  Helmet_Set_02/, Helmet_Set_03/  DAGYR_Helmet_Set_0N_Game_Exports.zip (common..epic + mythic, pinned at (45,63))
-`import4`: collection_04_nocturne/  DAGYR_Nocturne_Collection_04_128_Armor_Source_Artwork.zip (armors 19-26)
+  collection_02/  VELSCOUR_Collection_02_96_Armor_Source_Artwork.zip (rare a/b, epic, legendary, mythic a/b: armors 13-18)
+  Helmet_Set_02/, Helmet_Set_03/  VELSCOUR_Helmet_Set_0N_Game_Exports.zip (common..epic + mythic, pinned at (45,63))
+`import4`: collection_04_nocturne/  VELSCOUR_Nocturne_Collection_04_128_Armor_Source_Artwork.zip (armors 19-26)
 All armor sets are area-downsampled exactly like the Game Exports (crown y75, sole y183, 108 art px) and
 centred on the class's head so the helmets fit every set. `build` writes per class armor.webp (6 columns of 128x192),
 armor_mask.png (face, hair and bare skin: never recoloured) and gear.json, plus the shared helmets/ atlas, built from
-the HD cells in <class>/hd/ (`hires`): DAGYR_All_16_Classes_80_Enclosed_Helmets.zip, DAGYR_Helmet_Set_0N_All_80_Artwork.zip.
+the HD cells in <class>/hd/ (`hires`): VELSCOUR_All_16_Classes_80_Enclosed_Helmets.zip, VELSCOUR_Helmet_Set_0N_All_80_Artwork.zip.
 Placements made in tools/helmet-fitter are kept (assets/sprites/gear/helmets/placements.json).
 """
 import json

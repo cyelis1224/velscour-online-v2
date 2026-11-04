@@ -631,7 +631,8 @@ const LIT = {
   starfall_brazier: 3.5, voidflame_brazier: 3.7, aether_lantern: 2.5,
   stellar_conduit: 3.8, nebula_shrine: 4.1, astral_fountain: 3.2,
   convergence_dais: 3.6, singularity_heart: 4.5, portal_anchor: 3.7,
-  campfire: 3.4, lantern_stake: 2.4, glowing_crystal: 2.6
+  campfire: 3.4, lantern_stake: 2.4, glowing_crystal: 2.6,
+  summit_floor_lantern: 2.4, snowbound_votive_candles: 2, hooked_lantern_stand: 2.6, frosted_iron_brazier: 3.4, summit_torch_stand: 3.2
 };
 
 function shuffleWith(a, rng) {
@@ -780,7 +781,7 @@ function generateThrone(biome, tileset, seed) {
   // now also draw gauntlet guards from the FULL biome roster. This allows
   // all 50 registered throne-native look variants (and the existing global
   // bestiary) to be encountered across differently seeded final levels.
-  const throneGuards = (biome.roster || []).filter(a => a !== 'Dagyr' && a !== 'dagyr' && a !== 'velscour');
+  const throneGuards = (biome.roster || []).filter(a => a !== 'Velscour' && a !== 'dagyr' && a !== 'velscour');
   if (throneGuards.length) {
     for (const [x, y] of [[22, 61], [10, 48], [32, 48], [12, 38], [22, 34]]) {
       spawns.push({ x, y, arch: rng.pick(throneGuards), n: rng.int(1, 3), rank: 'normal' });

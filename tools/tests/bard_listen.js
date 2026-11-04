@@ -17,7 +17,7 @@ const BAR = ['bard.0.0', 'bard.1.0', 'bard.2.0', 'bard.2.1', 'bard.1.11', 'bard.
 (async () => {
   const { browser, page, errors } = await openGame();
   const log = await page.evaluate(async ({ minutes, BAR }) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('bard', 'Listener');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
     const { initAudio } = await import('/src/core/audio.js');

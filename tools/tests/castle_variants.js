@@ -9,8 +9,8 @@ const arg = process.argv[2] || 'all', secs = +process.argv[3] || 300;
   try {
     const ids = await page.evaluate(async (arg) => {
       const { CASTLE_VARIANTS } = await import('/src/data/castles.js');
-      const { G } = window.DAGYR, { Auto } = await import('/src/game/autoplay.js'), { xpToNext } = await import('/src/game/player.js');
-      await window.DAGYR.game.newChar('paladin', 'Castle Autobot');
+      const { G } = window.VELSCOUR, { Auto } = await import('/src/game/autoplay.js'), { xpToNext } = await import('/src/game/player.js');
+      await window.VELSCOUR.game.newChar('paladin', 'Castle Autobot');
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll();
       const c = G.char;
       c.level = 30; c.xp = Math.round(xpToNext(30) * 0.3); c.statPoints += 29 * 5; c.skillPoints += 40;
@@ -19,7 +19,7 @@ const arg = process.argv[2] || 'all', secs = +process.argv[3] || 300;
     }, arg);
     for (const id of ids) {
       const r = await page.evaluate(async ([id, secs]) => {
-        const { G, game } = window.DAGYR;
+        const { G, game } = window.VELSCOUR;
         const { Auto } = await import('/src/game/autoplay.js');
         const { BIOME_BY_ID } = await import('/src/data/biomes.js');
         await (await import('/src/gfx/castle.js')).loadCastlePack();

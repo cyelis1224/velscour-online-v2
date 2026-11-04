@@ -84,5 +84,5 @@ one when the sheets come back.
 
 ## Notes
 - The winged pet atlases still carry caption text from their source sheets (`companions_winged`: "FLAP 1",
-  "DAGYR" above the Hawk; the drakes have frame numbers under them), and the knight sheets `townsfolk_021`/`022`
+  "VELSCOUR" above the Hawk; the drakes have frame numbers under them), and the knight sheets `townsfolk_021`/`022`
   have sliced frames (happy, cheer, point). The examples skip or clean those; the game atlases are unchanged.

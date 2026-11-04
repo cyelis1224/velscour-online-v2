@@ -1,4 +1,4 @@
-// DAGYR - entry point.
+// VELSCOUR - entry point.
 import { G, loadSettings } from './state.js';
 import { initInput, input } from './core/input.js';
 import { camera } from './core/view.js';
@@ -335,7 +335,7 @@ async function boot() {
   });
   window.addEventListener('beforeunload', () => {
     if (G.char) {
-      try { game.autosave(); } catch (e) {}
+      try { game.autosave(); } catch (e) { }
     }
   });
   let bgHeartbeat = null;
@@ -372,7 +372,7 @@ async function boot() {
   requestAnimationFrame(loop);
   startTicker();
   LoadingScreen.show({
-    title: 'DAGYR ONLINE',
+    title: 'VELSCOUR ONLINE',
     subtitle: 'The Abyss Awaits',
     text: 'Summoning the depths…',
     progress: 0
@@ -405,7 +405,7 @@ async function boot() {
   // debug helpers for testing in the console
   window.UI = UI;
   window.VELSCOUR = { G, game, UI };
-  window.DAGYR = window.VELSCOUR;
+  window.VELSCOUR = window.VELSCOUR;
 }
 
 boot();

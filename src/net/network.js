@@ -744,7 +744,7 @@ class NetworkManager {
     this.simWelcomeTimeout = setTimeout(() => {
       this.simWelcomeTimeout = null;
       this.emit('chat', { type: 'chat', text: 'You have joined channel: USEast-1', color: '#3a8aff', kind: 'system' });
-      this.emit('chat', { type: 'chat', text: 'There are currently 28,528 users playing 30,596 games of DAGYR ONLINE.', color: '#5a9aff', kind: 'system' });
+      this.emit('chat', { type: 'chat', text: 'There are currently 28,528 users playing 30,596 games of VELSCOUR ONLINE.', color: '#5a9aff', kind: 'system' });
       this.emit('chat', { type: 'chat', text: '# Email Service # whispers: Welcome back to Sanctuary.', color: '#48e868', kind: 'system' });
       this.emit('chat', { type: 'chat', text: 'is diablo 2 dead?', from: 'Pladinson', classId: 'paladin', color: '#e9dcc4' });
       this.emit('lobby_update', { players: this.channelPlayers, rooms: this.rooms, channel: 'USEast-1' });

@@ -1,6 +1,6 @@
 // Happenings: the random things that keep a run worth watching for hours.
 // Dungeon depths roll an omen (a level-wide twist), shrines, a treasure imp, a cursed chest, a fallen adventurer's
-// remains and, now and then, Dagyr's timed challenge. Kill streaks call out massacres everywhere, a new record
+// remains and, now and then, Velscour's timed challenge. Kill streaks call out massacres everywhere, a new record
 // depth every tenth gets fireworks, and each town visit can bring a festival, a blessing or a gift.
 // Wiring: game.buildDungeon -> setupHappenings, game.update -> happeningsTick, combat kill -> world.onKill,
 // game.enterTown -> townHappening, loot.dropLoot reads world.lootMul / world.goldMul. Shrines, remains and cursed
@@ -40,7 +40,7 @@ export const OMENS = {
   frenzy: { name: 'Feeding Frenzy', color: '#40e070', text: 'Kills spill health and mana orbs.', orbs: true },
 };
 const OMEN_KEYS = Object.keys(OMENS);
-/** Can a depth of this biome have an omen at all? (Not BOSS ROOMs, overworlds or Dagyr's throne.) */
+/** Can a depth of this biome have an omen at all? (Not BOSS ROOMs, overworlds or Velscour's throne.) */
 export const omenable = (depth, biome) => !!biome && !biome.overworld && !isRaidDepth(depth) && depth < FINAL_DEPTH;
 /** A depth's omen roll: an OMENS key, or null for a quiet one. */
 export const rollOmen = (depth) => (chance(Math.min(0.45, 0.22 + depth * 0.004)) ? pick(OMEN_KEYS) : null);
@@ -61,7 +61,7 @@ const SHRINE_KEYS = Object.keys(SHRINES);
 const EPITAPHS = [
   'who thought the imps were friendly', 'who skipped the potion vendor to save nine gold', 'who tried to pet the hound',
   'who said "one more depth" for the last time', 'who wore the Glass Cannon ring to a Blood Moon', 'who argued with a golem',
-  'who heard Dagyr laugh and laughed back', 'who blocked with their face', 'who opened the cursed chest alone',
+  'who heard Velscour laugh and laughed back', 'who blocked with their face', 'who opened the cursed chest alone',
   'who ran out of mana mid-sentence', 'who mistook a mimic for lunch', 'who never learned the boss could jump',
   'who believed the shrine was just decoration', 'who sold their shield for a nicer hat', 'who fought fair',
 ];
@@ -130,7 +130,7 @@ export function setupHappenings(world, start, gen) {
   if (H.omen === 'vault') for (let i = 0; i < 3 && spots.length; i++) addCache(world, spots.pop());
   // people of the Hollow down here: captives, a knight's last stand, a merchant's camp, the wizard, the witch, a Greener
   addEncounters(world, roomSpots(world, start, 4));
-  // a treasure imp shows up a while in; Dagyr's challenge fires after the first kills
+  // a treasure imp shows up a while in; Velscour's challenge fires after the first kills
   if (chance(0.3)) H.impT = rand(25, 70);
   if (chance(0.3)) H.challengeAt = randi(12, 30);
   // the horde: extra packs round the level
@@ -296,7 +296,7 @@ const SLAYER = ['the Hero-Slayer', 'Who Killed You', 'the Gloating', 'Bane of He
 /** Remember the monster that killed the hero (game.onPlayerDeath): it comes back as a unique. */
 export function markNemesis(c, src, depth) {
   const k = src && src.owner && !src.isPlayer ? src.owner : src;
-  if (!k || k.isPlayer || k.team !== 'enemy' || !k.arch || k.isRaid || k.isDagyr || k.goblin || k.rank === 'boss') return;
+  if (!k || k.isPlayer || k.team !== 'enemy' || !k.arch || k.isRaid || k.isVelscour || k.goblin || k.rank === 'boss') return;
   const base = (k.name || '').replace(/^(Champion |Hunting |Hulking |Hexfire |Phasing |Burrowing )+/, '');
   c.nemesis = { arch: k.arch, art: k.art || null, swap: k.swap || null, name: base.split(' the ')[0] || base, title: pick(SLAYER), depth, kills: (c.nemesis && c.nemesis.arch === k.arch ? c.nemesis.kills : 0) + 1 };
 }
@@ -379,8 +379,8 @@ function impTick(world, dt) {
 export function startChallenge(world) {
   const depth = world.depth, need = Math.min(24, 10 + Math.floor(depth / 15)), time = 45; // monsters take a few seconds each
   world.happen.ch = { need, got: 0, left: time, shown: 0 };
-  UI.centerMsg("DAGYR'S CHALLENGE", `Slay ${need} foes in ${time} seconds`, 2.6);
-  UI.log(`<b style="color:#ff6030">Dagyr's Challenge</b>: slay ${need} foes in ${time} seconds for a reward.`, '#ff8060');
+  UI.centerMsg("VELSCOUR'S CHALLENGE", `Slay ${need} foes in ${time} seconds`, 2.6);
+  UI.log(`<b style="color:#ff6030">Velscour's Challenge</b>: slay ${need} foes in ${time} seconds for a reward.`, '#ff8060');
   sfx('boss', 0.5);
   ambush(world, undefined, 5); // something to start on
 }
@@ -389,7 +389,7 @@ function challengeTick(world, dt) {
   const C = world.happen.ch, p = world.player;
   if (!C) return;
   C.left -= dt;
-  // nothing left to slay close by: Dagyr sends more within a second, so the clock is never spent waiting
+  // nothing left to slay close by: Velscour sends more within a second, so the clock is never spent waiting
   const near = world.creatures.some((m) => m.team === 'enemy' && !m.dead && (m.targetable !== false || m.entering) && dist(m.x, m.y, p.x, p.y) < 10);
   C.quiet = near ? 0 : (C.quiet || 0) + dt;
   if (C.quiet > 0.6 && C.left > 2) { C.quiet = 0; ambush(world, undefined, randi(4, 6)); }
@@ -397,7 +397,7 @@ function challengeTick(world, dt) {
   if (C.got >= C.need) {
     world.happen.ch = null;
     const lvl = depthLevel(world.depth);
-    UI.centerMsg('CHALLENGE MET', 'Dagyr grudgingly pays up', 2.2);
+    UI.centerMsg('CHALLENGE MET', 'Velscour grudgingly pays up', 2.2);
     addEffect(new Column(p.x, p.y, '#ffd040', 0.9, 30, 360));
     for (let i = 0; i < 3; i++) world.addLoot(new GroundItem(p.x, p.y, 'item', { item: rollItem(lvl + 2, { mf: p.st.magicFind, bonus: 1 }) }));
     for (let i = 0; i < 6; i++) world.addLoot(new GroundItem(p.x, p.y, 'gold', { amount: Math.round((20 + lvl * 5) * goldScale(lvl) * rand(0.7, 1.3)) }));
@@ -405,13 +405,13 @@ function challengeTick(world, dt) {
     sfx('gate');
   } else if (C.left <= 0) {
     world.happen.ch = null;
-    UI.centerMsg('CHALLENGE FAILED', pick(['Dagyr yawns.', '"Pathetic," echoes from below.', 'The abyss chuckles.']), 2);
+    UI.centerMsg('CHALLENGE FAILED', pick(['Velscour yawns.', '"Pathetic," echoes from below.', 'The abyss chuckles.']), 2);
     sfx('error');
   }
 }
 
 // ------------------------------------------------------------------------------------------------ kills, streaks
-const STREAKS = [[10, 'KILLING SPREE'], [20, 'MASSACRE'], [35, 'BLOODBATH'], [50, 'CARNAGE'], [75, 'ANNIHILATION'], [100, 'GODLIKE'], [150, 'DAGYR TREMBLES']];
+const STREAKS = [[10, 'KILLING SPREE'], [20, 'MASSACRE'], [35, 'BLOODBATH'], [50, 'CARNAGE'], [75, 'ANNIHILATION'], [100, 'GODLIKE'], [150, 'VELSCOUR TREMBLES']];
 
 export function onKill(m) {
   const w = m.world || G.world, H = w && w.happen;

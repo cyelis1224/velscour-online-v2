@@ -16,10 +16,10 @@ const only = (process.argv.slice(2).find(a => !a.startsWith('--')) || '').split(
       const { CASTLE_VARIANTS } = await import('/src/data/castles.js');
       return arg === 'all' ? CASTLE_VARIANTS.map(v => v.id) : arg ? arg.split(',') : [CASTLE_VARIANTS[0].id];
     }, castleArg);
-    await page.evaluate(async () => { const { game } = window.DAGYR; try { await game.newChar('paladin', 'Castle Visual QA'); } catch (e) { console.warn('town setup: ' + e.message); } });  // only the castle matters here
+    await page.evaluate(async () => { const { game } = window.VELSCOUR; try { await game.newChar('paladin', 'Castle Visual QA'); } catch (e) { console.warn('town setup: ' + e.message); } });  // only the castle matters here
     for (const id of ids) {
       const views = await page.evaluate(async (id) => {
-        const { G, game } = window.DAGYR;
+        const { G, game } = window.VELSCOUR;
         await (await import('/src/gfx/castle.js')).loadCastlePack(); await (await import('/src/gfx/castle3dart.js')).loadCastle3D(id);
         G.char.depth = 19; G.godMode = true; G.castleVariant = id;
         const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -46,7 +46,7 @@ const only = (process.argv.slice(2).find(a => !a.startsWith('--')) || '').split(
       for (const [name, x, y, zoom] of views.filter(v => !only.length || only.includes(v[0]))) {
         try {
           await page.evaluate(async ([x, y, zoom, grid]) => {
-            const { G } = window.DAGYR;
+            const { G } = window.VELSCOUR;
             const { camera } = await import('/src/core/view.js');
             const [px, py] = G.world.map.walkable(x, y) ? [x, y] : G.world.map.randomNear(x, y, 4);
             G.player.x = px; G.player.y = py;

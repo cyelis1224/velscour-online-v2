@@ -571,7 +571,7 @@ export const raidHpMul = (depth) => 0.22 + Math.pow(Math.min(depth, 500) / 500, 
 // a BOSS ROOM boss hits for this many normals of its level: smoothly scales so early raid bosses are survivable.
 export const raidHitMul = (depth) => 1.35 + 1.15 * Math.pow(Math.min(depth, 500) / 500, 0.6);
 /** opts.tpl / opts.art: a given template (copied, maybe renamed) and look instead of a random one (game/tower.js).
- *  opts.court: one of Dagyr Unbound's court (game/unbound.js): it never seals the arena or announces a BOSS ROOM.
+ *  opts.court: one of Velscour Unbound's court (game/unbound.js): it never seals the arena or announces a BOSS ROOM.
  *  opts.hp / opts.dmg: multipliers on a BOSS ROOM's. */
 export function makeRaidBoss(world, arena, depth, level, opts = {}) {
   const rnd = opts.rnd || Math.random;

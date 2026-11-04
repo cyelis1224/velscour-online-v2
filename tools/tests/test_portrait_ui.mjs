@@ -25,7 +25,7 @@ async function runTest() {
   });
 
   const page = await context.newPage();
-  await page.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
+  await page.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
 
   page.on('console', msg => {
     const text = msg.text();
@@ -36,12 +36,12 @@ async function runTest() {
 
   try {
     await page.goto('http://localhost:8124/index.html?touch=1&autostart=1', { waitUntil: 'domcontentloaded', timeout: 20000 });
-    await page.waitForFunction(() => !!window.DAGYR && document.querySelector('#loading')?.classList.contains('hidden'), null, { timeout: 15000 });
+    await page.waitForFunction(() => !!window.VELSCOUR && document.querySelector('#loading')?.classList.contains('hidden'), null, { timeout: 15000 });
     await page.waitForTimeout(500);
 
     // Ensure we are in game / town
     await page.evaluate(async () => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       const { game } = await import('/src/game/game.js');
       const { newCharData } = await import('/src/game/save.js');
       const { GameChat } = await import('/src/ui/chat.js');
@@ -82,7 +82,7 @@ async function runTest() {
       const hudBarRect = hudBar.getBoundingClientRect();
       const minimap = document.getElementById('minimap-wrap');
       const minimapRect = minimap.getBoundingClientRect();
-      const skull = document.getElementById('Dagyr-skull');
+      const skull = document.getElementById('Velscour-skull');
       const skullRect = skull.getBoundingClientRect();
       const greed = document.getElementById('hud-dials');
       const greedRect = greed.getBoundingClientRect();

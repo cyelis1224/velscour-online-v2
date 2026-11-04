@@ -13,7 +13,7 @@ export function preloadIsoFix() {
   if (meta || typeof Image === 'undefined') return Promise.resolve();
   return fetch(DIR + 'isofix.json').then((r) => (r.ok ? r.json() : null)).then((m) => m && Promise.all(
     Object.entries(m).map(([k, v]) => loadImage(DIR + v.file).then((img) => { images[k] = img; }))).then(() => { meta = m; }))
-    .catch((e) => console.warn('DAGYR iso fixes unavailable:', e.message));
+    .catch((e) => console.warn('VELSCOUR iso fixes unavailable:', e.message));
 }
 
 /** The fixed atlas of a source ('pack:<id>', 'town', 'castle', 'sea_of_sand'), or null. */

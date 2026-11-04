@@ -6,7 +6,7 @@ const { openGame, report } = require('./harness');
   await page.click('text=Heroes'); await page.click('.class-card[data-id="paladin"]'); await page.click('text=Begin');
   await page.waitForTimeout(1500);
   const sig = () => page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const town = await import('/src/world/town.js');
     const t = town.generateTown(G.world.tileset, G.char.townSeed), u = town.generateTown(G.world.tileset, G.char.townSeed);
     const s = (t) => JSON.stringify([t.map.w, t.map.h, t.buildings.map((b) => [b.x, b.y]), t.props.map((p) => [p.x, p.y]), t.start]);
@@ -15,7 +15,7 @@ const { openGame, report } = require('./harness');
   });
   const a = await sig();
   await page.reload();
-  await page.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
+  await page.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
   await page.click('text=Continue', { timeout: 5000 });
   await page.waitForTimeout(1200);
   const b = await sig();

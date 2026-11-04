@@ -18,10 +18,10 @@ async function waitG(page, src, timeout) {
 
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'portrait-'));
-  const srv = spawn('node', ['server.js'], { cwd: path.resolve(__dirname, '../..'), env: { ...process.env, PORT: String(PORT), DAGYR_DATA_DIR: dir }, stdio: 'ignore' });
+  const srv = spawn('node', ['server.js'], { cwd: path.resolve(__dirname, '../..'), env: { ...process.env, PORT: String(PORT), VELSCOUR_DATA_DIR: dir }, stdio: 'ignore' });
   let browser;
   try {
-    for (let i = 0; i < 75; i++) { try { if ((await fetch(`${BASE_URL}/api/version`)).ok) break; } catch (e) {} await new Promise(r => setTimeout(r, 200)); }
+    for (let i = 0; i < 75; i++) { try { if ((await fetch(`${BASE_URL}/api/version`)).ok) break; } catch (e) { } await new Promise(r => setTimeout(r, 200)); }
     browser = await chromium.launch({ headless: true, executablePath: '/usr/bin/chromium' });
     const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     const page = await ctx.newPage();

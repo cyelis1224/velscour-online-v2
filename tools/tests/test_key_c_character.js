@@ -4,7 +4,7 @@ async function run() {
   const { browser, page, errors } = await openGame();
 
   const results = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('lancer', 'HotkeyTester');
 
     const { UI } = await import('/src/ui/ui.js');

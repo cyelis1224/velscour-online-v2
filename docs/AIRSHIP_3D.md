@@ -2,7 +2,7 @@
 
 Final Fantasy style airships for deck fights against the Air Pirates: the heroes ride a gothic ironclad, the pirates pull
 alongside in boarding boats and drop ramps onto its rail to offload waves, and bosses take the quarterdeck. There is also
-a wooden galleon of the same size. All are built in three.js from the user's **Dagyr Material Texture Pack**
+a wooden galleon of the same size. All are built in three.js from the user's **Velscour Material Texture Pack**
 (`assets/source/airship/`, 35 seamless 160 px pixel-art materials). Nothing in the game uses them yet. As with the Castle
 and the arches (docs/CASTLE_3D.md, docs/ARCH_3D.md), the game will draw baked sprites and never run three.js.
 

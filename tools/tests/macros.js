@@ -18,7 +18,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
 
 async function setup(page, opts = {}) {
   await page.evaluate(async ({ BUFFS, town }) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('paladin', 'Pianist');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll();
     const c = G.char;
@@ -39,7 +39,7 @@ async function setup(page, opts = {}) {
 }
 // every enemy gone (or one placed next to the hero, pinned and harmless)
 const foes = (page, near) => page.evaluate(async (near) => {
-  const { G } = window.DAGYR, w = G.world, p = G.player;
+  const { G } = window.VELSCOUR, w = G.world, p = G.player;
   for (const m of w.creatures) if (m.team === 'enemy') { m.dead = true; m.hp = 0; }
   w.creatures = w.creatures.filter((m) => m.team !== 'enemy');
   if (near) {
@@ -49,7 +49,7 @@ const foes = (page, near) => page.evaluate(async (near) => {
     w.add(m);
   }
 }, near);
-const fresh = (page) => page.evaluate(() => { const { G } = window.DAGYR, p = G.player; p.buffs = p.buffs.filter((b) => !b.id || !b.id.startsWith('paladin.')); p.cooldowns = {}; p.castLock = 0; p.mana = p.maxMana; window.__casts = []; });
+const fresh = (page) => page.evaluate(() => { const { G } = window.VELSCOUR, p = G.player; p.buffs = p.buffs.filter((b) => !b.id || !b.id.startsWith('paladin.')); p.cooldowns = {}; p.castLock = 0; p.mana = p.maxMana; window.__casts = []; });
 const casts = (page) => page.evaluate(() => window.__casts.slice());
 
 (async () => {
@@ -57,7 +57,7 @@ const casts = (page) => page.evaluate(() => window.__casts.slice());
   // ------------------------------------------------ 1. save shape
   await setup(page);
   const shape = await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const { migrateMacros, MACRO_KEYS } = await import('/src/data/macros.js');
     const S = await import('/src/game/save.js');
     const fresh = G.char.macros.map((m) => m.key);
@@ -73,26 +73,26 @@ const casts = (page) => page.evaluate(() => window.__casts.slice());
   check(shape.old === 5, 'a save from before macros gets five');
 
   // ------------------------------------------------ 2. a press casts the list in order
-  await page.evaluate((BUFFS) => { const c = window.DAGYR.G.char; c.macros[0].skills = BUFFS.slice(); c.macros[0].key = 'KeyR'; }, BUFFS);
+  await page.evaluate((BUFFS) => { const c = window.VELSCOUR.G.char; c.macros[0].skills = BUFFS.slice(); c.macros[0].key = 'KeyR'; }, BUFFS);
   await foes(page, false); await fresh(page);
   await page.keyboard.press('r'); await page.waitForTimeout(3000);
   let got = await casts(page);
-  const on = await page.evaluate((BUFFS) => BUFFS.filter((id) => window.DAGYR.G.player.buffs.some((b) => b.id === id)).length, BUFFS);
+  const on = await page.evaluate((BUFFS) => BUFFS.filter((id) => window.VELSCOUR.G.player.buffs.some((b) => b.id === id)).length, BUFFS);
   check(got.join() === BUFFS.join() && on === 4, `R casts the four buffs in order (${got.length} casts, ${on} buffs on)`);
   await fresh(page);
-  await page.evaluate((id) => { window.DAGYR.G.player.cooldowns[id] = 60; }, BUFFS[1]);
+  await page.evaluate((id) => { window.VELSCOUR.G.player.cooldowns[id] = 60; }, BUFFS[1]);
   await page.keyboard.press('r'); await page.waitForTimeout(3000);
   got = await casts(page);
   check(got.join() === [BUFFS[0], BUFFS[2], BUFFS[3]].join(), `one on cooldown is skipped, the rest go (${got.length})`);
   await fresh(page);
-  await page.evaluate(() => window.DAGYR.G.ui.macros.open());
+  await page.evaluate(() => window.VELSCOUR.G.ui.macros.open());
   await page.keyboard.press('r'); await page.waitForTimeout(800);
   got = await casts(page);
   check(!got.length, 'with the panel open a press casts nothing');
-  await page.evaluate(() => window.DAGYR.G.ui.closeAll());
+  await page.evaluate(() => window.VELSCOUR.G.ui.closeAll());
 
   // ------------------------------------------------ 3. Keep up
-  await page.evaluate(() => { window.DAGYR.G.char.macros[0].keep = true; });
+  await page.evaluate(() => { window.VELSCOUR.G.char.macros[0].keep = true; });
   await fresh(page);
   await page.waitForTimeout(1500);
   check(!(await casts(page)).length, 'Keep up with no foe in sight casts nothing');
@@ -102,12 +102,12 @@ const casts = (page) => page.evaluate(() => window.__casts.slice());
   await page.evaluate(() => { window.__casts = []; });
   await page.waitForTimeout(2000);
   check(!(await casts(page)).length, 'while they last nothing is cast again');
-  await page.evaluate((id) => { const p = window.DAGYR.G.player; p.buffs = p.buffs.filter((b) => b.id !== id); p.cooldowns[id] = 0; window.__casts = []; }, BUFFS[2]);
+  await page.evaluate((id) => { const p = window.VELSCOUR.G.player; p.buffs = p.buffs.filter((b) => b.id !== id); p.cooldowns[id] = 0; window.__casts = []; }, BUFFS[2]);
   await page.waitForTimeout(1500);
   got = await casts(page);
   check(got.join() === BUFFS[2], `a buff that wore off is cast again alone (${got.join()})`);
   const auto = await page.evaluate(async () => {
-    const { G } = window.DAGYR, p = G.player;
+    const { G } = window.VELSCOUR, p = G.player;
     const { Macros } = await import('/src/game/macros.js');
     const { Auto } = await import('/src/game/autoplay.js');
     Auto.on = true; Macros.reset(); p.buffs = [];
@@ -118,11 +118,11 @@ const casts = (page) => page.evaluate(() => window.__casts.slice());
     return q;
   });
   check(auto === 0, 'Keep up stays off while auto-play is on');
-  await page.evaluate(() => { window.DAGYR.G.char.macros[0].keep = false; });
+  await page.evaluate(() => { window.VELSCOUR.G.char.macros[0].keep = false; });
 
   // round trip
   const kept = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const S = await import('/src/game/save.js');
     G.char.macros[2].name = 'Opener'; G.char.macros[2].skills = ['paladin.1.1']; G.char.macros[2].keep = true;
     game.autosave();
@@ -133,7 +133,7 @@ const casts = (page) => page.evaluate(() => window.__casts.slice());
 
   // town
   await setup(page, { town: true });
-  await page.evaluate((BUFFS) => { window.DAGYR.G.char.macros[0].skills = BUFFS.slice(); }, BUFFS);
+  await page.evaluate((BUFFS) => { window.VELSCOUR.G.char.macros[0].skills = BUFFS.slice(); }, BUFFS);
   await page.keyboard.press('r'); await page.waitForTimeout(500);
   const town = await page.evaluate(async () => (await import('/src/game/macros.js')).Macros.queue.length + window.__casts.length);
   check(town === 0, 'in town a press queues and casts nothing');
@@ -152,22 +152,22 @@ const casts = (page) => page.evaluate(() => window.__casts.slice());
   await page.fill('.mc-row[data-macro="0"] .mc-name', 'Buffs');
   await page.press('.mc-row[data-macro="0"] .mc-name', 'Enter');
   await page.click('.macros-panel .panel-body', { position: { x: 5, y: 5 } });
-  const ui = await page.evaluate(() => window.DAGYR.G.char.macros.slice(0, 2).map((m) => ({ n: m.name, s: m.skills, k: m.key })));
+  const ui = await page.evaluate(() => window.VELSCOUR.G.char.macros.slice(0, 2).map((m) => ({ n: m.name, s: m.skills, k: m.key })));
   check(ui[0].s.join() === BUFFS.slice(0, 2).join() && ui[1].s[0] === BUFFS[2], `added by the panel: ${ui[0].s.length} + ${ui[1].s.length}`);
   check(ui[1].k === 'KeyR' && ui[0].k === null, `R moved to macro 2, macro 1 has none (${ui[0].k} / ${ui[1].k})`);
   check(ui[0].n === 'Buffs', `renamed: ${ui[0].n}`);
   await page.click('.mc-row[data-macro="1"] .mc-chip');
-  check((await page.evaluate(() => window.DAGYR.G.char.macros[1].skills.length)) === 0, 'a click on a skill takes it out');
+  check((await page.evaluate(() => window.VELSCOUR.G.char.macros[1].skills.length)) === 0, 'a click on a skill takes it out');
   await page.selectOption('.mc-row[data-macro="1"] .mc-add', BUFFS[3]);
   await shot('macros_panel');
-  await page.evaluate(() => window.DAGYR.G.ui.closeAll());
+  await page.evaluate(() => window.VELSCOUR.G.ui.closeAll());
   await browser.close();
 
   // ------------------------------------------------ 5. touch
   for (const [W, H] of [[844, 390], [390, 844]]) {
     const g = await openGame({ width: W, height: H, mobile: true });
     await setup(g.page);
-    await g.page.evaluate((BUFFS) => { const { G } = window.DAGYR; G.char.macros[0].skills = BUFFS.slice(); G.char.macros[1].skills = [BUFFS[0]]; G.char.macros[3].skills = [BUFFS[1]]; G.touchUI.layout(); }, BUFFS);
+    await g.page.evaluate((BUFFS) => { const { G } = window.VELSCOUR; G.char.macros[0].skills = BUFFS.slice(); G.char.macros[1].skills = [BUFFS[0]]; G.char.macros[3].skills = [BUFFS[1]]; G.touchUI.layout(); }, BUFFS);
     await g.page.waitForTimeout(500);
     const t = await g.page.evaluate(() => {
       const r = (e) => e.getBoundingClientRect();
@@ -185,7 +185,7 @@ const casts = (page) => page.evaluate(() => window.__casts.slice());
     const gt = await casts(g.page);
     check(gt.join() === BUFFS.join(), `${W}x${H}: a tap casts the macro (${gt.length})`);
     await g.shot(`macros_touch_${W}x${H}`);
-    await g.page.evaluate(() => window.DAGYR.G.ui.macros.open());
+    await g.page.evaluate(() => window.VELSCOUR.G.ui.macros.open());
     await g.page.waitForTimeout(300);
     const pn = await g.page.evaluate(() => { const b = document.querySelector('.macros-panel').getBoundingClientRect(), add = document.querySelector('.mc-row[data-macro="2"] .mc-add').getBoundingClientRect(); return { fits: b.left >= 0 && b.right <= innerWidth + 1 && b.top >= 0 && b.bottom <= innerHeight + 1, addW: Math.round(add.width), addH: Math.round(add.height) }; });
     check(pn.fits && pn.addH >= 24, `${W}x${H}: the panel fits the screen (its body scrolls), controls ${pn.addW}x${pn.addH}`);

@@ -1,4 +1,4 @@
-// The battlefield on one screen (Fantasica's fixed view) in Dagyr's isometric style: the map is a floating
+// The battlefield on one screen (Fantasica's fixed view) in Velscour's isometric style: the map is a floating
 // diorama of tile columns, heroes on their posts, the horde on the road, the rift tears and the Bastion Heart.
 import { TAU, clamp, rgba, rand, makeCanvas, drawFiltered } from '../core/util.js';
 import { isoX, isoY, HW, HH, HZ, TW, dressMap, loadTheme, THEMES } from '../art/terrain.js';

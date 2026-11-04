@@ -86,7 +86,7 @@ def guides(img, full=True):
                 d.line((cx + s * BLADE_W // 2, GUARD + 24, cx + s * BLADE_W // 2, GUARD + 60), fill=GRN, width=2)
                 d.line((cx + s * GUARD_W // 2, GUARD - 26, cx + s * GUARD_W // 2, GUARD + 26), fill=GRN, width=2)
     if not full: return img
-    label(d, 16, 12, 'DAGYR  RUNEBLADE 3D TEXTURE SHEET   1024 x 1536   1 art pixel = 4 x 4 px   flat magenta #FF00FF', 17)
+    label(d, 16, 12, 'VELSCOUR  RUNEBLADE 3D TEXTURE SHEET   1024 x 1536   1 art pixel = 4 x 4 px   flat magenta #FF00FF', 17)
     label(d, 16, 40, 'Three views of ONE sword, point down, on the same yellow lines. The game builds the 3D model from them.', 15, (200, 230, 255, 255))
     for name, (x0, x1, cx) in COLS.items():
         sub = {'FRONT': 'face-on', 'SIDE': 'edge-on (turned 90 deg)', 'BACK': 'from behind (mirrored)'}[name]

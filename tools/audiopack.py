@@ -62,7 +62,7 @@ def process_audio():
     for d in ("sfx", "amb", "music"):
         os.makedirs(os.path.join(OUT, d), exist_ok=True)
     manifest = {"sfx": [], "amb": {}, "music": {}}
-    tmp = tempfile.mkdtemp(prefix="Dagyr_audio_")
+    tmp = tempfile.mkdtemp(prefix="Velscour_audio_")
     try:
         for f in sorted(os.listdir(SRC)):   # loose songs (e.g. "Stone Room Reverberation.m4a")
             if f.lower().endswith(SONG_EXT):

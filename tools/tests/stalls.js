@@ -1,7 +1,7 @@
 // Stall finder: a hero on auto-play for N game minutes; prints the stretches where it gets nowhere, each with the
 // auto-play state (goal, path, target, loot, cast lock, channel, move, watchdogs, the last skill tried).
 //   node tools/tests/stalls.js [class] [minutes] [standard|rift|breach] [gift] [autoloot] [fullbag] [god]
-// gift: Dagyr's gift first (level 350, Mythic +10, the Endgame open: rifts and the Breach). Flags: the same status for
+// gift: Velscour's gift first (level 350, Mythic +10, the Endgame open: rifts and the Breach). Flags: the same status for
 // > 7 s (fights, travel and town errands excepted), parked within 2 tiles for 10 s, 15 s with no kill while monsters
 // live and nothing else is going on, and flip-flops (a non-fighting status pair alternating > 12 times in 4 s).
 // A soak that finds nothing prints FLAGS (0). It never fails: read what it flags.
@@ -13,12 +13,12 @@ const has = (k) => process.argv.includes(k);
   const { browser, page, errors, shot } = await openGame();
   try {
     await page.evaluate(async ({ cls, gift, fill, autoLoot, god }) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const clean = () => { document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll(); };
       await game.newChar(cls, 'Staller'); clean();
       if (gift) {
         const { endgame, saveEndgame, resetEndgameCache } = await import('/src/game/endgame.js');
-        localStorage.removeItem('Dagyr_endgame_v1'); resetEndgameCache(); endgame().unlocked = Date.now(); saveEndgame();
+        localStorage.removeItem('Velscour_endgame_v1'); resetEndgameCache(); endgame().unlocked = Date.now(); saveEndgame();
         (await import('/src/game/deathgift.js')).grantDeathGift(); clean();
       }
       G.settings.autoLoot = autoLoot; G.godMode = god; G.autoOpenSeals = true;
@@ -26,7 +26,7 @@ const has = (k) => process.argv.includes(k);
     }, { cls, gift: has('gift'), fill: has('fullbag'), autoLoot: has('autoloot'), god: has('god') });
     await page.waitForTimeout(1200);
     const res = await page.evaluate(async ({ minutes, dest }) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { Auto } = await import('/src/game/autoplay.js');
       G.autoDest = dest; Auto.toggle(true);
       let lastTry = '-';

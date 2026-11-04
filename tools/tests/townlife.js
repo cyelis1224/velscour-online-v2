@@ -11,7 +11,7 @@ const { openGame, report } = require('./harness');
   const fail = (m) => { errors.push('[check] ' + m); };
   // arrival and the quiet start
   const arrival = await page.evaluate(() => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const p = G.player, po = G.world.portals[0], d = G.world.townLife, talk = [0];
     while (d.time < 5) { game.update(1 / 30); talk.push(d.agents.filter((a) => a.talkT > 0).length + d.vendors.filter((v) => v.talkT > 0).length); }
     return { fromPortal: Math.hypot(p.x - po.x, p.y - po.y), early: Math.max(...talk) };
@@ -23,7 +23,7 @@ const { openGame, report } = require('./harness');
   await shot('townlife_arrival');
   // event frequency over many visits
   const freq = await page.evaluate(() => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const kinds = {};
     let n = 0;
     for (let i = 0; i < 160; i++) { game.enterTown(); const k = G.world.townLife.eventKind; if (k) { n++; kinds[k] = (kinds[k] || 0) + 1; } }
@@ -33,7 +33,7 @@ const { openGame, report } = require('./harness');
   if (freq.share < 0.24 || freq.share > 0.47) fail('special events on ' + Math.round(freq.share * 100) + '% of visits (want about 35%)');
   // an ordinary day: a two-minute soak with the hero standing on the square; bubble budget near the hero
   const day = await page.evaluate(() => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     G.townEventForce = null; game.enterTown();
     const d = G.world.townLife, C = d.t.center;
     G.player.x = C.x + 1.5; G.player.y = C.y + 2.5;
@@ -53,7 +53,7 @@ const { openGame, report } = require('./harness');
   // each special event, stepped to its end, with shots at its height
   // the animals: one of each kind, a minute of town time; tame ones wander, wild ones keep away from the hero
   const zoo = await page.evaluate(() => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     G.townEventForce = null; G.townAnimalsForce = { cat: 2, dog: 2, rabbit: 2, rat: 2, deer: 2 }; game.enterTown(); G.townAnimalsForce = undefined;
     const d = G.world.townLife, C = d.t.center, beasts = d.agents.filter((a) => a.animal), start = beasts.map((a) => [a.x, a.y]);
     let closest = 99, poses = new Set();
@@ -82,7 +82,7 @@ const { openGame, report } = require('./harness');
   const which = process.argv[2] === 'none' ? [] : process.argv[2] ? process.argv[2].split(',') : all;
   for (const kind of which) {
     const r = await page.evaluate((kind) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       G.townEventForce = kind; game.enterTown(); G.townEventForce = undefined;
       const d = G.world.townLife, C = d.t.center;
       G.player.x = C.x + 1; G.player.y = C.y + 5.5;
@@ -93,7 +93,7 @@ const { openGame, report } = require('./harness');
     // follow the cast and shoot twice
     for (const [k, secs] of [[1, 6], [2, 14]]) {
       await page.evaluate((secs) => {
-        const { G, game } = window.DAGYR, d = G.world.townLife;
+        const { G, game } = window.VELSCOUR, d = G.world.townLife;
         for (let i = 0; i < 30 * secs; i++) game.update(1 / 30);
         const cast = d.agents.filter((a) => !a.hidden && a.eventRole && a.eventRole !== 'crowd');
         const busy = cast.length ? cast : d.agents.filter((a) => !a.hidden && a.eventRole);
@@ -105,7 +105,7 @@ const { openGame, report } = require('./harness');
       await shot(`townlife_event_${kind}_${k}`);
     }
     const end = await page.evaluate(() => {
-      const { G, game } = window.DAGYR, d = G.world.townLife;
+      const { G, game } = window.VELSCOUR, d = G.world.townLife;
       for (let i = 0; i < 30 * 150 && !d.event.done; i++) game.update(1 / 30);
       return { done: d.event.done, t: Math.round(d.time) };
     });
@@ -117,7 +117,7 @@ const { openGame, report } = require('./harness');
   // auto-play during the royal progress: the hero pays its respects to the royals (watching the procession until they
   // are free), stands still while anyone talks to it, then goes back down through the portal
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { Auto } = await import('/src/game/autoplay.js');
     G.townEventForce = 'royal'; game.enterTown(); G.townEventForce = null;
     Auto.toggle(true);
@@ -125,7 +125,7 @@ const { openGame, report } = require('./harness');
   });
   // run the town until a royal is talking to the hero (pause there for a screenshot), then on to the portal
   const runAudience = (pause) => page.evaluate((pause) => {
-    const { G, game } = window.DAGYR, A = window.__aud;
+    const { G, game } = window.VELSCOUR, A = window.__aud;
     while (A.t < 240 && G.world === A.town && !A.statuses.has('Travelling…')) { // entering the dungeon is async: stop at the portal
       game.update(1 / 30); A.t += 1 / 30;
       if (A.Auto.status) A.statuses.add(A.Auto.status.replace(/ [A-Z].*/, ''));
@@ -149,7 +149,7 @@ const { openGame, report } = require('./harness');
   if (!audience.left) fail('auto-play never left town after the audience');
   // a line-up of every emotion on one townsperson per row
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { EMOTIONS } = await import('/src/game/townsfolkvisuals.js');
     G.townEventForce = null; game.enterTown();
     const d = G.world.townLife, C = d.t.center;

@@ -22,7 +22,7 @@ function sleep(ms) {
     const p2 = await ctx2.newPage();
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
     }
 
     console.log('1. Loading P1 & P2 into game...');
@@ -67,7 +67,7 @@ function sleep(ms) {
     await p1.fill('#d2-create-name', roomName);
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
-    await p1.waitForFunction(() => window.DAGYR.G.mode === 'game' && window.DAGYR.G.world?.kind === 'town');
+    await p1.waitForFunction(() => window.VELSCOUR.G.mode === 'game' && window.VELSCOUR.G.world?.kind === 'town');
     console.log('P1 created room and entered town.');
 
     // P2 joins room
@@ -77,26 +77,26 @@ function sleep(ms) {
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.DAGYR.G.mode === 'game' && window.DAGYR.G.world?.kind === 'town');
+    await p2.waitForFunction(() => window.VELSCOUR.G.mode === 'game' && window.VELSCOUR.G.world?.kind === 'town');
     console.log('P2 joined room and entered town.');
     await sleep(1000);
 
     // Both players enter dungeon depth 1
     console.log('2. Entering dungeon depth 1 with both players...');
-    await p1.evaluate(() => window.DAGYR.game.enterDungeon());
-    await p2.evaluate(() => window.DAGYR.game.enterDungeon());
+    await p1.evaluate(() => window.VELSCOUR.game.enterDungeon());
+    await p2.evaluate(() => window.VELSCOUR.game.enterDungeon());
 
-    await p1.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'dungeon', { timeout: 10000 });
-    await p2.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'dungeon', { timeout: 10000 });
+    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'dungeon', { timeout: 10000 });
+    await p2.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'dungeon', { timeout: 10000 });
 
     const initialStates = await Promise.all([
       p1.evaluate(() => ({
-        isRoom: !!window.DAGYR.G.room,
-        isPaused: window.DAGYR.G.paused,
+        isRoom: !!window.VELSCOUR.G.room,
+        isPaused: window.VELSCOUR.G.paused,
       })),
       p2.evaluate(() => ({
-        isRoom: !!window.DAGYR.G.room,
-        isPaused: window.DAGYR.G.paused,
+        isRoom: !!window.VELSCOUR.G.room,
+        isPaused: window.VELSCOUR.G.paused,
       }))
     ]);
 
@@ -112,8 +112,8 @@ function sleep(ms) {
     });
 
     const p1MenuState = await p1.evaluate(() => ({
-      hasModal: window.DAGYR.UI.modal,
-      isPaused: window.DAGYR.G.paused,
+      hasModal: window.VELSCOUR.UI.modal,
+      isPaused: window.VELSCOUR.G.paused,
       dialogTitle: document.querySelector('.dialog-box h2')?.textContent
     }));
     console.log('P1 menu state:', p1MenuState);
@@ -124,17 +124,17 @@ function sleep(ms) {
 
     // Move P2 while P1 has the menu open, and verify P1 sees P2 moving
     console.log('Moving P2 while P1 is in Pause Menu...');
-    const p2StartPos = await p2.evaluate(() => ({ x: window.DAGYR.G.player.x, y: window.DAGYR.G.player.y }));
+    const p2StartPos = await p2.evaluate(() => ({ x: window.VELSCOUR.G.player.x, y: window.VELSCOUR.G.player.y }));
     await p2.evaluate(() => {
-      window.DAGYR.G.player.x += 4;
-      window.DAGYR.G.player.y += 4;
+      window.VELSCOUR.G.player.x += 4;
+      window.VELSCOUR.G.player.y += 4;
     });
 
     // Wait for network update on P1
     await sleep(600);
 
     const p1SawP2Pos = await p1.evaluate(() => {
-      const rp = [...window.DAGYR.G.remotePlayers.values()][0];
+      const rp = [...window.VELSCOUR.G.remotePlayers.values()][0];
       return rp ? { x: rp.x, y: rp.y } : null;
     });
     console.log('P1 saw remote player position while in menu:', p1SawP2Pos);
@@ -145,7 +145,7 @@ function sleep(ms) {
     console.log('✓ P1 continuously receives and interpolates remote players while in Pause Menu!');
 
     // Close pause menu
-    await p1.evaluate(() => window.DAGYR.UI.closeAll());
+    await p1.evaluate(() => window.VELSCOUR.UI.closeAll());
 
     // TEST 2: Opening Inventory on P1
     console.log('\n--- TEST 2: Opening Inventory on P1 in Dungeon ---');
@@ -155,8 +155,8 @@ function sleep(ms) {
     });
 
     const p1InvState = await p1.evaluate(() => ({
-      anyOpen: window.DAGYR.UI.anyOpen(),
-      isPaused: window.DAGYR.G.paused
+      anyOpen: window.VELSCOUR.UI.anyOpen(),
+      isPaused: window.VELSCOUR.G.paused
     }));
     console.log('P1 inventory state:', p1InvState);
     if (!p1InvState.anyOpen) throw new Error('Inventory was not opened!');
@@ -164,17 +164,17 @@ function sleep(ms) {
     console.log('✓ G.paused is FALSE while inventory is open in dungeon!');
 
     // Close inventory
-    await p1.evaluate(() => window.DAGYR.UI.closeAll());
+    await p1.evaluate(() => window.VELSCOUR.UI.closeAll());
 
     // TEST 3: G.hitStop does not freeze simulation in online play
     console.log('\n--- TEST 3: Testing hitStop non-freezing in online play ---');
     await p1.evaluate(() => {
-      window.DAGYR.G.hitStop = 0.5; // Simulate a heavy hit
+      window.VELSCOUR.G.hitStop = 0.5; // Simulate a heavy hit
     });
     await sleep(100);
     const hitStopState = await p1.evaluate(() => ({
-      hitStop: window.DAGYR.G.hitStop,
-      isPaused: window.DAGYR.G.paused
+      hitStop: window.VELSCOUR.G.hitStop,
+      isPaused: window.VELSCOUR.G.paused
     }));
     console.log('P1 hitStop state:', hitStopState);
     if (hitStopState.isPaused) throw new Error('hitStop caused G.paused to be true!');

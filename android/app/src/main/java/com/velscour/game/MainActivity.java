@@ -1,4 +1,4 @@
-package com.Dagyr.game;
+package com.Velscour.game;
 
 import android.annotation.SuppressLint;
 import android.app.Dialog;

@@ -12,7 +12,7 @@ const classes = (process.argv[3] || 'paladin,wizard').split(',');
   const rows = [];
   for (const cls of classes) for (const D of depths) {
     const r = await page.evaluate(async ({ cls, D }) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { Auto } = await import('/src/game/autoplay.js');
       const { depthLevel, dmgScale, shownDmg } = await import('/src/data/depth.js');
       const { rollItem, rollGem } = await import('/src/data/items.js');
@@ -73,7 +73,7 @@ const classes = (process.argv[3] || 'paladin,wizard').split(',');
   // thorns (combat.js) land on the shown scale x Fortitude: a normal attacker dies in ~40 blows at every depth; weapon
   // figures read ~100 for a Common of the depth (shownWeapon), never the 0.0x they were
   const th = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     const { makeMonster } = await import('/src/game/monster.js');
     const { rollItem } = await import('/src/data/items.js');

@@ -1,4 +1,4 @@
-// Diablo II Battle.net Style Lobby UI for DAGYR ONLINE
+// Diablo II Battle.net Style Lobby UI for VELSCOUR ONLINE
 import { G } from '../state.js';
 import { el, escapeHtml } from '../core/util.js';
 import { sfx } from '../core/audio.js';
@@ -53,10 +53,10 @@ export function openLobby(char, onBack) {
   const header = el('div', 'd2-header');
   header.innerHTML = `
     <div class="d2-logo-wrap">
-      <img class="d2-logo-img" src="assets/ui/logo.webp" alt="DAGYR ONLINE">
+      <img class="d2-logo-img" src="assets/ui/logo.webp" alt="VELSCOUR ONLINE">
     </div>
     <div class="d2-title-center">
-      <div class="d2-channel-title" id="d2-channel-display">DAGYR ONLINE (En-1)</div>
+      <div class="d2-channel-title" id="d2-channel-display">VELSCOUR ONLINE (En-1)</div>
       <div class="d2-channel-sub" id="d2-channel-sub">Connecting...</div>
     </div>
     <div class="d2-header-right">
@@ -242,7 +242,7 @@ export function openLobby(char, onBack) {
           await saveOnlineCharacter(char);
         }
       } catch (e) {
-        console.warn('[Dagyr Online] Error saving character on lobby quit:', e);
+        console.warn('[Velscour Online] Error saving character on lobby quit:', e);
       }
       detachLobbyListeners();
       net.leaveRoom();
@@ -599,7 +599,7 @@ export function openLobby(char, onBack) {
     renderPedestal(data.players || []);
     renderRoomList(data.rooms || []);
     const disp = $('#d2-channel-display');
-    if (disp) disp.textContent = `DAGYR ONLINE (${data.channel || 'USEast-1'})`;
+    if (disp) disp.textContent = `VELSCOUR ONLINE (${data.channel || 'USEast-1'})`;
     updateConnectionBadge();
   };
 

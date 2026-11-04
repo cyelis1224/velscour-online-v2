@@ -15,7 +15,7 @@ import { elem } from '../gfx/vfx.js';
 import { updateAutomapPartyRoster } from './partyroster.js';
 import { pickTaunt } from '../data/taunts.js';
 
-const TAUNT_KEY = 'Dagyr_taunts_v1'; // Dagyr's level-up deck: the last mood and the lines already shown
+const TAUNT_KEY = 'Velscour_taunts_v1'; // Velscour's level-up deck: the last mood and the lines already shown
 import { Meter } from '../game/dpsmeter.js';
 import { heroDamage } from '../game/autoplay.js';
 import { madnessReady, madnessOn, unleashMadness } from '../game/mayhem.js';
@@ -145,7 +145,7 @@ export const HUD = {
     window.addEventListener('resize', () => this.layoutMobile());
     this.layoutMobile();
     $('#minimap').addEventListener('click', () => { G.showAutomap = !G.showAutomap; });
-    ($('#velscour-skull') || $('#Dagyr-skull'))?.addEventListener('click', () => { sfx('ui'); (G.game.openVelscourContact || G.game.openDagyrContact).call(G.game); });
+    ($('#velscour-skull') || $('#Velscour-skull'))?.addEventListener('click', () => { sfx('ui'); (G.game.openVelscourContact || G.game.openVelscourContact).call(G.game); });
     const spark = $('#hs-spark');
     spark.width = 150 * G.dpr; spark.height = 18 * G.dpr;
     UI.tip($('#hero-stats'), () => `<b style="color:#ffe2a0">Battle Ledger</b>
@@ -811,7 +811,7 @@ export const HUD = {
     drawFiltered(g, 'brightness(1.35) contrast(1.1)', img, bx, by, bw, bh, (S - dw) / 2, S - pad - dh, dw, dh); // dungeon art is dark; lift it so it reads small
   },
 
-  /** The level-up banner: a dark vignette, the title and new level bleeding in from blur, then Dagyr's two lines. */
+  /** The level-up banner: a dark vignette, the title and new level bleeding in from blur, then Velscour's two lines. */
   levelUp(level, sound) {
     const box = $('#levelup'), num = $('#lu-num');
     num.textContent = level;

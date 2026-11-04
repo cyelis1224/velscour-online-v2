@@ -7,7 +7,7 @@ const { openGame, report } = require('./harness');
   try {
     const checks = await page.evaluate(async () => {
       const problems = [];
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { SKILLS, manaCost } = await import('/src/data/skills.js');
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { newCharData } = await import('/src/game/save.js');

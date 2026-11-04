@@ -1,4 +1,4 @@
-// Dagyr Online - Friends List UI
+// Velscour Online - Friends List UI
 import { net } from '../net/network.js';
 import { el, escapeHtml } from '../core/util.js';
 import { sfx } from '../core/audio.js';

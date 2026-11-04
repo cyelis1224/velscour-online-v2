@@ -1,6 +1,6 @@
 // The descent: Demon Lord Velscour waits at FINAL_DEPTH, and depthLevel maps a depth to the monster level that
 // sets its monsters' life, damage, XP and loot.
-// Rebalanced for Dagyr Online: Level 1-100 polynomial progression where Player HP, Player Damage, Monster HP,
+// Rebalanced for Velscour Online: Level 1-100 polynomial progression where Player HP, Player Damage, Monster HP,
 // and Monster Damage operate on a unified 1:1 scale suitable for both tactical co-op and PvP.
 export const FINAL_DEPTH = 500;
 /** The hero level cap (game/player.js re-exports it): no item asks for more (data/items.js rollItem). */

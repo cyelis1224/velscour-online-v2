@@ -34,7 +34,7 @@ const { openGame, report } = require('./harness');
       }
       await page.waitForTimeout(30);
     }
-    if (!logoFadeMonotonic || logoFadePeak < 0.9 || !logoMidShot) { console.log('FAIL: Dagyr logo should visibly fade up to full opacity'); process.exitCode = 1; }
+    if (!logoFadeMonotonic || logoFadePeak < 0.9 || !logoMidShot) { console.log('FAIL: Velscour logo should visibly fade up to full opacity'); process.exitCode = 1; }
     s = await st();
     if (s.opacity < 0.98) { console.log('FAIL: logo should be at full opacity when the flame hit begins'); process.exitCode = 1; }
     const litAt = (Date.now() - t0) / 1000, song = await clock();

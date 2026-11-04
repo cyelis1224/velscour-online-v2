@@ -6,7 +6,7 @@ const { openGame, report } = require('./harness');
   const { browser, page, errors } = await openGame({ width: 844, height: 390 });
   try {
     const result = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { SKILLS, CLASS_SKILLS, rageCost, manaCost, cooldown } = await import('/src/data/skills.js');
       const { Auto } = await import('/src/game/autoplay.js');
       const problems = [], details = {};

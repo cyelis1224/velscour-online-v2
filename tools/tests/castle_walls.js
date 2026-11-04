@@ -9,7 +9,7 @@ const mobile = process.argv.includes('--mobile'), noshots = process.argv.include
   const { browser, page, errors, shot } = await openGame(mobile ? { width: 844, height: 390, mobile: true } : { width: 1440, height: 900 });
   try {
     const res = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       try { await game.newChar('paladin', 'Castle Walls QA'); } catch (e) { console.warn('town setup: ' + e.message); }
       await (await import('/src/gfx/castle.js')).loadCastlePack();
       G.char.depth = 19; G.godMode = true;
@@ -81,7 +81,7 @@ const mobile = process.argv.includes('--mobile'), noshots = process.argv.include
       for (const [name, x, y, zoom, foes] of views) {
         try {
           await page.evaluate(async ([x, y, zoom, foes]) => {
-            const { G } = window.DAGYR;
+            const { G } = window.VELSCOUR;
             const { camera } = await import('/src/core/view.js');
             const m = G.world.map, [px, py] = m.walkable(x, y) ? [x, y] : m.randomNear(x, y, 4);
             G.player.x = px; G.player.y = py; G.player._hopMap = null;

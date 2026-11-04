@@ -1,4 +1,4 @@
-// DAGYR ONLINE - Multiplayer HTTP & WebSocket Server
+// VELSCOUR ONLINE - Multiplayer HTTP & WebSocket Server
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -9,7 +9,7 @@ const { buildUpdateManifest } = require('./tools/manifest');
 
 const PORT = parseInt(process.env.PORT, 10) || 8124;
 const ROOT = __dirname;
-const DATA_DIR = process.env.DAGYR_DATA_DIR ? path.resolve(process.env.DAGYR_DATA_DIR) : path.join(ROOT, 'data');
+const DATA_DIR = process.env.VELSCOUR_DATA_DIR ? path.resolve(process.env.VELSCOUR_DATA_DIR) : path.join(ROOT, 'data');
 const CHARS_DIR = path.join(DATA_DIR, 'characters');
 const ACCOUNTS_FILE = path.join(DATA_DIR, 'accounts.json');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
@@ -138,7 +138,7 @@ function initOnlineStore() {
       }
     }
   } catch (e) {
-    console.error('[Dagyr Online] Error indexing character names:', e);
+    console.error('[Velscour Online] Error indexing character names:', e);
   }
 }
 initOnlineStore();
@@ -361,7 +361,7 @@ function getBuildArtifacts() {
     android: findBinary(path.join(ROOT, 'android/app/build/outputs/apk/debug'), f => f.endsWith('.apk')),
     windows: findBinary(path.join(ROOT, 'dist/desktop'), f => f.endsWith('.exe')),
     linux: findBinary(path.join(ROOT, 'dist/desktop'), f => f.endsWith('.AppImage')),
-    // electron-builder zip names: Dagyr-<v>-arm64-mac.zip (Apple Silicon), Dagyr-<v>-mac.zip (Intel)
+    // electron-builder zip names: Velscour-<v>-arm64-mac.zip (Apple Silicon), Velscour-<v>-mac.zip (Intel)
     mac: findBinary(path.join(ROOT, 'dist/desktop'), f => f.endsWith('-arm64-mac.zip')),
     macIntel: findBinary(path.join(ROOT, 'dist/desktop'), f => f.endsWith('-mac.zip') && !f.endsWith('-arm64-mac.zip')),
   };
@@ -424,7 +424,7 @@ function renderDownloadPage(artifacts) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Download DAGYR ONLINE - Dark Fantasy Action RPG</title>
+  <title>Download VELSCOUR ONLINE - Dark Fantasy Action RPG</title>
   <link rel="icon" type="image/x-icon" href="/assets/ui/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -597,7 +597,7 @@ function renderDownloadPage(artifacts) {
 </head>
 <body>
   <div class="header">
-    <a href="/"><img class="logo" src="/assets/ui/logo.webp" alt="DAGYR ONLINE"></a>
+    <a href="/"><img class="logo" src="/assets/ui/logo.webp" alt="VELSCOUR ONLINE"></a>
     <div class="tagline">A world built upon something that should have stayed dead.</div>
     <div class="version-badge">Version ${pkg.version || '1.0.0'} · Official Game Clients</div>
   </div>
@@ -658,7 +658,7 @@ function renderDownloadPage(artifacts) {
       </svg>
       <div class="card-title">macOS</div>
       <div class="card-meta">${mac ? formatBytes(mac.size) : 'Unavailable'} · macOS 11+</div>
-      <div class="card-desc">Unzip and drag Dagyr Online.app to Applications. Unsigned: if macOS says it is damaged, run <code>xattr -cr "/Applications/Dagyr Online.app"</code> in Terminal, then right-click → Open.</div>
+      <div class="card-desc">Unzip and drag Velscour Online.app to Applications. Unsigned: if macOS says it is damaged, run <code>xattr -cr "/Applications/Velscour Online.app"</code> in Terminal, then right-click → Open.</div>
       <a class="btn ${mac ? '' : 'disabled'}" href="/download/mac">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Apple Silicon (M1+)
@@ -1048,7 +1048,7 @@ const server = http.createServer((req, res) => {
     ];
     const latestBuild = Math.max(...mtimes, serverStartTime);
     const resData = {
-      name: 'Dagyr Online',
+      name: 'Velscour Online',
       version: pkg.version || '0.1.0',
       manifestHash: manifest.manifestHash,
       manifestUrl: '/api/update-manifest',
@@ -1077,7 +1077,7 @@ const server = http.createServer((req, res) => {
         "Skill Macros (R E Y U O & Touch M1-M5): 5 customizable skill macro slots per hero with 'Keep up' automatic buff recast when enemies are nearby and full online party synchronization",
         "Thorns Scaling & Weapon Base Display: endgame thorns scale with hero fortitude and attacker level; normalized weapon damage numbers and added Weapon Base to the Character Sheet",
         "Compact Big-Number Notation & Gold Scaling: added Qa through Dc and scientific notation suffixes along with high-depth logarithmic gold scaling",
-        "Dagyr Unbound & Sealed Treasure Updates: Unbound prioritizes uncollected Heirlooms + 3 Abyssal items + 20 Infernal Marks; ring augments display calculated hit damage; sealed items blocked from socketing/upgrading/enchanting until unsealed",
+        "Velscour Unbound & Sealed Treasure Updates: Unbound prioritizes uncollected Heirlooms + 3 Abyssal items + 20 Infernal Marks; ring augments display calculated hit damage; sealed items blocked from socketing/upgrading/enchanting until unsealed",
         "Mobile portrait mode redesign with upward-expanding bottom-docked chat, flank special action buttons, repositioned ATK button, enlarged 108px minimap, and Android fullSensor dynamic rotation",
         "Organized Settings dialog into 5 clean category tabs (General, Audio, Graphics, HUD & UI, Auto-Play) with instant responsive navigation across desktop and mobile",
         "Multiplayer Bard Music Synchronization: live melodic note playback, rhythm audio, cadences, staff notation, and custom sheet titles replicated to all party members",
@@ -1092,14 +1092,14 @@ const server = http.createServer((req, res) => {
         "Major expansion: Held 3D weapons & off-hands for all classes with 50 unique designs per weapon and elemental particle glows",
         "10 Castle Overworld variants with custom layouts, stones, moats, and story dialogue",
         "10 Sea of Sand Dune variants and massive 3D pyramids with deep burial chamber raid encounters",
-        "Integrated DAGYR DEFENSE tower defense card campaign behind the town Riftgate",
+        "Integrated VELSCOUR DEFENSE tower defense card campaign behind the town Riftgate",
         "Synchronized multiplayer world generation for Castle and Dune variants to ensure 100% party determinism",
         "Host-authoritative wave triggers and spawn timers preventing multiplayer encounter desynchronization",
         "Mobile pathfinding and typed array mask optimizations for smooth 60 FPS performance",
         "3D bone gibs and gore physics overhaul",
         "Vendored Three.js and custom canvas filter fallback for Safari/iOS compatibility",
         "Fixed multiplayer dungeon progression: exit portal now reliably unseals for all party members when the floor champion/guardian is slain, including remote and late-joining players",
-        "Fine-tuned UI styling: experience bar placement, Dagyr contact skull positioning, and inventory alignment",
+        "Fine-tuned UI styling: experience bar placement, Velscour contact skull positioning, and inventory alignment",
         "Restored missing inventory stats grid, attribute allocation rows, and item rarity styles",
         "Fixed HP and MP numerical text display on life and mana orbs in compact mobile views (portrait & landscape)",
         "Fixed sealed item opening panel styling, responsiveness, and reel animations on mobile & touch displays",
@@ -1120,7 +1120,7 @@ const server = http.createServer((req, res) => {
         "Resolved multiplayer monster authority symmetry and split-monster replication",
         "Enforced version synchronization for Online Multiplayer mode with direct one-click update prompts",
         "Lobby auto-reconnect on foreground resume, WebSocket keepalive heartbeat, and 90-second host room grace period",
-        "Endgame expansion: Heresies of the Hollow, Abyssal Rifts, Dagyr Unbound, and Infernal Marks",
+        "Endgame expansion: Heresies of the Hollow, Abyssal Rifts, Velscour Unbound, and Infernal Marks",
         "Global Abyssal Rift leaderboard and honour board integration",
         "Interactive mobile pinch-to-zoom gesture support with smooth camera zoom scaling",
         "NPC-style walking bounce animation with organic squash, stretch, stride sway, and idle breathing",
@@ -1132,35 +1132,35 @@ const server = http.createServer((req, res) => {
         android: {
           available: !!artifacts.android,
           url: `/download/android?v=${pkg.version || ''}`,
-          filename: `DagyrOnline-${pkg.version || ''}.apk`,
+          filename: `VelscourOnline-${pkg.version || ''}.apk`,
           size: artifacts.android ? artifacts.android.size : 0,
           sizeFormatted: artifacts.android ? formatBytes(artifacts.android.size) : null
         },
         windows: {
           available: !!artifacts.windows,
           url: '/download/windows',
-          filename: 'DagyrOnline.exe',
+          filename: 'VelscourOnline.exe',
           size: artifacts.windows ? artifacts.windows.size : 0,
           sizeFormatted: artifacts.windows ? formatBytes(artifacts.windows.size) : null
         },
         linux: {
           available: !!artifacts.linux,
           url: '/download/linux',
-          filename: 'DagyrOnline.AppImage',
+          filename: 'VelscourOnline.AppImage',
           size: artifacts.linux ? artifacts.linux.size : 0,
           sizeFormatted: artifacts.linux ? formatBytes(artifacts.linux.size) : null
         },
         mac: {
           available: !!artifacts.mac,
           url: '/download/mac',
-          filename: 'DagyrOnline-mac-arm64.zip',
+          filename: 'VelscourOnline-mac-arm64.zip',
           size: artifacts.mac ? artifacts.mac.size : 0,
           sizeFormatted: artifacts.mac ? formatBytes(artifacts.mac.size) : null
         },
         macIntel: {
           available: !!artifacts.macIntel,
           url: '/download/mac-intel',
-          filename: 'DagyrOnline-mac-x64.zip',
+          filename: 'VelscourOnline-mac-x64.zip',
           size: artifacts.macIntel ? artifacts.macIntel.size : 0,
           sizeFormatted: artifacts.macIntel ? formatBytes(artifacts.macIntel.size) : null
         }
@@ -1209,7 +1209,7 @@ const server = http.createServer((req, res) => {
       res.end('Android APK not found on server.');
       return;
     }
-    const dlName = `DagyrOnline-${pkg.version || ''}.apk`;
+    const dlName = `VelscourOnline-${pkg.version || ''}.apk`;
     streamFile(req, res, artifacts.android.path, dlName, 'application/vnd.android.package-archive');
     return;
   }
@@ -1221,7 +1221,7 @@ const server = http.createServer((req, res) => {
       res.end('Windows executable not found on server.');
       return;
     }
-    streamFile(req, res, artifacts.windows.path, 'DagyrOnline.exe', 'application/octet-stream');
+    streamFile(req, res, artifacts.windows.path, 'VelscourOnline.exe', 'application/octet-stream');
     return;
   }
 
@@ -1232,7 +1232,7 @@ const server = http.createServer((req, res) => {
       res.end('Linux AppImage not found on server.');
       return;
     }
-    streamFile(req, res, artifacts.linux.path, 'DagyrOnline.AppImage', 'application/x-executable');
+    streamFile(req, res, artifacts.linux.path, 'VelscourOnline.AppImage', 'application/x-executable');
     return;
   }
 
@@ -1244,7 +1244,7 @@ const server = http.createServer((req, res) => {
       res.end('macOS build not found on server.');
       return;
     }
-    streamFile(req, res, art.path, intel ? 'DagyrOnline-mac-x64.zip' : 'DagyrOnline-mac-arm64.zip', 'application/zip');
+    streamFile(req, res, art.path, intel ? 'VelscourOnline-mac-x64.zip' : 'VelscourOnline-mac-arm64.zip', 'application/zip');
     return;
   }
 
@@ -1394,7 +1394,7 @@ function startServerShutdown(minutes = 3, reason = 'Server update') {
     broadcastToAll({
       type: 'chat',
       kind: 'system',
-      from: 'DAGYR SYSTEM',
+      from: 'VELSCOUR SYSTEM',
       text: warnMsg.message,
       color: '#ff4444',
       time: Date.now(),
@@ -1453,7 +1453,7 @@ function cancelServerShutdown() {
   broadcastToAll({
     type: 'chat',
     kind: 'system',
-    from: 'DAGYR SYSTEM',
+    from: 'VELSCOUR SYSTEM',
     text: 'Scheduled restart has been cancelled. You may continue playing normally.',
     color: '#60ff80',
     time: Date.now(),
@@ -1484,7 +1484,7 @@ function executeFinalShutdown() {
     rooms.clear();
 
     server.close(() => {
-      console.log('[DAGYR ONLINE] Server stopped cleanly. Ready for update.');
+      console.log('[VELSCOUR ONLINE] Server stopped cleanly. Ready for update.');
       process.exit(0);
     });
 
@@ -2104,7 +2104,7 @@ wss.on('connection', (ws) => {
         }));
         ws.send(JSON.stringify({
           type: 'chat',
-          text: `Welcome to DAGYR ONLINE. Type /help for chat commands.`,
+          text: `Welcome to VELSCOUR ONLINE. Type /help for chat commands.`,
           color: '#ffd34a',
           kind: 'system',
         }));
@@ -2918,7 +2918,7 @@ wss.on('connection', (ws) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`DAGYR ONLINE server running on http://localhost:${PORT}`);
+  console.log(`VELSCOUR ONLINE server running on http://localhost:${PORT}`);
   console.log(`WebSocket server listening on ws://localhost:${PORT}/ws`);
 });
 

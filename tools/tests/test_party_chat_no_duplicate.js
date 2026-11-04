@@ -19,15 +19,15 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     const p2 = await ctx2.newPage();
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
     }
 
     console.log('Navigating players...');
     await p1.goto(BASE_URL + '/index.html');
     await p2.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Inject saves: P1 is Paladin, P2 is Ranger
     await p1.evaluate(async () => {
@@ -67,7 +67,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
     // Wait for P1 to be in game
-    await p1.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
+    await p1.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
     console.log('P1 in town.');
 
     // P2 joins room
@@ -79,11 +79,11 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
+    await p2.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
     console.log('P2 in town.');
 
-    await p1.waitForFunction(() => window.DAGYR.G.remotePlayers && window.DAGYR.G.remotePlayers.size > 0);
-    await p2.waitForFunction(() => window.DAGYR.G.remotePlayers && window.DAGYR.G.remotePlayers.size > 0);
+    await p1.waitForFunction(() => window.VELSCOUR.G.remotePlayers && window.VELSCOUR.G.remotePlayers.size > 0);
+    await p2.waitForFunction(() => window.VELSCOUR.G.remotePlayers && window.VELSCOUR.G.remotePlayers.size > 0);
     console.log('Both players connected in room.');
 
     // Now P1 sends a party chat message
@@ -129,7 +129,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     }
 
     // Check P1 local chatBubble
-    const p1Bubble = await p1.evaluate(() => window.DAGYR.G.player?.chatBubble);
+    const p1Bubble = await p1.evaluate(() => window.VELSCOUR.G.player?.chatBubble);
     console.log(`P1 local chat bubble: "${p1Bubble}"`);
     if (p1Bubble !== testMsg) {
       throw new Error(`Expected P1 chatBubble to be "${testMsg}", got "${p1Bubble}"`);
@@ -137,7 +137,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // Check P2 sees chatBubble on remote player P1
     const p2RemoteBubble = await p2.evaluate(() => {
-      const G = window.DAGYR.G;
+      const G = window.VELSCOUR.G;
       const rp = Array.from(G.remotePlayers.values())[0];
       return rp ? rp.chatBubble : null;
     });

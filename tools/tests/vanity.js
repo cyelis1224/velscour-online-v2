@@ -7,7 +7,7 @@ const mobile = process.argv.includes('mobile');
 (async () => {
   const { browser, page, errors } = await openGame(mobile ? { width: 844, height: 390, mobile: true } : {});
   const r = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('paladin', 'Peacock');
     const { rollItem, shownEquip } = await import('/src/data/items.js');
     const { addToBag } = await import('/src/game/player.js');
@@ -56,8 +56,8 @@ const mobile = process.argv.includes('mobile');
     out.inBag = c.bag.includes(head) || c.bag.includes(body) || c.bag.includes(vanitySword) || c.bag.includes(vanityShield);
     out.statsSame = stats() === s0;
     out.shown = shownEquip(c).body === body && shownEquip(c).head === head &&
-                shownEquip(c).weapon === vanitySword && shownEquip(c).offhand === vanityShield &&
-                c.equip.body !== body && c.equip.weapon === eqSword && c.equip.offhand === eqShield;
+      shownEquip(c).weapon === vanitySword && shownEquip(c).offhand === vanityShield &&
+      c.equip.body !== body && c.equip.weapon === eqSword && c.equip.offhand === eqShield;
     out.selRef = !!getItem({ where: 'vanity', slot: 'body' });
     await wait(600);
     const img1 = p.artFrame()?.img;
@@ -67,11 +67,11 @@ const mobile = process.argv.includes('mobile');
 
     const back = migrate(JSON.parse(JSON.stringify(c)));
     out.saved = back.vanity.body?.uid === body.uid && back.vanity.head?.uid === head.uid &&
-                back.vanity.weapon?.uid === vanitySword.uid && back.vanity.offhand?.uid === vanityShield.uid &&
-                back.hideHelm === true;
+      back.vanity.weapon?.uid === vanitySword.uid && back.vanity.offhand?.uid === vanityShield.uid &&
+      back.hideHelm === true;
     const old = migrate(Object.assign(JSON.parse(JSON.stringify(c)), { vanity: undefined, hideHelm: undefined }));
     out.oldSave = old.vanity.head === null && old.vanity.body === null &&
-                  old.vanity.weapon === null && old.vanity.offhand === null && old.hideHelm === false;
+      old.vanity.weapon === null && old.vanity.offhand === null && old.hideHelm === false;
     c.hideHelm = false;
 
     toggleInventory();
@@ -84,7 +84,7 @@ const mobile = process.argv.includes('mobile');
   await page.waitForTimeout(500);
   await page.screenshot({ path: `tools/tests/out/vanity${mobile ? '_mobile' : ''}.png` });
   const r2 = await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const { takeOffLook } = await import('/src/ui/inventory.js');
     const { shownEquip } = await import('/src/data/items.js');
     const c = G.char, body = c.vanity.body, wep = c.vanity.weapon;

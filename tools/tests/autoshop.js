@@ -10,7 +10,7 @@ const rounds = +(process.argv[3] || 40);
   const fails = [];
   for (const cls of classes) {
     const r = await page.evaluate(async ({ cls, rounds }) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar(cls, 'Shopper');
       const { Vendor } = await import('/src/ui/vendor.js');
       const { Auto } = await import('/src/game/autoplay.js');
@@ -37,7 +37,7 @@ const rounds = +(process.argv[3] || 40);
   }
 
   const f = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('paladin', 'Filter');
     const { Auto } = await import('/src/game/autoplay.js');
     const { rollItem, makeGem } = await import('/src/data/items.js');
@@ -95,7 +95,7 @@ const rounds = +(process.argv[3] || 40);
   if (!f.playerStoredKept) fails.push('auto-play took the player\'s stored gear out (and sold it)');
   const order = ['weapon', 'offhand', 'head', 'body', 'hands', 'legs', 'feet', 'ring', 'gem'];
   if (f.byType.some((t, i) => i && order.indexOf(t) < order.indexOf(f.byType[i - 1]))) fails.push('chest not sorted by type: ' + f.byType);
-  await page.evaluate(async () => { const { Stash } = await import('/src/ui/stash.js'); document.querySelectorAll('.screen').forEach((s) => s.remove()); window.DAGYR.G.ui.modalCount = 0; Stash.open(); });
+  await page.evaluate(async () => { const { Stash } = await import('/src/ui/stash.js'); document.querySelectorAll('.screen').forEach((s) => s.remove()); window.VELSCOUR.G.ui.modalCount = 0; Stash.open(); });
   await page.waitForTimeout(300);
   await page.screenshot({ path: 'tools/tests/out/autoshop_chest.png' });
   console.log(fails.length ? 'FAIL\n  ' + fails.join('\n  ') : 'OK: shopping, loot filter, keepers, chest sort');

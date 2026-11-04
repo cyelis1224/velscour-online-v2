@@ -8,7 +8,7 @@ const depth = +(process.argv[3] || 13), prefix = process.argv[4] || 'survey';
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
   try {
     await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar('paladin', 'Biome Survey');
       document.querySelectorAll('.screen').forEach(s => s.remove());
       G.ui.modalCount = 0; G.godMode = true;
@@ -19,7 +19,7 @@ const depth = +(process.argv[3] || 13), prefix = process.argv[4] || 'survey';
     }, only);
     for (const id of ids) {
       const info = await page.evaluate(async ([id, depth]) => {
-        const { G, game } = window.DAGYR;
+        const { G, game } = window.VELSCOUR;
         const { BIOME_BY_ID } = await import('/src/data/biomes.js');
         const { loadBiomeArt } = await import('/src/core/assets.js');
         const b = BIOME_BY_ID[id];
@@ -50,7 +50,7 @@ const depth = +(process.argv[3] || 13), prefix = process.argv[4] || 'survey';
       }, [id, depth]);
       console.log(id, JSON.stringify({ ...info, spots: undefined }));
       for (let i = 0; i < info.spots.length; i++) {
-        await page.evaluate(([x, y]) => { const { G } = window.DAGYR; G.player.x = x; G.player.y = y; }, info.spots[i]);
+        await page.evaluate(([x, y]) => { const { G } = window.VELSCOUR; G.player.x = x; G.player.y = y; }, info.spots[i]);
         await page.waitForTimeout(i ? 300 : 3600);
         await shot(`${prefix}_${id}_${i}`);
       }

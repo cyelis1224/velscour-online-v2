@@ -1,5 +1,5 @@
 // The Altar of Heresy panel (docs/ENDGAME.md): the Heresies to switch on, the rank and what it pays, the milestones,
-// and the Endgame's other doors (the Abyssal Rift gate, Dagyr Unbound, the Infernal Marks). Every row is one big
+// and the Endgame's other doors (the Abyssal Rift gate, Velscour Unbound, the Infernal Marks). Every row is one big
 // toggle (one column on a phone); before the Endgame opens the list is shown greyed and nothing can be switched.
 import { G } from '../state.js';
 import { el, escapeHtml } from '../core/util.js';
@@ -32,7 +32,7 @@ export const Heresies = {
     const c = G.char, on = heresiesOf(c), rank = heresyRankOf(c), open = endgameUnlocked(c), w = G.world;
     const scroll = body.scrollTop;
     body.innerHTML = '';
-    if (!open) body.appendChild(el('div', 'hx-locked', '<b>Dagyr still sits his throne.</b> Slay him at Depth 500 and the Heresies open for every hero on this browser.'));
+    if (!open) body.appendChild(el('div', 'hx-locked', '<b>Velscour still sits his throne.</b> Slay him at Depth 500 and the Heresies open for every hero on this browser.'));
     // the rank, its bar and what it pays
     const head = el('div', 'hx-head');
     head.innerHTML = `<div class="hx-rank">Heresy rank <b>${rank}</b><span class="dim"> / ${HERESY_MAX_RANK}</span></div>
@@ -42,7 +42,7 @@ export const Heresies = {
     // when they take hold (a level already built keeps the set it was built with)
     const here = w && w.kind === 'dungeon' && !w.rift && !w.unbound ? worldRank(w) : null;
     const built = here !== null && (w.heresy ? w.heresy.ids : []).join() !== on.join();
-    body.appendChild(el('div', 'hx-note', `They take hold from the <b>next level</b> you enter (every depth, the Endless Torment and the Eternal Breach), never in Abyssal Rifts or Dagyr Unbound.${built ? ` <span class="hx-warn">This level was built at Heresy ${here}: your changes wait for the next one.</span>` : ''}`));
+    body.appendChild(el('div', 'hx-note', `They take hold from the <b>next level</b> you enter (every depth, the Endless Torment and the Eternal Breach), never in Abyssal Rifts or Velscour Unbound.${built ? ` <span class="hx-warn">This level was built at Heresy ${here}: your changes wait for the next one.</span>` : ''}`));
     // one row per Heresy: the whole row is the toggle
     const list = el('div', 'hx-list');
     for (const H of HERESIES) {
@@ -72,7 +72,7 @@ export const Heresies = {
     const doors = el('div', 'hx-doors');
     const btn = (cls, label, sub, fn, dis) => { const b = el('button', 'btn hx-door ' + cls, `<b>${label}</b><span>${sub}</span>`); b.disabled = !!dis; b.onclick = () => { sfx('ui'); this.close(); fn(); }; return b; };
     doors.appendChild(btn('hx-rift', 'Abyssal Rift', open ? `Tier ${riftOpen(c)} open` : 'sealed', () => G.game.confirmRift(), !open));
-    doors.appendChild(btn('hx-unbound', 'Dagyr Unbound', `${Math.min(UNBOUND_KEYS, keysOf(c))}/${UNBOUND_KEYS} Abyssal Keys`, () => G.game.enterUnbound(), !unboundReady(c)));
+    doors.appendChild(btn('hx-unbound', 'Velscour Unbound', `${Math.min(UNBOUND_KEYS, keysOf(c))}/${UNBOUND_KEYS} Abyssal Keys`, () => G.game.enterUnbound(), !unboundReady(c)));
     doors.appendChild(btn('hx-marks', 'Infernal Marks', `${marksTotal()} (${marksFree()} free)`, () => G.ui.marks.open(), false));
     body.appendChild(doors);
     body.scrollTop = scroll;

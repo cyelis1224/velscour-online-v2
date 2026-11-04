@@ -60,7 +60,7 @@ export const LINES = [
     ]
   },
   {
-    id: 'seventh', name: 'The Seventh Seal', giver: 'Scholar Thessaly', min: 250, pitch: 'Dagyr was bound by seven seals. Six broke. Help me understand why the seventh still holds.', chapters: [
+    id: 'seventh', name: 'The Seventh Seal', giver: 'Scholar Thessaly', min: 250, pitch: 'Velscour was bound by seven seals. Six broke. Help me understand why the seventh still holds.', chapters: [
       { kind: 'relic', biome: 'library', n: 3, obj: 'Forbidden Folio', text: 'steal three forbidden folios' },
       { kind: 'relic', biome: 'void', n: 3, obj: 'Seal Fragment', text: 'gather three seal fragments from the void' },
       { kind: 'relic', biome: 'obsidian', n: 3, obj: 'Seal Fragment', text: 'gather three seal fragments from the obsidian vault' },

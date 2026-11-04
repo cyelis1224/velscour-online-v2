@@ -6,12 +6,12 @@
   ],
   "sheets": [
     {
-      "file": "Dagyr.png",
+      "file": "Velscour.png",
       "columns": 1,
       "rows": 1,
       "entries": [
         {
-          "id": "Dagyr",
+          "id": "Velscour",
           "cell": 0,
           "kind": "boss",
           "height": 94

@@ -7,7 +7,7 @@ const feet = new Map();
 /**
  * The feet's centre column of a cell, in its pixels (creature.js anchors art there and mirrors about it). The atlas
  * stores fx as a fraction (0.5 for every cell), which creature.js read as pixels: every painted replacement was drawn
- * from its left edge, so a turn threw it a whole sprite width sideways (Dagyr looked to face away). Measured from
+ * from its left edge, so a turn threw it a whole sprite width sideways (Velscour looked to face away). Measured from
  * the opaque pixels of the cell's bottom eighth, once per cell.
  */
 function feetX(id, cell) {

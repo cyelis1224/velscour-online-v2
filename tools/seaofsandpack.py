@@ -2,7 +2,7 @@
 """Pack the Sea of Sand reference frames into browser atlases.
 
 Usage: python tools/seaofsandpack.py <Sea_of_Sand_Biome_Pack directory>
-The input is the authored Dagyr Overworld Biome Set; output is the runtime
+The input is the authored Velscour Overworld Biome Set; output is the runtime
 asset folder and metadata used by the game. Pillow and numpy are required.
 
 Floors and cliffs come from the pack's per-frame sprites. Scatter, trees,

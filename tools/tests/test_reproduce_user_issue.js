@@ -19,14 +19,14 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     const p2 = await ctx2.newPage();
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
     }
 
     await p1.goto(BASE_URL + '/index.html');
     await p2.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Inject characters
     await p1.evaluate(async () => {
@@ -64,8 +64,8 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.fill('#d2-create-name', roomName);
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
-    await p1.waitForFunction(() => window.DAGYR?.G?.mode === 'game');
-    console.log('2. P1 created room and entered game. World:', await p1.evaluate(() => window.DAGYR.G.world?.kind));
+    await p1.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game');
+    console.log('2. P1 created room and entered game. World:', await p1.evaluate(() => window.VELSCOUR.G.world?.kind));
 
     // P2 joins room
     await p2.click('button:has-text("JOIN GAME")');
@@ -76,24 +76,24 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(200);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.DAGYR?.G?.mode === 'game');
-    console.log('3. P2 joined room and entered game. World:', await p2.evaluate(() => window.DAGYR.G.world?.kind));
+    await p2.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game');
+    console.log('3. P2 joined room and entered game. World:', await p2.evaluate(() => window.VELSCOUR.G.world?.kind));
 
     await p1.waitForTimeout(1000);
     await p2.waitForTimeout(1000);
 
     const checkTownVisibility = async (tag) => {
       const p1World = await p1.evaluate(() => ({
-        kind: window.DAGYR.G.world?.kind,
-        seed: window.DAGYR.G.char?.townSeed,
-        roomSeed: window.DAGYR.G.room?.townSeed,
-        remoteCount: window.DAGYR.G.world?.creatures?.filter(c => c.isRemotePlayer).length,
+        kind: window.VELSCOUR.G.world?.kind,
+        seed: window.VELSCOUR.G.char?.townSeed,
+        roomSeed: window.VELSCOUR.G.room?.townSeed,
+        remoteCount: window.VELSCOUR.G.world?.creatures?.filter(c => c.isRemotePlayer).length,
       }));
       const p2World = await p2.evaluate(() => ({
-        kind: window.DAGYR.G.world?.kind,
-        seed: window.DAGYR.G.char?.townSeed,
-        roomSeed: window.DAGYR.G.room?.townSeed,
-        remoteCount: window.DAGYR.G.world?.creatures?.filter(c => c.isRemotePlayer).length,
+        kind: window.VELSCOUR.G.world?.kind,
+        seed: window.VELSCOUR.G.char?.townSeed,
+        roomSeed: window.VELSCOUR.G.room?.townSeed,
+        remoteCount: window.VELSCOUR.G.world?.creatures?.filter(c => c.isRemotePlayer).length,
       }));
       console.log(`[${tag}] P1 in town:`, p1World);
       console.log(`[${tag}] P2 in town:`, p2World);
@@ -107,13 +107,13 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     console.log('\n--- ENTERING DUNGEON FROM TOWN VIA PORTAL ---');
     // Check portal dialog destination for both players BEFORE entering
     const p1Dest = await p1.evaluate(() => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       const c = G.char;
       const depth = (G.room && G.room.depth != null) ? G.room.depth : c.depth;
       return (G.room?.biome && G.room.biome !== 'town') ? G.room.biome : c.nextBiome;
     });
     const p2Dest = await p2.evaluate(() => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       const c = G.char;
       const depth = (G.room && G.room.depth != null) ? G.room.depth : c.depth;
       return (G.room?.biome && G.room.biome !== 'town') ? G.room.biome : c.nextBiome;
@@ -126,34 +126,34 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       const { game } = await import('/src/game/game.js');
       game.enterDungeon();
     });
-    await p1.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'dungeon');
+    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'dungeon');
 
     // P2 enters dungeon
     await p2.evaluate(async () => {
       const { game } = await import('/src/game/game.js');
       game.enterDungeon();
     });
-    await p2.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'dungeon');
+    await p2.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'dungeon');
 
     await p1.waitForTimeout(1000);
     await p2.waitForTimeout(1000);
 
     const checkDungeonMatch = async (tag) => {
       const p1Dung = await p1.evaluate(() => ({
-        depth: window.DAGYR.G.world?.depth,
-        biome: window.DAGYR.G.world?.biome?.id,
-        seed: window.DAGYR.G.room?.dungeonSeed,
-        w: window.DAGYR.G.world?.map?.w,
-        h: window.DAGYR.G.world?.map?.h,
-        remoteCount: window.DAGYR.G.world?.creatures?.filter(c => c.isRemotePlayer).length,
+        depth: window.VELSCOUR.G.world?.depth,
+        biome: window.VELSCOUR.G.world?.biome?.id,
+        seed: window.VELSCOUR.G.room?.dungeonSeed,
+        w: window.VELSCOUR.G.world?.map?.w,
+        h: window.VELSCOUR.G.world?.map?.h,
+        remoteCount: window.VELSCOUR.G.world?.creatures?.filter(c => c.isRemotePlayer).length,
       }));
       const p2Dung = await p2.evaluate(() => ({
-        depth: window.DAGYR.G.world?.depth,
-        biome: window.DAGYR.G.world?.biome?.id,
-        seed: window.DAGYR.G.room?.dungeonSeed,
-        w: window.DAGYR.G.world?.map?.w,
-        h: window.DAGYR.G.world?.map?.h,
-        remoteCount: window.DAGYR.G.world?.creatures?.filter(c => c.isRemotePlayer).length,
+        depth: window.VELSCOUR.G.world?.depth,
+        biome: window.VELSCOUR.G.world?.biome?.id,
+        seed: window.VELSCOUR.G.room?.dungeonSeed,
+        w: window.VELSCOUR.G.world?.map?.w,
+        h: window.VELSCOUR.G.world?.map?.h,
+        remoteCount: window.VELSCOUR.G.world?.creatures?.filter(c => c.isRemotePlayer).length,
       }));
       console.log(`[${tag}] P1 Dungeon:`, p1Dung);
       console.log(`[${tag}] P2 Dungeon:`, p2Dung);
@@ -175,8 +175,8 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
       game.enterTown();
     });
 
-    await p1.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'town');
-    await p2.waitForFunction(() => window.DAGYR?.G?.world?.kind === 'town');
+    await p1.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'town');
+    await p2.waitForFunction(() => window.VELSCOUR?.G?.world?.kind === 'town');
 
     await p1.waitForTimeout(1000);
     await p2.waitForTimeout(1000);
@@ -206,8 +206,8 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.fill('#d2-create-name', roomName2);
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
-    await p1.waitForFunction(() => window.DAGYR?.G?.mode === 'game');
-    console.log('P1 in game after recreation. World:', await p1.evaluate(() => window.DAGYR.G.world?.kind));
+    await p1.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game');
+    console.log('P1 in game after recreation. World:', await p1.evaluate(() => window.VELSCOUR.G.world?.kind));
 
     // P2 joins
     await p2.click('button:has-text("JOIN GAME")');
@@ -218,8 +218,8 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(200);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.DAGYR?.G?.mode === 'game');
-    console.log('P2 in game after joining. World:', await p2.evaluate(() => window.DAGYR.G.world?.kind));
+    await p2.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game');
+    console.log('P2 in game after joining. World:', await p2.evaluate(() => window.VELSCOUR.G.world?.kind));
 
     await p1.waitForTimeout(1000);
     await p2.waitForTimeout(1000);

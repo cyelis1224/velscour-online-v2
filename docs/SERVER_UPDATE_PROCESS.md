@@ -8,7 +8,7 @@
 
 ## 1. Automated Graceful Shutdown Flow
 
-The Dagyr Online server includes an automated 3-minute countdown mechanism that:
+The Velscour Online server includes an automated 3-minute countdown mechanism that:
 1. **Warns All Connected Players**: Broadcasts urgent warning messages to every client (in dungeon rooms, towns, and Battle.net lobby) across chat, screen center, and HUD.
 2. **Auto-Triggers Client Saves**: As soon as a client receives the shutdown warning, it automatically performs a background character save to the server.
 3. **Displays Countdown**: Clients see periodic countdown reminders (at 3m, 2m, 1m, 30s, 15s, 10s..1s) urging them to move to a safe zone and Save & Exit.
@@ -41,7 +41,7 @@ Watch the server logs or wait for the script/process to finish. The server will 
 At 0s, you will see in the server log:
 ```
 [SERVER SHUTTING DOWN NOW] Flushing all data to disk...
-[DAGYR ONLINE] Server stopped cleanly. Ready for update.
+[VELSCOUR ONLINE] Server stopped cleanly. Ready for update.
 ```
 
 ### Step 3: Prepare and Sync Assets

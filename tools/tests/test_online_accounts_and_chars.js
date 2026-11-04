@@ -34,7 +34,7 @@ async function waitForServer(url, timeoutMs = 15000) {
 
   const serverProc = spawn('node', ['server.js'], {
     cwd: path.resolve(__dirname, '../..'),
-    env: { ...process.env, PORT: String(PORT), DAGYR_DATA_DIR: tmpDataDir },
+    env: { ...process.env, PORT: String(PORT), VELSCOUR_DATA_DIR: tmpDataDir },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
@@ -186,7 +186,7 @@ async function waitForServer(url, timeoutMs = 15000) {
     assert(checkFreed.available === true, 'Deleted character name should be freed and available again');
     console.log('[Test] Verified character deletion and name release');
 
-    // 8b. Enter Lobby with "SirValen" and verify it connects to mmo.dagyr.me:8124 (not old Dagyr.dagyr.me:8123 lobby)
+    // 8b. Enter Lobby with "SirValen" and verify it connects to mmo.dagyr.me:8124 (not old Velscour.dagyr.me:8123 lobby)
     await page.click('#online-enter-lobby-btn');
     await page.waitForSelector('#d2-lobby', { timeout: 10000 });
     await page.waitForFunction(() => {
@@ -257,8 +257,8 @@ async function waitForServer(url, timeoutMs = 15000) {
     await page.click('#d2-header-quit');
     await page.waitForSelector('.online-char-screen', { timeout: 5000 });
 
-    // 9. Verify storage separation: online characters are on the server, while browser localStorage Dagyr_saves_v1 is empty until Single Player is played
-    const localSavesBeforeSP = await page.evaluate(() => localStorage.getItem('Dagyr_saves_v1'));
+    // 9. Verify storage separation: online characters are on the server, while browser localStorage Velscour_saves_v1 is empty until Single Player is played
+    const localSavesBeforeSP = await page.evaluate(() => localStorage.getItem('Velscour_saves_v1'));
     assert(!localSavesBeforeSP || localSavesBeforeSP === '[]', 'Online characters must not be written into browser Single Player localStorage');
 
     // Test Single Player flow from Title Screen
@@ -275,12 +275,12 @@ async function waitForServer(url, timeoutMs = 15000) {
 
     // Wait for Single Player game to enter town and autosave to localStorage
     await page.waitForFunction(() => {
-      const raw = localStorage.getItem('Dagyr_saves_v1');
+      const raw = localStorage.getItem('Velscour_saves_v1');
       if (!raw) return false;
       const arr = JSON.parse(raw);
       return Array.isArray(arr) && arr.length === 1 && arr[0].name === 'SoloKnight';
     }, { timeout: 15000 });
-    console.log('[Test] Verified Single Player saves to browser localStorage (Dagyr_saves_v1) independently of Online server characters');
+    console.log('[Test] Verified Single Player saves to browser localStorage (Velscour_saves_v1) independently of Online server characters');
 
     // 10. Verify dedicated Talent Point system (+1 Talent Point every 5 levels, separate from Skill Points)
     const talentTestResult = await page.evaluate(async () => {

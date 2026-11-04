@@ -42,7 +42,7 @@ SHEET_ROWS = [
     ],
 ]
 
-# Existing DAGYR wall-torch columns, copied as a contract rather than
+# Existing VELSCOUR wall-torch columns, copied as a contract rather than
 # rotating one flat image: f/back, b/back, b/front, f/front.
 ANGLE_ORDER = ["f_back", "b_back", "b_front", "f_front"]
 # (sheet, rows drawn on it, rows to skip). The items don't sit on an even grid, so rows are cut at the emptiest
@@ -210,7 +210,7 @@ def build():
         cells[i] = [f, b, b, f]
 
     manifest = {
-        "name": "DAGYR wall hangings",
+        "name": "VELSCOUR wall hangings",
         "count": 50,
         "directions_per_item": 4,
         "cell_px": [CELL, CELL],

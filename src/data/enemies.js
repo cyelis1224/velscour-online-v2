@@ -27,7 +27,7 @@ export const ARCH = {
   abomination: { sprite: 'abomination', ai: 'brute', hp: 4.0, dmg: 2.0, spd: 1.5, px: 3.4, r: 0.6, pal: { a: '#a07a70', r: '#801010', w: '#e0d0c0', e: '#ffcc20' }, gore: 'flesh', names: ['Abomination', 'Flesh Golem', 'Gorger'], xp: 3, pack: [1, 1] },
   velscour: { sprite: 'velscour', ai: 'boss', hp: 1, dmg: 1, spd: 2.4, px: 3.6, r: 0.9, pal: { a: '#5a0c0c', b: '#1a0606', c: '#2a0808', w: '#e8d8b0', g: '#ffb020', e: '#ffee40', r: '#ff2010', k: '#000000' }, gore: 'flesh', demon: true, names: ['Velscour', 'Demon Lord Velscour'] },
   dagyr: { sprite: 'velscour', ai: 'boss', hp: 1, dmg: 1, spd: 2.4, px: 3.6, r: 0.9, pal: { a: '#5a0c0c', b: '#1a0606', c: '#2a0808', w: '#e8d8b0', g: '#ffb020', e: '#ffee40', r: '#ff2010', k: '#000000' }, gore: 'flesh', demon: true, names: ['Velscour', 'Demon Lord Velscour'] },
-  Dagyr: { sprite: 'velscour', ai: 'boss', hp: 1, dmg: 1, spd: 2.4, px: 3.6, r: 0.9, pal: { a: '#5a0c0c', b: '#1a0606', c: '#2a0808', w: '#e8d8b0', g: '#ffb020', e: '#ffee40', r: '#ff2010', k: '#000000' }, gore: 'flesh', demon: true, names: ['Velscour', 'Demon Lord Velscour'] },
+  Velscour: { sprite: 'velscour', ai: 'boss', hp: 1, dmg: 1, spd: 2.4, px: 3.6, r: 0.9, pal: { a: '#5a0c0c', b: '#1a0606', c: '#2a0808', w: '#e8d8b0', g: '#ffb020', e: '#ffee40', r: '#ff2010', k: '#000000' }, gore: 'flesh', demon: true, names: ['Velscour', 'Demon Lord Velscour'] },
 };
 
 const SAND_BASE = {
@@ -43,7 +43,7 @@ function addSandArchetype(id, name, role, boss = false, bossIndex = 0) {
     hp: base.hp * (boss ? 1.85 + bossIndex * 0.13 : 0.72 + (id.length % 7) * 0.1),
     dmg: base.dmg * (boss ? 1.15 + (bossIndex % 3) * 0.16 : 0.8 + (id.length % 5) * 0.1),
     spd: base.spd * (boss ? 0.84 + (bossIndex % 4) * 0.11 : role === 'tank' || role === 'brute' ? 0.78 : 0.94 + (id.length % 4) * 0.08),
-    pal: { ...base.pal }, names: [name], ...(boss ? { bossName: name, bossPatterns:SAND_BOSSES[bossIndex][4] } : {}), seaOfSand: true,
+    pal: { ...base.pal }, names: [name], ...(boss ? { bossName: name, bossPatterns: SAND_BOSSES[bossIndex][4] } : {}), seaOfSand: true,
   };
 }
 for (const [id, name, role] of SAND_CREATURES) addSandArchetype(id, name, role);
@@ -62,7 +62,7 @@ export const ARCH_MOVES = {
   imp: ['blink', 'fan', 'lob'], demon: ['whirl', 'quake', 'hook'], spider: ['lunge', 'web'], bat: ['lunge'], slime: ['lob'],
   wraith: ['blink', 'orbs'], golem: ['quake', 'whirl'], cultist: ['runes', 'blink'], hound: ['lunge', 'frenzy'],
   eye: ['sweep', 'orbs'], knight: ['combo', 'whirl', 'hook'], worm: ['lob', 'burst'], shroom: ['lob'], elemental: ['orbs', 'blink'],
-  scorpion: ['lunge', 'combo'], gargoyle: ['lunge', 'quake'], beetle: [], abomination: ['whirl', 'hook', 'quake'], velscour: [], dagyr: [], Dagyr: [],
+  scorpion: ['lunge', 'combo'], gargoyle: ['lunge', 'quake'], beetle: [], abomination: ['whirl', 'hook', 'quake'], velscour: [], dagyr: [], Velscour: [],
 };
 for (const [id, , role] of SAND_CREATURES) ARCH_MOVES[id] = ARCH_MOVES[SAND_BASE[role] || 'skeleton'] || [];
 for (const [id, , role] of SAND_BOSSES) ARCH_MOVES[id] = ARCH_MOVES[role] || ['quake', 'slam'];

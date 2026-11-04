@@ -58,9 +58,8 @@ function rollMoves(arch, rank, variant, depth) {
   return n ? shuffle(all).slice(0, n) : null;
 }
 
-/** Demon Lord Dagyr's life in normal monsters of his level: ~3x the last BOSS ROOM boss (~3 minutes of hero damage). */
+/** Demon Lord Velscour's life in normal monsters of his level: ~3x the last BOSS ROOM boss (~3 minutes of hero damage). */
 export const VELSCOUR_HP = 60;
-export const DAGYR_HP = VELSCOUR_HP;
 export function monsterBase(level) {
   return {
     // Polynomial Level 1-100 monster HP and damage on the same 1:1 scale as Player HP and Player Damage:
@@ -137,7 +136,7 @@ export class Monster extends Creature {
     if (taunt) return taunt;
     if (this.aggro && !this.aggro.dead && this.aggro.team !== this.team && dist(this.x, this.y, this.aggro.x, this.aggro.y) < 14) return this.aggro;
     const near = w.nearestHostile(this.team, this.x, this.y, this.awake ? 30 : this.aggroRange, !this.awake);
-    if (!near && (this.hunter || (this.gaze && this.awake)) && w.player && !w.player.dead && this.team === 'enemy') return w.player; // hunters (and, once awake, Dagyr's Gaze: game/heresies.js) track the hero anywhere
+    if (!near && (this.hunter || (this.gaze && this.awake)) && w.player && !w.player.dead && this.team === 'enemy') return w.player; // hunters (and, once awake, Velscour's Gaze: game/heresies.js) track the hero anywhere
     return near;
   }
 
@@ -161,8 +160,8 @@ export class Monster extends Creature {
 
     // Regeneration: suppressed for 6s after taking hits; DoTs (burn, poison, bleed) keep it suppressed for 3s
     const hasDot = (this.status.burn && this.status.burn.t > 0) ||
-                   (this.status.poison && this.status.poison.t > 0) ||
-                   (this.status.bleed && this.status.bleed.t > 0);
+      (this.status.poison && this.status.poison.t > 0) ||
+      (this.status.bleed && this.status.bleed.t > 0);
     if (hasDot) this.regenSuppress = Math.max(this.regenSuppress || 0, 3.0);
 
     // Only non-boss monsters with 'regen' affix regenerate, and ONLY when completely out of combat (regenSuppress <= 0)
@@ -417,7 +416,11 @@ export class Monster extends Creature {
     this.navTo(t.x, t.y, dt, speed, flow);
   }
 
-  atkRange(t) { return this.r + t.r + (this.atkReach || 0.55); }
+  atkRange(t) {
+    const m = this.world.map;   // meleeStep (the Endless Siege's walls): no blow between levels further apart than that
+    if (m.meleeStep != null && Math.abs(m.hgt[m.tileIdx(this.x, this.y)] - m.hgt[m.tileIdx(t.x, t.y)]) > m.meleeStep) return -1;
+    return this.r + t.r + (this.atkReach || 0.55);
+  }
 
   startAction(kind, windup, data = {}) {
     this.state = 'windup';
@@ -1223,7 +1226,7 @@ export class Monster extends Creature {
         sfx('thud'); sfx('explode');
         break;
       case 'boss_nova': {
-        const n = this.isDagyr ? 28 : 18;
+        const n = this.isVelscour ? 28 : 18;
         for (let ring = 0; ring < (this.phase === 2 ? 2 : 1); ring++) {
           for (let i = 0; i < n; i++) {
             const ang = (i / n) * TAU + ring * (Math.PI / n);
@@ -1237,14 +1240,14 @@ export class Monster extends Creature {
       case 'boss_volley': {
         const t = a.target || w.player;
         const base = angleTo(this.x, this.y, t.x, t.y);
-        const n = this.isDagyr ? 9 : 5;
+        const n = this.isVelscour ? 9 : 5;
         for (let i = 0; i < n; i++) w.addHazard(new Projectile({ world: w, src: this, x: this.x, y: this.y, ang: base + (i - (n - 1) / 2) * 0.16, speed: 8, range: 12, fx: PROJ_FX[el], el, dmg: [dmg * 0.8, dmg], size: 1.1 }));
         sfx(E.sfx);
         break;
       }
       case 'boss_summon': {
-        const roster = this.isDagyr ? ['demon', 'imp', 'gargoyle', 'knight'] : w.biome.roster;
-        const n = this.isDagyr ? 5 : 3 + (this.phase === 2 ? 2 : 0);
+        const roster = this.isVelscour ? ['demon', 'imp', 'gargoyle', 'knight'] : w.biome.roster;
+        const n = this.isVelscour ? 5 : 3 + (this.phase === 2 ? 2 : 0);
         for (let i = 0; i < n; i++) {
           const [x, y] = w.map.randomNear(this.x, this.y, 3);
           const m = makeMonster(w, pick(roster.filter((r) => r !== 'abomination')), w.biome, this.level, 'normal', x, y);
@@ -1258,7 +1261,7 @@ export class Monster extends Creature {
       }
       case 'boss_meteor': {
         const p = w.player;
-        const n = this.isDagyr ? 7 : 4;
+        const n = this.isVelscour ? 7 : 4;
         for (let i = 0; i < n; i++) {
           const x = p.x + (i ? rand(-3, 3) : 0), y = p.y + (i ? rand(-3, 3) : 0);
           if (!w.map.isFloor(x, y)) continue;
@@ -1269,11 +1272,11 @@ export class Monster extends Creature {
       }
       case 'boss_spiral': {
         let k = 0;
-        const total = this.isDagyr ? 60 : 36;
+        const total = this.isVelscour ? 60 : 36;
         const fire = () => {
           if (this.dead || k >= total) return;
-          for (let arm = 0; arm < (this.isDagyr ? 4 : 3); arm++) {
-            const ang = k * 0.32 + (arm * TAU) / (this.isDagyr ? 4 : 3);
+          for (let arm = 0; arm < (this.isVelscour ? 4 : 3); arm++) {
+            const ang = k * 0.32 + (arm * TAU) / (this.isVelscour ? 4 : 3);
             w.addHazard(new Projectile({ world: w, src: this, x: this.x, y: this.y, ang, speed: 5, range: 11, fx: PROJ_FX[el], el, dmg: [dmg * 0.5, dmg * 0.7] }));
           }
           k++;
@@ -1326,7 +1329,7 @@ export function lookFor(world, archId, rnd = Math.random) {
  * (rollLooks in data/bestiary.js); without one the level picks. Archetypes with no art keep their pixel sprite.
  */
 export function makeMonster(world, archId, biome, level, rank = 'normal', x = 0, y = 0, variant = 0, look = undefined, rnd = Math.random) {
-  const A = ARCH[archId] || ARCH[archId?.toLowerCase()] || (['Dagyr', 'dagyr', 'velscour'].includes(archId) ? (ARCH.Dagyr || ARCH.velscour) : ARCH.demon) || ARCH.demon;
+  const A = ARCH[archId] || ARCH[archId?.toLowerCase()] || (['Velscour', 'dagyr', 'velscour'].includes(archId) ? (ARCH.Velscour || ARCH.velscour) : ARCH.demon) || ARCH.demon;
   const B = monsterBase(level);
   if (world.riftHold) B.hp *= riftHold(level);
   const depth = world.depth || 1;
@@ -1419,7 +1422,7 @@ export function makeElite(m, rank, depth, world, rnd = Math.random) {
     m.name = uniqueName(rnd);
     if (m.art) m.swap = uniqueSwap(rnd);
   } else if (rank === 'boss') {
-    const vel = m.arch === 'velscour' || m.arch === 'Velscour' || m.arch === 'dagyr' || m.arch === 'Dagyr';
+    const vel = m.arch === 'velscour' || m.arch === 'Velscour' || m.arch === 'dagyr' || m.arch === 'Velscour';
     if (vel) { m.art = 'va_velscour'; m.artH = 94; m.swap = null; }
     // Velscour: final encounter (~120x normal monster life after HP_MUL)
     // Floor Guardians: scales smoothly from 6x at depth 1 up to ~38x at depth 500
@@ -1431,7 +1434,7 @@ export function makeElite(m, rank, depth, world, rnd = Math.random) {
     m.affixes = depth > 20 && !vel ? shuffle(keys.filter((k) => !['teleport', 'multishot', 'fast', 'regen', 'vampiric'].includes(k)), rnd).slice(0, 1) : [];
     m.name = vel ? 'DEMON LORD VELSCOUR' : (ARCH[m.arch]?.bossName || bossName(rnd));
     m.isVelscour = vel;
-    m.isDagyr = vel;
+    m.isVelscour = vel;
     const base = ['slam', 'nova', 'volley', 'charge', 'summon', 'meteor', 'spiral', 'beam'];
     m.patterns = vel ? base : ARCH[m.arch]?.bossPatterns ? ARCH[m.arch].bossPatterns.slice() : shuffle(base.slice(), rnd).slice(0, 3 + Math.min(3, Math.floor(depth / 20)));
     if (!m.patterns.includes('slam')) m.patterns.push('slam');

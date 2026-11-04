@@ -5,7 +5,7 @@ import { drawBiome } from '../data/biomes.js';
 import { migrateBar, BAR_SIZE } from '../data/bar.js';
 import { TAB_SLOTS } from '../data/tabs.js';
 import { newMacros, migrateMacros } from '../data/macros.js';
-import { fixBag, fixGemBag, fixStash, fixJewelBox } from '../data/bag.js';
+import { fixBag, fixGemBag, fixStash, fixJewelBox, BAG_COLS, BAG_ROWS } from '../data/bag.js';
 import { stashRaw, listRaw } from './herobackup.js';
 import { FINAL_DEPTH } from '../data/depth.js';
 
@@ -19,7 +19,7 @@ const changed = (classId, deleted) => { for (const fn of watchers) try { fn(clas
 let unreadable = false;   // the saves are there but don't parse: cloud sync must not touch them
 function readAll() {
   let list;
-  const raw = localStorage.getItem(KEY) || localStorage.getItem('Dagyr_saves_v1');
+  const raw = localStorage.getItem(KEY) || localStorage.getItem('Velscour_saves_v1');
   try { list = JSON.parse(raw || '[]'); } catch (e) { unreadable = true; return []; }
   unreadable = !Array.isArray(list);
   if (!unreadable && !localStorage.getItem(KEY) && raw) {
@@ -57,7 +57,7 @@ let blockedOnce = false;
 function saveBlocked() {
   if (blockedOnce || typeof dispatchEvent !== 'function') return;
   blockedOnce = true;
-  dispatchEvent(new CustomEvent('Dagyr-save-blocked'));
+  dispatchEvent(new CustomEvent('Velscour-save-blocked'));
 }
 /** Unreadable save data that was set aside: [{ at, text }], newest first. */
 export async function unreadableSaves() {
@@ -141,7 +141,7 @@ export function newCharData(classId, name) {
     vanity: { head: null, body: null, weapon: null, offhand: null }, hideHelm: false,
     macros: newMacros(), // game/macros.js
     mastery: {}, rage: 0, townSeed: (Math.random() * 1e9) | 0,
-    bag: Array(60).fill(null),
+    bag: Array(BAG_COLS * BAG_ROWS).fill(null), // more rows are bought in the inventory (data/bag.js)
     gemBag: Array(30).fill(null),
     stash: Array(300).fill(null),
     jewelBox: Array(300).fill(null),
@@ -170,7 +170,7 @@ export function migrate(c) {
   c.seaOfSandRuns = c.seaOfSandRuns || {};
   c.darkForestRuns = c.darkForestRuns || {};
   c.breach = Object.assign({ best: 0, cleared: {} }, c.breach); // THE ETERNAL BREACH: best floor beaten, clears per floor
-  // the Endgame (docs/ENDGAME.md): Heresies on, Abyssal Rifts, Abyssal Keys, Dagyr Unbound
+  // the Endgame (docs/ENDGAME.md): Heresies on, Abyssal Rifts, Abyssal Keys, Velscour Unbound
   c.heresy = Object.assign({ on: [] }, c.heresy); if (!Array.isArray(c.heresy.on)) c.heresy.on = [];
   c.rifts = Object.assign({ open: 1, best: 0, cleared: {}, bestTime: {}, runs: 0, fails: 0, deaths: 0 }, c.rifts); c.rifts.open = Math.max(1, c.rifts.open | 0);
   c.keys = Math.max(0, c.keys | 0);
@@ -236,7 +236,7 @@ export function migrate(c) {
   // heroes made before the shuffle bag always started in the catacombs: give an unexplored hero a random start
   if (c.nextBiome === 'catacombs' && !c.deepest && !c.lastBiome) c.nextBiome = drawBiome(c, c.depth || 1);
   c.bar = migrateBar(c.bar); // 10 slots (LMB, 1-8, RMB) -> 15 (LMB, ` 1-9 0 - =, RMB)
-  fixBag(c);
+  fixBag(c); // 6 rows, plus any bought
   fixGemBag(c);
   // Migrate existing gems from regular bag to the dedicated Gem Bag
   for (let i = 0; i < c.bag.length; i++) {

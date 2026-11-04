@@ -6,7 +6,7 @@ const { openGame, report } = require('./harness');
   const { browser, page, errors, shot } = await openGame({ width: 1366, height: 900 });
   try {
     await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar('paladin', 'Outdoor QA');
       G.godMode = true;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -21,14 +21,14 @@ const { openGame, report } = require('./harness');
     await page.waitForTimeout(4000); // clear the depth intro before visual review
     await shot('overworld_shrine_and_forest');
     await page.evaluate(async () => {
-      const { G } = window.DAGYR; G.player.x = 36.5; G.player.y = 35.5;
+      const { G } = window.VELSCOUR; G.player.x = 36.5; G.player.y = 35.5;
       const { camera } = await import('/src/core/view.js');
       camera.zoom = .42; camera.follow(G.player.x, G.player.y, 0, true);
     });
     await page.waitForTimeout(500);
     await shot('overworld_wide_layout');
     const stats = await page.evaluate(async () => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       const { BIOME_BY_ID, drawBiome, recordBiomeVisit } = await import('/src/data/biomes.js');
       const { generateOverworld } = await import('/src/world/overworld.js');
       const { createOverworldScenario, SCENARIOS, WILD_SCENARIOS } = await import('/src/game/overworld.js');
@@ -104,7 +104,7 @@ const { openGame, report } = require('./harness');
     });
     console.log('overworld QA', JSON.stringify(stats));
     if (stats.errors.length || stats.successfulScenarios !== stats.wilds) errors.push('[overworld] ' + JSON.stringify(stats));
-    await page.evaluate(() => { const { G } = window.DAGYR; G.world.overworldScenario.start(); G.world.creatures.length = 0; G.world.rebuildGrid(); });
+    await page.evaluate(() => { const { G } = window.VELSCOUR; G.world.overworldScenario.start(); G.world.creatures.length = 0; G.world.rebuildGrid(); });
     await page.waitForTimeout(400);
     await shot('overworld_active_scenario');
   } catch (e) { errors.push('[overworld] ' + (e.stack || e)); }

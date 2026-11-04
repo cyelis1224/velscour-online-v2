@@ -1,11 +1,11 @@
-// Builds the Depth 500 throne arena (DEMON LORD DAGYR) and a normal Depth 37 guardian,
+// Builds the Depth 500 throne arena (DEMON LORD VELSCOUR) and a normal Depth 37 guardian,
 // lets each fight for a few seconds with god mode on, and prints the boss setup.
 const { openGame, report } = require('./harness');
 
 (async () => {
   const { browser, page, errors, shot } = await openGame();
   const info = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('dragon_knight', 'Hero');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -19,9 +19,9 @@ const { openGame, report } = require('./harness');
     return { boss: b.name, hp: Math.round(b.maxHp), awake: b.awake, patterns: b.patterns.join(','), hazards: G.world.hazards.length };
   });
   await page.waitForTimeout(1500);
-  await shot('boss_Dagyr');
+  await shot('boss_Velscour');
   const info2 = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     G.char.depth = 37;
     game.buildDungeon(37, BIOME_BY_ID.molten);

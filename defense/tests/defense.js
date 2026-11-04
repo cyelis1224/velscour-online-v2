@@ -1,4 +1,4 @@
-// DAGYR DEFENSE in a real browser: boot, every menu, a stage played on auto (dialogs, HUD, combat, result), stages
+// VELSCOUR DEFENSE in a real browser: boot, every menu, a stage played on auto (dialogs, HUD, combat, result), stages
 // from all five acts, the side modes, wheel zoom, a pack opened in 3D, the card inspector, the hero sheet, and the phone layout. Screenshots in defense/tests/out/.
 // Serve the repo root first (python -m http.server 8317), then:
 //   NODE_PATH=<global node_modules> node defense/tests/defense.js [mobile]
@@ -21,7 +21,7 @@ const mobile = process.argv.includes('mobile');
   const shot = (n) => page.screenshot({ path: path.join(OUT, (mobile ? 'm_' : '') + n + '.png') });
   const step = async (name, fn) => { const t = Date.now(); try { await fn(); console.log('ok  ', name, Date.now() - t + 'ms'); } catch (e) { console.log('FAIL', name, e.message); errors.push(name + ': ' + e.message); } };
 
-  await page.addInitScript(() => { try { localStorage.removeItem('Dagyr_defense_v1'); } catch { /* */ } });
+  await page.addInitScript(() => { try { localStorage.removeItem('Velscour_defense_v1'); } catch { /* */ } });
   await page.goto(BASE + '/defense/index.html');
   await page.waitForFunction(() => window.VDEF && !document.getElementById('loading'), null, { timeout: 30000 });
   await page.waitForTimeout(1200);

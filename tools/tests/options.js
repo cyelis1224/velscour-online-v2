@@ -14,7 +14,7 @@ const { openGame, report } = require('./harness');
 
   // ---- auto skill points off: auto-play leaves them for the player
   const r1 = await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const { Auto } = await import('/src/game/autoplay.js');
     G.char.level = 20; G.char.skillPoints = 12; G.player.recompute();
     G.settings.autoSkillPoints = false; Auto.manageHero();
@@ -27,7 +27,7 @@ const { openGame, report } = require('./harness');
 
   // ---- lock skill bar: the player's slots stay, empty ones fill
   const r2 = await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const { Auto } = await import('/src/game/autoplay.js');
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
     const learned = CLASS_SKILLS.wizard.filter((s) => G.char.skills[s.id] > 0).map((s) => s.id);
@@ -45,7 +45,7 @@ const { openGame, report } = require('./harness');
 
   // ---- hide item names: no labels drawn, a click on the item still picks it up
   await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const { GroundItem } = await import('/src/game/loot.js');
     const { rollItem } = await import('/src/data/items.js');
     const p = G.player;
@@ -53,11 +53,11 @@ const { openGame, report } = require('./harness');
   });
   await page.mouse.move(5, 5); await page.waitForTimeout(300);
   await shot('options_labels_on');
-  await page.evaluate(() => { window.DAGYR.G.settings.hideItemNames = true; });
+  await page.evaluate(() => { window.VELSCOUR.G.settings.hideItemNames = true; });
   await page.waitForTimeout(300);
   await shot('options_labels_off');
   const target = await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const b = (G.lootBoxes || [])[0];
     return b ? { x: b.x, y: b.y, n: G.lootBoxes.length, loot: G.world.loot.length } : null;
   });
@@ -65,25 +65,25 @@ const { openGame, report } = require('./harness');
   await page.mouse.move(target.x, target.y); await page.waitForTimeout(250);
   await shot('options_labels_hover');
   await page.mouse.click(target.x, target.y); await page.waitForTimeout(2500);
-  const left = await page.evaluate(() => window.DAGYR.G.world.loot.filter((l) => l.kind === 'item').length);
+  const left = await page.evaluate(() => window.VELSCOUR.G.world.loot.filter((l) => l.kind === 'item').length);
   check(left === 5, `clicking a hidden-name item picks it up (${left} left on the ground)`);
 
   // ---- respec
-  const before = await page.evaluate(() => { const { G } = window.DAGYR; G.char.gold = 30000; G.ui.refresh(); return { gold: G.char.gold, pts: G.char.skillPoints, skills: { ...G.char.skills }, granted: { ...G.char.granted } }; });
+  const before = await page.evaluate(() => { const { G } = window.VELSCOUR; G.char.gold = 30000; G.ui.refresh(); return { gold: G.char.gold, pts: G.char.skillPoints, skills: { ...G.char.skills }, granted: { ...G.char.granted } }; });
   await page.keyboard.press('KeyK'); await page.waitForTimeout(400);
   await shot('options_respec_button');
   await page.click('.respec-btn'); await page.waitForTimeout(300);
   await shot('options_respec_confirm');
   await page.click('.dialog-box button.red'); await page.waitForTimeout(300);
-  const after = await page.evaluate(() => { const { G } = window.DAGYR; return { gold: G.char.gold, pts: G.char.skillPoints, skills: { ...G.char.skills }, bar: G.char.bar.slice() }; });
+  const after = await page.evaluate(() => { const { G } = window.VELSCOUR; return { gold: G.char.gold, pts: G.char.skillPoints, skills: { ...G.char.skills }, bar: G.char.bar.slice() }; });
   const spent = Object.entries(before.skills).reduce((a, [id, lv]) => a + lv - (before.granted[id] ? 1 : 0), 0);
   check(before.gold - after.gold === 50 * 20 * 2, `respec costs 50 x 20 x 2 = 2,000 gold (${before.gold - after.gold})`);
   check(after.pts === before.pts + spent, `respec refunds ${spent} points (${after.pts - before.pts})`);
   check(after.bar.every((id) => !id || after.skills[id] > 0), 'bar holds only learned skills after respec');
   await shot('options_respec_done');
-  await page.evaluate(() => { const { G } = window.DAGYR; G.char.gold = 10; G.ui.refresh(); });
+  await page.evaluate(() => { const { G } = window.VELSCOUR; G.char.gold = 10; G.ui.refresh(); });
   await page.click('.respec-btn'); await page.waitForTimeout(200);
-  const g2 = await page.evaluate(() => window.DAGYR.G.char.gold);
+  const g2 = await page.evaluate(() => window.VELSCOUR.G.char.gold);
   check(g2 === 10, 'respec refused without the gold');
 
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);

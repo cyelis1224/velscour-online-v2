@@ -1,6 +1,6 @@
-# DAGYR Biome Sprite Atlas
+# VELSCOUR Biome Sprite Atlas
 
-**Atlas:** `Dagyr_biome_sprite_atlas.png`  
+**Atlas:** `Velscour_biome_sprite_atlas.png`  
 **Dimensions:** 400 × 240 px RGBA  
 **Grid:** 5 columns × 3 rows, 80 × 80 px cells; no labels are baked into the image.  
 **Pixel treatment:** nearest-neighbor reduction to native-size cells.

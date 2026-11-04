@@ -7,7 +7,7 @@ const fs = require('fs');
   const artifactDir = '/home/dagyr/.gemini/antigravity/brain/12f4836d-bde5-47f7-883a-b8c5863f737c';
 
   const testResults = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('lancer', 'GemMaster');
     const wait = (ms) => new Promise((res) => setTimeout(res, ms));
 
@@ -111,7 +111,7 @@ const fs = require('fs');
   await page.setViewportSize({ width: 844, height: 390 });
   await page.evaluate(() => {
     document.body.classList.add('touch');
-    const { UI } = window.DAGYR;
+    const { UI } = window.VELSCOUR;
     UI.refresh();
   });
   await page.waitForTimeout(300);

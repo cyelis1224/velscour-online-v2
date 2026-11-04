@@ -14,7 +14,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (
 
 // a Lancer in an empty level 3 catacomb, god mode, auto-play on; the level's monsters gone
 const setup = (page) => page.evaluate(async () => {
-  const { G, game } = window.DAGYR;
+  const { G, game } = window.VELSCOUR;
   const { BIOME_BY_ID } = await import('/src/data/biomes.js');
   const { Auto } = await import('/src/game/autoplay.js');
   if (!G.char || G.char.classId !== 'lancer') await game.newChar('lancer', 'Loopy');
@@ -30,7 +30,7 @@ const setup = (page) => page.evaluate(async () => {
 });
 // step the game n seconds; f(t) each frame, stop when it returns true
 const run = (page, secs, body) => page.evaluate(async ({ secs, body }) => {
-  const { G, game } = window.DAGYR;
+  const { G, game } = window.VELSCOUR;
   const { Auto } = await import('/src/game/autoplay.js');
   const f = new Function('G', 'Auto', 't', 'S', body), S = {};
   for (let i = 0; i < secs * 30; i++) {
@@ -45,7 +45,7 @@ async function loot(page) {
   await setup(page);
   // six gems by his feet (always wanted with room in the bag) that refuse to come off the ground
   await page.evaluate(async () => {
-    const { G } = window.DAGYR, p = G.player, w = G.world;
+    const { G } = window.VELSCOUR, p = G.player, w = G.world;
     const { GroundItem } = await import('/src/game/loot.js');
     const { rollGem } = await import('/src/data/items.js');
     for (let i = 0, n = 0; n < 6 && i < 200; i++) { // each on a spot a short walk away (not behind a wall on a random level)
@@ -65,7 +65,7 @@ async function loot(page) {
 async function channel(page) {
   await setup(page);
   const S = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR, p = G.player, w = G.world;
+    const { G, game } = window.VELSCOUR, p = G.player, w = G.world;
     const { Auto } = await import('/src/game/autoplay.js');
     const { SKILLS } = await import('/src/data/skills.js');
     Auto.toggle(false);
@@ -84,7 +84,7 @@ async function channel(page) {
 async function marker(page) {
   await setup(page);
   await page.evaluate(() => {
-    const { G } = window.DAGYR, p = G.player, w = G.world, [x, y] = w.map.randomNear(p.x, p.y, 5);
+    const { G } = window.VELSCOUR, p = G.player, w = G.world, [x, y] = w.map.randomNear(p.x, p.y, 5);
     w.chests.push({ x, y, opened: false, reach: 1.5, far: 40, label: 'The far altar', inert: true, scen: {}, use() { } });
   });
   const S = await run(page, 8, `if (/far altar/.test(Auto.status)) S.n = (S.n || 0) + 1;`);
@@ -94,7 +94,7 @@ async function marker(page) {
 async function immune(page) {
   await setup(page);
   await page.evaluate(async () => {
-    const { G } = window.DAGYR, p = G.player, w = G.world;
+    const { G } = window.VELSCOUR, p = G.player, w = G.world;
     const { makeMonster } = await import('/src/game/monster.js');
     const [x, y] = w.map.randomNear(p.x + 4, p.y, 1.5);
     const m = makeMonster(w, 'skeleton', w.biome, 3, 'normal', x, y, 0);
@@ -111,7 +111,7 @@ async function immune(page) {
 async function edge(page) {
   await setup(page);
   const ok = await page.evaluate(async () => {
-    const { G } = window.DAGYR, p = G.player, w = G.world, map = w.map, c = G.char;
+    const { G } = window.VELSCOUR, p = G.player, w = G.world, map = w.map, c = G.char;
     const { makeMonster } = await import('/src/game/monster.js');
     const { Area } = await import('/src/game/hazards.js');
     const { Auto } = await import('/src/game/autoplay.js');
@@ -148,14 +148,14 @@ async function edge(page) {
 
 async function rift(page) {
   const S = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { Auto } = await import('/src/game/autoplay.js');
     const { endgame, saveEndgame, resetEndgameCache } = await import('/src/game/endgame.js');
     const { grantDeathGift } = await import('/src/game/deathgift.js');
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     const { rollItem } = await import('/src/data/items.js');
     const clean = () => { document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll(); };
-    localStorage.removeItem('Dagyr_endgame_v1'); resetEndgameCache(); endgame().unlocked = Date.now(); saveEndgame();
+    localStorage.removeItem('Velscour_endgame_v1'); resetEndgameCache(); endgame().unlocked = Date.now(); saveEndgame();
     await game.newChar('lancer', 'Rifter'); clean();
     grantDeathGift(); clean();
     const c = G.char;

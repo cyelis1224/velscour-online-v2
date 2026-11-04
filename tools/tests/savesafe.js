@@ -4,11 +4,11 @@
 // node tools/tests/savesafe.js
 const fs = require('fs');
 const { openGame, report } = require('./harness');
-const KEY = 'Dagyr_saves_v1';
+const KEY = 'Velscour_saves_v1';
 const BROKEN = '[{"id":"abc","name":"Lost Hero","classId":"paladin","level":40,"gold":99';   // truncated mid-write
 const fails = [], errs = [];
 const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL ') + msg); if (!ok) fails.push(msg); };
-const ready = (page) => page.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
+const ready = (page) => page.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 30000 });
 async function boot(raw, init) {
   const d = await openGame();
   await d.page.evaluate(([k, v]) => localStorage.setItem(k, v), [KEY, raw]);
@@ -16,7 +16,7 @@ async function boot(raw, init) {
   await d.page.reload(); await ready(d.page);
   return d;
 }
-const newHero = (page) => page.evaluate(async () => { const { game, G } = window.DAGYR; await game.newChar('wizard', 'Fresh'); game.autosave(); return G.char.id; });
+const newHero = (page) => page.evaluate(async () => { const { game, G } = window.VELSCOUR; await game.newChar('wizard', 'Fresh'); game.autosave(); return G.char.id; });
 const raws = (page) => page.evaluate(async () => (await import('/src/game/save.js')).unreadableSaves());
 
 (async () => {
@@ -33,16 +33,16 @@ const raws = (page) => page.evaluate(async () => (await import('/src/game/save.j
     check(Array.isArray(now) && now.length === 1 && now[0].id === id, 'the new hero saved');
     let r = await raws(d.page);
     check(r.length === 1 && r[0].text === BROKEN, 'the old data was set aside first, exactly');
-    await d.page.evaluate(() => window.DAGYR.game.autosave());
+    await d.page.evaluate(() => window.VELSCOUR.game.autosave());
     check((await raws(d.page)).length === 1, 'later saves do not set it aside again');
-    await d.page.evaluate(() => window.DAGYR.game.quitToTitle());
+    await d.page.evaluate(() => window.VELSCOUR.game.quitToTitle());
     await d.page.click('.title-menu button:has-text("Settings")');
     await d.page.click('[data-backups]');
     await d.page.waitForSelector('.backup-row:has-text("Unreadable")');
     await d.shot('savesafe_backups');
     const [dl] = await Promise.all([d.page.waitForEvent('download'), d.page.click('.backup-row:has-text("Unreadable") button')]);
     const text = fs.readFileSync(await dl.path(), 'utf8');
-    check(text === BROKEN && /Dagyr-unreadable-saves-.*\.json/.test(dl.suggestedFilename()), `Download gives the data byte for byte (${dl.suggestedFilename()})`);
+    check(text === BROKEN && /Velscour-unreadable-saves-.*\.json/.test(dl.suggestedFilename()), `Download gives the data byte for byte (${dl.suggestedFilename()})`);
     errs.push(...d.errors);
   } finally { await d.browser.close(); }
 
@@ -56,7 +56,7 @@ const raws = (page) => page.evaluate(async () => (await import('/src/game/save.j
     await newHero(d.page);
     check(await d.page.evaluate((k) => localStorage.getItem(k), KEY) === BROKEN, 'no room: the first save waits, the old data untouched');
     await d.page.waitForTimeout(500);
-    await d.page.evaluate(() => window.DAGYR.game.autosave());
+    await d.page.evaluate(() => window.VELSCOUR.game.autosave());
     const r = await raws(d.page);
     const now = await d.page.evaluate((k) => localStorage.getItem(k), KEY);
     check(r.length === 1 && r[0].text === BROKEN && now !== BROKEN && JSON.parse(now).length === 1, 'no room: kept in IndexedDB, then the next save went through');
@@ -73,7 +73,7 @@ const raws = (page) => page.evaluate(async () => (await import('/src/game/save.j
     await d.page.click('.dialog-box button:has-text("OK")').catch(() => { });
     await newHero(d.page);
     await d.page.waitForTimeout(300);
-    await d.page.evaluate(() => window.DAGYR.game.autosave());
+    await d.page.evaluate(() => window.VELSCOUR.game.autosave());
     check(await d.page.evaluate((k) => localStorage.getItem(k), KEY) === BROKEN, 'nowhere to keep it: never written over');
     await d.page.waitForSelector('.dialog-box:has-text("Not saving")', { timeout: 5000 }).catch(() => { });
     check(!!await d.page.$('.dialog-box:has-text("Not saving")'), 'nowhere to keep it: the player is warned');

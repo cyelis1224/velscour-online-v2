@@ -4,11 +4,11 @@ const { openGame, report } = require('./harness');
 const minutes = +(process.argv[2] || 3);
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
-  await page.evaluate(async () => { const { G, game } = window.DAGYR; await game.newChar('ranger', 'Walker'); document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; });
+  await page.evaluate(async () => { const { G, game } = window.VELSCOUR; await game.newChar('ranger', 'Walker'); document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; });
   const fails = [];
   for (const id of ['overworld', 'castle', 'sea_of_sand']) {
     const r = await page.evaluate(async ([id, minutes]) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { Auto } = await import('/src/game/autoplay.js');
       if (id === 'castle') await (await import('/src/gfx/castle.js')).loadCastlePack();

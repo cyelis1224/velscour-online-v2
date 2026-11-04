@@ -1,4 +1,4 @@
-# DAGYR style for the banner ("Grim Nocturne")
+# VELSCOUR style for the banner ("Grim Nocturne")
 
 The short version of the game's art bible, cut down to what a banner needs.
 

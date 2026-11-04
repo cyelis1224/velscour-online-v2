@@ -15,9 +15,9 @@ async function run() {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     const page = await ctx.newPage();
 
-    await page.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
+    await page.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
     await page.goto(BASE_URL + '/index.html');
-    await page.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await page.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Start game / char
     await page.evaluate(async () => {

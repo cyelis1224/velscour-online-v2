@@ -1,4 +1,4 @@
-// Card faces in the style of a collectible card game: title bar with the Valor cost, an art window with Dagyr's
+// Card faces in the style of a collectible card game: title bar with the Valor cost, an art window with Velscour's
 // art (the hero in their look, the held weapon, the armor, the helmet, the relic's gem), a type line with a rarity set
 // symbol, rules text, flavour, an ATK box and a collector line. Drawn on a canvas, CARD_W x CARD_H at scale 1.
 import { makeCanvas, shade, rgba, mixHex, RNG, hashStr } from '../core/util.js';
@@ -221,9 +221,9 @@ export function renderCard(card, entry = null, scale = 0.5, stats = null) {
   // collector line
   ctx.font = '600 13px "Alegreya Sans", sans-serif'; ctx.fillStyle = '#d8d0c0';
   const num = Object.keys(CARDS).indexOf(card.id) + 1;
-  ctx.fillText(`${String(num).padStart(4, '0')} · ${rar.name[0]} · DAGYR DEFENSE`, 40, CARD_H - 30);
+  ctx.fillText(`${String(num).padStart(4, '0')} · ${rar.name[0]} · VELSCOUR DEFENSE`, 40, CARD_H - 30);
   ctx.fillText(entry?.foil ? '✦ FOIL' : '', 40, CARD_H - 48);
-  ctx.textAlign = 'right'; ctx.fillText('Art: Dagyr', CARD_W - (hero ? 220 : 40), CARD_H - 30); ctx.textAlign = 'left';
+  ctx.textAlign = 'right'; ctx.fillText('Art: Velscour', CARD_W - (hero ? 220 : 40), CARD_H - 30); ctx.textAlign = 'left';
   if (cache.size > 220) cache.delete(cache.keys().next().value);
   cache.set(key, c);
   return c;

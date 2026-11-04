@@ -1,8 +1,8 @@
-// Loading for DAGYR DEFENSE. Dagyr's art is read straight from the repo's assets/ (never written); the only
+// Loading for VELSCOUR DEFENSE. Velscour's art is read straight from the repo's assets/ (never written); the only
 // main-game data it uses is the snapshot in defense/data/art_index.json (tools/art_index.mjs).
 import { makeCanvas } from './util.js';
 
-const ROOT = new URL('../../../', import.meta.url);      // the repo root, relative to this module (works under /Dagyr/)
+const ROOT = new URL('../../../', import.meta.url);      // the repo root, relative to this module (works under /Velscour/)
 export const assetURL = (p) => new URL(p, ROOT).href;
 export const defenseURL = (p) => new URL('../../' + p, import.meta.url).href;
 

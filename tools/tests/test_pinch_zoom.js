@@ -9,7 +9,7 @@ const { openGame, report } = require('./harness');
 
   try {
     await page.evaluate(async () => {
-      const { game, G } = window.DAGYR;
+      const { game, G } = window.VELSCOUR;
       const { newCharData } = await import('/src/game/save.js');
       await game.loadClassPack('paladin');
       game.startChar(newCharData('paladin', 'Pinch Test'), false);
@@ -17,7 +17,7 @@ const { openGame, report } = require('./harness');
 
     const initial = await page.evaluate(async () => {
       const { camera } = await import('/src/core/view.js');
-      return { zoom: camera.zoom, setting: window.DAGYR.G.settings.zoom || 1 };
+      return { zoom: camera.zoom, setting: window.VELSCOUR.G.settings.zoom || 1 };
     });
 
     // Simulate multi-touch pinch to zoom IN (spread fingers)
@@ -42,7 +42,7 @@ const { openGame, report } = require('./harness');
       const { input } = await import('/src/core/input.js');
       return {
         zoom: camera.zoom,
-        setting: window.DAGYR.G.settings.zoom,
+        setting: window.VELSCOUR.G.settings.zoom,
         isPinching: input.isPinching,
       };
     });
@@ -64,7 +64,7 @@ const { openGame, report } = require('./harness');
       const { camera } = await import('/src/core/view.js');
       return {
         zoom: camera.zoom,
-        setting: window.DAGYR.G.settings.zoom,
+        setting: window.VELSCOUR.G.settings.zoom,
       };
     });
 
@@ -87,12 +87,12 @@ const { openGame, report } = require('./harness');
 
     const ended = await page.evaluate(async () => {
       const { input } = await import('/src/core/input.js');
-      const saved = JSON.parse(localStorage.getItem('Dagyr_settings_v1') || '{}').zoom;
+      const saved = JSON.parse(localStorage.getItem('Velscour_settings_v1') || '{}').zoom;
       return {
         isPinching: input.isPinching,
         touchCount: input.activeTouches.size,
         saved,
-        currentSetting: window.DAGYR.G.settings.zoom,
+        currentSetting: window.VELSCOUR.G.settings.zoom,
       };
     });
 

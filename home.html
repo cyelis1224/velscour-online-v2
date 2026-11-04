@@ -1,15 +1,20 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#090706">
-  <title>DAGYR ONLINE - Dark Fantasy Action RPG (Free in Browser)</title>
-  <meta name="description" content="DAGYR ONLINE is a free dark gothic multiplayer action RPG in an endless underworld. Play instantly in your browser with 16 classes, 1,090+ monsters, and 4-player co-op.">
+  <title>VELSCOUR ONLINE - Dark Fantasy Action RPG (Free in Browser)</title>
+  <meta name="description"
+    content="VELSCOUR ONLINE is a free dark gothic multiplayer action RPG in an endless underworld. Play instantly in your browser with 16 classes, 1,090+ monsters, and 4-player co-op.">
   <link rel="icon" type="image/x-icon" href="assets/ui/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Alegreya+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Alegreya+Sans:wght@400;500;700&display=swap"
+    rel="stylesheet">
   <style>
     :root {
       --bg: #090706;
@@ -32,7 +37,11 @@
       --font-body: 'Alegreya Sans', sans-serif;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
       background: var(--bg);
@@ -45,10 +54,24 @@
     }
 
     /* Scrollbars */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: #0c0807; }
-    ::-webkit-scrollbar-thumb { background: #382519; border-radius: 4px; border: 1px solid #1a120e; }
-    ::-webkit-scrollbar-thumb:hover { background: #603d25; }
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #0c0807;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #382519;
+      border-radius: 4px;
+      border: 1px solid #1a120e;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #603d25;
+    }
 
     /* Navigation Bar */
     nav {
@@ -188,8 +211,13 @@
     }
 
     @keyframes logoGlow {
-      from { filter: drop-shadow(0 0 25px rgba(255, 80, 20, 0.35)) drop-shadow(0 0 50px rgba(160, 25, 8, 0.2)); }
-      to { filter: drop-shadow(0 0 45px rgba(255, 100, 30, 0.6)) drop-shadow(0 0 80px rgba(200, 40, 12, 0.45)); }
+      from {
+        filter: drop-shadow(0 0 25px rgba(255, 80, 20, 0.35)) drop-shadow(0 0 50px rgba(160, 25, 8, 0.2));
+      }
+
+      to {
+        filter: drop-shadow(0 0 45px rgba(255, 100, 30, 0.6)) drop-shadow(0 0 80px rgba(200, 40, 12, 0.45));
+      }
     }
 
     .hero-tagline {
@@ -687,24 +715,46 @@
 
     /* Responsive */
     @media (max-width: 860px) {
-      .nav-links { display: none; }
-      .hero-logo { max-width: 480px; }
-      .hero-tagline { font-size: 16px; letter-spacing: 2px; }
-      .hero-desc { font-size: 16px; }
-      .section-heading { font-size: 26px; }
-      .screenshots-grid { grid-template-columns: 1fr; }
-      .spotlights-grid { grid-template-columns: 1fr; }
+      .nav-links {
+        display: none;
+      }
+
+      .hero-logo {
+        max-width: 480px;
+      }
+
+      .hero-tagline {
+        font-size: 16px;
+        letter-spacing: 2px;
+      }
+
+      .hero-desc {
+        font-size: 16px;
+      }
+
+      .section-heading {
+        font-size: 26px;
+      }
+
+      .screenshots-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .spotlights-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
+
 <body>
 
   <!-- Navigation -->
   <nav>
     <div class="nav-wrap">
       <a href="home.html" class="nav-brand">
-        <img class="nav-logo" src="assets/ui/dagyr_contact_skull.png" alt="Dagyr Online">
-        <span class="nav-brand-title">DAGYR <span>ONLINE</span></span>
+        <img class="nav-logo" src="assets/ui/dagyr_contact_skull.png" alt="Velscour Online">
+        <span class="nav-brand-title">VELSCOUR <span>ONLINE</span></span>
       </a>
 
       <ul class="nav-links">
@@ -724,11 +774,11 @@
     <canvas id="hero-canvas"></canvas>
 
     <div class="hero-content">
-      <img class="hero-logo" src="assets/ui/logo.webp" alt="DAGYR ONLINE">
+      <img class="hero-logo" src="assets/ui/logo.webp" alt="VELSCOUR ONLINE">
       <div class="hero-tagline">A world built upon something that should have stayed dead.</div>
       <p class="hero-desc">
         A dark gothic multiplayer action RPG set within an isometric underworld.
-        Conquer the 500 perilous depths of the Abyss to vanquish Demon Lord Dagyr, master 16 unique hero classes,
+        Conquer the 500 perilous depths of the Abyss to vanquish Demon Lord Velscour, master 16 unique hero classes,
         collect thousands of relics, and unlock truly endless Abyssal Rifts alone or in 4-player online co-op.
       </p>
 
@@ -754,48 +804,56 @@
     <div class="section-title-wrap">
       <span class="section-eyebrow">Real In-Game Captures</span>
       <h2 class="section-heading">GLIMPSES INTO <span>THE ABYSS</span></h2>
-      <p class="section-desc">Experience isometric real-time combat, rich procedural dungeons, social sanctuary hubs, and visceral demonic boss encounters.</p>
+      <p class="section-desc">Experience isometric real-time combat, rich procedural dungeons, social sanctuary hubs,
+        and visceral demonic boss encounters.</p>
     </div>
 
     <div class="screenshots-grid">
       <!-- Screenshot 1 -->
-      <div class="screenshot-card" data-img="assets/screenshots/dungeon_gameplay.png?_v=2" data-caption="Tactical Dungeon Combat: Battle through monster hordes with real-time isometric physics, class ultimates, life/mana orbs, and floor hazards.">
+      <div class="screenshot-card" data-img="assets/screenshots/dungeon_gameplay.png?_v=2"
+        data-caption="Tactical Dungeon Combat: Battle through monster hordes with real-time isometric physics, class ultimates, life/mana orbs, and floor hazards.">
         <div class="screenshot-img-wrap">
           <img src="assets/screenshots/dungeon_gameplay.png?_v=2" alt="Dungeon Gameplay" loading="lazy">
           <div class="screenshot-zoom-overlay"><span class="zoom-badge">🔍 View Fullscreen</span></div>
         </div>
         <div class="screenshot-caption">
           <h3>The Abyssal Depths</h3>
-          <p>Tear through sprawling procedural dungeons filled with fiends, champion packs, elite affixes, and traps.</p>
+          <p>Tear through sprawling procedural dungeons filled with fiends, champion packs, elite affixes, and traps.
+          </p>
         </div>
       </div>
 
       <!-- Screenshot 2 -->
-      <div class="screenshot-card" data-img="assets/screenshots/town_gameplay.png?_v=2" data-caption="The Sanctuary Town: A bustling overworld haven featuring gem forgers, travelling relic merchants, and portal rift gates.">
+      <div class="screenshot-card" data-img="assets/screenshots/town_gameplay.png?_v=2"
+        data-caption="The Sanctuary Town: A bustling overworld haven featuring gem forgers, travelling relic merchants, and portal rift gates.">
         <div class="screenshot-img-wrap">
           <img src="assets/screenshots/town_gameplay.png?_v=2" alt="Sanctuary Town Hub" loading="lazy">
           <div class="screenshot-zoom-overlay"><span class="zoom-badge">🔍 View Fullscreen</span></div>
         </div>
         <div class="screenshot-caption">
           <h3>The Sanctuary Town</h3>
-          <p>Trade with travelling merchants, refine socketed gems, unlock storage rows, and party up with fellow wanderers.</p>
+          <p>Trade with travelling merchants, refine socketed gems, unlock storage rows, and party up with fellow
+            wanderers.</p>
         </div>
       </div>
 
       <!-- Screenshot 3 -->
-      <div class="screenshot-card" data-img="assets/screenshots/char_select.png?_v=2" data-caption="Hero Selection Screen: Choose between 9 active playable classes, each with distinct primary attributes and signature skills.">
+      <div class="screenshot-card" data-img="assets/screenshots/char_select.png?_v=2"
+        data-caption="Hero Selection Screen: Choose between 9 active playable classes, each with distinct primary attributes and signature skills.">
         <div class="screenshot-img-wrap">
           <img src="assets/screenshots/char_select.png?_v=2" alt="Hero Class Select" loading="lazy">
           <div class="screenshot-zoom-overlay"><span class="zoom-badge">🔍 View Fullscreen</span></div>
         </div>
         <div class="screenshot-caption">
           <h3>Hero Selection</h3>
-          <p>Choose your champion among Paladin, Ranger, Wizard, Barbarian, Gunner, Necromancer, Lancer, Bard, and Witch.</p>
+          <p>Choose your champion among Paladin, Ranger, Wizard, Barbarian, Gunner, Necromancer, Lancer, Bard, and
+            Witch.</p>
         </div>
       </div>
 
       <!-- Screenshot 4 -->
-      <div class="screenshot-card" data-img="assets/screenshots/title_screen.png?_v=2" data-caption="The Burning Gates: Atmospheric title screen with live particle physics, the burning Dagyr Online emblem, and Hymn of the Abyss soundtrack.">
+      <div class="screenshot-card" data-img="assets/screenshots/title_screen.png?_v=2"
+        data-caption="The Burning Gates: Atmospheric title screen with live particle physics, the burning Velscour Online emblem, and Hymn of the Abyss soundtrack.">
         <div class="screenshot-img-wrap">
           <img src="assets/screenshots/title_screen.png?_v=2" alt="Title Screen" loading="lazy">
           <div class="screenshot-zoom-overlay"><span class="zoom-badge">🔍 View Fullscreen</span></div>
@@ -807,19 +865,22 @@
       </div>
 
       <!-- Screenshot 5 -->
-      <div class="screenshot-card" data-img="assets/screenshots/bestiary_preview.png?_v=2" data-caption="The Bestiary Compendium: Over 1,090+ catalogued monsters, guardians, and colossal bosses across 8 expansions.">
+      <div class="screenshot-card" data-img="assets/screenshots/bestiary_preview.png?_v=2"
+        data-caption="The Bestiary Compendium: Over 1,090+ catalogued monsters, guardians, and colossal bosses across 8 expansions.">
         <div class="screenshot-img-wrap">
           <img src="assets/screenshots/bestiary_preview.png?_v=2" alt="Bestiary Preview" loading="lazy">
           <div class="screenshot-zoom-overlay"><span class="zoom-badge">🔍 View Fullscreen</span></div>
         </div>
         <div class="screenshot-caption">
           <h3>Bestiary Compendium</h3>
-          <p>Study creature AI archetypes, attack patterns, gore types, and preview over 20+ live biome palette recolors.</p>
+          <p>Study creature AI archetypes, attack patterns, gore types, and preview over 20+ live biome palette
+            recolors.</p>
         </div>
       </div>
 
       <!-- Screenshot 6 -->
-      <div class="screenshot-card" data-img="assets/screenshots/classes_preview.png?_v=2" data-caption="Hero Specialization Trees: Deep build variety featuring 4 skill branches per class and screen-clearing Ultimate moves.">
+      <div class="screenshot-card" data-img="assets/screenshots/classes_preview.png?_v=2"
+        data-caption="Hero Specialization Trees: Deep build variety featuring 4 skill branches per class and screen-clearing Ultimate moves.">
         <div class="screenshot-img-wrap">
           <img src="assets/screenshots/classes_preview.png?_v=2" alt="Classes Compendium" loading="lazy">
           <div class="screenshot-zoom-overlay"><span class="zoom-badge">🔍 View Fullscreen</span></div>
@@ -835,46 +896,54 @@
   <!-- Core Pillars Section -->
   <section id="features">
     <div class="section-title-wrap">
-      <span class="section-eyebrow">Why Play Dagyr Online</span>
+      <span class="section-eyebrow">Why Play Velscour Online</span>
       <h2 class="section-heading">CRAFTED FOR <span>ARPG ENTHUSIASTS</span></h2>
-      <p class="section-desc">Fast, responsive combat mechanics combined with deep character itemization and persistent progression.</p>
+      <p class="section-desc">Fast, responsive combat mechanics combined with deep character itemization and persistent
+        progression.</p>
     </div>
 
     <div class="pillars-grid">
       <div class="pillar-card">
         <div class="pillar-icon">🌐</div>
         <h3>Instant Web & Mobile Play</h3>
-        <p>No 50GB downloads or launcher updates. Jump into the game in seconds from any desktop browser or mobile phone with responsive touch controls and PWA support.</p>
+        <p>No 50GB downloads or launcher updates. Jump into the game in seconds from any desktop browser or mobile phone
+          with responsive touch controls and PWA support.</p>
       </div>
 
       <div class="pillar-card">
         <div class="pillar-icon">👥</div>
         <h3>Seamless 4-Player Co-op</h3>
-        <p>Form parties with friends worldwide. Battle synchronized bosses, share floor progression, coordinate skill combos, and trade loot with zero multiplayer pausing.</p>
+        <p>Form parties with friends worldwide. Battle synchronized bosses, share floor progression, coordinate skill
+          combos, and trade loot with zero multiplayer pausing.</p>
       </div>
 
       <div class="pillar-card">
         <div class="pillar-icon">⚔️</div>
         <h3>16 Unique Hero Classes</h3>
-        <p>Master 9 active playable classes and 7 upcoming archetypes. Each class wields specialized weapons, 4 skill branches, and devastating kill-charged Ultimate abilities.</p>
+        <p>Master 9 active playable classes and 7 upcoming archetypes. Each class wields specialized weapons, 4 skill
+          branches, and devastating kill-charged Ultimate abilities.</p>
       </div>
 
       <div class="pillar-card">
         <div class="pillar-icon">💎</div>
         <h3>Diablo-Style Itemization</h3>
-        <p>Hunt for Rare, Unique, Set, Legendary, and Mythic equipment. Unseal forbidden coffins, socket radiant gems into sockets, and enchant rings with game-altering augments.</p>
+        <p>Hunt for Rare, Unique, Set, Legendary, and Mythic equipment. Unseal forbidden coffins, socket radiant gems
+          into sockets, and enchant rings with game-altering augments.</p>
       </div>
 
       <div class="pillar-card">
         <div class="pillar-icon">🏰</div>
         <h3>Diverse Biome Expansions</h3>
-        <p>Descend through high-altitude rugged mountainsides, 3D castle keep keeps, vast Sea of Sand dune pyramids, and the abyssal chaos of The Eternal Breach.</p>
+        <p>Descend through high-altitude rugged mountainsides, 3D castle keep keeps, vast Sea of Sand dune pyramids, and
+          the abyssal chaos of The Eternal Breach.</p>
       </div>
 
       <div class="pillar-card">
         <div class="pillar-icon">⚡</div>
         <h3>500 Depths & Endless Rifts</h3>
-        <p>Descend through 500 perilous dungeon depths to confront Demon Lord Dagyr in an apocalyptic showdown. Once Dagyr has been slain, the underworld shatters into truly endless Abyssal Rifts for uncapped endgame progression.</p>
+        <p>Descend through 500 perilous dungeon depths to confront Demon Lord Velscour in an apocalyptic showdown. Once
+          Velscour has been slain, the underworld shatters into truly endless Abyssal Rifts for uncapped endgame
+          progression.</p>
       </div>
     </div>
   </section>
@@ -888,7 +957,8 @@
           <div class="spotlight-header">
             <span class="section-eyebrow">Hero Archetypes</span>
             <h3>16 Diverse Hero Classes</h3>
-            <p>From the holy consecrated maces of the Paladin and the dual axes of the Barbarian to the black-powder turrets of the Gunner and the death curses of the Necromancer.</p>
+            <p>From the holy consecrated maces of the Paladin and the dual axes of the Barbarian to the black-powder
+              turrets of the Gunner and the death curses of the Necromancer.</p>
           </div>
           <div class="spotlight-stats">
             <div>Active Champions: <b>9 Playable</b></div>
@@ -905,7 +975,8 @@
           <div class="spotlight-header">
             <span class="section-eyebrow">Creature Compendium</span>
             <h3>1,090+ Abyssal Monsters</h3>
-            <p>A living bestiary containing over a thousand fiends, undead horrors, colossal titans, and encounter guardians across 8 expansive biomes.</p>
+            <p>A living bestiary containing over a thousand fiends, undead horrors, colossal titans, and encounter
+              guardians across 8 expansive biomes.</p>
           </div>
           <div class="spotlight-stats">
             <div>Catalogued Foes: <b>1,090+ Enemies</b></div>
@@ -922,9 +993,10 @@
   <div class="final-cta">
     <span class="section-eyebrow">The Abyss Awaits Your Blade</span>
     <h2>READY TO AWAKEN?</h2>
-    <p>Join thousands of adventurers diving into the underworld. Free to play, instantly in your browser, no registration required to begin.</p>
+    <p>Join thousands of adventurers diving into the underworld. Free to play, instantly in your browser, no
+      registration required to begin.</p>
     <a href="https://mmo.dagyr.me/" class="btn-play-main" target="_blank" rel="noopener">
-      <span>⚔️ PLAY DAGYR ONLINE NOW</span>
+      <span>⚔️ PLAY VELSCOUR ONLINE NOW</span>
     </a>
   </div>
 
@@ -937,7 +1009,7 @@
         <li><a href="bestiary.html">Bestiary</a></li>
         <li><a href="/">Local Client</a></li>
       </ul>
-      <p>&copy; 2026 DAGYR ONLINE. Built with pure HTML5 Canvas & WebSockets. All rights reserved.</p>
+      <p>&copy; 2026 VELSCOUR ONLINE. Built with pure HTML5 Canvas & WebSockets. All rights reserved.</p>
     </div>
   </footer>
 
@@ -1091,4 +1163,5 @@
     });
   </script>
 </body>
+
 </html>

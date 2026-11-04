@@ -2,7 +2,7 @@
 
 Monsters use the user's painted art: set 1 is 7 sheets, each holding one pose for each of 10 monsters on a
 transparent background (2 rows x 5); set 2 (`Enemy_300.zip`) is 300 single sprites, one 512x512 PNG per monster. The old ASCII pixel sprites in `src/gfx/pixelart.js` remain in three places: as the
-fallback while the art loads, for Demon Lord Dagyr, and for player summons.
+fallback while the art loads, for Demon Lord Velscour, and for player summons.
 
 ## Sources and slicing
 - Sheets: `assets/source/enemies/<set>/<sheet>.png`. Set 1 (uploaded as `assets/Enemy Assets Set 1/ChatGPT Image ...png`)
@@ -23,7 +23,7 @@ fallback while the art loads, for Demon Lord Dagyr, and for player summons.
 ## Bestiary (`src/data/bestiary.js`)
 `BESTIARY` has one entry per cell: `{id, sheet, i, arch, also?, name, h, el?, boss?, fly?, gore?, undead?, demon?}`.
 - `arch`: the AI archetype it plays (`ARCH` in `src/data/enemies.js`: stats, AI, pack size). `also` lists other
-  archetypes it can stand in for. Every archetype except `Dagyr` has art, and `data_check.mjs` enforces this.
+  archetypes it can stand in for. Every archetype except `Velscour` has art, and `data_check.mjs` enforces this.
 - `h`: height in world px. The hero is 60; skeletons are about 54, brutes 64-76, imps and crawlers 30-40.
 - `el`: the element the art shows. When it matches the biome's element, the look keeps its own colours and casts
   that element. A biome with no element (catacombs, desert) also lets it keep its own element.
@@ -93,7 +93,7 @@ and each minion gets one at random; see HANDOFF status item 20 and `node tools/t
   a swapped look.
 - `node tools/tests/data_check.mjs`: bestiary and sheet consistency, plus the biome bag and mixing rules.
 
-## Set 3: DAGYR_Monsters_Enemies_Bosses (260 monsters)
+## Set 3: VELSCOUR_Monsters_Enemies_Bosses (260 monsters)
 The zip (35 plates, 5 or 10 sprites each; 90 MB, kept outside the repo) is cut by
 `python tools/set3plates.py <zip or unpacked folder> [--sheet out.png]`: printed names, plaques, title banners and
 frame lines are cleared, every sprite is cut on its plate's grid (touching sprites are split only when a plate comes

@@ -22,7 +22,7 @@ function sleep(ms) {
     const p2 = await ctx2.newPage();
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
       p.on('console', (msg) => {
         const text = msg.text();
         if (text.includes('error') || text.includes('Error')) {
@@ -83,10 +83,10 @@ function sleep(ms) {
     await p1.fill('#d2-create-name', roomName);
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
-    await p1.waitForFunction(() => window.DAGYR.G.mode === 'game' && window.DAGYR.G.world?.kind === 'town');
+    await p1.waitForFunction(() => window.VELSCOUR.G.mode === 'game' && window.VELSCOUR.G.world?.kind === 'town');
     console.log('P1 created room and entered town.');
 
-    const p1Room = await p1.evaluate(() => window.DAGYR.G.room);
+    const p1Room = await p1.evaluate(() => window.VELSCOUR.G.room);
     console.log(`P1 room maxPlayers: ${p1Room.maxPlayers}`);
     if (p1Room.maxPlayers > 4) {
       throw new Error(`Expected room.maxPlayers <= 4, got ${p1Room.maxPlayers}`);
@@ -100,18 +100,18 @@ function sleep(ms) {
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.DAGYR.G.mode === 'game' && window.DAGYR.G.world?.kind === 'town');
+    await p2.waitForFunction(() => window.VELSCOUR.G.mode === 'game' && window.VELSCOUR.G.world?.kind === 'town');
     console.log('P2 joined room and entered town.');
     await sleep(1500);
 
     // TEST 2: Skill visual execution and Leap jump arc (in dungeon)
     console.log('4. Entering dungeon with both players to test skills & monster persistence...');
     await p1.evaluate(() => {
-      window.DAGYR.game.enterDungeon();
+      window.VELSCOUR.game.enterDungeon();
     });
     await sleep(1000);
     await p2.evaluate(() => {
-      window.DAGYR.game.enterDungeon();
+      window.VELSCOUR.game.enterDungeon();
     });
     await sleep(3500);
 
@@ -120,13 +120,13 @@ function sleep(ms) {
       return net.myId;
     });
 
-    const p1PosBefore = await p1.evaluate(() => ({ x: window.DAGYR.G.player.x, y: window.DAGYR.G.player.y }));
+    const p1PosBefore = await p1.evaluate(() => ({ x: window.VELSCOUR.G.player.x, y: window.VELSCOUR.G.player.y }));
     const leapTarget = { x: p1PosBefore.x + 3.5, y: p1PosBefore.y + 2.5 };
 
     console.log(`P1 casting Leap from (${p1PosBefore.x.toFixed(1)}, ${p1PosBefore.y.toFixed(1)}) toward (${leapTarget.x.toFixed(1)}, ${leapTarget.y.toFixed(1)})...`);
 
     await p1.evaluate(async (target) => {
-      const p = window.DAGYR.G.player;
+      const p = window.VELSCOUR.G.player;
       p.rage = 100;
       const { CLASS_SKILLS } = await import('/src/data/skills.js');
       const leapSk = CLASS_SKILLS.barbarian.find((s) => s.kind === 'leap') || { id: 'barbarian.0.2', kind: 'leap', m: { range: 1 }, el: 'phys', fx: 'leap' };
@@ -141,7 +141,7 @@ function sleep(ms) {
     for (let step = 0; step < 25; step++) {
       await sleep(30);
       const rpState = await p2.evaluate((id) => {
-        const rp = window.DAGYR.G.remotePlayers?.get(id);
+        const rp = window.VELSCOUR.G.remotePlayers?.get(id);
         if (!rp) return null;
         return {
           z: rp.z,
@@ -166,7 +166,7 @@ function sleep(ms) {
     // Wait for landing
     await sleep(500);
     const p2AfterLanding = await p2.evaluate((id) => {
-      const rp = window.DAGYR.G.remotePlayers?.get(id);
+      const rp = window.VELSCOUR.G.remotePlayers?.get(id);
       return { z: rp ? rp.z : 0, channel: !!(rp && rp.channel) };
     }, p1Id);
     console.log(`P2 RemotePlayer after landing: z=${p2AfterLanding.z}, channel=${p2AfterLanding.channel}`);
@@ -179,12 +179,12 @@ function sleep(ms) {
     // Have P2 return to town first so P1 stays in dungeon and kills monsters
     console.log('P2 returns to town...');
     await p2.evaluate(() => {
-      window.DAGYR.game.enterTown();
+      window.VELSCOUR.game.enterTown();
     });
     await sleep(2000);
 
     const p1DungeonState = await p1.evaluate(() => {
-      const w = window.DAGYR.G.world;
+      const w = window.VELSCOUR.G.world;
       const enemies = w.creatures.filter((c) => c.team === 'enemy' && !c.dead);
       return {
         depth: w.depth,
@@ -199,7 +199,7 @@ function sleep(ms) {
 
     // P1 kills first 2 enemies
     await p1.evaluate(async (targets) => {
-      const w = window.DAGYR.G.world;
+      const w = window.VELSCOUR.G.world;
       const { kill } = await import('/src/game/combat.js');
       for (const t of targets) {
         const m = w.creatures.find((c) => c.team === 'enemy' && (c.netId === t.netId || c.idx === t.idx));
@@ -208,18 +208,18 @@ function sleep(ms) {
     }, p1DungeonState.firstTwo);
 
     await sleep(500);
-    const p1Remaining = await p1.evaluate(() => window.DAGYR.G.world.creatures.filter((c) => c.team === 'enemy' && !c.dead).length);
+    const p1Remaining = await p1.evaluate(() => window.VELSCOUR.G.world.creatures.filter((c) => c.team === 'enemy' && !c.dead).length);
     console.log(`P1 remaining enemies after kill: ${p1Remaining} (was ${p1DungeonState.count})`);
 
     // Now P2 enters the dungeon afterwards
     console.log('P2 now re-entering dungeon after monsters have been killed by P1...');
     await p2.evaluate(() => {
-      window.DAGYR.game.enterDungeon();
+      window.VELSCOUR.game.enterDungeon();
     });
     await sleep(3500);
 
     const p2DungeonState = await p2.evaluate((killedTargets) => {
-      const w = window.DAGYR.G.world;
+      const w = window.VELSCOUR.G.world;
       const enemies = w.creatures.filter((c) => c.team === 'enemy' && !c.dead);
       const killedFound = enemies.filter((e) => killedTargets.some((k) => (k.netId && k.netId === e.netId) || (k.idx && k.idx === e.idx)));
       return {

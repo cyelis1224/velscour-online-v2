@@ -25,15 +25,15 @@ async function run() {
   });
 
   const page = await context.newPage();
-  await page.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
+  await page.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
 
   try {
     await page.goto('http://localhost:8124/index.html?touch=1&autostart=1', { waitUntil: 'domcontentloaded', timeout: 20000 });
-    await page.waitForFunction(() => !!window.DAGYR && document.querySelector('#loading')?.classList.contains('hidden'), null, { timeout: 15000 });
+    await page.waitForFunction(() => !!window.VELSCOUR && document.querySelector('#loading')?.classList.contains('hidden'), null, { timeout: 15000 });
 
     // 1. Enter game as a hero and start multiplayer game room to trigger GameChat.init() & GameChat.show()
     const initCheck = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { newCharData } = await import('/src/game/save.js');
       const { GameChat } = await import('/src/ui/chat.js');
 

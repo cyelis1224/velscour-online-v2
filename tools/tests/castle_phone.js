@@ -30,7 +30,7 @@ async function browserMiB(bcdp) {
   try {
     const ids = await page.evaluate(async (arg) => {
       const { CASTLE_VARIANTS } = await import('/src/data/castles.js');
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar('paladin', 'Castle Phone');
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll();
       await (await import('/src/gfx/castle.js')).loadCastlePack();
@@ -47,7 +47,7 @@ async function browserMiB(bcdp) {
       const download = pages.reduce((s, p) => s + fs.statSync(path.join(root, dir, p)).size, 0) / 1e6;
       // load (and decode) the bake, then build the level, as game.loadLevelArt + buildDungeon do
       const r = await page.evaluate(async (id) => {
-        const { G, game } = window.DAGYR, art = await import('/src/gfx/castle3dart.js');
+        const { G, game } = window.VELSCOUR, art = await import('/src/gfx/castle3dart.js');
         art.releaseCastle3D();
         let t = performance.now();
         const st = await art.loadCastle3D(id), loadMs = performance.now() - t;
@@ -67,7 +67,7 @@ async function browserMiB(bcdp) {
       const mem = await browserMiB(bcdp);
       // the herald by the road says the first of the story's lines
       const herald = await page.evaluate(async () => {
-        const { G } = window.DAGYR, w = G.world, h = w.npcs.find((n) => n.storyLines);
+        const { G } = window.VELSCOUR, w = G.world, h = w.npcs.find((n) => n.storyLines);
         if (!h) return null;
         G.player.x = h.x + 1.5; G.player.y = h.y + 1.5;
         for (let k = 0; k < 12; k++) w.update(0.05);
@@ -77,7 +77,7 @@ async function browserMiB(bcdp) {
       // the joystick (CDP touches on the left of the screen) walks the hero north from the causeway, over the
       // drawbridge (it comes down as the hero nears it) and through the gate tunnel into the ward
       const g = await page.evaluate(() => {
-        const { G } = window.DAGYR, w = G.world, m = w.map, D = m.drawbridge;
+        const { G } = window.VELSCOUR, w = G.world, m = w.map, D = m.drawbridge;
         w.creatures = w.creatures.filter((c) => c === G.player || c.team === 'player'); w.npcs.length = 0; w.rebuildGrid();
         G.player.x = (D.x0 + D.x1) / 2; G.player.y = D.y1 + 12;
         return { inside: D.hinge - 6, y0: G.player.y };
@@ -88,7 +88,7 @@ async function browserMiB(bcdp) {
       for (let k = 1; k <= 6; k++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: sx + 2 * d / Math.sqrt(5) * k / 6, y: sy - d / Math.sqrt(5) * k / 6 }] }); await page.waitForTimeout(30); }
       let walk = null; const t0 = Date.now();
       while (Date.now() - t0 < 30000) {
-        walk = await page.evaluate(() => { const { G } = window.DAGYR, D = G.world.map.drawbridge; return { y: +G.player.y.toFixed(1), x: +G.player.x.toFixed(1), down: D.down }; });
+        walk = await page.evaluate(() => { const { G } = window.VELSCOUR, D = G.world.map.drawbridge; return { y: +G.player.y.toFixed(1), x: +G.player.x.toFixed(1), down: D.down }; });
         if (walk.y < g.inside) break;
         await page.waitForTimeout(250);
       }
@@ -97,7 +97,7 @@ async function browserMiB(bcdp) {
       await shot(tag(id, 'gate'));
       // frame cost while auto-play walks the castle
       const f = await page.evaluate(() => new Promise(async (res) => {
-        const { G, game } = window.DAGYR, { Auto } = await import('/src/game/autoplay.js');
+        const { G, game } = window.VELSCOUR, { Auto } = await import('/src/game/autoplay.js');
         Auto.toggle(true);
         const u = game.update, rd = game.render, s = { u: 0, r: 0, n: 0, worst: 0 };
         game.update = function (dt) { const t = performance.now(); u.call(this, dt); s.u += performance.now() - t; };

@@ -12,7 +12,7 @@ const SCEN = range(process.argv[3], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1
 const AUTO = process.argv[4] !== 'noauto';
 
 const step = (page, secs) => page.evaluate(async (secs) => {   // run the game for `secs` at 60 fps, rendering every 4th frame
-  const { G, game } = window.DAGYR;
+  const { G, game } = window.VELSCOUR;
   for (let i = 0; i < secs * 60; i++) { G.time += 1 / 60; game.update(1 / 60); if (i % 4 === 3) game.render(); }
   game.render();
 }, secs);
@@ -20,13 +20,13 @@ const step = (page, secs) => page.evaluate(async (secs) => {   // run the game f
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1366, height: 820 });
   try {
-    await page.evaluate(async () => { await window.DAGYR.game.newChar('paladin', 'Climber'); const { G } = window.DAGYR; G.char.depth = 8; G.godMode = true; });
+    await page.evaluate(async () => { await window.VELSCOUR.game.newChar('paladin', 'Climber'); const { G } = window.VELSCOUR; G.char.depth = 8; G.godMode = true; });
     // ------------------------------------------------ the skull and the draw
     await page.waitForTimeout(300);
-    await page.click('#Dagyr-skull');
-    await page.fill('#Dagyr-message', 'tower');
-    await page.click('.Dagyr-contact-dialog button:has-text("Send")');
-    await page.waitForFunction(() => window.DAGYR.G.world?.biome?.id === 'serpentine_tower' && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 60000 });
+    await page.click('#Velscour-skull');
+    await page.fill('#Velscour-message', 'tower');
+    await page.click('.Velscour-contact-dialog button:has-text("Send")');
+    await page.waitForFunction(() => window.VELSCOUR.G.world?.biome?.id === 'serpentine_tower' && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 60000 });
     const draw = await page.evaluate(async () => {
       const { drawBiome, OVERWORLD_BIOME_IDS } = await import('/src/data/biomes.js');
       const c = { biomeBag: [], overworldMisses: 0 }; let n = 0;
@@ -39,14 +39,14 @@ const step = (page, secs) => page.evaluate(async (secs) => {   // run the game f
     // ------------------------------------------------ every variant: generation, warp, picking, the climb's arrivals
     for (const vi of VARIANTS) {
       await page.evaluate(async (vi) => {
-        const { G, game } = window.DAGYR, { BIOME_BY_ID } = await import('/src/data/biomes.js');
+        const { G, game } = window.VELSCOUR, { BIOME_BY_ID } = await import('/src/data/biomes.js');
         G.towerVariant = vi; G.towerScenario = 0;
         await game.teleportToBiome(BIOME_BY_ID.serpentine_tower);
       }, vi);
-      await page.waitForFunction(() => window.DAGYR.G.world?.tower && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 60000 });
+      await page.waitForFunction(() => window.VELSCOUR.G.world?.tower && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 60000 });
       await page.waitForTimeout(600);
       const info = await page.evaluate(async () => {
-        const { G } = window.DAGYR, w = G.world, tw = w.tower, g = tw.g, m = w.map, bad = [];
+        const { G } = window.VELSCOUR, w = G.world, tw = w.tower, g = tw.g, m = w.map, bad = [];
         const { camera } = await import('/src/core/view.js');
         // the stair end to end, the roof a disk
         const W = m.w, seen = new Uint8Array(W * m.h), q = [Math.floor(w.player.y) * W + Math.floor(w.player.x)]; seen[q[0]] = 1;
@@ -68,7 +68,7 @@ const step = (page, secs) => page.evaluate(async (secs) => {   // run the game f
       // up the stair: a turn and a half, then three quarters of the way
       for (const f of [0.35, 0.72]) {
         const a = await page.evaluate((f) => {
-          const { G } = window.DAGYR, w = G.world, g = w.tower.g, p = w.player;
+          const { G } = window.VELSCOUR, w = G.world, g = w.tower.g, p = w.player;
           p.x = g.X1 - g.L * f; p.y = g.YR + g.w / 2; p.path = null; p.moveTarget = null;
           for (const c of w.creatures) if (c !== p && c.team === 'enemy' && Math.abs(c.x - p.x) < 12) { c.x += 30; }
           return w.tower.alpha;
@@ -78,7 +78,7 @@ const step = (page, secs) => page.evaluate(async (secs) => {   // run the game f
       }
       // the climb's arrivals: a drop from the floor above, hooks over the railing, chargers from behind
       const arr = await page.evaluate(async () => {
-        const { G } = window.DAGYR, w = G.world, g = w.tower.g, p = w.player, run = w.overworldScenario;
+        const { G } = window.VELSCOUR, w = G.world, g = w.tower.g, p = w.player, run = w.overworldScenario;
         const pack = w.creatures.find((c) => c.team === 'enemy' && !c.awake && g.s(c.x) > g.s(p.x) + g.C * 0.9 && g.s(c.x) < g.s(p.x) + g.C * 1.6);
         if (pack) { pack.towerDrop = true; p.x = pack.x + g.C + 1; }
         run.hookT = 0; run.chargeT = 0; run.dropCd = 0;
@@ -87,16 +87,16 @@ const step = (page, secs) => page.evaluate(async (secs) => {   // run the game f
       await step(page, 0.9); await shot(`tower_${vi}_drop`);
       await step(page, 1.0); await shot(`tower_${vi}_hooks`);
       const landed = await page.evaluate(() => {
-        const { G } = window.DAGYR, w = G.world;
+        const { G } = window.VELSCOUR, w = G.world;
         return { entering: w.creatures.filter((c) => c.entering).length, ropes: w.tower.ropes.length, awake: w.creatures.filter((c) => c.team === 'enemy' && c.awake).length };
       });
       console.log('  arrivals', JSON.stringify({ ...arr, ...landed }));
       // the stairhead
-      await page.evaluate(() => { const { G } = window.DAGYR, w = G.world, g = w.tower.g, p = w.player; for (const c of w.creatures) if (c !== p && c.team === 'enemy') c.hp = 0, c.dead = true; p.x = g.XT + 5; p.y = g.door[1]; });
+      await page.evaluate(() => { const { G } = window.VELSCOUR, w = G.world, g = w.tower.g, p = w.player; for (const c of w.creatures) if (c !== p && c.team === 'enemy') c.hp = 0, c.dead = true; p.x = g.XT + 5; p.y = g.door[1]; });
       await step(page, 0.6); await shot(`tower_${vi}_stairhead`);
-      await page.evaluate(() => { const { G } = window.DAGYR, w = G.world, g = w.tower.g, p = w.player; p.x = g.XT + 1.5; });
+      await page.evaluate(() => { const { G } = window.VELSCOUR, w = G.world, g = w.tower.g, p = w.player; p.x = g.XT + 1.5; });
       await step(page, 0.5);
-      const top = await page.evaluate(() => { const { G } = window.DAGYR, w = G.world; return { roof: w.tower.roof, phase: w.overworldScenario.phase, x: w.player.x, y: w.player.y }; });
+      const top = await page.evaluate(() => { const { G } = window.VELSCOUR, w = G.world; return { roof: w.tower.roof, phase: w.overworldScenario.phase, x: w.player.x, y: w.player.y }; });
       if (!top.roof) errors.push(`[variant ${vi}] the stairhead did not lead to the roof`);
       await step(page, 4); await shot(`tower_${vi}_roof`);
     }
@@ -104,13 +104,13 @@ const step = (page, secs) => page.evaluate(async (secs) => {   // run the game f
     // ------------------------------------------------ scenarios: waves, boats, the airship and its captain, the portal
     for (const si of SCEN) {
       await page.evaluate(async (si) => {
-        const { G, game } = window.DAGYR, { BIOME_BY_ID } = await import('/src/data/biomes.js');
+        const { G, game } = window.VELSCOUR, { BIOME_BY_ID } = await import('/src/data/biomes.js');
         G.towerVariant = si % 5; G.towerScenario = si;
         await game.teleportToBiome(BIOME_BY_ID.serpentine_tower);
       }, si);
-      await page.waitForFunction(() => window.DAGYR.G.world?.tower && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 60000 });
+      await page.waitForFunction(() => window.VELSCOUR.G.world?.tower && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 60000 });
       await page.evaluate(async () => {
-        const { G } = window.DAGYR, w = G.world, g = w.tower.g, p = w.player;
+        const { G } = window.VELSCOUR, w = G.world, g = w.tower.g, p = w.player;
         const { airshipsReady } = await import('/src/gfx/tower3d.js');
         for (let i = 0; i < 100 && !airshipsReady(); i++) await new Promise((r) => setTimeout(r, 100));
         for (const c of w.creatures) if (c !== p && c.team === 'enemy') c.dead = true;
@@ -118,7 +118,7 @@ const step = (page, secs) => page.evaluate(async (secs) => {   // run the game f
       });
       // run the roof until cond holds (or secs pass); kill: strike down whatever has landed every half second
       const until = (cond, secs, kill) => page.evaluate(async ([cond, secs, kill]) => {
-        const { G, game } = window.DAGYR, w = G.world, run = w.overworldScenario, f = new Function('w', 'run', 'return ' + cond);
+        const { G, game } = window.VELSCOUR, w = G.world, run = w.overworldScenario, f = new Function('w', 'run', 'return ' + cond);
         const { kill: slay } = await import('/src/game/combat.js');
         for (let i = 0; i < secs * 60 && !f(w, run); i++) {
           G.time += 1 / 60; game.update(1 / 60);
@@ -142,7 +142,7 @@ const step = (page, secs) => page.evaluate(async (secs) => {   // run the game f
       await until('run.completed', 300, true);
       await until('false', 2.5, false); await shot(tag + '_portal');
       const res = await page.evaluate(() => {
-        const { G } = window.DAGYR, w = G.world, run = w.overworldScenario, exit = w.portals.find((q) => q.type === 'exit');
+        const { G } = window.VELSCOUR, w = G.world, run = w.overworldScenario, exit = w.portals.find((q) => q.type === 'exit');
         return {
           done: run.completed, steps: [...(run.steps || [])], exit: exit && [+exit.x.toFixed(1), +exit.y.toFixed(1), exit.active], captain: run.captain, scenario: run.scenario.id,
           final: run.top?.final && { name: run.top.final.name, dead: run.top.final.dead }
@@ -155,17 +155,17 @@ const step = (page, secs) => page.evaluate(async (secs) => {   // run the game f
     // ------------------------------------------------ auto-play climbs the tower and takes the roof (god mode: this is about the way, not the odds)
     if (AUTO) {
       await page.evaluate(async () => {
-        const { G, game } = window.DAGYR, { BIOME_BY_ID } = await import('/src/data/biomes.js'), { Auto } = await import('/src/game/autoplay.js');
+        const { G, game } = window.VELSCOUR, { BIOME_BY_ID } = await import('/src/data/biomes.js'), { Auto } = await import('/src/game/autoplay.js');
         G.towerVariant = null; G.towerScenario = null; G.char.depth = 3; G.godMode = true;
         if (G.world) G.world.depth = 3;   // the skull keeps the current depth: a level-1 hero should face depth 3
         await game.teleportToBiome(BIOME_BY_ID.serpentine_tower);
         Auto.toggle(true);
       });
-      await page.waitForFunction(() => window.DAGYR.G.world?.tower && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 60000 });
+      await page.waitForFunction(() => window.VELSCOUR.G.world?.tower && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 60000 });
       let last = null;
       for (let min = 1; min <= 20; min++) {
         const r = await page.evaluate(async () => {
-          const { G, game } = window.DAGYR, { Auto } = await import('/src/game/autoplay.js'), w = G.world, run = w.overworldScenario;
+          const { G, game } = window.VELSCOUR, { Auto } = await import('/src/game/autoplay.js'), w = G.world, run = w.overworldScenario;
           for (let i = 0; i < 1800 && !run.completed; i++) { G.dt = 1 / 30; G.time += G.dt; G.frame++; game.update(1 / 30); if (i % 300 === 0) await new Promise((r) => setTimeout(r, 0)); }
           game.render();
           const p = G.player;
@@ -179,7 +179,7 @@ const step = (page, secs) => page.evaluate(async (secs) => {   // run the game f
       if (!last.done) errors.push(`[auto] auto-play did not take the tower: ${JSON.stringify(last)}`);
       else {
         const left = await page.evaluate(async () => {
-          const { G, game } = window.DAGYR, w = G.world;
+          const { G, game } = window.VELSCOUR, w = G.world;
           for (let i = 0; i < 1800 && G.world === w; i++) { G.dt = 1 / 30; G.time += G.dt; G.frame++; game.update(1 / 30); if (i % 300 === 0) await new Promise((r) => setTimeout(r, 0)); }
           return G.world !== w || !!document.querySelector('.dialog-box');
         });

@@ -7,7 +7,7 @@ const mobile = process.argv.includes('mobile');
   try {
     const result = await page.evaluate(async () => {
       const problems = [];
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { SKILLS, cooldown, useTime, skillRange, grantedSkillsAt } = await import('/src/data/skills.js');
       const { effects } = await import('/src/gfx/vfx.js');

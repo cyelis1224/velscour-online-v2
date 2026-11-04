@@ -1,4 +1,4 @@
-// Dagyr's painted monsters (assets/sprites/enemies/*): one pose each, cut from their sheets and cached.
+// Velscour's painted monsters (assets/sprites/enemies/*): one pose each, cut from their sheets and cached.
 // Variants: 'base', 'flash' (white, when hit), 'elite' (a darker, redder breed), 'ghost' (green: the necromancer's raised).
 import { makeCanvas, drawFiltered } from '../core/util.js';
 import { ART, loadAssetJSON, loadImage } from '../core/assets.js';

@@ -19,15 +19,15 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     const p2 = await ctx2.newPage();
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
     }
 
     console.log('Navigating players to game...');
     await p1.goto(BASE_URL + '/index.html');
     await p2.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Inject hero saves
     await p1.evaluate(async () => {
@@ -66,12 +66,12 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.fill('#d2-create-name', roomName);
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
-    await p1.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
+    await p1.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
     console.log('P1 created and entered game in town.');
 
     // P1 moves away from spawn (to custom location, e.g. stash/well)
     const customPos = await p1.evaluate(() => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       // Move 10 tiles away from current position
       G.player.x += 10;
       G.player.y += 8;
@@ -90,7 +90,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.DAGYR?.G?.mode === 'game' && window.DAGYR?.G?.world?.kind === 'town');
+    await p2.waitForFunction(() => window.VELSCOUR?.G?.mode === 'game' && window.VELSCOUR?.G?.world?.kind === 'town');
     console.log('P2 entered game in town.');
 
     // Wait a moment for network packets
@@ -99,7 +99,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // Check P1 position: it MUST NOT have moved back to spawn!
     const p1PosAfter = await p1.evaluate(() => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       return { x: G.player.x, y: G.player.y };
     });
     console.log(`P1 position after P2 joined: x=${p1PosAfter.x.toFixed(2)}, y=${p1PosAfter.y.toFixed(2)}`);
@@ -115,7 +115,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // Verify P1 sees P2 as a remote player
     const p1SeesP2 = await p1.evaluate(() => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       return G.remotePlayers && G.remotePlayers.size > 0;
     });
 
@@ -126,7 +126,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // Verify P2 sees P1 as a remote player at P1's position
     const p2SeesP1 = await p2.evaluate((expected) => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       if (!G.remotePlayers || G.remotePlayers.size === 0) return null;
       const rp = Array.from(G.remotePlayers.values())[0];
       return {

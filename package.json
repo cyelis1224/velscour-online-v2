@@ -18,8 +18,8 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "build": {
-    "appId": "com.Dagyr.game",
-    "productName": "Dagyr Online",
+    "appId": "com.Velscour.game",
+    "productName": "Velscour Online",
     "directories": {
       "output": "dist/desktop"
     },
@@ -63,16 +63,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agilancer/Dagyr.git"
+    "url": "git+https://github.com/Agilancer/Velscour.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/Agilancer/Dagyr/issues"
+    "url": "https://github.com/Agilancer/Velscour/issues"
   },
-  "homepage": "https://github.com/Agilancer/Dagyr#readme",
+  "homepage": "https://github.com/Agilancer/Velscour#readme",
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.5.2",
     "@capacitor/core": "^8.5.3",

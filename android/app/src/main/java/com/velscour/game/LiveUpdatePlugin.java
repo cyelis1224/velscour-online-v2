@@ -1,4 +1,4 @@
-package com.Dagyr.game;
+package com.Velscour.game;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -37,7 +37,7 @@ import org.json.JSONObject;
 
 @CapacitorPlugin(name = "LiveUpdate")
 public class LiveUpdatePlugin extends Plugin {
-    private static final String PREFS_NAME = "DagyrLiveUpdate";
+    private static final String PREFS_NAME = "VelscourLiveUpdate";
     private static final String KEY_INSTALLED_VERSION = "installed_version";
     private static final String KEY_INSTALLED_HASH = "installed_manifest_hash";
     private static final String KEY_APK_UPDATE_TIME = "apk_last_update_time";

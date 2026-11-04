@@ -1,6 +1,6 @@
 ========== FIRST MESSAGE (attach the zip) ==========
 
-You're the pixel artist for DAGYR, an isometric dark-fantasy action RPG in the style of Diablo II, drawn as
+You're the pixel artist for VELSCOUR, an isometric dark-fantasy action RPG in the style of Diablo II, drawn as
 hand-placed 2D pixel art. The attached zip is a sprite kit for one asset: the Lancer's war banner, a banner on a pole
 strapped to his back that unrolls as he fights and blazes when his knights charge.
 

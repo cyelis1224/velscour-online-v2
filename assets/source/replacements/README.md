@@ -1,4 +1,4 @@
-# DAGYR replacement sprite source pack
+# VELSCOUR replacement sprite source pack
 
 Generated with built-in `image_gen`, October 2026. These are project assets, not runtime
 placeholders. `catalog.json` lists every selected drawing in reading order, its source cell,
@@ -15,7 +15,7 @@ Reference images inspected before generation:
 
 ## Final prompt set
 
-Shared direction: **production DAGYR game sprites, grimdark Diablo II-like painted pixel
+Shared direction: **production VELSCOUR game sprites, grimdark Diablo II-like painted pixel
 clusters, jagged near-black contours, worn metal/leather/bone, lean anatomy, muted colors
 with a single saturated elemental accent. Three-quarter 2:1 isometric, facing screen right,
 full silhouettes. True RGBA transparency, no ground shadow, scenery, labels, text or grid.
@@ -25,7 +25,7 @@ monster sheet. Icons must read at 48px and characters at approximately 60 world 
 
 | Source | Subject prompt, in reading order |
 |---|---|
-| Dagyr.png | Towering lean horned demon king; bone crown, dried-blood red flesh, black armor with molten cracks, gold-yellow eyes, ragged wings/chains, burning greatsword. Final edit: remove backdrop and diffuse haze, retain exact pose and sharp attached flame tongues. |
+| Velscour.png | Towering lean horned demon king; bone crown, dried-blood red flesh, black armor with molten cracks, gold-yellow eyes, ragged wings/chains, burning greatsword. Final edit: remove backdrop and diffuse haze, retain exact pose and sharp attached flame tongues. |
 | undead.png (5x2) | Death Knight in dark steel/violet cape; earthen Clay Golem with handprints; fused-skeleton Bone Colossus/cyan eyes; hooded pale-violet Wraith; stitched Abomination/hooks/chains; bloated green Plague Bearer; early Hive concept (unused); brown-gold Hawk; electric blue Storm Hawk; neutral grayscale Warding Crystal above rune plinth. |
 | sentries.png (5x2) | Lightning Sentry iron coil pylon; Death Sentry ember furnace; Chain Sentry three coils; tall copper Tesla Coil; three-headed fire Hydra; dark Storm Cloud with lightning; blue War Banner; burning crimson Battle Standard; crimson/gold Banner of Kings; skull-and-trophy Grim Ward. |
 | spirits.png (5x2) | Early Chorus concept (unused); spectral axe-bearing Ancient; blue lightning Storm Ancient; antler-crowned Ancestral Elder; early Holy Guardian (unused); spectral spear/shield Hoplite; early Captain (unused); floating icy runed greatsword; sackcloth Scarecrow; twig-and-bone Effigy with crimson bindings. |

@@ -7,7 +7,7 @@ const MOBILE = process.argv[2] === 'mobile';
 (async () => {
   const { browser, page, errors } = await openGame(MOBILE ? { width: 844, height: 390, mobile: true } : {});
   const leaps = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('dragoon', 'Lance');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -39,7 +39,7 @@ const MOBILE = process.argv[2] === 'mobile';
   for (let i = 0; i < leaps.ids.length; i++) {
     // cycle the jump direction round the compass, so every lance angle is seen
     const res = await page.evaluate(async ([id, i]) => {
-      const { G } = window.DAGYR, p = G.player, w = G.world;
+      const { G } = window.VELSCOUR, p = G.player, w = G.world;
       const { SKILLS } = await import('/src/data/skills.js');
       const { effects } = await import('/src/gfx/vfx.js');
       // stand somewhere with room to jump 4 tiles in the chosen direction
@@ -61,15 +61,15 @@ const MOBILE = process.argv[2] === 'mobile';
     }, [leaps.ids[i], i]);
     if (res.err || !res.lance || !res.channel) { console.log(`FAIL ${leaps.names[i]}: ${JSON.stringify(res)}`); bad++; continue; }
     // let the camera catch up a little without moving the leap: snap it to the hero
-    await page.evaluate(async () => { const { G } = window.DAGYR; const { camera } = await import('/src/core/view.js'); camera.follow(G.player.x, G.player.y, 0, true); });
+    await page.evaluate(async () => { const { G } = window.VELSCOUR; const { camera } = await import('/src/core/view.js'); camera.follow(G.player.x, G.player.y, 0, true); });
     for (const [n, tag] of stages) {
       await step(n);
-      await page.evaluate(async () => { const { G } = window.DAGYR; const { camera } = await import('/src/core/view.js'); camera.follow(G.player.x, G.player.y, 0, true); });
+      await page.evaluate(async () => { const { G } = window.VELSCOUR; const { camera } = await import('/src/core/view.js'); camera.follow(G.player.x, G.player.y, 0, true); });
       await page.waitForTimeout(40);
       await page.screenshot({ path: `${require('./harness').OUT_DIR}/lance_${i}_${leaps.names[i].replace(/[^a-z]/gi, '')}_${tag}.png`, clip });
     }
     const st = await page.evaluate(async () => {
-      const { G } = window.DAGYR; const { effects } = await import('/src/gfx/vfx.js');
+      const { G } = window.VELSCOUR; const { effects } = await import('/src/gfx/vfx.js');
       return { z: G.player.z, channel: !!G.player.channel, live: effects.filter((e) => e.leap).length };
     });
     if (st.z !== 0 || st.channel) { console.log(`FAIL ${leaps.names[i]}: still airborne ${JSON.stringify(st)}`); bad++; }

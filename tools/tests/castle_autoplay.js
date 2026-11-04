@@ -10,7 +10,7 @@ const classes = (process.argv[2] || 'wizard,dragoon,paladin,ranger,necromancer,l
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
   for (const cls of classes) {
     const res = await page.evaluate(async (cls) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { Auto } = await import('/src/game/autoplay.js');
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { makeMonster } = await import('/src/game/monster.js');

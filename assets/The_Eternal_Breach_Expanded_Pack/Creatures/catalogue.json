@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "biome": "The Eternal Breach",
-  "style_reference": "DAGYR / Grim Nocturne",
+  "style_reference": "VELSCOUR / Grim Nocturne",
   "monsters": [
     {
       "id": "ETB-M001",

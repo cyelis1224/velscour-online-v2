@@ -379,7 +379,7 @@ export function escapeHtml(s) {
 let FOK;
 export function filterOK() {
   if (FOK !== undefined) return FOK;
-  if (globalThis.DAGYR_NO_CANVAS_FILTER) return (FOK = false);   // tests: the by-hand path in a browser that has filters
+  if (globalThis.VELSCOUR_NO_CANVAS_FILTER) return (FOK = false);   // tests: the by-hand path in a browser that has filters
   try {
     const a = makeCanvas(1, 1), b = makeCanvas(1, 1), x = b.getContext('2d', { willReadFrequently: true });
     a.getContext('2d').fillStyle = '#fff'; a.getContext('2d').fillRect(0, 0, 1, 1);

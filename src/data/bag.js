@@ -1,41 +1,46 @@
-// Storage expansions for Bag, Gem Bag, Stash, Jewel Box, and Reliquary.
-// Costs are paid in Infernal Marks:
-// - 10 marks per row for Bag, Stash, and Reliquary
-// - 5 marks per row for Gem Bag and Jewel Box
+// Storage expansions:
+// - Hero's Bag: 10 slots a row, 6 rows to start, up to 6 more bought with gold (5k..160k) (upstream).
+// - Dedicated Gem Bag, Stash, Jewel Box, and Reliquary: expanded with Infernal Marks.
 import { marksFree, deductMarks } from '../game/marks.js';
 import { reliquary, saveReliquary } from '../game/reliquary.js';
 
 // --- BAG (HERO'S INVENTORY) ---
-export const BAG_COLS = 10, BAG_ROWS = 6, BAG_MAX_ROWS = 12;
-export const BAG_ROW_MARK_COST = 10;
+export const BAG_COLS = 10, BAG_ROWS = 6;
+export const BAG_ROW_COST = [5000, 10000, 20000, 40000, 80000, 160000]; // rows 7..12
+export const BAG_MAX_ROWS = BAG_ROWS + BAG_ROW_COST.length;
 
 export function bagRows(c) {
   if (!c || !Array.isArray(c.bag)) return BAG_ROWS;
   return Math.max(BAG_ROWS, Math.ceil(c.bag.length / BAG_COLS));
 }
 
-export function nextBagRowCost(c) {
-  return bagRows(c) < BAG_MAX_ROWS ? BAG_ROW_MARK_COST : 0;
+/** Gold for the next row, or 0 when the bag is as big as it gets. */
+export function nextRowCost(c) {
+  return BAG_ROW_COST[bagRows(c) - BAG_ROWS] || 0;
 }
 
-export function canBuyBagRow(c) {
-  return bagRows(c) < BAG_MAX_ROWS && marksFree() >= BAG_ROW_MARK_COST;
-}
-
+/** Buy the next row if there is one and the gold is there. */
 export function buyBagRow(c) {
   if (!c || !Array.isArray(c.bag)) return false;
-  if (bagRows(c) >= BAG_MAX_ROWS) return false;
-  if (!deductMarks(BAG_ROW_MARK_COST)) return false;
+  const cost = nextRowCost(c);
+  if (!cost || c.gold < cost) return false;
+  c.gold -= cost;
   for (let i = 0; i < BAG_COLS; i++) c.bag.push(null);
   return true;
 }
 
+/** Saves: a full grid of at least 6 rows, never more than 12 (empty slots past that are dropped). */
 export function fixBag(c) {
   if (!c) return;
   if (!Array.isArray(c.bag)) c.bag = [];
   while (c.bag.length < BAG_COLS * BAG_ROWS || c.bag.length % BAG_COLS) c.bag.push(null);
   while (c.bag.length > BAG_COLS * BAG_MAX_ROWS && c.bag[c.bag.length - 1] === null) c.bag.pop();
 }
+
+// Mark expansion backwards compatibility / aliases
+export const BAG_ROW_MARK_COST = 10;
+export function nextBagRowCost(c) { return nextRowCost(c); }
+export function canBuyBagRow(c) { return !!c && nextRowCost(c) > 0 && c.gold >= nextRowCost(c); }
 
 // --- GEM BAG (HERO'S GEM CARRIER) ---
 export const GEM_BAG_COLS = 10, GEM_BAG_BASE_ROWS = 3, GEM_BAG_MAX_ROWS = 8;

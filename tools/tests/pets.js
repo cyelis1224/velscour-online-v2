@@ -12,7 +12,7 @@ const SEEDS = +(process.argv[2] || 3);
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('necromancer', 'Petkeeper');
     document.querySelectorAll('.screen').forEach((s) => s.remove());
     G.ui.modalCount = 0;
@@ -20,7 +20,7 @@ const SEEDS = +(process.argv[2] || 3);
   const fails = [];
   for (let seed = 0; seed < SEEDS; seed++) {
     const r = await page.evaluate(async (seed) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { SUMMONS } = await import('/src/data/summons.js');
       const { buildSummon, makeMonster } = await import('/src/game/monster.js');
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -165,7 +165,7 @@ const SEEDS = +(process.argv[2] || 3);
     }, seed);
     console.log(JSON.stringify(r));
     if (seed === 0) {
-      await page.evaluate(() => window.DAGYR.game.render());
+      await page.evaluate(() => window.VELSCOUR.game.render());
       await shot('pets_potter');
     }
     const n = 12;
@@ -179,7 +179,7 @@ const SEEDS = +(process.argv[2] || 3);
   }
   // a shot mid-walk
   await page.evaluate(() => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const p = G.player, map = G.world.map;
     for (let k = 0; k < 200; k++) { const [x, y] = map.randomNear(p.x, p.y, 10); if (Math.hypot(x - p.x, y - p.y) > 6) { p.setMoveTarget(x, y); break; } }
     for (let i = 0; i < 45; i++) G.world.update(1 / 30);

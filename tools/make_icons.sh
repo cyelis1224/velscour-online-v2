@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regenerates every app icon (web favicon, PWA manifest, Apple touch, Android launcher, Electron) from two sources:
-#   MASTER  the full "DAGYR ONLINE" icon art (square, rounded frame, transparent corners), >= 1024px
+#   MASTER  the full "VELSCOUR ONLINE" icon art (square, rounded frame, transparent corners), >= 1024px
 #   SMALL   a simplified full-bleed "D" monogram for the tiny sizes (favicon 16/32/48), where the full art is mush
 # Usage: tools/make_icons.sh tools/icon-src/dagyr-icon-master.png tools/icon-src/dagyr-monogram.png
 set -euo pipefail

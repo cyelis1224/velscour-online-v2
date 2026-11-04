@@ -13,7 +13,7 @@ const LEVELS = +(process.argv[2] || 10);
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('paladin', 'Bait');
     document.querySelectorAll('.screen').forEach((s) => s.remove());
     G.ui.modalCount = 0;
@@ -23,7 +23,7 @@ const LEVELS = +(process.argv[2] || 10);
   for (let li = 0; li < LEVELS; li++) {
     if (process.env.MOBS_DEBUG) await page.evaluate(() => { window.MOBS_DEBUG = true; });
     const r = await page.evaluate(async (li) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { BIOMES, BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { dist } = await import('/src/core/util.js');
       const list = BIOMES.filter((b) => b.id !== 'throne' && b.id !== 'town');

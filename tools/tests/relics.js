@@ -13,15 +13,15 @@ const { openGame, report } = require('./harness');
   const { browser, page, errors, shot } = await openGame({ width: 1600, height: 900 });
   let fails = 0;
   const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };
-  await page.evaluate(() => { try { localStorage.removeItem('Dagyr_reliquary_v1'); } catch (e) { } });
-  await page.evaluate(async () => { await window.DAGYR.game.newChar('paladin', 'Relicbot'); });
+  await page.evaluate(() => { try { localStorage.removeItem('Velscour_reliquary_v1'); } catch (e) { } });
+  await page.evaluate(async () => { await window.VELSCOUR.game.newChar('paladin', 'Relicbot'); });
   await page.waitForTimeout(1500);
 
   // ---- 1: data and drop odds
   const d = await page.evaluate(async () => {
     const I = await import('/src/data/items.js');
     const R = await import('/src/data/relics.js');
-    const { G } = window.DAGYR, c = G.char, p = G.player;
+    const { G } = window.VELSCOUR, c = G.char, p = G.player;
     const out = { bad: [] };
     for (const h of R.HEIRLOOMS) { if (!R.POWERS[h.power]) out.bad.push(h.id); for (const [s] of h.lines) if (!I.AFFIX_BY_STAT[s]) out.bad.push(h.id + ':' + s); }
     for (const g of R.GLYPHWORDS) for (const sl of g.slots) if (I.HOLLOW[sl] < g.sig.length) out.bad.push(g.id);
@@ -38,7 +38,7 @@ const { openGame, report } = require('./harness');
   check(d.odds.cov > d.odds.heir, `Covenant pieces are commoner than Heirlooms (${d.odds.cov.toFixed(3)}%)`);
   // ---- 3: live Glyphword, procs, Codex, Reliquary
   const live = await page.evaluate(async () => {
-    const { G } = window.DAGYR, c = G.char, p = G.player;
+    const { G } = window.VELSCOUR, c = G.char, p = G.player;
     const I = await import('/src/data/items.js');
     const R = await import('/src/data/relics.js');
     const { addToBag } = await import('/src/game/player.js');
@@ -90,7 +90,7 @@ const { openGame, report } = require('./harness');
   check(live.codexHeir && live.prog.have >= 8, `Codex: ${live.prog.have}/${live.prog.total}`);
 
   // vault survives a reload for another hero
-  await page.evaluate(async () => { await window.DAGYR.game.newChar('wizard', 'Vaultbot'); });
+  await page.evaluate(async () => { await window.VELSCOUR.game.newChar('wizard', 'Vaultbot'); });
   await page.waitForTimeout(1200);
   const other = await page.evaluate(async () => {
     const Q = await import('/src/game/reliquary.js');
@@ -102,7 +102,7 @@ const { openGame, report } = require('./harness');
 
   // shots: tooltips + Reliquary + Codex
   await page.evaluate(async () => {
-    const { G } = window.DAGYR, c = G.char;
+    const { G } = window.VELSCOUR, c = G.char;
     G.ui.reliquary.open();
   });
   await page.waitForTimeout(500);
@@ -110,11 +110,11 @@ const { openGame, report } = require('./harness');
   await page.evaluate(() => { const b = [...document.querySelectorAll('.reliquary-panel .tab')].find((x) => x.textContent === 'Codex'); b && b.click(); });
   await page.waitForTimeout(500);
   await shot('relics_codex');
-  await page.evaluate(() => window.DAGYR.G.ui.closeAll());
+  await page.evaluate(() => window.VELSCOUR.G.ui.closeAll());
 
   // ---- 4: Commissions
   const comm = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR, c = G.char;
+    const { G, game } = window.VELSCOUR, c = G.char;
     const C = await import('/src/game/commissions.js');
     const { Auto: Auto0 } = await import('/src/game/autoplay.js');
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
@@ -136,7 +136,7 @@ const { openGame, report } = require('./harness');
   check(comm.objs === 3 && comm.reach.every(Boolean), 'three Silent Bells placed on the floor of a Cathedral level');
   // the bot walks to them
   const bot = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR, c = G.char;
+    const { G, game } = window.VELSCOUR, c = G.char;
     const { Auto } = await import('/src/game/autoplay.js');
     const C = await import('/src/game/commissions.js');
     const e = C.commState(c).open.find((x) => x.id === 'bells');

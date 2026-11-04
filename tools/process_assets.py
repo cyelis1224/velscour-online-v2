@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DAGYR asset pipeline.
+VELSCOUR asset pipeline.
 
 Slices the hand-made source sheets in assets/source/ into game-ready PNGs and
 JSON atlases under assets/. Re-run this whenever a source sheet changes:

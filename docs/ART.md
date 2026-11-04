@@ -265,7 +265,7 @@ stone boundaries.
 The new monsters are separate from architectural assets:
 `src/data/biomenatives.js` (50 native identities per combat biome)
 and `src/gfx/biomenativeart.js` (source-painted silhouettes with unique
-gear/appendages/materials) keep DAGYR's actual monster renderer and
+gear/appendages/materials) keep VELSCOUR's actual monster renderer and
 foot-anchor alignment. This is procedural art, not 1,600 independently
 hand-painted animation sets.
 

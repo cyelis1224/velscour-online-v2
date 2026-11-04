@@ -10,7 +10,7 @@ const { openGame, report } = require('./harness');
   const { browser, page, errors, shot } = await openGame({ width: 1400, height: 800 });
   // town has open ground for the line-up; the battle is at depth 11 (10 is a raid boss room)
   const out = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('slime_lord', 'Gloop');
     document.querySelectorAll('.screen').forEach((s) => s.remove());
     G.ui.modalCount = 0;
@@ -49,7 +49,7 @@ const { openGame, report } = require('./harness');
 
   // 40 slimelings: the rainbow brood, each a random sprite set of its kind, rising from puddles, then hopping after the hero
   const out2 = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { SUMMONS } = await import('/src/data/summons.js');
     const { courtSummon } = await import('/src/game/slimecourt.js');
     const { lineup, out } = window.famTest;
@@ -73,7 +73,7 @@ const { openGame, report } = require('./harness');
   await page.waitForTimeout(150);
   await shot('familiars_rising');
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const p = G.player, w = G.world;
     G.paused = false;
     p.x += 4; p.y += 4; // run off: they hop after the hero
@@ -85,7 +85,7 @@ const { openGame, report } = require('./harness');
 
   // a Slime Lord casts every slime summon into a crowd; wolves sit when idle
   const out3 = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
     const { SUMMONS } = await import('/src/data/summons.js');
     const { makeMonster, buildSummon } = await import('/src/game/monster.js');

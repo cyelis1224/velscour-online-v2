@@ -345,7 +345,7 @@ function gibSets(c) {
   if (BUG.has(a)) return ['bug'];
   if (g === 'goo') return ['bug', 'eye'];
   if (g !== 'flesh') return null;
-  if (c.demon || a === 'imp' || a === 'demon' || a === 'Dagyr') return ['demon', 'flesh'];
+  if (c.demon || a === 'imp' || a === 'demon' || a === 'Velscour') return ['demon', 'flesh'];
   if (a === 'bat' || a === 'hound') return ['flesh', 'bug'];
   return ['flesh', 'limb'];
 }

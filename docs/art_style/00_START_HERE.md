@@ -1,4 +1,4 @@
-# DAGYR character redesign kit: start here
+# VELSCOUR character redesign kit: start here
 
 The game is moving every character to one new house style, **Grim Nocturne**: hand-placed 2D pixel art at twice
 Symphony of the Night's PlayStation density, led by Final Fantasy VI's costume theatre, small palettes and
@@ -9,7 +9,7 @@ with one picture per armor set, like now, and the stance never changes between a
 
 | File | What it is |
 |---|---|
-| `01_DAGYR_ART_BIBLE.md` | The law: grid, sizes, the pose lock, pixel craft, light, palette, materials, shapes, anti-slop rules, asset types, QA, class identities, sources |
+| `01_VELSCOUR_ART_BIBLE.md` | The law: grid, sizes, the pose lock, pixel craft, light, palette, materials, shapes, anti-slop rules, asset types, QA, class identities, sources |
 | `02_MASTER_PROMPT.txt` | The long prompt to paste first in **every** ChatGPT chat |
 | `03_SHEET_PROMPTS.md` | The prompt for each sheet: style lock, pose masters, armors, overlays, world |
 | `04_STYLE_LOCK_REQUEST.txt` | Makes ChatGPT write its own style-lock documents (style guide, prompt templates, class cards) |

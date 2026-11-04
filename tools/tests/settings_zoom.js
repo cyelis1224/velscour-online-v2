@@ -10,7 +10,7 @@ const { openGame, report } = require('./harness');
     });
     try {
       await page.evaluate(async () => {
-        const { game, G } = window.DAGYR;
+        const { game, G } = window.VELSCOUR;
         const { newCharData } = await import('/src/game/save.js');
         await game.loadClassPack('paladin');
         game.startChar(newCharData('paladin', 'Zoom Test'), false);
@@ -18,7 +18,7 @@ const { openGame, report } = require('./harness');
       });
       const before = await page.evaluate(async () => {
         const { camera } = await import('/src/core/view.js');
-        return { zoom: camera.zoom, preference: window.DAGYR.G.settings.zoom };
+        return { zoom: camera.zoom, preference: window.VELSCOUR.G.settings.zoom };
       });
       await page.evaluate(async () => {
         const { settingsDialog } = await import('/src/ui/screens.js');
@@ -30,11 +30,11 @@ const { openGame, report } = require('./harness');
       await page.click('.dialog-box .row button');
       const after = await page.evaluate(async () => {
         const { camera } = await import('/src/core/view.js');
-        const { G } = window.DAGYR;
+        const { G } = window.VELSCOUR;
         return {
           zoom: camera.zoom,
           preference: G.settings.zoom,
-          saved: JSON.parse(localStorage.getItem('Dagyr_settings_v1')).zoom,
+          saved: JSON.parse(localStorage.getItem('Velscour_settings_v1')).zoom,
           sameWorld: G.world === window.zoomWorldBefore,
           closed: !document.querySelector('.dialog-box'),
         };

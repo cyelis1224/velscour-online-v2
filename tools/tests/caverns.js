@@ -12,13 +12,13 @@ const VARIANTS = range(process.argv[2], [0, 1, 2, 3, 4, 5]);
 const AUTO = !arg('noauto'), SHOTS = !arg('noshots');
 
 const step = (page, secs) => page.evaluate(async (secs) => {   // run the game for `secs` at 60 fps, rendering every 4th frame
-  const { G, game } = window.DAGYR;
+  const { G, game } = window.VELSCOUR;
   for (let i = 0; i < secs * 60; i++) { G.time += 1 / 60; game.update(1 / 60); if (i % 4 === 3) game.render(); }
   game.render();
 }, secs);
 /** Put the hero at (x, y), clear monsters off the spot, let the camera settle. */
 const place = (page, x, y, clear = 10) => page.evaluate(({ x, y, clear }) => {
-  const { G } = window.DAGYR, w = G.world, p = w.player, m = w.map;
+  const { G } = window.VELSCOUR, w = G.world, p = w.player, m = w.map;
   let [px, py] = [x, y];
   if (!m.walkable(px, py)) [px, py] = m.randomNear(x, y, 3);
   p.x = px; p.y = py; p.path = null; p.moveTarget = null; p.attackTarget = null;
@@ -29,13 +29,13 @@ const place = (page, x, y, clear = 10) => page.evaluate(({ x, y, clear }) => {
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1366, height: 820 });
   try {
-    await page.evaluate(async () => { await window.DAGYR.game.newChar('wizard', 'Delver'); const { G } = window.DAGYR; G.char.depth = 12; G.godMode = true; });
+    await page.evaluate(async () => { await window.VELSCOUR.game.newChar('wizard', 'Delver'); const { G } = window.VELSCOUR; G.char.depth = 12; G.godMode = true; });
     // ------------------------------------------------ the skull and the draw
     await page.waitForTimeout(300);
-    await page.click('#Dagyr-skull');
-    await page.fill('#Dagyr-message', 'caverns');
-    await page.click('.Dagyr-contact-dialog button:has-text("Send")');
-    await page.waitForFunction(() => window.DAGYR.G.world?.biome?.id === 'depths_edge' && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 90000 });
+    await page.click('#Velscour-skull');
+    await page.fill('#Velscour-message', 'caverns');
+    await page.click('.Velscour-contact-dialog button:has-text("Send")');
+    await page.waitForFunction(() => window.VELSCOUR.G.world?.biome?.id === 'depths_edge' && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 90000 });
     const draw = await page.evaluate(async () => {
       const { drawBiome, OVERWORLD_BIOME_IDS } = await import('/src/data/biomes.js');
       const c = { biomeBag: [], overworldMisses: 0 }; let n = 0;
@@ -47,14 +47,14 @@ const place = (page, x, y, clear = 10) => page.evaluate(({ x, y, clear }) => {
 
     for (const vi of VARIANTS) {
       await page.evaluate(async (vi) => {
-        const { G, game } = window.DAGYR, { BIOME_BY_ID } = await import('/src/data/biomes.js');
+        const { G, game } = window.VELSCOUR, { BIOME_BY_ID } = await import('/src/data/biomes.js');
         G.caveVariant = vi; G.caveBosses = 1 + (vi % 3);
         await game.teleportToBiome(BIOME_BY_ID.depths_edge);
       }, vi);
-      await page.waitForFunction(() => window.DAGYR.G.world?.cave && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 90000 });
+      await page.waitForFunction(() => window.VELSCOUR.G.world?.cave && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 90000 });
       await page.waitForTimeout(400);
       const info = await page.evaluate(async () => {
-        const { G } = window.DAGYR, w = G.world, cr = w.cave, cv = cr.cv, m = w.map, bad = [];
+        const { G } = window.VELSCOUR, w = G.world, cr = w.cave, cv = cr.cv, m = w.map, bad = [];
         const { isoX, isoY } = await import('/src/core/view.js');
         const { caveScene } = await import('/src/gfx/cave3d.js');
         const S = caveScene();
@@ -83,16 +83,16 @@ const place = (page, x, y, clear = 10) => page.evaluate(({ x, y, clear }) => {
       for (const b of info.bad) errors.push(`[variant ${vi}] ${b}`);
       if (!info.faction) errors.push(`[variant ${vi}] a monster that is not a Depth's Edge creature`);
       await step(page, 0.6); if (SHOTS) await shot(`caverns_${vi}_start`);
-      const P = await page.evaluate(() => { const cv = window.DAGYR.G.world.cave.cv; return { cav: cv.caverns.map((c) => [c.x, c.y]), lake: [cv.lake.x, cv.lake.y], entry: cv.entry, notch: cv.notch, plunge: cv.plunge, arrive: cv.arrive, plat: [cv.plateau.x, cv.plateau.y], mid: cv.spiral(cv.shaft.thEnd * 0.55), top: cv.spiral(cv.shaft.thEnd * 0.9) }; });
+      const P = await page.evaluate(() => { const cv = window.VELSCOUR.G.world.cave.cv; return { cav: cv.caverns.map((c) => [c.x, c.y]), lake: [cv.lake.x, cv.lake.y], entry: cv.entry, notch: cv.notch, plunge: cv.plunge, arrive: cv.arrive, plat: [cv.plateau.x, cv.plateau.y], mid: cv.spiral(cv.shaft.thEnd * 0.55), top: cv.spiral(cv.shaft.thEnd * 0.9) }; });
       await place(page, ...P.cav[1]); await step(page, 1.2); if (SHOTS) await shot(`caverns_${vi}_cavern`);
       await place(page, P.entry[0], P.entry[1]); await step(page, 1.5); if (SHOTS) await shot(`caverns_${vi}_lake`);
       await place(page, P.notch[0] + 1.5, P.notch[1] + 1.5); await step(page, 1.2); if (SHOTS) await shot(`caverns_${vi}_falls`);
-      await page.evaluate(() => { const cr = window.DAGYR.G.world.cave, cv = cr.cv; cr.look = [cv.plunge[0] + 1, cv.plunge[1] + 1, (cv.HP - cv.WL) * 0.4]; cr.lookT = 999; cr.lookDur = 1000; });
+      await page.evaluate(() => { const cr = window.VELSCOUR.G.world.cave, cv = cr.cv; cr.look = [cv.plunge[0] + 1, cv.plunge[1] + 1, (cv.HP - cv.WL) * 0.4]; cr.lookT = 999; cr.lookDur = 1000; });
       await step(page, 1.6); if (SHOTS) await shot(`caverns_${vi}_waterfall`);
-      await page.evaluate(() => { window.DAGYR.G.world.cave.lookT = 0; });
+      await page.evaluate(() => { window.VELSCOUR.G.world.cave.lookT = 0; });
       // through the passage at the falls' foot: the party comes out in the shaft
       const moved = await page.evaluate(async () => {
-        const { G, game } = window.DAGYR, w = G.world, cv = w.cave.cv, p = w.player;
+        const { G, game } = window.VELSCOUR, w = G.world, cv = w.cave.cv, p = w.player;
         p.x = cv.notchIn[0]; p.y = cv.notchIn[1];
         for (let i = 0; i < 120; i++) { G.time += 1 / 60; game.update(1 / 60); }
         return { phase: w.overworldScenario.phase, at: [p.x, p.y], arrive: cv.arrive };
@@ -107,7 +107,7 @@ const place = (page, x, y, clear = 10) => page.evaluate(({ x, y, clear }) => {
       await step(page, 4.5);
       if (SHOTS) await shot(`caverns_${vi}_summit`);
       const fight = await page.evaluate(async () => {
-        const { G, game } = window.DAGYR, w = G.world, run = w.overworldScenario, seen = [], { kill } = await import('/src/game/combat.js');
+        const { G, game } = window.VELSCOUR, w = G.world, run = w.overworldScenario, seen = [], { kill } = await import('/src/game/combat.js');
         for (let s = 0; s < 120 && !run.completed; s++) {
           for (let i = 0; i < 30; i++) { G.time += 1 / 60; game.update(1 / 60); }
           const b = run.top && run.top.boss;
@@ -124,15 +124,15 @@ const place = (page, x, y, clear = 10) => page.evaluate(({ x, y, clear }) => {
     // ------------------------------------------------ auto-play takes a whole cave
     if (AUTO) {
       await page.evaluate(async () => {
-        const { G, game } = window.DAGYR, { BIOME_BY_ID } = await import('/src/data/biomes.js');
+        const { G, game } = window.VELSCOUR, { BIOME_BY_ID } = await import('/src/data/biomes.js');
         await game.newChar('paladin', 'Climber');   // as in tower.js: a level-1 paladin at depth 3 (a wizard can kite a unique for ever)
         G.caveVariant = null; G.caveBosses = 2; G.char.depth = 3; G.godMode = true;
         if (G.world) G.world.depth = 3;   // the skull keeps the current depth: a level-1 hero should face depth 3
         await game.teleportToBiome(BIOME_BY_ID.depths_edge);
       });
-      await page.waitForFunction(() => window.DAGYR.G.world?.cave && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 90000 });
+      await page.waitForFunction(() => window.VELSCOUR.G.world?.cave && document.querySelector('#loading').classList.contains('hidden'), null, { timeout: 90000 });
       const res = await page.evaluate(async () => {
-        const { G, game } = window.DAGYR, { Auto } = await import('/src/game/autoplay.js');
+        const { G, game } = window.VELSCOUR, { Auto } = await import('/src/game/autoplay.js');
         const w = G.world, run = w.overworldScenario, t0 = performance.now(), log = [];
         Auto.toggle(true);
         let last = '';

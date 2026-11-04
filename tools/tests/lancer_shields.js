@@ -8,7 +8,7 @@ const { openGame, report, OUT_DIR } = require('./harness');
   const { browser, page, errors, shot } = await openGame({ width: 1400, height: 900 });
   try {
     const result = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { SHIELD_SHEET, SHIELD_FRAME, LANCER_SHIELD_ABILITY, SHIELD_ORBIT_RADIUS, shieldVariantForSkill, shieldOrbitRadius,
         shieldFacing, orbitShieldDepth, preloadLancerShield, shieldModel, drawShieldModel } = await import('/src/gfx/lancershields.js');
       const { SKILLS, CLASS_SKILLS } = await import('/src/data/skills.js');
@@ -106,7 +106,7 @@ const { openGame, report, OUT_DIR } = require('./harness');
     await shot('lancer_shield_depth_front_back');
     // All seven Bulwark rings at once, as cast, mid-spin.
     await page.evaluate(async () => {
-      const { G } = window.DAGYR, { CLASS_SKILLS } = await import('/src/data/skills.js'), { castSkill } = await import('/src/game/skillrun.js');
+      const { G } = window.VELSCOUR, { CLASS_SKILLS } = await import('/src/data/skills.js'), { castSkill } = await import('/src/game/skillrun.js');
       const { LANCER_SHIELD_ABILITY } = await import('/src/gfx/lancershields.js');
       G.world.hazards.length = 0;
       for (const name of Object.keys(LANCER_SHIELD_ABILITY)) castSkill(G.player, CLASS_SKILLS.lancer.find(s => s.name === name), 1, G.player.x + 1, G.player.y);

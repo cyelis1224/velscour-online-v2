@@ -3,9 +3,9 @@
 An overworld biome fought on the deck of the heroes' airship, a gothic steam ironclad, against the Air Pirates. It
 is in the normal biome rotation as **The Sky Lanes** (`skyship` in `src/data/biomes.js`): `drawBiome`'s bag (about one
 depth in 20), the three portals at a cleared exit ("Sky battle"), and one of the five overworlds the guarantee picks
-after three dungeons. The portal prompt and the Quest Log describe its phases. Dagyr's skull also
+after three dungeons. The portal prompt and the Quest Log describe its phases. Velscour's skull also
 reaches it: send `sky`, `airship` or `pirates`, optionally followed by a scenario (`sky storm`, `sky night`). The
-HAIL DAGYR! list also has one entry per scenario.
+HAIL VELSCOUR! list also has one entry per scenario.
 
 ```bash
 node tools/skyship_bake.js && python tools/skyship.py pack   # re-bake the ship, boats, galleon, props (three.js; GPU helps)
@@ -28,7 +28,7 @@ node tools/tests/skyship.js [clear|storm,...|all] [auto]     # whole battles at 
    hero walks over to meet them (round the fittings and down the stairs, wherever they stood). The talk is one of
    2,000 conversations (`src/data/skytalk.js`):
    - the captain's opener
-   - the knights' stories of why they serve Dagyr as Air Pirates
+   - the knights' stories of why they serve Velscour as Air Pirates
    - the hero's pitches
    - the double refusal
    - a truce, and a quiet moment

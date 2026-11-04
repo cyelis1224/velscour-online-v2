@@ -11,14 +11,14 @@ const shots = !process.argv.includes('noshots');
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
   try {
     await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar('paladin', 'Scenario Check');
       document.querySelectorAll('.screen').forEach((s) => s.remove());
       G.ui.modalCount = 0; G.godMode = true;
     });
     // rooms: themes per biome, reachability
     const rooms = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { BIOMES } = await import('/src/data/biomes.js');
       const { loadBiomeArt } = await import('/src/core/assets.js');
       const { BIOME_ROOMS } = await import('/src/data/biomerooms.js');
@@ -48,7 +48,7 @@ const shots = !process.argv.includes('noshots');
     for (const id of only) {
       for (let i = 0; i < 20; i++) {
         const r = await page.evaluate(async ([id, i]) => {
-          const { G, game } = window.DAGYR;
+          const { G, game } = window.VELSCOUR;
           const { BIOME_BY_ID } = await import('/src/data/biomes.js');
           const { loadBiomeArt } = await import('/src/core/assets.js');
           const { scenarioTick } = await import('/src/game/scenarios.js');
@@ -76,7 +76,7 @@ const shots = !process.argv.includes('noshots');
         if (r.err || !r.done) errors.push(`[SCENARIO] ${id} #${i} ${r.mech || ''} ${r.err || (r.failed ? 'failed' : 'not completed: ' + r.progress)}`);
         if (shots && id === only[0] && r.at) {
           await page.evaluate(async ([id, i]) => {
-            const { G, game } = window.DAGYR;
+            const { G, game } = window.VELSCOUR;
             const { BIOME_BY_ID } = await import('/src/data/biomes.js');
             G.scenarioForce = i; game.buildDungeon(14, BIOME_BY_ID[id]); G.scenarioForce = null;
             const w = G.world, S = w.scenario, mk = w.chests.find((c) => c.scen === S && !c.hidden) || (S.targets && S.targets[0]);

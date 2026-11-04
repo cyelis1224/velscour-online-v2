@@ -11,7 +11,7 @@ const { openGame, report } = require('./harness');
   const only = process.argv[2] ? process.argv[2].split(',') : null;
   const { browser, page, errors, shot } = await openGame({ width: 1600, height: 900 });
   const out = await page.evaluate(async (only) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('ranger', 'Petra');
     document.querySelectorAll('.screen').forEach((s) => s.remove());
     G.ui.modalCount = 0;
@@ -67,7 +67,7 @@ const { openGame, report } = require('./harness');
   }, only);
   for (const st of ['summoned', 'idle', 'moving', 'attacking', 'cheer', 'scared']) {
     await page.evaluate((st) => {
-      const { G, game } = window.DAGYR, { pets, set } = window.petTest;
+      const { G, game } = window.VELSCOUR, { pets, set } = window.petTest;
       for (const m of pets) { m.moving = false; m.attackAnimT = 0; m.cheerT = 0; m.hp = m.maxHp; m.animT = 0.3; set[st](m); }
       G.paused = true; game.render();
     }, st);
@@ -75,7 +75,7 @@ const { openGame, report } = require('./harness');
     await shot('petanims_' + st);
   }
   out.push(...await page.evaluate(async () => {
-    const { G, game } = window.DAGYR, { pets } = window.petTest;
+    const { G, game } = window.VELSCOUR, { pets } = window.petTest;
     const { kill } = await import('/src/game/combat.js');
     const { makeMonster } = await import('/src/game/monster.js');
     const w = G.world, res = [];
@@ -92,7 +92,7 @@ const { openGame, report } = require('./harness');
   await page.waitForTimeout(100);
   await shot('petanims_fallen');
   out.push(await page.evaluate(() => {
-    const { G } = window.DAGYR, w = G.world;
+    const { G } = window.VELSCOUR, w = G.world;
     G.paused = false;
     for (let i = 0; i < 100; i++) w.update(1 / 30);
     return (w.fallen.length === 0 ? '  ok ' : 'FAIL ') + `dead poses gone after 3.3 s (${w.fallen.length} left)`;

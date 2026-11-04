@@ -10,6 +10,7 @@ import { endgameUnlocked } from '../game/endgame.js';
 import { heresyRankOf, heresiesOf, heresyText } from '../game/heresies.js';
 import { riftOpen, fmtTime } from '../game/rifts.js';
 import { marksTotal, marksFree } from '../game/marks.js';
+import { regionOf } from '../game/regions.js';
 
 const step = (done, html) => `<div class="q-step${done ? ' done' : ''}"><i>${done ? '&#10004;' : '&#9670;'}</i><span>${html}</span></div>`;
 const nextRaid = (d) => { let n = Math.max(5, Math.ceil(d / 5) * 5); if (n === FINAL_DEPTH) n += 5; return n; };
@@ -25,8 +26,8 @@ export function renderQuest(body) {
     h += step(false, `Step into the <b style="color:#ff8050">portal</b> at the edge of Herrington Hollow${b ? `. It opens on <b>${escapeHtml(b.name)}</b>` : ''}.`);
     if (c.depth === FINAL_DEPTH) h += step(false, '<b style="color:#ff4020">Demon Lord Velscour</b> waits on his throne.');
     else if (isRaidDepth(c.depth) && !b?.overworld) h += step(false, '<b style="color:#ff6030">A BOSS ROOM</b> lies at the end of this depth.');
-    if (b?.id === 'sea_of_sand') h += step(false, 'A linked Sea of Sand route with one to five timed scenario areas lies beyond.');
-    else if (b?.id === 'mountainside') h += step(false, 'The Mountainside lies beyond: a switchback climb up the cliffs to the summit.');
+    if (regionOf(b)) h += step(false, regionOf(b).townLine);
+    else if (b?.id === 'sea_of_sand') h += step(false, 'A linked Sea of Sand route with one to five timed scenario areas lies beyond.');
     else if (b?.id === 'skyship') h += step(false, "The Sky Lanes lie beyond: the Air Pirates board the heroes' airship in waves, then their flagship comes.");
     else if (b?.sea) h += step(false, "The Pirate Seas lie beyond: the Black Tide's boats come up from astern to board the Lampwardens' Dawnwake, wave on wave.");
     else if (b?.id === 'dark_forest') h += step(false, 'The Dark Forest lies beyond: trails, labyrinths, five trial glades and the Heart of the Forest.');
@@ -52,12 +53,8 @@ export function renderQuest(body) {
       h += `<div class="dim q-note">Best floor beaten: ${b.best || 0}. Foes slain on this floor: ${fmtInt(w.kills || 0)}</div>`;
     } else if (w.overworldScenario) {
       const sc = w.overworldScenario;
-      if (w.biome?.id === 'mountainside') {
-        h += step(sc.reached, `Climb the switchback trail to the summit <span class="dim">— altitude ${sc.altitude}%</span>.`);
-        h += step(false, '<span class="dim">A ledge up to a hop high can be climbed; taller cliffs only jumped down, and the tallest not at all.</span>');
-        h += step(sc.completed, 'Defeat the <b>Summit Warden</b> on the peak.');
-        h += step(sc.completed, sc.completed ? 'The exit on the peak is open — descend or return to town.' : "The Warden's fall opens the way on.");
-      } else if (w.biome?.id === 'skyship') {
+      if (regionOf(w.biome) && regionOf(w.biome).quest) h += regionOf(w.biome).quest(sc, step);
+      else if (w.biome?.id === 'skyship') {
         const ph = sc.phase, at = ['intro', 'waves', 'mid', 'parley', 'flagship', 'hooks', 'final', 'victory', 'done'].indexOf(ph), waves = sc.wave + 1;
         h += step(at > 0, `<b>${escapeHtml(sc.variant.name)}</b> <span class="dim">— ${escapeHtml(sc.variant.weather)}</span>`);
         h += step(at > 2 || (ph === 'waves' && waves > 3), 'Defeat the captain who swings aboard after the third wave.');
@@ -101,24 +98,24 @@ export function renderQuest(body) {
         h += step(sc.completed, 'Defeat the master of the pyramid in the burial chamber.');
         h += step(sc.completed, sc.completed ? 'A portal burns in the burial chamber — descend or return to town.' : 'The portal opens in the burial chamber when its master falls.');
       } else if (w.biome?.id === 'sea_of_sand') {
-        const beat = sc.current, total = sc.total || 1, done = sc.beat || 0;
-        h += step(done > 0, `Secure the marked Sea of Sand areas: <b>${Math.min(done + 1, total)}/${total}</b> current · ${done}/${total} complete.`);
+        const beat=sc.current, total=sc.total||1, done=sc.beat||0;
+        h += step(done>0, `Secure the marked Sea of Sand areas: <b>${Math.min(done+1,total)}/${total}</b> current · ${done}/${total} complete.`);
         if (beat) {
-          const timer = beat.timer > 0 ? ` Timer: ${Math.max(0, Math.ceil(beat.timer - beat.seconds))}s.` : '';
-          const progress = beat.failed ? 'Failed — return to the shrine to retry.' : beat.goal > 0 ? `${beat.kills || 0}/${beat.goal} objective progress.` : beat.description || 'Scenario in progress.';
+          const timer=beat.timer>0?` Timer: ${Math.max(0,Math.ceil(beat.timer-beat.seconds))}s.`:'';
+          const progress=beat.failed?'Failed — return to the shrine to retry.':beat.goal>0?`${beat.kills||0}/${beat.goal} objective progress.`:beat.description||'Scenario in progress.';
           h += step(beat.completed, `${escapeHtml(beat.title)} — ${escapeHtml(progress)}${timer}`);
         }
         h += step(sc.completed, sc.completed ? 'The exit is open — descend or return to town.' : 'Clear each scenario shrine to unseal the exit. Every area grants fine gear (Epic or better once deep enough).');
       } else {
-        h += step(sc.active || sc.completed, `Activate the glowing scenario shrine: <b>${escapeHtml(sc.title)}</b>.`);
-        let progress = sc.description;
-        if (sc.active && ['waves', 'battle', 'bridge', 'ward', 'defend', 'infestation'].includes(sc.type)) progress += ` Wave ${sc.stage} in progress.`;
-        if (sc.active && sc.markers.length) progress += ` ${sc.remaining} objectives remaining.`;
-        if (sc.active && sc.type === 'zones') progress += ` Control point ${sc.stage + 1}/3, ${Math.floor(sc.capture)}/10 seconds.`;
-        if (sc.active && sc.type === 'trial') progress += ` ${sc.kills}/${sc.goal} slain; ${Math.ceil(sc.remaining)}s left.`;
-        if (sc.failed) progress = 'Scenario failed. Return to the shrine to retry.';
-        h += step(sc.completed, escapeHtml(progress));
-        h += step(sc.completed, sc.completed ? 'The exit is open — descend or return to town.' : 'Complete the scenario to unseal the exit.');
+      h += step(sc.active || sc.completed, `Activate the glowing scenario shrine: <b>${escapeHtml(sc.title)}</b>.`);
+      let progress = sc.description;
+      if (sc.active && ['waves','battle','bridge','ward','defend','infestation'].includes(sc.type)) progress += ` Wave ${sc.stage} in progress.`;
+      if (sc.active && sc.markers.length) progress += ` ${sc.remaining} objectives remaining.`;
+      if (sc.active && sc.type === 'zones') progress += ` Control point ${sc.stage+1}/3, ${Math.floor(sc.capture)}/10 seconds.`;
+      if (sc.active && sc.type === 'trial') progress += ` ${sc.kills}/${sc.goal} slain; ${Math.ceil(sc.remaining)}s left.`;
+      if (sc.failed) progress = 'Scenario failed. Return to the shrine to retry.';
+      h += step(sc.completed, escapeHtml(progress));
+      h += step(sc.completed, sc.completed ? 'The exit is open — descend or return to town.' : 'Complete the scenario to unseal the exit.');
       }
     } else {
       const sc = w.scenario;

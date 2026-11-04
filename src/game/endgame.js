@@ -1,11 +1,11 @@
 // The Endgame's shared record (docs/ENDGAME.md): what every hero on this browser shares once any of them has slain
-// Dagyr for real: the unlock, the Infernal Marks (game/marks.js), the best Abyssal Rift per class, counters. It lives in
+// Velscour for real: the unlock, the Infernal Marks (game/marks.js), the best Abyssal Rift per class, counters. It lives in
 // its own localStorage key beside the heroes' saves and the Reliquary; a signed-in player's copy goes to Firestore
 // (users/{uid}/account/endgame, game/cloud.js) and the two are merged by mergeEndgame, which never loses anything.
 import { G } from '../state.js';
 import { FINAL_DEPTH } from '../data/depth.js';
 
-const KEY = 'Dagyr_endgame_v1';
+const KEY = 'Velscour_endgame_v1';
 export const MARK_CATS = ['life', 'crit', 'mf', 'rift'];
 let E = null;
 const listeners = [];
@@ -50,9 +50,9 @@ export function onEndgameChange(fn) { listeners.push(fn); }
 /** Tests: forget the cached copy (the next call reads localStorage again). */
 export function resetEndgameCache() { E = null; }
 
-/** Has the Endgame opened: any hero on this browser slew Dagyr, or this hero cleared depth 500. */
+/** Has the Endgame opened: any hero on this browser slew Velscour, or this hero cleared depth 500. */
 export function endgameUnlocked(c = G.char) { return !!(endgame().unlocked || (c && c.cleared && c.cleared[FINAL_DEPTH])); }
-/** Dagyr slain for real: the altar and the rift gate open for every hero. */
+/** Velscour slain for real: the altar and the rift gate open for every hero. */
 export function unlockEndgame() {
   const r = endgame();
   if (r.unlocked) return false;

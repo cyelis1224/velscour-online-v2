@@ -19,15 +19,15 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     const p2 = await ctx2.newPage();
 
     for (const p of [p1, p2]) {
-      await p.addInitScript(() => { window.DAGYR_TEST_MENU = true; });
+      await p.addInitScript(() => { window.VELSCOUR_TEST_MENU = true; });
     }
 
     console.log('Navigating players to game...');
     await p1.goto(BASE_URL + '/index.html');
     await p2.goto(BASE_URL + '/index.html');
 
-    await p1.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
-    await p2.waitForFunction(() => window.DAGYR && document.querySelector('#loading').classList.contains('hidden'));
+    await p1.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
+    await p2.waitForFunction(() => window.VELSCOUR && document.querySelector('#loading').classList.contains('hidden'));
 
     // Inject hero saves
     await p1.evaluate(async () => {
@@ -72,7 +72,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p1.fill('#d2-create-name', roomName);
     await p1.click('.d2-create-view button:has-text("CREATE GAME")');
 
-    await p1.waitForFunction(() => window.DAGYR.G.mode === 'game' && window.DAGYR.G.world?.kind === 'town');
+    await p1.waitForFunction(() => window.VELSCOUR.G.mode === 'game' && window.VELSCOUR.G.world?.kind === 'town');
     console.log('P1 created room in town.');
 
     // P2 joins room
@@ -86,7 +86,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(300);
     await p2.click('.d2-join-view button:has-text("JOIN GAME")');
 
-    await p2.waitForFunction(() => window.DAGYR.G.mode === 'game' && window.DAGYR.G.world?.kind === 'town');
+    await p2.waitForFunction(() => window.VELSCOUR.G.mode === 'game' && window.VELSCOUR.G.world?.kind === 'town');
     console.log('P2 joined room in town.');
 
     await p1.waitForTimeout(1000);
@@ -94,39 +94,39 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     // Walk both players to portal
     await p1.evaluate(() => {
-      const portal = window.DAGYR.G.world.portals[0];
-      window.DAGYR.G.player.x = portal.x;
-      window.DAGYR.G.player.y = portal.y;
-      window.DAGYR.G.char.nextBiome = 'catacombs';
-      window.DAGYR.G.char.heresy = { on: ['twins'] };
+      const portal = window.VELSCOUR.G.world.portals[0];
+      window.VELSCOUR.G.player.x = portal.x;
+      window.VELSCOUR.G.player.y = portal.y;
+      window.VELSCOUR.G.char.nextBiome = 'catacombs';
+      window.VELSCOUR.G.char.heresy = { on: ['twins'] };
     });
     await p2.evaluate(() => {
-      const portal = window.DAGYR.G.world.portals[0];
-      window.DAGYR.G.player.x = portal.x;
-      window.DAGYR.G.player.y = portal.y;
+      const portal = window.VELSCOUR.G.world.portals[0];
+      window.VELSCOUR.G.player.x = portal.x;
+      window.VELSCOUR.G.player.y = portal.y;
     });
 
     await p1.waitForFunction(() => {
-      const portal = window.DAGYR.G.world.portals[0];
-      return window.DAGYR.game.getPlayersAwayFromPortal(portal).length === 0;
+      const portal = window.VELSCOUR.G.world.portals[0];
+      return window.VELSCOUR.game.getPlayersAwayFromPortal(portal).length === 0;
     }, null, { timeout: 10000 });
 
     // P1 activates portal to dungeon
     await p1.evaluate(() => {
-      window.DAGYR.game.enterDungeon();
+      window.VELSCOUR.game.enterDungeon();
     });
 
     // P2 waits for room sync and enters
     await p2.waitForFunction(() => {
-      return window.DAGYR.G.room?.biome === 'catacombs' && window.DAGYR.G.room?.heresies?.includes('twins');
+      return window.VELSCOUR.G.room?.biome === 'catacombs' && window.VELSCOUR.G.room?.heresies?.includes('twins');
     }, null, { timeout: 5000 });
 
     await p2.evaluate(() => {
-      window.DAGYR.game.enterDungeon();
+      window.VELSCOUR.game.enterDungeon();
     });
 
-    await p1.waitForFunction(() => window.DAGYR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
-    await p2.waitForFunction(() => window.DAGYR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
+    await p1.waitForFunction(() => window.VELSCOUR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
+    await p2.waitForFunction(() => window.VELSCOUR.G.world?.kind === 'dungeon' && !document.querySelector('#loading:not(.hidden)'), null, { timeout: 15000 });
     console.log('Both players arrived in dungeon.');
 
     await p1.waitForTimeout(1000);
@@ -137,7 +137,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // -------------------------------------------------------------
     console.log('\n--- TEST 1: Champions Synchronization ---');
     const championsP1 = await p1.evaluate(() => {
-      return window.DAGYR.G.world.creatures
+      return window.VELSCOUR.G.world.creatures
         .filter(c => c.team === 'enemy' && (c.rank === 'champion' || c.rank === 'unique'))
         .map(c => ({
           netId: c.netId,
@@ -152,7 +152,7 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     });
 
     const championsP2 = await p2.evaluate(() => {
-      return window.DAGYR.G.world.creatures
+      return window.VELSCOUR.G.world.creatures
         .filter(c => c.team === 'enemy' && (c.rank === 'champion' || c.rank === 'unique'))
         .map(c => ({
           netId: c.netId,
@@ -188,23 +188,23 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     console.log('\n--- TEST 2: Boss Awakening via Remote Player ---');
     // Verify boss is initially not awake
     const bossInitialP1 = await p1.evaluate(() => {
-      const b = window.DAGYR.G.world.boss;
+      const b = window.VELSCOUR.G.world.boss;
       return { awake: b.awake, hp: b.hp, x: b.x, y: b.y };
     });
     console.log('Boss initial state on P1:', bossInitialP1);
 
     // Teleport P2 (Guest) near the boss while P1 stays at spawn
     await p2.evaluate((bossPos) => {
-      window.DAGYR.G.player.x = bossPos.x + 2;
-      window.DAGYR.G.player.y = bossPos.y + 2;
+      window.VELSCOUR.G.player.x = bossPos.x + 2;
+      window.VELSCOUR.G.player.y = bossPos.y + 2;
     }, bossInitialP1);
 
     // Wait 1 second for simulation tick & network sync
     await p1.waitForTimeout(1200);
     await p2.waitForTimeout(1200);
 
-    const bossAwakeP1 = await p1.evaluate(() => window.DAGYR.G.world.boss?.awake);
-    const bossAwakeP2 = await p2.evaluate(() => window.DAGYR.G.world.boss?.awake);
+    const bossAwakeP1 = await p1.evaluate(() => window.VELSCOUR.G.world.boss?.awake);
+    const bossAwakeP2 = await p2.evaluate(() => window.VELSCOUR.G.world.boss?.awake);
     const bossBarP1Visible = await p1.evaluate(() => !document.querySelector('#boss-bar').classList.contains('hidden'));
     const bossBarP2Visible = await p2.evaluate(() => !document.querySelector('#boss-bar').classList.contains('hidden'));
 
@@ -220,15 +220,15 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // TEST 3: Ambush Spawning Synchronization
     // -------------------------------------------------------------
     console.log('\n--- TEST 3: Ambush Spawning Synchronization ---');
-    const monsterCountBeforeP1 = await p1.evaluate(() => window.DAGYR.G.world.creatures.filter(c => c.team === 'enemy').length);
-    const monsterCountBeforeP2 = await p2.evaluate(() => window.DAGYR.G.world.creatures.filter(c => c.team === 'enemy').length);
+    const monsterCountBeforeP1 = await p1.evaluate(() => window.VELSCOUR.G.world.creatures.filter(c => c.team === 'enemy').length);
+    const monsterCountBeforeP2 = await p2.evaluate(() => window.VELSCOUR.G.world.creatures.filter(c => c.team === 'enemy').length);
 
     // P1 (authority) triggers an ambush targeting P2
     await p1.evaluate(async () => {
       const { ambush } = await import('/src/game/mayhem.js');
-      const w = window.DAGYR.G.world;
+      const w = window.VELSCOUR.G.world;
       // target remote player
-      const guest = [...window.DAGYR.G.remotePlayers.values()][0];
+      const guest = [...window.VELSCOUR.G.remotePlayers.values()][0];
       ambush(w, 'drop', 4, guest);
     });
 
@@ -237,13 +237,13 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     await p2.waitForTimeout(1000);
 
     const ambushesP1 = await p1.evaluate(() => {
-      return window.DAGYR.G.world.creatures
+      return window.VELSCOUR.G.world.creatures
         .filter(c => c.team === 'enemy' && c.ambusher)
         .map(c => ({ netId: c.netId, rank: c.rank, name: c.name, affixes: c.affixes, aura: c.aura }));
     });
 
     const ambushesP2 = await p2.evaluate(() => {
-      return window.DAGYR.G.world.creatures
+      return window.VELSCOUR.G.world.creatures
         .filter(c => c.team === 'enemy' && c.ambusher)
         .map(c => ({ netId: c.netId, rank: c.rank, name: c.name, affixes: c.affixes, aura: c.aura }));
     });
@@ -271,8 +271,8 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
     // Build depth 5 on both players with same seed
     const raidBossP1 = await p1.evaluate(async () => {
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
-      window.DAGYR.game.buildDungeon(5, BIOME_BY_ID.catacombs);
-      const b = window.DAGYR.G.world.boss;
+      window.VELSCOUR.game.buildDungeon(5, BIOME_BY_ID.catacombs);
+      const b = window.VELSCOUR.G.world.boss;
       return b ? {
         name: b.name,
         title: b.title,
@@ -285,8 +285,8 @@ const CHROMIUM_PATH = fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' :
 
     const raidBossP2 = await p2.evaluate(async () => {
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
-      window.DAGYR.game.buildDungeon(5, BIOME_BY_ID.catacombs);
-      const b = window.DAGYR.G.world.boss;
+      window.VELSCOUR.game.buildDungeon(5, BIOME_BY_ID.catacombs);
+      const b = window.VELSCOUR.G.world.boss;
       return b ? {
         name: b.name,
         title: b.title,

@@ -11,7 +11,7 @@ const { openGame, report } = require('./harness');
   if (process.argv[2] && process.argv[2] !== '-') await page.evaluate((t) => { window.SCENARIO_ONLY = t.split(','); }, process.argv[2]); // node scenarios.js merchants,brew
   if (process.argv[3]) await page.evaluate((t) => { window.SCENARIO_CASTLES = t; }, process.argv[3]);
   const res = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('paladin', 'Scenario Bot');
     G.char.depth = 19; G.godMode = true;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');

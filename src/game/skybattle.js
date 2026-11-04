@@ -1,7 +1,7 @@
 // THE SKY BATTLE (docs/SKY_BATTLE.md): the heroes' ironclad (world/skyship.js) over open sky, and the director that runs
 // the fight on its deck. The hero steps out of the portal in the bridge's great door; Air Pirate boats lie alongside to
 // port and their crews leap the rail in waves; a captain leads the third; two more waves; then a parley with the next
-// captain and two sky-knights sworn to Dagyr (data/skytalk.js, 2,000 talks), a truce, and the flagship out of the
+// captain and two sky-knights sworn to Velscour (data/skytalk.js, 2,000 talks), a truce, and the flagship out of the
 // clouds: a cannon duel as she closes, grappling hooks from both ships, two captains over the rail, the last fight. The
 // gate turns to the exit and a hoard chest rises on the hatch. Eight variants (data/skybattle.js) change the sky, and in
 // six the weather fights too. Cut scenes are game/cinema.js; drawing is gfx/skyship.js.
@@ -31,10 +31,10 @@ import { RUNEBLADE_PALETTES, RUNEBLADE_SKINS, preloadRuneblade, drawRuneblade3D 
 import { OX, OY, LV, FC_H, QD_H, GATE, LANDING, beam, sheer, inner, sAt, zAt } from '../world/skyship.js';
 
 const HS = 4;
-const ARRIVE = ['So this is the sky lane. Nice view. Terrible neighbours.', 'Through the gate and onto a warship. Dagyr, you shouldn\'t have.',
+const ARRIVE = ['So this is the sky lane. Nice view. Terrible neighbours.', 'Through the gate and onto a warship. Velscour, you shouldn\'t have.',
   'Air Pirates, huh? Let them come.', 'Never look down. Never look down. ...I looked down.', 'Steady deck, strong wind, black sails coming. Perfect.',
   'Every pirate in the sky is coming for this ship. Good. Saves me the walk.', 'Hold the deck. Hold it until there is nobody left to hold it from.'];
-const VICTORY = ['And STAY down.', 'That is how you hold a deck.', 'Tell Dagyr his fleet needs practice.', 'The sky is ours. For today.', 'Next time, bring a bigger boat.'];
+const VICTORY = ['And STAY down.', 'That is how you hold a deck.', 'Tell Velscour his fleet needs practice.', 'The sky is ours. For today.', 'Next time, bring a bigger boat.'];
 /** The knights' animations for their lines: a townsfolk pose and how the body moves (drawNpc's n.motion). */
 export const KNIGHT_ACTS = {
   laugh: ['happy', (t) => ({ dy: Math.abs(Math.sin(t * 16)) * 3 })],
@@ -387,7 +387,7 @@ export function createSkyBattle(world, gen, biome, depth, opts, onSuccess) {
   let lastRail = [OX - 15, OY, 6];
   const flagRail = (i) => { const g = S.galleon; if (!g) return lastRail; const [x, y, z] = A.galleon.rail[i % A.galleon.rail.length]; return (lastRail = [g.x + x, g.y + z, g.lv + y * LV]); };
   const KNIGHT_TAUNTS = ['Get them, Captain!', 'For the black sail!', 'Left! No, YOUR left!', 'Ooh. That looked like it hurt.', 'Still not joining you!', 'Mind the furnaces, Captain!',
-    'Do the spinny thing!', 'I am cheering VERY professionally.', 'Dagyr is watching! Probably!', 'This is better than the shanties!'];
+    'Do the spinny thing!', 'I am cheering VERY professionally.', 'Velscour is watching! Probably!', 'This is better than the shanties!'];
   const KNIGHT_GRIEF = ['CAPTAIN!', 'No no no no NO!', 'You will pay for that! Eventually!', 'Captain... I will sing the shanty of you.'];
 
   // ------------------------------------------------------------------ portraits for the dialogue panel
@@ -682,7 +682,7 @@ export function createSkyBattle(world, gen, biome, depth, opts, onSuccess) {
     // ...the flagship: out of a cloud bank to port, guns already run out
     steps.push({ do: () => { camera.shakeAmt = 10; sfx('boss'); S.flash = 0.4; spawnGalleon(); } });
     steps.push(on(galleonAt, 0.62, 1.1, { ease: 'out', wait: true, push: 0.025 }));
-    steps.push({ card: [v.ship || 'THE BLACK MOURNING', v.shipSub || 'The flagship of Dagyr\'s sky fleet'], dur: 3 });
+    steps.push({ card: [v.ship || 'THE BLACK MOURNING', v.shipSub || 'The flagship of Velscour\'s sky fleet'], dur: 3 });
     steps.push({ do: () => rangingShots() });
     steps.push({ wait: 2.6 });
     for (const ln of L.twist ? L.twist.map((q) => ({ ...q, text: fillAll(q.text) })) : [twistLine(run.talk, ctx())]) {

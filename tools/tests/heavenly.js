@@ -8,7 +8,7 @@ const { openGame, report, OUT_DIR } = require('./harness');
   const { browser, page, errors, shot } = await openGame({ width: 1440, height: 960 });
   try {
     const info = await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar('paladin', 'Heavenly QA');
       document.querySelectorAll('.screen').forEach(s => s.remove());
       G.ui.modalCount = 0; G.godMode = true;

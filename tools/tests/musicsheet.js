@@ -48,7 +48,7 @@ E|---------------------------|---------------------------|`;
 
   // ------------------------------------------------------------ 2. buy, write, lock, load
   const ui = await page.evaluate(async (ODE) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('bard', 'Tabby');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0;
     G.char.gold = 1000;
@@ -64,7 +64,7 @@ E|---------------------------|---------------------------|`;
   if (ui.sheets !== 5 || ui.gold !== 900) fail(`buying 5 sheets: ${JSON.stringify(ui)}`);
   await page.screenshot({ path: `${OUT_DIR}/sheet_shop${SUF}.png` });
   const ed = await page.evaluate(async (ODE) => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const { UI } = await import('/src/ui/ui.js'); UI.closeAll();
     const { useSheet } = await import('/src/ui/sheets.js');
     const idx = G.char.bag.findIndex((b) => b && b.type === 'sheet');
@@ -92,7 +92,7 @@ E|---------------------------|---------------------------|`;
   if (!/26 notes/.test(ed2)) fail('editor status: ' + ed2);
   await page.screenshot({ path: `${OUT_DIR}/sheet_editor${SUF}.png` });
   const locked = await page.evaluate(async (idx) => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const btn = (t) => [...document.querySelectorAll('.dialog-box .btn')].reverse().find((b) => b.textContent === t);
     btn('Lock').click(); await new Promise((r) => setTimeout(r, 100));
     btn('Lock').click(); await new Promise((r) => setTimeout(r, 100)); // the confirmation
@@ -113,7 +113,7 @@ E|---------------------------|---------------------------|`;
 
   // ------------------------------------------------------------ 3. the song as he fights
   const song = await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { UI } = await import('/src/ui/ui.js'); UI.closeAll();
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
@@ -174,7 +174,7 @@ E|---------------------------|---------------------------|`;
   if (!song.melodies) fail('empty Tabs did not go back to the melodies');
   // a performed bar from a sheet, with the song's name over it
   await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const { CLASS_SKILLS } = await import('/src/data/skills.js');
     const p = G.player, pn = CLASS_SKILLS.bard.find((s) => s.name === 'Plucked Note');
     if (p.score.play && !p.score.play.done) p.score.play.flush();
@@ -182,14 +182,14 @@ E|---------------------------|---------------------------|`;
     for (let i = 0; i < 3; i++) { p.castLock = 0; p.cooldowns = {}; p.mana = 99999; p.tryUseSkill(pn, p.x + 3, p.y); }
     G.world.hazards = G.world.hazards.filter((h) => h !== p.score.play);
     p.castLock = 0; p.cooldowns = {}; p.tryUseSkill(pn, p.x + 3, p.y);
-    for (let i = 0; i < 18; i++) window.DAGYR.game.update(1 / 60);
+    for (let i = 0; i < 18; i++) window.VELSCOUR.game.update(1 / 60);
     await new Promise((r) => setTimeout(r, 150));
   });
   await page.screenshot({ path: `${OUT_DIR}/sheet_bar${SUF}.png` });
 
   // ------------------------------------------------------------ 4. saves, auto-play
   const sv = await page.evaluate(async (minutes) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { migrate } = await import('/src/game/save.js');
     const copy = JSON.parse(JSON.stringify(G.char));
     const old = JSON.parse(JSON.stringify(G.char)); delete old.tabs; delete old.tabAt; migrate(old);

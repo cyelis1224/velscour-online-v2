@@ -9,7 +9,7 @@ const { openGame, report } = require('./harness');
   await page.waitForTimeout(1200);
   // a level-30 paladin with the hammer skills, in a depth-12 dungeon
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const c = G.char;
     c.level = 30;
     for (const id of ['paladin.0.0', 'paladin.0.1', 'paladin.0.3', 'paladin.0.4', 'paladin.0.8', 'paladin.0.12', 'paladin.0.9', 'paladin.0.13']) c.skills[id] = 10;
@@ -23,7 +23,7 @@ const { openGame, report } = require('./harness');
   const res = {};
   for (const id of AUGS) {
     res[id] = await page.evaluate(async (id) => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       const { rollItem } = await import('/src/data/items.js');
       const { makeMonster } = await import('/src/game/monster.js');
       const c = G.char, p = G.player, w = G.world;
@@ -52,7 +52,7 @@ const { openGame, report } = require('./harness');
   }
   // mastery: gain, levels, damage multiplier
   const ms = await page.evaluate(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const { SKILLS } = await import('/src/data/skills.js');
     const p = G.player, sk = SKILLS['paladin.0.12'];
     const d1 = p.skillDamage(sk, 10)[1];
@@ -66,7 +66,7 @@ const { openGame, report } = require('./harness');
   // pictures: Wheel of Hammers + Storm Tether + Immolation, at mastery 1 and 1000
   for (const M of [1, 1000]) {
     await page.evaluate(async (M) => {
-      const { G } = window.DAGYR;
+      const { G } = window.VELSCOUR;
       const { SKILLS } = await import('/src/data/skills.js');
       const { rollItem } = await import('/src/data/items.js');
       const c = G.char, p = G.player, w = G.world;
@@ -84,7 +84,7 @@ const { openGame, report } = require('./harness');
   }
   // UI: inventory with four rings, a ring tooltip, the Gem Forge, the skill book
   await page.evaluate(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { rollItem, makeGem } = await import('/src/data/items.js');
     const c = G.char;
     for (const s of ['ring1', 'ring2', 'ring3', 'ring4']) c.equip[s] = rollItem(25, { slot: 'ring', rarity: 2 + ['ring1', 'ring2', 'ring3', 'ring4'].indexOf(s) });
@@ -100,7 +100,7 @@ const { openGame, report } = require('./harness');
   await page.evaluate(async () => { (await import('/src/ui/vendor.js')).Vendor.open('gems'); });
   await page.waitForTimeout(500); await shot('rings_gemforge');
   await page.click('text=Fuse all'); await page.waitForTimeout(300);
-  const gems = await page.evaluate(() => window.DAGYR.G.char.bag.filter((b) => b && b.type === 'gem').map((b) => `${b.gem}:${b.tier}x${b.count || 1}`).join(' '));
+  const gems = await page.evaluate(() => window.VELSCOUR.G.char.bag.filter((b) => b && b.type === 'gem').map((b) => `${b.gem}:${b.tier}x${b.count || 1}`).join(' '));
   console.log('after fuse all:', gems);
   if (!/ruby:3/.test(gems)) errors.push('Fuse all did not fuse rubies');
   await page.evaluate(async () => { (await import('/src/ui/vendor.js')).Vendor.open('socket'); });

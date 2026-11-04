@@ -9,7 +9,7 @@ const { openGame, report } = require('./harness');
 
   // 1. Initialize character and grant Infernal Marks
   await ev(async () => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     await game.newChar('barbarian', 'MarkTester');
     const { endgame, saveEndgame } = await import('/src/game/endgame.js');
     const em = endgame();
@@ -19,7 +19,7 @@ const { openGame, report } = require('./harness');
   });
 
   const res = await ev(async () => {
-    const { G } = window.DAGYR;
+    const { G } = window.VELSCOUR;
     const {
       bagRows, nextBagRowCost, canBuyBagRow, buyBagRow, fixBag,
       gemBagRows, nextGemBagRowCost, canBuyGemBagRow, buyGemBagRow, fixGemBag,

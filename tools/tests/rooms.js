@@ -4,11 +4,11 @@ const { openGame, report } = require('./harness');
 const biomes = (process.argv[2] || 'catacombs,cathedral,necropolis,frozen,hell').split(','), levels = +(process.argv[3] || 6);
 (async () => {
   const { browser, page, errors, shot } = await openGame({ width: 1280, height: 720 });
-  await page.evaluate(async () => { const { G, game } = window.DAGYR; await game.newChar('paladin', 'Rooms'); document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.godMode = true; });
+  await page.evaluate(async () => { const { G, game } = window.VELSCOUR; await game.newChar('paladin', 'Rooms'); document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.godMode = true; });
   const shotDone = new Set();
   for (const id of biomes) for (let l = 0; l < levels; l++) {
     const r = await page.evaluate(async ([id, l]) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { loadBiomeArt } = await import('/src/core/assets.js');
       const b = BIOME_BY_ID[id]; await loadBiomeArt(b);
@@ -24,14 +24,14 @@ const biomes = (process.argv[2] || 'catacombs,cathedral,necropolis,frozen,hell')
       w.creatures = w.creatures.filter((c) => c === p);
       return { lost, exitOk, chestsOk, rooms: (w.genRooms || []).length };
     }, [id, l]);
-    const info = await page.evaluate(async () => (window.DAGYR.G.world.rooms || []).map((r) => [r.shape, r.plan, r.mx, r.my]));
+    const info = await page.evaluate(async () => (window.VELSCOUR.G.world.rooms || []).map((r) => [r.shape, r.plan, r.mx, r.my]));
     console.log(`${id} L${l}: lost=${r.lost} exitOk=${r.exitOk} chestsOk=${r.chestsOk} rooms=${info.map((x) => (x[0] || '-') + '/' + (x[1] || '-')).join(' ')}`);
     if (r.lost || !r.exitOk || !r.chestsOk) errors.push(`${id} L${l}: lost ${r.lost} exit ${r.exitOk} chests ${r.chestsOk}`);
     for (const [shape, plan, mx, my] of info) {
       const key = (shape !== 'rect' ? shape : '') + (plan || '');
       if (!key || shotDone.has(key)) continue;
       shotDone.add(key);
-      await page.evaluate(([x, y]) => { const { G } = window.DAGYR; const p = G.player; const m = G.world.map; let [px, py] = [x, y]; if (!m.walkable(px, py)) [px, py] = m.randomNear(x, y, 3); p.x = px; p.y = py; }, [mx, my]);
+      await page.evaluate(([x, y]) => { const { G } = window.VELSCOUR; const p = G.player; const m = G.world.map; let [px, py] = [x, y]; if (!m.walkable(px, py)) [px, py] = m.randomNear(x, y, 3); p.x = px; p.y = py; }, [mx, my]);
       await page.waitForTimeout(700);
       await shot(`room_${key}_${id}`);
     }

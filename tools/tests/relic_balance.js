@@ -14,7 +14,7 @@ const samples = +(process.argv[3] || 16);
   const rows = [];
   for (const cls of classes) {
     const res = await page.evaluate(async ({ cls, samples }) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { Auto, charScore } = await import('/src/game/autoplay.js');
       const { rollItem, RING_SLOTS } = await import('/src/data/items.js');
       const R = await import('/src/data/relics.js');

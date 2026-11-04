@@ -30,9 +30,9 @@ const cls = process.argv[2] || 'wizard', minutes = +(process.argv[3] || 30), eve
     w.clearInterval = (id) => { w.__lr.iv.delete(id); ci(id); };
   });
   await page.evaluate(async (cls) => {
-    await window.DAGYR.game.newChar(cls, 'Longrun');
+    await window.VELSCOUR.game.newChar(cls, 'Longrun');
     const { Auto } = await import('/src/game/autoplay.js');
-    window.DAGYR.G.autoOpenSeals = true;
+    window.VELSCOUR.G.autoOpenSeals = true;
     Auto.toggle(true);
   }, cls);
   await page.waitForTimeout(800);
@@ -46,7 +46,7 @@ const cls = process.argv[2] || 'wizard', minutes = +(process.argv[3] || 30), eve
   const rows = [];
   for (let min = 1; min <= minutes; min++) {
     const res = await page.evaluate(async (every) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       let sim = 0, k = 0;
       const t0 = performance.now();
       while (sim < 60) {

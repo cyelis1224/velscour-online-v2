@@ -1,4 +1,4 @@
-// Visual test for DAGYR Diablo II Lobby
+// Visual test for VELSCOUR Diablo II Lobby
 const { openGame, report } = require('./harness');
 
 (async () => {
@@ -45,7 +45,7 @@ const { openGame, report } = require('./harness');
     await page.waitForTimeout(1500);
 
     // Verify in game world
-    const inGame = await page.evaluate(() => window.DAGYR.G.mode === 'game');
+    const inGame = await page.evaluate(() => window.VELSCOUR.G.mode === 'game');
     console.log('Is in game world:', inGame);
     await page.screenshot({ path: 'tools/tests/out/multiplayer_town.png' });
 

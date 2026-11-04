@@ -1,6 +1,6 @@
 """
 Build docs/art_kits/ChatGPT_Lancer_Banner_Kit.zip: everything ChatGPT (the chat app, no repo access) needs to draw
-the Lancer's war banner (his class signature, src/game/sigs/lancer.js) as real sprites in the DAGYR style:
+the Lancer's war banner (his class signature, src/game/sigs/lancer.js) as real sprites in the VELSCOUR style:
 templates, a flat layout example, the Lancer at banner scale, the palette, the spec and the prompts.
 
     python tools/chatgpt_banner_kit.py               # writes the zip
@@ -27,7 +27,7 @@ LABEL_W, HEAD_H, GAP = 160, 48, 28
 POLE_X, BAR_Y, MOUNT_Y, CLOTH_W, CLOTH_L = 32, 16, 174, 40, 88
 MAG, CY, YEL, GRN, INK = (255, 0, 255, 255), (0, 229, 255, 255), (255, 210, 122, 255), (120, 255, 140, 255), (255, 255, 255, 255)
 
-# palette (from docs/art_style/01_DAGYR_ART_BIBLE.md section 6)
+# palette (from docs/art_style/01_VELSCOUR_ART_BIBLE.md section 6)
 RAMPS = {
   'Night indigo (the field)': ['#0a0a18', '#161a34', '#242c52', '#34406e', '#4c5c92', '#7084b8'],
   'Reliquary gold (heraldic ochre: border, emblem, finial)': ['#1a1006', '#3a240c', '#63401a', '#8e6427', '#b98e3c', '#dcbf6a', '#f4e3a6'],

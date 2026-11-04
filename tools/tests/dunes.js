@@ -1,5 +1,5 @@
 // The Sea of Sand's dune variants live (src/data/dunes.js, world/dunes.js, gfx/dunes3d.js, game/dunes.js): each variant
-// built through Dagyr's skull path, its 3D scenes up, picking on the dunes; a camp's fight starts; the pyramid seen
+// built through Velscour's skull path, its 3D scenes up, picking on the dunes; a camp's fight starts; the pyramid seen
 // from its plaza; the door opens once the camps are won and the party goes in; a tomb room's fight starts and its slab
 // sinks when it is won; the burial chamber's master rises, falls, and the portal opens. Shots per stage. 'auto': then
 // auto-play takes the first variant's whole level, waystones to portal ('noflow' skips the staged checks).
@@ -11,25 +11,25 @@ const arg = process.argv[2] || 'all', mobile = process.argv.includes('mobile'), 
   try {
     const ids = await page.evaluate(async (arg) => {
       const { DUNE_VARIANTS } = await import('/src/data/dunes.js');
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar('paladin', 'Dune QA');
       document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll();
       return arg === 'all' ? DUNE_VARIANTS.map((v) => v.id) : arg.split(',');
     }, arg);
     const pre = mobile ? 'dunes_mobile_' : 'dunes_';
     const step = (secs) => page.evaluate(async (secs) => {   // the game run forward by hand (30 steps a second)
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       for (let i = 0; i < secs * 30; i++) { G.dt = 1 / 30; G.time += G.dt; G.frame++; game.update(1 / 30); if (i % 30 === 29) await new Promise((r) => setTimeout(r, 0)); }
     }, secs);
     const view = (x, y, zoom) => page.evaluate(async ([x, y, zoom]) => {
-      const { G } = window.DAGYR, { camera } = await import('/src/core/view.js');
+      const { G } = window.VELSCOUR, { camera } = await import('/src/core/view.js');
       G.player.x = x; G.player.y = y; G.player.path = null;
       if (zoom) { G.settings.zoom = 1; camera.computeZoom(); G.settings.zoom = zoom / camera.zoom; camera.computeZoom(); }
       camera.follow(x, y, 0, true);
     }, [x, y, zoom]);
     for (const id of FLOW ? ids : []) {
       const info = await page.evaluate(async (id) => {
-        const { G, game } = window.DAGYR, { DUNE_VARIANTS } = await import('/src/data/dunes.js'), { BIOME_BY_ID } = await import('/src/data/biomes.js');
+        const { G, game } = window.VELSCOUR, { DUNE_VARIANTS } = await import('/src/data/dunes.js'), { BIOME_BY_ID } = await import('/src/data/biomes.js');
         G.char.depth = 12; G.godMode = true; G.settings.zoom = 1;
         G.sandVariant = 1 + DUNE_VARIANTS.findIndex((v) => v.id === id);
         await game.teleportToBiome(BIOME_BY_ID.sea_of_sand);
@@ -53,28 +53,28 @@ const arg = process.argv[2] || 'all', mobile = process.argv.includes('mobile'), 
       await view(info.start[0], info.start[1], 0.9); await page.waitForTimeout(600); await shot(pre + id + '_arrive');
       // a camp's fight
       await view(info.camp[0], info.camp[1] + 2); await step(2);
-      const camp = await page.evaluate(() => { const r = window.DAGYR.G.world.overworldScenario; return { state: r.camps[0].state, foes: r.camps[0].foes.length + r.camps[0].objs.length + r.camps[0].marks.length, hud: r.hud }; });
+      const camp = await page.evaluate(() => { const r = window.VELSCOUR.G.world.overworldScenario; return { state: r.camps[0].state, foes: r.camps[0].foes.length + r.camps[0].objs.length + r.camps[0].marks.length, hud: r.hud }; });
       if (camp.state !== 'active') errors.push(`[dunes ${id}] the first camp's fight did not start: ${JSON.stringify(camp)}`);
       await page.waitForTimeout(500); await shot(pre + id + '_camp');
       // the pyramid from the plaza, then its door once the camps are won
       await view(info.plaza[0], info.plaza[1] + 8, 0.55); await page.waitForTimeout(700); await shot(pre + id + '_pyramid');
-      await page.evaluate(() => { const { G } = window.DAGYR, r = G.world.overworldScenario; G.world.creatures = G.world.creatures.filter((c) => c === G.player || c.team === 'player'); G.world.rebuildGrid(); for (const e of r.camps) e.state = 'done'; });
+      await page.evaluate(() => { const { G } = window.VELSCOUR, r = G.world.overworldScenario; G.world.creatures = G.world.creatures.filter((c) => c === G.player || c.team === 'player'); G.world.rebuildGrid(); for (const e of r.camps) e.state = 'done'; });
       await step(3.5);
-      const door = await page.evaluate(() => { const { G } = window.DAGYR, r = G.world.overworldScenario; return { phase: r.phase, open: r.doorOpen }; });
+      const door = await page.evaluate(() => { const { G } = window.VELSCOUR, r = G.world.overworldScenario; return { phase: r.phase, open: r.doorOpen }; });
       if (door.phase !== 'door') errors.push(`[dunes ${id}] the door did not open when the camps were won: ${JSON.stringify(door)}`);
       await page.waitForTimeout(400); await shot(pre + id + '_door');
       // in: the fade to the tomb's entrance hall
-      const ds = await page.evaluate(() => window.DAGYR.G.world.cave.dv.pyramid.doorStep);
+      const ds = await page.evaluate(() => window.VELSCOUR.G.world.cave.dv.pyramid.doorStep);
       await view(ds[0], ds[1], 1); await step(2);
-      const inside = await page.evaluate(() => { const { G } = window.DAGYR, w = G.world; return { phase: w.overworldScenario.phase, inside: w.cave.inside, x: G.player.x, y: G.player.y, dark: w.darkK }; });
+      const inside = await page.evaluate(() => { const { G } = window.VELSCOUR, w = G.world; return { phase: w.overworldScenario.phase, inside: w.cave.inside, x: G.player.x, y: G.player.y, dark: w.darkK }; });
       if (inside.phase !== 'tomb' || !inside.inside) errors.push(`[dunes ${id}] the party did not go into the tomb: ${JSON.stringify(inside)}`);
       await page.waitForTimeout(500); await shot(pre + id + '_tomb');
       // a room's fight, won: its slab sinks
-      const room = await page.evaluate(() => { const r = window.DAGYR.G.world.overworldScenario, e = r.rooms.find((q) => q.kind); return { x: e.x, y: e.y, kind: e.kind }; });
+      const room = await page.evaluate(() => { const r = window.VELSCOUR.G.world.overworldScenario, e = r.rooms.find((q) => q.kind); return { x: e.x, y: e.y, kind: e.kind }; });
       await view(room.x, room.y); await step(1.5);
       await page.waitForTimeout(400); await shot(pre + id + '_room');
       const rs = await page.evaluate(async () => {
-        const { G } = window.DAGYR, r = G.world.overworldScenario, e = r.rooms.find((q) => q.kind), { hit } = await import('/src/game/combat.js');
+        const { G } = window.VELSCOUR, r = G.world.overworldScenario, e = r.rooms.find((q) => q.kind), { hit } = await import('/src/game/combat.js');
         const was = e.state;
         for (let n = 0; n < 40 && e.state === 'active'; n++) {
           for (const m of [...e.foes, ...e.objs]) { if (!m.dead) { m.targetable = true; m.static = false; m.dormant = false; m.entering = null; hit(null, m, m.maxHp * 10, 'phys', { force: true }); } }
@@ -88,7 +88,7 @@ const arg = process.argv[2] || 'all', mobile = process.argv.includes('mobile'), 
       if (rs.was !== 'active' || rs.now !== 'done') errors.push(`[dunes ${id}] the room fight (${rs.kind}) did not start and end: ${JSON.stringify(rs)}`);
       // the burial chamber: its master rises; killed, the portal opens
       const ch = await page.evaluate(async () => {
-        const { G } = window.DAGYR, w = G.world, r = w.overworldScenario, dv = w.cave.dv, { hit } = await import('/src/game/combat.js');
+        const { G } = window.VELSCOUR, w = G.world, r = w.overworldScenario, dv = w.cave.dv, { hit } = await import('/src/game/combat.js');
         for (const e of r.rooms) if (e.state !== 'done') { e.state = 'done'; for (const m of [...e.foes, ...e.objs]) m.dead = true; }
         for (const s of dv.seals) for (const i of s.tiles) w.map.block[i] = 0;
         G.player.x = dv.chamber.cx + 0.5; G.player.y = dv.chamber.cy + 6;
@@ -104,13 +104,13 @@ const arg = process.argv[2] || 'all', mobile = process.argv.includes('mobile'), 
       console.log('  chamber', JSON.stringify(ch));
       if (!ch.boss) errors.push(`[dunes ${id}] no master rose in the burial chamber: ${JSON.stringify(ch)}`);
       if (!ch.completed || !ch.portal || !ch.portal[2] || !ch.walk) errors.push(`[dunes ${id}] the portal did not open in the burial chamber: ${JSON.stringify(ch)}`);
-      const chs = await page.evaluate(() => window.DAGYR.G.world.cave.dv.chamber);
+      const chs = await page.evaluate(() => window.VELSCOUR.G.world.cave.dv.chamber);
       await view(chs.cx + 0.5, chs.cy + 5, 0.75); await page.waitForTimeout(600); await shot(pre + id + '_chamber');
     }
     // ------------------------------------------------ auto-play takes a whole level: the waystones, the door, the tomb, its master
     if (AUTO) {
       const res = await page.evaluate(async (id) => {
-        const { G, game } = window.DAGYR, { DUNE_VARIANTS } = await import('/src/data/dunes.js'), { BIOME_BY_ID } = await import('/src/data/biomes.js');
+        const { G, game } = window.VELSCOUR, { DUNE_VARIANTS } = await import('/src/data/dunes.js'), { BIOME_BY_ID } = await import('/src/data/biomes.js');
         const { Auto } = await import('/src/game/autoplay.js');
         await game.newChar('paladin', 'Dune Walker');   // as in caverns.js: a level-1 paladin at depth 3, never dying
         document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll();

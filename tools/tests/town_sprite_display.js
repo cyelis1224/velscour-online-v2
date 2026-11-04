@@ -27,7 +27,7 @@ const { openGame, report } = require('./harness');
     });
     errors.push(...initial);
     await page.evaluate(async () => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       await game.newChar('paladin', 'Townsfolk Artwork QA');
       document.querySelectorAll('.screen').forEach(s => s.remove());
       G.ui.modalCount = 0; G.godMode = true;
@@ -65,7 +65,7 @@ const { openGame, report } = require('./harness');
     await page.evaluate(() => document.querySelector('#town-speech-preview')?.remove());
     for (const seed of [1337, 42301]) {
       const issues = await page.evaluate(async (seed) => {
-        const { G, game } = window.DAGYR;
+        const { G, game } = window.VELSCOUR;
         const { preloadTownSheets, townSprite, townFrameReady } = await import('/src/game/render.js');
         const { replacementImage } = await import('/src/core/replacementart.js');
         const { VENDORS } = await import('/src/world/town.js');

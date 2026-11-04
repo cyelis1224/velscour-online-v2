@@ -1,14 +1,14 @@
-// Endgame model (no game simulation, ~1 minute): can a hero who keeps playing beat Dagyr at depth 500?
+// Endgame model (no game simulation, ~1 minute): can a hero who keeps playing beat Velscour at depth 500?
 //  1. XP: builds a dungeon every 20 depths, sums the XP of everything in it (guardians and BOSS ROOM bosses too)
 //     and integrates the hero's level from depth 1 (full clears, and a rusher who kills 40% of each depth).
 //  2. Power: at each depth a hero of that level is geared the way balance.js gears one (the best of 200 drops of
 //     the depth's item level, +upgrades, gems, skill mastery) and measured with auto-play's own sheet numbers
 //     (heroDamage dps, life, armor, resistances, block, damage reduction). Gear needs its item level to wear, so a
 //     hero below the depth's monster level wears gear of its own level.
-//  3. Against that depth's monsters (src/game/monster.js monsterBase, the raid.js and Dagyr multipliers):
-//     seconds to kill a normal / guardian / BOSS ROOM boss / Dagyr, and how much of the hero's life one hit
+//  3. Against that depth's monsters (src/game/monster.js monsterBase, the raid.js and Velscour multipliers):
+//     seconds to kill a normal / guardian / BOSS ROOM boss / Velscour, and how much of the hero's life one hit
 //     of each takes (physical through armor, elemental through resistance).
-//  Depths 700-1200 are the Endless Torment past Dagyr (the VELS columns there are hypothetical).
+//  Depths 700-1200 are the Endless Torment past Velscour (the VELS columns there are hypothetical).
 //   node tools/tests/endgame.js [classes] [rounds] [rush]   # rounds of 25 drops the gear is picked from (default 8);
 //                                                            # rush: the hero who kills 40% of each depth
 //   node tools/tests/endgame.js paladin,wizard 8 marks=0,300,1000   # Infernal Marks (or MARKS=0,300,1000): depths
@@ -29,7 +29,7 @@ const MARKS = mkArg ? mkArg.slice(6).split(',').map((v) => [parseInt(v, 10) || 0
   const { browser, page, errors } = await openGame();
   // 1. XP per depth
   let xp = await page.evaluate(async (MAXD) => {
-    const { G, game } = window.DAGYR;
+    const { G, game } = window.VELSCOUR;
     const { BIOME_BY_ID } = await import('/src/data/biomes.js');
     await game.newChar('paladin', 'XP');
     document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll();
@@ -64,11 +64,11 @@ const MARKS = mkArg ? mkArg.slice(6).split(',').map((v) => [parseInt(v, 10) || 0
       const rs = await page.evaluate(async ({ cls, D, H, rounds, MARKS }) => {
         const runsBy = MARKS.map(() => []);
         for (let rep = 0; rep < 3; rep++) {
-          const { G, game } = window.DAGYR;
+          const { G, game } = window.VELSCOUR;
           const { Auto, heroDamage } = await import('/src/game/autoplay.js');
           const { depthLevel, armorDiv } = await import('/src/data/depth.js');
           const { rollItem, rollGem } = await import('/src/data/items.js');
-          const { monsterBase, DAGYR_HP } = await import('/src/game/monster.js');
+          const { monsterBase, VELSCOUR_HP } = await import('/src/game/monster.js');
           const { raidHpMul, raidHitMul } = await import('/src/game/raid.js');
           await game.newChar(cls, 'Endgame');
           document.querySelectorAll('.screen').forEach((s) => s.remove()); G.ui.modalCount = 0; G.ui.closeAll();
@@ -96,7 +96,7 @@ const MARKS = mkArg ? mkArg.slice(6).split(',').map((v) => [parseInt(v, 10) || 0
             const runs = runsBy[mi];
             if (MARKS[mi]) { const [n, life] = MARKS[mi]; EG.endgame().marks.pts = n; MK.resetMarks(); if (life) MK.spendMark('life', n); else MK.autoSpend(); p.recompute(); }
             const st = p.st, dps = heroDamage(p).dps, hp = p.maxHp;
-            // monsters of the depth (normals at L, champions L+1, guardian L+2, BOSS ROOM L+3, Dagyr L+2)
+            // monsters of the depth (normals at L, champions L+1, guardian L+2, BOSS ROOM L+3, Velscour L+2)
             const B = (l) => monsterBase(l);
             const raidHp = (d, l) => B(l).hp * 26 * raidHpMul(d) * 1.3;
             const kinds = {
@@ -104,7 +104,7 @@ const MARKS = mkArg ? mkArg.slice(6).split(',').map((v) => [parseInt(v, 10) || 0
               champ: { hp: B(L + 1).hp * 3, dmg: B(L + 1).dmg * 1.4, l: L + 1 },
               guard: { hp: B(L + 2).hp * (10 + Math.min(D, 120) / 10), dmg: B(L + 2).dmg * 1.9, l: L + 2 },
               room: { hp: raidHp(D, L + 3), dmg: B(L + 3).dmg * raidHitMul(D), l: L + 3 },
-              vels: { hp: B(L + 2).hp * DAGYR_HP, dmg: B(L + 2).dmg * 2.8, l: L + 2 },
+              vels: { hp: B(L + 2).hp * VELSCOUR_HP, dmg: B(L + 2).dmg * 2.8, l: L + 2 },
             };
             const elemRes = Math.min(75, (st.res.fire + st.res.cold + st.res.light + st.res.poison) / 4);
             const red = 1 - Math.min(60, st.reduce || 0) / 100;

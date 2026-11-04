@@ -30,6 +30,7 @@ import { endgameUnlocked } from './endgame.js';
 import { heresyRankOf } from './heresies.js';
 import { addLight } from '../gfx/vfx.js';
 import { drawTerrain, drawColumn, occludersFor, occludersOfRect, occluderObj, clipAdd, hiddenBehind, standKey, hopZ, drawSky, terrainShade, HS } from '../gfx/terrain.js';
+import { hopArc } from './alpine.js';
 import { drawRiftgate } from '../gfx/riftgate.js';
 
 let lightCanvas = null, glowCanvas = null, vignette = null, vigKey = '';
@@ -957,7 +958,7 @@ export function renderWorld(ctx, world) {
       }
       case 6: {
         const oldZ = o.z || 0;
-        const hz = map.hgt && !map.smoothField ? hopZ(o, map) : 0; // hopping up or dropping down a step of the terrain (a smooth field has none)
+        const hz = !map.hgt ? 0 : !map.smoothField ? hopZ(o, map) : map.hopArc ? hopArc(o, map) : 0; // hopping up or dropping down a step of the terrain (a smooth field: the mountains' ledges only)
         if (hz) o.z = oldZ + hz;
         const hc = world.cave ? world.cave.horizon(o) : null; // behind higher ground in the caves: hidden below its edge
         if (hc === -Infinity) { // drawn under an empty clip all the same: its rim and bar still show on the see-through layer
@@ -1051,6 +1052,7 @@ export function renderWorld(ctx, world) {
   for (const item of pool) item.o = null;
   top.length = 0;
 }
+
 
 // The see-through layer, over the lit scene: the wall bases (Settings, off by default), then every creature's rim and
 // life bar in depth order (creature.js drawXray), each body cutting out whatever it stands in front of. One canvas the
@@ -1418,6 +1420,7 @@ export function drawMinimap(world, dt, canvas, big = false) {
       }
     } else if (m.team === 'player') dot(m.x, m.y, '#40ff60', 1.8);
   }
+  if (world.cave && world.cave.mapMarks) for (const [x, y, col, r] of world.cave.mapMarks()) dot(x, y, col, (r || 2.4) * (big ? 1.6 : 1));   // the mountains: the trail ahead, the next way up, gates
   dot(p.x, p.y, '#ffffff', big ? 5 : 3.2);
   if (big) {
     const [sx, sy] = toS(p.x, p.y);

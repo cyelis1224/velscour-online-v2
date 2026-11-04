@@ -1,4 +1,4 @@
-# DAGYR: hand-off notes
+# VELSCOUR: hand-off notes
 
 These notes let a new session with no memory of earlier ones pick up the work immediately.
 **Keep them current**: when you finish a chunk of work, update *Status*, *Open issues* and *Next steps*.
@@ -14,6 +14,115 @@ Contents
 
 ---
 
+## November 3, 2026 — Mountainside out of beta, and THE SNOWY SUMMIT (branch `claude/mountainside-beta-release-p53gw6`)
+
+The user asked to take the Mountainside out of beta with sloped surfaces and hops, three times larger, a switchback
+trail with fights the whole way and the Snowy Summit pack's tiles on its very top; on finishing it the party goes straight
+into a new open-world biome, **The Snowy Summit** (their four uploaded zips): thin ridgelines across a mountain range in
+three.js, bigger plateau fights between them, and one of five snow-palette-swapped bosses on the peak. Two critic
+passes (two 20-year game designers) were asked for, then push, PR and merge.
+- **Shared three.js mountains** (`src/world/alpine.js`, `src/gfx/alpine3d.js`, `src/game/alpine.js`): tile heights in
+  levels become a vertex field 4 a tile edge (walk-apart neighbours blend into slopes, hop-apart ones meet at a crisp
+  ledge, rock tiles take their own shape; convex corners cut, notches filled; the caverns' cap). The scene: each tile's
+  floor art from an atlas through an index texture, triplanar cliffs from the pack's wall materials (snow caps taken back
+  to stone), snow on gentle rock above a snow line, a skirt past the edges, a drifting sea of cloud, a painted sky with
+  far ranges. `world.cave` gives elevation, picking and the horizon (the caverns' methods); `hopArc` (render.js case 6,
+  `map.hopArc`) hops creatures up ledges with an arc (and a dust puff for the hero) on the smooth field.
+- **Mountainside** (docs/MOUNTAINSIDE.md): 72 x 104, ten cliff bands, a way up at alternate ends (a graded ramp, or a
+  scramble of hop steps), terraces a hop high, crags, shelves with chests; walk 3 levels, hop 7, drop 10; cliffs block
+  sight (so packs above don't wake across them). ~37 packs along the ~550-tile trail, champions at each way up, leap-down
+  ambushes off the cliffs; Snowy Summit floors and props on the top two bands; the Summit Warden. Now a region
+  (`src/game/regions/mountain.js`) in `BIOMES` (the rotation); its old game.js branches are gone. On the Warden's death
+  `game.continueTo('snowy_summit')` carries the party and the loot round them on, and `c.nextBiome` keeps a town trip
+  coming back to the Summit.
+- **The Snowy Summit** (docs/SNOWY_SUMMIT.md): a region in `BETA_BIOMES` (`follows: 'mountainside'`), skull words
+  `summit`/`snow`/`peak`/`ridge`. 128 x 128: camp, four plateaus, the peak, saddles between, joined by ridges 2-3 tiles
+  wide with hop steps (~280 tiles of way); the range falls into the cloud, nothing higher than the peak. Ridge packs of 1-2, climb-ups
+  over the rim; plateau fights (Buried in the Snow, The Frozen Camp, Avalanche, The Howling Cairns, The Pack of the
+  Heights), each gated by the pack's `frozen_iron_gate` doors (`door.locked`, `world.openDoors` skips locked ones) and
+  paid with a chest; the peak's shrine (altar, owl, basin, braziers, sentinels, bell, an arch and a ruined ashlar wall);
+  one of five raid bosses in a snow swap (`SUMMIT_BOSSES`: Glacier Crown Titan, Blizzard Woolback, Frostmane Werebear,
+  Bonewhite Crypt Dragon, Rime Antler Lich) at 72% life, no execute timer; the exit opens on the peak.
+- **Art**: `assets/tiles/snowy_summit/` (runtime atlases as delivered, `materials/*.webp`), the four zips merged into
+  `assets/source/biomes/Snowy_Summit_Biome_Pack.zip`; `LIT` and `WALK_OVER` take the pack's lit and walk-over props.
+- **Tests**: `tools/tests/mountain.js` (rewritten) and `tools/tests/summit.js` (new); auto-play loops stub `game.render`
+  (SwiftShader's 3D readback otherwise runs the clock at real time); the harness's screenshots wait up to 120 s.
+- **Two critic rounds** (a level/encounter designer and an art director, both briefed as 20-year ARPG veterans, reading
+  the shots and the code). Acted on: lighting and values (sun in front, a cool fill, rock normalised to mid/dark stone,
+  haze instead of black, a dark rim under every walkable edge, snow from a blurred field in the pack's snow crust), rock at
+  two scales, floors 128 px and mirrored/turned per tile with wobbly seams, wavier and irregular cliff bands, stone-step
+  faces on hop ledges (rock on cliffs), mist matched to the cloud plus a wisp layer, phone upscale smoothing; the Summit
+  2.5x longer (128 x 128, saddles, S-curved ridges, a pinnacle spur with a chest), camps/packs/cairns visible on their
+  plateaus and untouchable until stepped on, gates on the way in too (every gate, or another seed), a bigger peak arena
+  with a dais, the boss waiting on it and waking (and the gate shutting) only when the hero is on the peak, nothing higher
+  than the peak, no fake Execute countdown; the Mountainside's champions halved, breathers at the camps, archers on the
+  shelves, rope posts at the hops, the camps as checkpoints (they were never placed: fixed), the slate-pass gateway on into
+  the Summit; per-depth seeds (`c.mountainRuns`, `c.summitRuns`: cleared by a death, an exit or a teleport). Bugs the
+  critics caught: a comment that swallowed the cairns' setup; climbers' camps and ramp signs never placed; missing gates.
+- **Design calls made without asking** (worth a look): "three times larger" read as three times the area (72 x 104,
+  not 150 x 150, which would be a ~2,000-tile trail); the hop height (7 levels, 28 px) and walk step (3 levels); the
+  plateau gates (in and out); the five bosses and their templates; the Summit at 128 x 128 with four plateaus and five
+  saddles; a town trip returns to the Summit, not the Mountainside; the climbers' camps as checkpoints.
+
+## November 3, 2026 — the asset manager (branch `feat/asset-manager`)
+
+The user asked for an asset manager for every sprite, texture and 3D model, listing per section what has custom art or
+textured 3D models and what is still placeholder, usable on phone and PC from a repo link.
+- **Page** `tools/assetmanager/` (`index.html`, `app.js`, `style.css`; plain JS, no deps), on Pages at
+  https://agilancer.github.io/velscour/tools/assetmanager/. Nine sections (Monsters & Bosses, Heroes & Armor, Summons &
+  Pets, Townsfolk & NPCs, Items & Loot, Held Weapons, Spells/Effects/Icons, Environments & Textures, Interface) plus two
+  views across them (All 3D models, All textures). Each section shows "Custom art and textured 3D models" then
+  "Placeholder art", by group. A card opens a detail panel (bottom sheet on phones): a zoomable preview cropped from the
+  real atlas, every frame/variant, why it has its status, its files (open / GitHub), the rebuild command, upload and docs
+  links, and per-browser tracking (Needs art / Requested / In progress / Ready to import / Approved + notes in
+  localStorage `velscour_assetmgr_v1`). The menu exports an art to-do (Markdown), the current list (CSV), and a JSON
+  backup that restores on another device. Hash routes: `#/s/<section>`, `#/a/<asset id>`.
+- **Statuses** (`KINDS` in `build.mjs`): custom = `art` (your packs), `ai` (generated: the replacement pack, the 48 small
+  Heavenly sprites, wall hangings, the old townsfolk pack), `3d` (three.js with image textures); placeholder = `flat3d`
+  (three.js without image textures: phoenix, totem, hammers, boomerangs, critters, bone gibs, the Breach wyrm body),
+  `recolor` (borrowed/recoloured: 23 palette-swapped dungeon biomes, dunes, Mountainside, Revive, Pirate Seas crews…),
+  `ascii` (Treasure Imp, emotes), `code` (skill icons, spell effects, sigils, key, panels…), `none` (gloves/legs/boots on
+  the hero).
+- **Builder** `tools/assetmanager/build.mjs` imports the game's catalogs (bestiary, summons, skills, items, biomes, raid
+  bosses, held sets, gear, packs…) and writes `manifest.json`; `thumbs.py` (Pillow) crops a thumbnail per asset into 96 px
+  WebP sheets (biome thumbnails get the biome's palette swap). `capture.js` renders the code-drawn placeholders with the
+  game's own functions into `captures/`. 2,177 assets, 124 of them placeholder (several are groups: e.g. one card per
+  class for ~70 skill icons). Test: `tools/tests/assetmanager.js`.
+- Findings worth acting on (from the survey): the **Treasure Imp is always the ASCII imp** (`happenings.js` spawns it with
+  look `null`); 1,280 skills exist, not 980 (4 trees per class); `assets/sprites/townsfolk/` (66 MB) is no longer read;
+  the 613 blue-slime familiar cells and four `npc_tobin/mira/cael/gorm` replacement cells are unused; the pet sheets
+  override the 56 `va_*` summon drawings, which now only show while loading.
+
+## November 1, 2026 — buy more bag rows with gold (branch `feat/buy-bag-rows`)
+
+A player asked to buy more inventory rows, each costing more. The bag starts at 6 rows of 10; a button under it
+buys rows 7..12 for 5k, 10k, 20k, 40k, 80k and 160k gold (the player's prices), through a confirm dialog.
+- `src/data/bag.js`: the prices, `buyBagRow`, `fixBag`. The row count is just `c.bag.length / 10`, so saves keep
+  bought rows with no new field; `migrate()` calls `fixBag` (pads to 60 and a whole row, drops empty slots past 120).
+- `src/ui/inventory.js` `bagRowButton()`; the panel scrolls once the bag is tall (it already did on phones).
+- Auto-play (gear managed) buys the next row on arriving in town when it holds 4x the price; hands-off never does.
+- Test: `node tools/tests/bagrows.js [mobile]`. Also ran flow, ui, stash, autogear, mobile, hud, autoplay.
+
+## October 30, 2026 — first-person view (branch `feat/first-person-view`)
+- **Settings › First-person view** (`G.settings.firstPerson`, off by default): the game through the hero's eyes in
+  the town, dungeons and every flat overworld. The Serpentine Tower and the caverns keep their own 3D views.
+- `src/gfx/firstperson.js`: three.js (the same import map as the tower) draws the floor (the level's own floor art,
+  painted once onto a top-down canvas by `drawFloorTiles` through an iso→square transform; settled blood is stamped in
+  every 2.5 s), walls on every floor/void edge (the biome's straight wall piece, mask 10, sheared upright; the town
+  and wilds use blocks cut from the floor) and a ceiling indoors (sky outdoors), with fog from the biome's
+  `dark`/`light`. It also casts one ray per 2-3 css px column for a wall depth buffer.
+- `renderFirstPerson` (`src/game/render.js`): every creature, townsperson, prop, tree, building, torch, chest,
+  portal, corpse and loot is drawn far to near with its usual draw code, scaled round its foot by depth (capped at its size
+  1.4 tiles off), faded into the fog and clipped to the columns no nearer wall covers. Spells, particles and effects
+  draw at projected positions, unscaled. Life bars keep near a fixed size (`G.barK` in `creature.js`).
+- A warp (`setWarp` in `core/view.js`) projects tile positions onto the screen, so `camera.screenToTile` picks the
+  floor: clicking, hover, labels, damage numbers and touch taps all work unchanged. While it is on, `camera.fixed`
+  holds the camera at 0,0.
+- Controls (`controls.js` → `fpSteer`): A/D or the joystick's x turn, W/S or its y walk where the view looks. The view
+  eases round to the hero's facing while he walks to a click, fights or plays himself; turning by hand holds it 0.8 s.
+- Test: `tools/tests/firstperson.js [biomes] [mobile]`. In SwiftShader a first-person frame cost about the same as the
+  usual view (8-14 ms against 9-11 ms).
+
 ## October 30, 2026 — the caverns' cutaway hole; sealed treasures take no sockets (branch `fix/cave-cut-sealed-sockets`)
 
 Discord: "that same shadow issue happens in the waterfall caves too" (the Depth's Edge shaft) and "you can add a socket and
@@ -26,9 +135,9 @@ socket a gem into a sealed treasure".
   hides a pre-rolled item, so gems put in before this fix stay when it is broken. `ui.js` checks gem, socket, upgrade and
   enchant on a sealed item.
 
-## October 30, 2026 — Dagyr Unbound worth winning; ring augments say their damage (branch `fix/unbound-rewards-augment-damage`)
+## October 30, 2026 — Velscour Unbound worth winning; ring augments say their damage (branch `fix/unbound-rewards-augment-damage`)
 
-Discord: "what's the point of killing Unbound Dagyr? killed him 10 times ... I get better drops from abyssal rift" and
+Discord: "what's the point of killing Unbound Velscour? killed him 10 times ... I get better drops from abyssal rift" and
 "I can't tell how good these rings are because they don't tell the damage".
 - **Unbound spoils** (`unboundSpoils` in `src/game/unbound.js`, dials `UNBOUND.abyssal` / `UNBOUND.marks`): on top of the
   hoard (a Heirloom, a Covenant piece, two Sigil Stones), the Unbound Heirloom and the Crown (first win, then 1 in 4), each
@@ -298,7 +407,7 @@ Player request: look the way you want without giving up stats.
     baked tints (wall hangings, frozen/charmed monsters, slime colours, pet tints, the target window, Defense's elite /
     ghost monsters and region recolours) came out plain on iPhones. `util.drawFiltered` / `filterPixels` (both games)
     test once and otherwise put the colour filters through the pixels by the CSS matrices (within 4/255 of Chromium's
-    own; `globalThis.DAGYR_NO_CANVAS_FILTER = true` forces the fallback for tests). Defense's corpses and stunned
+    own; `globalThis.VELSCOUR_NO_CANVAS_FILTER = true` forces the fallback for tests). Defense's corpses and stunned
     heroes used a `ctx.filter` every frame; now baked looks.
   - **Phone HUD:** the scenario objective (dunes, Dark Forest, Breach) sat on the stance buttons at 844x390, also on
     Greed and the stats at 667x375, and on the stats and the menu column in portrait; MADNESS/SMITE crossed the Auto
@@ -317,16 +426,16 @@ Player request: look the way you want without giving up stats.
   `modes_smoke.mjs 30`. `defense/tests/defense.js mobile` fails "mode bossrush/vault" on `main` too, and its 3D pack
   step needs 3-6 more taps than it gives under SwiftShader, on `main` too.
 - **Not verified:** real phones and Safari/WebKit (still only Chromium emulating them); GPU frame times.
-- **Second pass, the rest of the main game** (the user: "do this on normal DAGYR too"):
+- **Second pass, the rest of the main game** (the user: "do this on normal VELSCOUR too"):
   - Pathing everywhere: `rooms.js` on all 33 dungeon biomes x 4 levels (every floor tile, exit and chest reachable),
     `mobs.js 41` (every one of the 41 biomes: 1,239 monsters, 5 stuck = 0.4%, every guardian arrives; the test now loads
     each biome's art with `game.loadLevelArt`, it threw on the Dark Forest past its first ten levels),
     `biome_scenarios.js` on all 32 biomes (640 scenarios, all finish), `dagyr.js noauto`, `raid.js 30`.
-  - `mode_cpu.js dungeons,raid,Dagyr,unbound` (every dungeon biome, a BOSS ROOM, Dagyr, Unbound; new modes and
+  - `mode_cpu.js dungeons,raid,Velscour,unbound` (every dungeon biome, a BOSS ROOM, Velscour, Unbound; new modes and
     `PHONE=portrait`): 6-15 ms of update a frame at 4x, render script 8-24 ms, spread over many small loops (no single
     lever left; the particle cap is already 1,400 on touch). Portrait runs in line with landscape.
-  - **Dagyr's demons:** his summons' looks were chosen (and their sprites built) on the frame the first one stepped
-    out (a 45-96 ms frame at 4x). `setupDagyr` chooses them with the level, and `warmLevelArt` now also builds every
+  - **Velscour's demons:** his summons' looks were chosen (and their sprites built) on the frame the first one stepped
+    out (a 45-96 ms frame at 4x). `setupVelscour` chooses them with the level, and `warmLevelArt` now also builds every
     look the level has chosen (`looks.all()`), not only those of the creatures standing in it. No spike in three fights;
     live canvases +~50 (+3 MB) on entering a level, no growth over a seeded 12-level `levelmem` run against `main`.
   - **Phone HUD in fights:** in boss fights and rifts the boss bar ran over the area name, the stats and the menu
@@ -335,22 +444,22 @@ Player request: look the way you want without giving up stats.
     stacks the boss bar, then the rift bar or the objective; the log is fitted below the whole left column (only a line
     or two while a target is up on a short phone). Portrait: MADNESS/SMITE (and Rage) on the right under Greed, the boss
     bar in its own band below, the rift bar and the objective moved into the left column's flow (`layoutMobile`).
-    No overlaps in the Dunes, Dark Forest, Breach, rifts, BOSS ROOMs, Dagyr and the castles at 844x390, 667x375 and
+    No overlaps in the Dunes, Dark Forest, Breach, rifts, BOSS ROOMs, Velscour and the castles at 844x390, 667x375 and
     390x844. `mobile.js`, `hud.js`, `rifts.js phone`, `spectate.js mobile`, `breach.js town,rules`, `options.js` pass.
 
-## October 29, 2026 — Riftgate at portal size, DAGYR DEFENSE on the title screen (branch `feat/riftgate-title`)
+## October 29, 2026 — Riftgate at portal size, VELSCOUR DEFENSE on the title screen (branch `feat/riftgate-title`)
 - **Request:** make the blue portal to the Defense game the same size as the other portals, and add a blue button
-  to the title screen that goes to DAGYR DEFENSE as well.
+  to the title screen that goes to VELSCOUR DEFENSE as well.
 - **Done:** `drawRiftgate` (`src/gfx/riftgate.js`) draws its whole effect at `SCALE` 0.65 round its foot, so the vortex
   matches the dungeon and Breach portals (drawn 1.3x in `drawPortal`); its `reach` is 1.7 like theirs. The title
-  menu has a `btn blue` DAGYR DEFENSE button under Heroes (`.btn.blue` in `css/style.css`) that opens
+  menu has a `btn blue` VELSCOUR DEFENSE button under Heroes (`.btn.blue` in `css/style.css`) that opens
   `defense/index.html`.
 - **Verified:** `tools/tests/riftgate.js` (12 seeds, now also clicks the title button), `flow.js`, `titlefx.js`;
   title shots at 1280x720, 844x390 and 390x844.
 
-## October 29, 2026 — DAGYR DEFENSE: Acts II-V (300 stages), side modes, balance for months, iPhone (branch `feat/defense-act2`)
+## October 29, 2026 — VELSCOUR DEFENSE: Acts II-V (300 stages), side modes, balance for months, iPhone (branch `feat/defense-act2`)
 - **Request:** balance the Defense game thoroughly so it can't be beaten in a day and takes weeks upon weeks of
-  stronger cards to reach the end; use tons of different DAGYR monsters; add 120 levels (Acts II and III) and more
+  stronger cards to reach the end; use tons of different VELSCOUR monsters; add 120 levels (Acts II and III) and more
   cards; then go to level 300 with two more acts, letting players get quite a way before it gets hard and stalls,
   with other modes (different endless and challenge modes) for currency and pulls on the side; pinch-to-zoom and
   mouse-wheel zoom; remove auto-campaign; make the UI fit an iPhone in portrait and landscape, especially the cards.
@@ -367,7 +476,7 @@ Player request: look the way you want without giving up stats.
   is fitted to (day 1 about 40 stages, day 7 about 100, day 28 about 165, the Demon Lord after three to four months);
   the challenges sit at 50-80% of the frontier's strength so a player keeping pace wins them; the Works' Forge of Valor
   goes to level 120 as the late gold sink; Bastion's Resolve builds to +60%; armour grows slowly after Act I (it made physical heroes useless late); Act IV/V region names and bosses; the final
-  boss is "Dagyr's Shadow" (the Demon Lord himself stays the main game's).
+  boss is "Velscour's Shadow" (the Demon Lord himself stays the main game's).
 - **Verified:** `defense/tests/balance.mjs` with real battles: a casual Commander wins on day 104, a dedicated one
   is at 267 of 300 on day 84 (calendar 268), a grinder at 259 on day 42; nobody passes stage 29 on day 1 or 134 in a
   week (table in DEFENSE.md); `calibrate.mjs` (two seeds a stage, per-map terrain factors),
@@ -377,12 +486,12 @@ Player request: look the way you want without giving up stats.
 - **Not verified:** real iPhones and Safari (Chromium with an iPhone viewport and touch only); human play balance
   (the curve is fitted to auto-play).
 
-## October 29, 2026 — DAGYR DEFENSE: a separate tower-defense card game behind the Riftgate (branch `feat/Dagyr-defense`)
-- **Request:** a bigger, crazier blue/black portal in town leading to a completely different game in the DAGYR
-  universe, DAGYR DEFENSE: a gacha game with no microtransactions (heroes, gear and more to roll for), named
-  characters of each class built from all of DAGYR's art (the newest held weapons too), everything as packs of
+## October 29, 2026 — VELSCOUR DEFENSE: a separate tower-defense card game behind the Riftgate (branch `feat/Velscour-defense`)
+- **Request:** a bigger, crazier blue/black portal in town leading to a completely different game in the VELSCOUR
+  universe, VELSCOUR DEFENSE: a gacha game with no microtransactions (heroes, gear and more to roll for), named
+  characters of each class built from all of VELSCOUR's art (the newest held weapons too), everything as packs of
   cards that look like Magic: The Gathering cards, 3D foil pack opening, Fantasica as the model (5 videos, articles,
-  screenshots researched) but free, a character tower defense on predetermined paths with DAGYR's monsters and
+  screenshots researched) but free, a character tower defense on predetermined paths with VELSCOUR's monsters and
   class projectiles/slashes, isometric with height mapping, an auto-play mode, at least 80 levels, 20 dialogs from each
   of the 16 characters at the beginning and end of levels, and kept in its own area of the codebase. Then: 1,000 waves
   that get incrementally harder; in-match upgrades that reset and permanent ones outside; 30 maps that unlock as you
@@ -477,8 +586,8 @@ Player request: look the way you want without giving up stats.
   - **Depth's Edge summit**: 2.8 s intro, a 2 s minimum per boss, 4 s rests, adds 0.8 s late. Now 0.1 s beats, adds at
     once, and a boss climbing the falls finishes in half a second when nothing is up there to hit.
   - **Cursed Chest**: waves were 7 s apart even when one was dead in two; now the next comes 0.5 s after it falls.
-  - **Dagyr's Challenge**: only 5 foes were sent, so a cleared area meant running the clock out; now with no foe
-    within 10 tiles Dagyr sends 4-6 more within 0.6 s (staggered drops).
+  - **Velscour's Challenge**: only 5 foes were sent, so a cleared area meant running the clock out; now with no foe
+    within 10 tiles Velscour sends 4-6 more within 0.6 s (staggered drops).
   - **Dark Forest Lantern Vigil**: waves every 12 s with nothing between. The lantern waves keep their 12 s clock (calling
     them on clear grew them too fast and the lanterns all went out by 25 s); now, with nothing alive between waves, a
     small pack comes out of the dark at the hero after half a second. Wisps: 1 s between them, not 1.5 s.
@@ -575,7 +684,7 @@ Player request: look the way you want without giving up stats.
 ## October 28, 2026 — the castles on phones (branch `fix/castle-phone-pass`)
 - **Request:** test the new castles, especially on phones. No real phone was available: Chromium emulating one
   (`tools/tests/castle_phone.js`: touch, 844 x 390 and 390 x 844 at DPR 2, the CPU slowed 4x, the machine's GPU), plus the
-  live site in a phone-sized browser (all eleven castles' pages served from the `/Dagyr/` path; Hoarfrost played in
+  live site in a phone-sized browser (all eleven castles' pages served from the `/Velscour/` path; Hoarfrost played in
   portrait: name card, log, touch controls fine).
 - **Found and fixed:** Goldspire ran at 0.6 fps (1.4 s a frame). Its five 4096 px pages (about 320 MB of textures) each
   held pieces from all over the castle, so every frame drew from all of them, and past the GPU's texture budget they were
@@ -644,12 +753,12 @@ Player request: look the way you want without giving up stats.
 
 ---
 
-## October 28, 2026 — THE ENDGAME: Heresies, Abyssal Rifts, Dagyr Unbound, Infernal Marks (branch `feat/endgame`)
-- **Request (user):** "What would you suggest as an endgame? People have beaten Dagyr and want more." Then: build all
+## October 28, 2026 — THE ENDGAME: Heresies, Abyssal Rifts, Velscour Unbound, Infernal Marks (branch `feat/endgame`)
+- **Request (user):** "What would you suggest as an endgame? People have beaten Velscour and want more." Then: build all
   four suggestions (not the later options: hardcore, seasons, affix rerolls), balance them over several iterations, check
   the whole game's balance with the recent additions, test thoroughly, and summarize with screenshots before pushing/merging.
 - **Design and reference:** [`ENDGAME.md`](ENDGAME.md) (every rule, number and file). The Endgame opens for every hero on
-  the browser once any hero kills Dagyr for real (`src/game/endgame.js`, localStorage `Dagyr_endgame_v1`, merged
+  the browser once any hero kills Velscour for real (`src/game/endgame.js`, localStorage `Velscour_endgame_v1`, merged
   three ways with Firestore `users/{uid}/account/endgame`).
   - **Heresies** (`src/data/heresies.js`, `src/game/heresies.js`, `src/ui/heresies.js`): 12 modifiers, ranks to 26, at the
     Altar of Heresy by the plaza; rank pays drops/MF/gold/XP/Sigils/relics; rank 10 lets Abyssal Keys drop past depth 600,
@@ -657,45 +766,45 @@ Player request: look the way you want without giving up stats.
   - **Abyssal Rifts** (`src/data/rifts.js`, `src/game/rifts.js`, `src/ui/rifts.js`, `src/game/leaderboard.js`,
     `firestore.rules`): a third town portal; tier T = depth 500 + 10T; 420 s clock, 60% quota, then the Guardian; tier
     jumps by time; Abyssal rarity (`RARITY[6]`, weight 0, worth 21 item levels) from Guardians; honour board per class.
-  - **Dagyr Unbound** (`src/game/unbound.js`, Unbound branches of `src/game/dagyr.js`, Unbound Heirlooms and the
+  - **Velscour Unbound** (`src/game/unbound.js`, Unbound branches of `src/game/dagyr.js`, Unbound Heirlooms and the
     Crown of the Demon Lord in `src/data/relics.js`): three Abyssal Keys; two signature raid bosses as his court; the Pact.
   - **Infernal Marks** (`src/game/marks.js`, `src/ui/marks.js`): XP past the level cap (3000 since Oct 30; was 600), rift clears (ceil(T/10)), Heresy 20;
     four tapering, uncapped categories; auto-play spends them.
 - **Balance iterations** (numbers in ENDGAME.md): Abyssal +2 power levels and a perk (worth 17.2 -> 21); rift quota 0.7 ->
   0.6, density 0.8, Guardian 0.6x; rift Marks tier/4 -> tier/10; Gaze aggro x2.5 -> x2 (frame cost); Unbound court
   1.2x -> 0.8x life, 0.8x -> 0.65x hits, self-healing 35%, each courtier's Pact wanes after 120 s, auto-play turns back to
-  him then. Without god mode (`Dagyr_real.js ... unbound`, depth-600 gear): 1/4 -> 5/9 -> 5/9 -> 6/9 wins, no stalls.
+  him then. Without god mode (`Velscour_real.js ... unbound`, depth-600 gear): 1/4 -> 5/9 -> 5/9 -> 6/9 wins, no stalls.
 - **Whole game:** endgame.js (5 classes), tuning.js (16 classes, depths 1-500), raid.js, balance.js 30/146/300,
-  Dagyr_real.js, rarity.js, relic_balance.js. Class damage past level 160 was flat: a level-300 knot in `DMG_TUNE_AT`
+  Velscour_real.js, rarity.js, relic_balance.js. Class damage past level 160 was flat: a level-300 knot in `DMG_TUNE_AT`
   takes the Dragoon (x0.42 over two steps), Boomerang Knight (x0.40), Carrion Witch (x1.56) and Gunner (x1.44) from
   0.28x/0.34x/2.4x/2.1x the mean kill time at depths 400-500 to ~0.6x/0.6x/1.3x/1.0x.
-- **Test fixes found on the way:** `Dagyr_real.js` let a lost attempt's death screen land in the next fight (fake
-  2-second deaths); `Dagyr_probe.js` (new) traces a fight's first seconds or every N s.
+- **Test fixes found on the way:** `Velscour_real.js` let a lost attempt's death screen land in the next fight (fake
+  2-second deaths); `Velscour_probe.js` (new) traces a fight's first seconds or every N s.
 - **Open:** deploy `firestore.rules` by hand (Firebase console) or the board is refused; the board is an honour board;
   rifts wall at tier ~20-30 for a hero of the tier's level (intended, like the Endless Torment); `tuning.js`'s
   single-target number is broken for the Slime Lord (and sometimes Lancer/Necromancer) on `main` too.
 
-## October 25, 2026 — Dagyr faces the hero, sits on his throne, summons demons (branch `fix/Dagyr-throne`)
-- **Request (user):** Dagyr didn't face the right way in the final fight; put the Castle biome's throne in his throne
+## October 25, 2026 — Velscour faces the hero, sits on his throne, summons demons (branch `fix/Velscour-throne`)
+- **Request (user):** Velscour didn't face the right way in the final fight; put the Castle biome's throne in his throne
   room, palette-swapped to match him, on 2 x 2 floor tiles so he can sit on it; make him summon demons in a phase.
 - **Cause of the facing:** the painted replacement atlas (`assets/sprites/replacements/atlas.json`) stores `fx` as a
   fraction (0.5) while `creature.js` reads it as pixels, so every va_ sprite was anchored at its left edge and a turn
   threw it a whole width sideways. `core/replacementart.js` now measures each cell's feet column from its bottom
-  eighth (Dagyr: 0.35 of his width). This also re-centres raid crystals, totems, turrets and other va_ art.
-  Dagyr also turns to the hero every frame now (his boss AI only turned while walking or swinging).
-- **Throne:** `tools/Dagyrthrone.py` cuts `furniture_01_throne_dais` from the Castle pack, recolours it (blood-red
-  velvet, bone-gold trim, blackened iron, charcoal stone) and writes `assets/tiles/throne/Dagyr_throne.webp/.json`;
-  `gfx/Dagyrthrone.js` loads it with the throne level; `generateThrone` blocks tiles 21-22 x 10-11 and places it.
+  eighth (Velscour: 0.35 of his width). This also re-centres raid crystals, totems, turrets and other va_ art.
+  Velscour also turns to the hero every frame now (his boss AI only turned while walking or swinging).
+- **Throne:** `tools/Velscourthrone.py` cuts `furniture_01_throne_dais` from the Castle pack, recolours it (blood-red
+  velvet, bone-gold trim, blackened iron, charcoal stone) and writes `assets/tiles/throne/Velscour_throne.webp/.json`;
+  `gfx/Velscourthrone.js` loads it with the throne level; `generateThrone` blocks tiles 21-22 x 10-11 and places it.
   He sits on it (`SEAT`, `SEAT_Z` in game/dagyr.js) until the fight begins, leaps down, and hovers over it in phase 2.
 - **Legion of the Pit:** phases 3 and 5 (and while bound to the obelisks): a hellgate opens beside him and up to four
   Pit Demons / Imps climb out (at most eight alive).
 - **Verified:** `dagyr.js` (new checks: throne, anchor, legion), `flow`, `boss`, `raid`, `rims`, `enemies`,
   `familiars`, `skills` (totem master, gunner, necromancer).
 
-## October 25, 2026 — Heirlooms, Covenants, Sigils and Glyphwords; the Reliquary; Town Commissions; Dagyr's last stand (branch `feat/loot-codex-Dagyr-finale`)
+## October 25, 2026 — Heirlooms, Covenants, Sigils and Glyphwords; the Reliquary; Town Commissions; Velscour's last stand (branch `feat/loot-codex-Velscour-finale`)
 - **Request (user, from a player's comment):** Diablo II style uniques, sets and runewords under new names, a larger
   long-term stash / collection, long-form quest lines from town that add objectives when you reach a biome, a much more
-  interesting final fight with Dagyr (5-10 minutes), and "final boss" in the skull's message box to jump straight to it.
+  interesting final fight with Velscour (5-10 minutes), and "final boss" in the skull's message box to jump straight to it.
   Approved from mockups (`tools/tests/out/proposal/`, not committed) before building.
 - **Done:**
   - **Sigil Stones** (D2 runes): the `sig` gem, its tier the rank (20: Ash ... Thane), a stat by slot (weapon / armor /
@@ -717,15 +826,15 @@ Player request: look the way you want without giving up stats.
     by depth reached; relic chapters place glowing objects in a level of the named biome, elite/raid/clear chapters
     count kills or clears there; the three-portal choice favours a waiting biome (and auto-play picks it). Chapter
     rewards: gold, two Sigils, often a Covenant piece; a finished line: a Heirloom. Quest Log section.
-  - **Dagyr** (`src/game/dagyr.js`): five phases (Throne; Four Seals with Wardens and flame walls; Crown of
+  - **Velscour** (`src/game/dagyr.js`): five phases (Throne; Four Seals with Wardens and flame walls; Crown of
     Hellfire with a lava tide, Doom Brand, Mirror of Sin; Into the Abyss with Heart Shards, shades, lanterns and the
     dark; True Form with APOCALYPSE safe circles, then bound to the four obelisks at 10%). Life gates + a damage cap
     (`PACE`, applied in combat.hit via `absorb`) keep it 5+ minutes for anyone; `HP_MUL` 2. The arena
-    seals. Executes at 15:00; `DMG_MUL` 0.7. Without god mode (`Dagyr_real.js`, depth-500 gear) paladins and wizards won
-    6/7 in 6-8 min, rangers 3/5 in 8-12 min. A real win drops a Heirloom, a Covenant piece and a deep Sigil. "final boss" (or "Dagyr") in the skull's
+    seals. Executes at 15:00; `DMG_MUL` 0.7. Without god mode (`Velscour_real.js`, depth-500 gear) paladins and wizards won
+    6/7 in 6-8 min, rangers 3/5 in 8-12 min. A real win drops a Heirloom, a Covenant piece and a deep Sigil. "final boss" (or "Velscour") in the skull's
     box: `game.finalBoss()`, the throne at the hero's depth (`world.practice`: no victory screen, no relic hoard).
   - **Auto-play**: commission objects, Glyphwords at the jeweler (`glyphwork`), relics are kept (never sold), the
-    Dagyr arena counts as sealed, and his hazards expose `danger`/`safeAt`/`autoGoal`.
+    Velscour arena counts as sealed, and his hazards expose `danger`/`safeAt`/`autoGoal`.
 - **Verified:** `relics.js`, `relic_balance.js`, `dagyr.js` (auto-play beat him at depth 500 in 7.0 min, every
   phase), plus the regression list in the PR.
 - **Design calls made without asking:** relic numbers scale with item level (unlike D2's fixed items) so they last 500
@@ -903,7 +1012,7 @@ Player request: look the way you want without giving up stats.
   and sells the bag's gear for the "player" when auto-play waits in town. The chest summary prints every 5 minutes.
 
 ## October 23, 2026 — cloud saves with Google sign-in (branch `feat/cloud-saves`)
-- **Request (user):** cloud saves via Google (Apple later). The user made the Firebase project `Dagyr` (Google
+- **Request (user):** cloud saves via Google (Apple later). The user made the Firebase project `Velscour` (Google
   sign-in on, `agilancer.github.io` authorized, Firestore with per-user rules) and gave the web config.
 - **Built:** `src/game/cloud.js` (lazy Firebase SDK from gstatic, one Firestore document per class, three-way merge
   against what the device last synced, pushes at most once a minute while playing, offline retries). The UI is in
@@ -917,7 +1026,7 @@ Player request: look the way you want without giving up stats.
   damaged cloud copies change nothing; a failed local write isn't counted as synced. The rules are in
   docs/CLOUD_SAVES.md.
 - **Follow-up (user):** guard the game's own saving: unreadable saves (truncated, not a list) were overwritten by the
-  next autosave. Now `writeAll` sets the old text aside first (`Dagyr_saves_v1_unreadable_<time>`, or IndexedDB's
+  next autosave. Now `writeAll` sets the old text aside first (`Velscour_saves_v1_unreadable_<time>`, or IndexedDB's
   `raw` store when localStorage is full) and refuses to save until a copy exists (a "Not saving" warning); the title
   explains, Settings > Hero backups downloads it. New `savesafe.js` (12 checks).
 - **Tests:** new `cloud.js` (4 devices on a fake Firebase: 43 checks, including lost, corrupt, damaged, no-IndexedDB
@@ -1278,7 +1387,7 @@ Player request: look the way you want without giving up stats.
 - **Request:** the airships (tools/airship3d*.js, docs/AIRSHIP_3D.md) as a biome. The hero steps out of the portal
   built into the heroes' ship. Then come boarding waves of increasing difficulty, a mid-boss, more waves, and an
   unskippable cinematic parley with the next boss and two palette-swapped townsfolk knights (2,000 conversations; the
-  knights tell why they serve Dagyr and never join). The flagship arrives with a cannon duel, the ships close, and
+  knights tell why they serve Velscour and never join). The flagship arrives with a cannon duel, the ships close, and
   hooks are thrown from both ships. Two big bosses jump aboard for the final fight. Then the portal turns into the
   exit and a better-odds chest appears. Eight scenario variants with weather (one at night), some of it affecting play.
 - **Mid-request changes:**
@@ -1287,7 +1396,7 @@ Player request: look the way you want without giving up stats.
   - Bosses do ship things: climb and dive, swing on ropes, call boarders down ropes from the sky.
   - Bosses stand about 1.5 heroes tall.
   - No placeholder art: the hook, chain and cannonball are baked from the texture pack.
-- **Done:** `skyship` biome, "The Sky Lanes", in the overworld rotation. Dagyr's skull also reaches it (`sky`,
+- **Done:** `skyship` biome, "The Sky Lanes", in the overworld rotation. Velscour's skull also reaches it (`sky`,
   `sky storm`, ...) and it has entries on the HAIL list. Full write-up: [SKY_BATTLE.md](SKY_BATTLE.md). The PR is
   from a worktree based on `origin/main`, so the main checkout's uncommitted work is untouched.
 - **Design calls made without asking:**
@@ -1346,7 +1455,7 @@ Player request: look the way you want without giving up stats.
 
 ## October 21, 2026 — more hero gear: Nocturne collection 04 armors (branch `feat/mountainside`)
 
-- **Request:** add `DAGYR_Nocturne_Collection_04_128_Armor_Source_Artwork.zip` (eight armors per class) to the game.
+- **Request:** add `VELSCOUR_Nocturne_Collection_04_128_Armor_Source_Artwork.zip` (eight armors per class) to the game.
 - **Done:** `tools/nocturnegear.py import4 <dir>` (head-matched to each class's common armor like collection 02; every
   new head lands at offset 0,0). Per class 26 armors (new 19-26: Rare A/B/C, Epic A/B/C, Legendary, Mythic), so the
   bands are now common 2, uncommon 2, rare 7, epic 6, legendary 4, mythic 5. Gear cache key `V` = `nocturne-5`. Saved
@@ -1415,7 +1524,7 @@ Player request: look the way you want without giving up stats.
 
 ## October 20, 2026 — the Castle's walls rebuilt as height-mapped masonry you can fight on (branch `feat/castle-walls-heightmap`)
 
-- **Request:** use the user's `DAGYR_Castle_Artwork_Complete.zip` (walls and towers, walkable rampart tiles, stairs
+- **Request:** use the user's `VELSCOUR_Castle_Artwork_Complete.zip` (walls and towers, walkable rampart tiles, stairs
   and landings, crenellations; not to any template) to rebuild the Castle overworld's walls and bridge: lower the
   water with height mapping and build the bridge from the set's pieces, make the walls wide enough to fight on with
   monsters spawning on top and stairs up, fix the keep doors that didn't connect to their walls; palette swaps of
@@ -1549,7 +1658,7 @@ Player request: look the way you want without giving up stats.
   BOSS ROOM life `raidHpMul` 0.35-0.55 (~12-19 normals; their wards and mechanics stretch it ~3.5x), damage
   `raidHitMul` x2.7 to depth 10 easing to x1.9 by 100 (was 3.6); add waves are fodder (35% life, at most 7, was up to
   10 full monsters that piled up); enrage at 3 min and execute at 5 (were 2 and 3: every fight hit the execute);
-  `DAGYR_HP` 60 normals (was 45000 when he died in 0.1 s). Measured (`BAL_RAID=1` balance.js, 16 class/depth
+  `VELSCOUR_HP` 60 normals (was 45000 when he died in 0.1 s). Measured (`BAL_RAID=1` balance.js, 16 class/depth
   pairs, damage on): every depth-5 room cleared first try in 43-72 s, most depth-30 rooms in 48-198 s (3 of 12 heroes
   died once), depth-100 rooms 74-156 s with about half the heroes dying once first.
 - **Pursuit:** monsters chasing run x1.3 (`CHASE`, up to 4.6 tiles/s; the hero runs 4.2) in `Monster.chase`.
@@ -1559,7 +1668,7 @@ Player request: look the way you want without giving up stats.
   Revived corpses' life is divided by the corpse's toughness.
 - **Density:** packs per room grow half as fast (`density(depth)` 1.0 + 0.006/depth to 120, was 1.1 + 0.013; champions
   2 + depth/25, uniques 1 + depth/45); `monsterBase` XP x `densityXp` so XP per depth stays where it was.
-- **Events:** Dagyr's Challenge needs 10 + depth/15 kills (max 24) in 45 s (was 18+, 40 s); kill streaks allow 4 s
+- **Events:** Velscour's Challenge needs 10 + depth/15 kills (max 24) in 45 s (was 18+, 40 s); kill streaks allow 4 s
   between kills (was 2.2).
 - **Stances** (`STANCES` in autoplay.js): new `kiteNear` (a melee foe this close sends a ranged build back), `kiteCrowd`,
   `kiteHp`, `backoff` (melee builds, Whirlwind too, step out of the crowd while a potion works) and `stand` (share of a
@@ -1588,7 +1697,7 @@ Player request: look the way you want without giving up stats.
   `src/data/biomenatives.js`, `src/gfx/biomenativeart.js`) and the Heavenly monsters' Canvas fallback (they now come
   only from their painted sheets). Raid bosses that used `bn_` art use set 3 giants. A saved nemesis with `bn_` art
   gets a fresh look.
-- **Added** enemy set 3: 260 painted monsters from `DAGYR_Monsters_Enemies_Bosses.zip` (100 enemies, 60 monsters,
+- **Added** enemy set 3: 260 painted monsters from `VELSCOUR_Monsters_Enemies_Bosses.zip` (100 enemies, 60 monsters,
   40 lords, 20 major bosses, 40 arena bosses), cut by `tools/set3plates.py`, packed into 10 atlases (each at most 1,554 px
   tall), catalogued in `src/data/bestiary3.js`. See docs/ENEMY_ART.md.
 - **No biome themes:** `rollLooks` picks looks at random from every sheet (at most 6 lazy sheets a level); biome
@@ -1642,7 +1751,7 @@ Player request: look the way you want without giving up stats.
   potion, retreats to town, and how far it farms (`farm`, `lim` in `huntGoal`).
 - **Portal choice** (`game.portalChoice`, `biomeChoices` / `takeBiome` in biomes.js, `rollOmen` / `omenable` in
   happenings.js): a cleared exit offers up to three biomes (all overworlds while the overworld guarantee is due; one
-  card at Dagyr's throne), each with its pre-rolled omen (none for BOSS ROOMs, overworlds, Endless Torment). The
+  card at Velscour's throne), each with its pre-rolled omen (none for BOSS ROOMs, overworlds, Endless Torment). The
   chosen omen rides on `c.nextOmen` ('none' for a quiet depth) and `setupHappenings` keeps its word. Both the manual
   exit and auto-play's `leaveLevel` use it; with auto-play on, `game.tickPick` (runs while the dialog pauses the
   world) counts `PICK_WAIT` (8 s) and then takes a portal with an omen if any; a tapped portal cuts the wait to 3 s and
@@ -1665,8 +1774,8 @@ Player request: look the way you want without giving up stats.
 
 ## October 19, 2026 — more hero gear: collection 02 armors, helmet sets 02 and 03, 24 more finishes (branch `feat/gear-collection-02`)
 
-- **Request:** add `DAGYR_Collection_02_96_Armor_Source_Artwork.zip`, `DAGYR_Helmet_Set_02_Game_Exports.zip` and
-  `DAGYR_Helmet_Set_03_Game_Exports.zip` to the game, used in play, with palette swaps for more gear variety.
+- **Request:** add `VELSCOUR_Collection_02_96_Armor_Source_Artwork.zip`, `VELSCOUR_Helmet_Set_02_Game_Exports.zip` and
+  `VELSCOUR_Helmet_Set_03_Game_Exports.zip` to the game, used in play, with palette swaps for more gear variety.
 - **Done:** `tools/nocturnegear.py import2 <dir>` (head-matched like the first sets). Per class 18 armors (new 13-18:
   Rare A/B, Epic, Legendary, Mythic A/B) and 15 helmets (new designs 6-15; sets 02/03 bring the first real Mythic
   helmets). `gear.json` bands are now id lists (`rare: [5,6,13,14]`...) and `itemLook` picks from them; helmets roll a
@@ -1701,7 +1810,7 @@ Player request: look the way you want without giving up stats.
 ## October 19, 2026 — Level cap 600 (levels 301-600 are the Endless Torment's progression)
 
 - `MAX_LEVEL` 300 -> 600 (`src/game/player.js`). `xpToNext` is unchanged to level 240; past it a level costs
-  `L/240` times the level-240 price (was still growing ~L^3.5). A full-clearing hero is ~273 at Dagyr (depth 500,
+  `L/240` times the level-240 price (was still growing ~L^3.5). A full-clearing hero is ~273 at Velscour (depth 500,
   was ~269), then keeps pace with the Endless Torment's monsters: ~355 at depth 700 (monster level 348), ~495 at 1000
   (483), and 600 around depth 1200 (573). Existing heroes keep their level.
 - `raidHpMul` stops growing at depth 500 (it had +1 a depth past 150 with no end); in the Endless Torment hero damage
@@ -1711,35 +1820,35 @@ Player request: look the way you want without giving up stats.
   `balance_model.mjs` cap at 600. The Death Knight's Runeblade keeps its last look (level 300's) above 300.
 - Tests: endgame (paladin, wizard, ranger, bard, barbarian), flow, hud, levelup, raid 55,450,700, data_check.
 
-## October 19, 2026 — Endgame balance pass: XP pacing, late monster damage, BOSS ROOMs, Dagyr
+## October 19, 2026 — Endgame balance pass: XP pacing, late monster damage, BOSS ROOMs, Velscour
 
 - **Request:** check enemy damage and the rest of the balance with calculations (no long simulations): still fun,
-  and Dagyr (depth 500) beatable after enough grinding.
+  and Velscour (depth 500) beatable after enough grinding.
 - **Model:** new `tools/tests/endgame.js` (~1 min a class, no game simulation). It sums the XP of a built dungeon
   every 20 depths and integrates the hero's level (full clears, and a "rusher" who kills 40% of each depth). Then at
   13 depths it gears 3 heroes like `balance.js` (gear capped at the hero's level, since items need their level) and
   compares auto-play's sheet numbers with that depth's monsters: seconds to kill a normal / guardian / BOSS ROOM /
-  Dagyr, and % of life one hit of each takes (physical through armor / elemental through resistance).
+  Velscour, and % of life one hit of each takes (physical through armor / elemental through resistance).
 - **Found:** (1) a full-clearing hero hit the level cap (300) by depth ~160 (a rusher by ~250), so for the last 300+
   depths nothing levelled and hero life stopped growing; (2) monster damage past level 140 grew 1.6% a level vs
   ~0.6% for hero life, so by depth 450-500 a normal hit took 35-60% of life and BOSS ROOM bosses one-shot;
-  (3) Dagyr had 40x a normal's life (less than a depth-500 guardian, 44x) and died in ~0.1 s; (4) BOSS ROOM life
+  (3) Velscour had 40x a normal's life (less than a depth-500 guardian, 44x) and died in ~0.1 s; (4) BOSS ROOM life
   stopped growing at depth 150, so deep ones died in 2-12 s while depth 10-40 ones took 20-90 s; (5) bounties paid
   `60 * 1.11^level` XP: hundreds of levels per bounty past monster level ~150.
 - **Changes:** `xpToNext` x `(1 + (L/30)^1.5)` (`src/game/player.js`; early levels barely change); monster damage
   past level 140 `1.016 -> 1.006` a level (`monsterBase`); `raidHpMul(depth)` keeps growing +1 a depth past 150
-  (`src/game/raid.js`); `DAGYR_HP` 45000 normals (~3x the last BOSS ROOM boss) and his damage x2.8 (was 2.4);
+  (`src/game/raid.js`); `VELSCOUR_HP` 45000 normals (~3x the last BOSS ROOM boss) and his damage x2.8 (was 2.4);
   bounty XP `120 * level^1.5` (~30 kills).
 - **Result (6 classes, full clears):** hero level 12 / 53 / 98 / 151 / 207 / 240 / 265 at depth 10 / 40 / 80 / 160 /
   300 / 400 / 500 (monster level 10 / 40 / 69 / 105 / 168 / 213 / 258); 300 is for grinders. (Later the same day the
   cap became 600: see above.) Normal hits 2-10% of
   life to depth 160, 12-19% from 250 to 500; champions ~1.4x that, guardians ~2x, BOSS ROOM bosses 45-70% (two
-  hits), Dagyr 40-55%. BOSS ROOM fights 10-35 s at every depth past 40; Dagyr 33-99 s. Defiance (8 stacks:
-  +80% life, 40% less damage) cuts a Dagyr hit to ~15%. A rusher falls behind from depth ~350 (level 216 vs 258
-  at depth 500; normals 30-40% of life, BOSS ROOMs one-shot, Dagyr ~15 min): they must grind, and auto-play's farm
+  hits), Velscour 40-55%. BOSS ROOM fights 10-35 s at every depth past 40; Velscour 33-99 s. Defiance (8 stacks:
+  +80% life, 40% less damage) cuts a Velscour hit to ~15%. A rusher falls behind from depth ~350 (level 216 vs 258
+  at depth 500; normals 30-40% of life, BOSS ROOMs one-shot, Velscour ~15 min): they must grind, and auto-play's farm
   mode (`huntGoal`: below monster level + 1) does. Normal monsters and guardians still die almost instantly past
   depth 40 (hero damage outgrows monster life ~10x at depth 10, ~500x deep); left alone, the fights are the BOSS
-  ROOMs and Dagyr.
+  ROOMs and Velscour.
 - **Tests:** endgame (6 classes, full + rush), raid 5,55,150,300,450 (depth 30 in the default set always lands on
   the Sea of Sand, whose art isn't loaded in that test: an existing setup issue), boss, wanderers, flow,
   balance_model, auto-play soaks (wizard/paladin 25 game min: same pace, no deaths). Seen once in a wizard soak:
@@ -1808,7 +1917,7 @@ Player request: look the way you want without giving up stats.
 
 ## October 19, 2026 — People and Animals: 47 painted people and 10 animals replace every townsperson (branch `feat/people-and-animals`)
 
-- **What:** the user's `DAGYR_People_and_Animals.zip` (kept outside the repo) is cut by `tools/build_people_pack.py`
+- **What:** the user's `VELSCOUR_People_and_Animals.zip` (kept outside the repo) is cut by `tools/build_people_pack.py`
   into `assets/sprites/people/` and replaces all townsfolk, royals, NPC knights, guards and scenario civilians. Vendors
   keep their painted art. Full write-up: [PEOPLE_AND_ANIMALS.md](PEOPLE_AND_ANIMALS.md).
 - **Animation:** there are no walk frames. People bounce along on their pose (hero-style), and frightened, angry or
@@ -1922,8 +2031,8 @@ blades circling him become larger blue boomerangs.
   visual only), five sword skills of its own (`PET`: Runic Lunge, Reaping Arc, Grave Plunge, Blade Waltz, Wheel of
   Rime; signature hits, so they never charge the runes), a fast-move trail, a floor shadow, drawn behind him when it is
   further from the camera. Details and numbers: [RUNEBLADE_3D.md](RUNEBLADE_3D.md#the-familiar).
-- **Death Knight, the skulls**: the skulls from his casts/hits and Death Coil now use the Dagyr contact skull art
-  (`assets/ui/Dagyr_contact_skull.png`) recoloured to his frost palette at load, red eye dots removed (`src/gfx/dkskull.js`).
+- **Death Knight, the skulls**: the skulls from his casts/hits and Death Coil now use the Velscour contact skull art
+  (`assets/ui/Velscour_contact_skull.png`) recoloured to his frost palette at load, red eye dots removed (`src/gfx/dkskull.js`).
 - **Balance call, not measured**: the sword skills add damage (roughly 0.5x `power` per 2.6 s plus the AoE skills).
   Worth a `balance.js death_knight` pass if the Death Knight now feels too strong.
 - **Follow-up**: the familiar is bigger (52 px, `RUNEBLADE_LEN` in `runeblade3d.js`), 3 far patterns (rove, dance,
@@ -1937,7 +2046,7 @@ blades circling him become larger blue boomerangs.
 ## October 18, 2026 — Bard: a five-octave harpsichord, 2,000 two-bar melodies, two-handed performances (branch `feat/bard-harpsichord`)
 
 - **Instrument**: the piano and the old one-octave harpsichord are gone. The user's "Harpsichord 5 Octaves / 7
-  Articulations" pack (427 WAVs, C2-C7; `F:\!  DAGYR\Harpsichord_5Octaves_7Articulations_427_Samples.zip`, 220 MB,
+  Articulations" pack (427 WAVs, C2-C7; `F:\!  VELSCOUR\Harpsichord_5Octaves_7Articulations_427_Samples.zip`, 220 MB,
   kept outside the repo like the Dark Forest zip) is imported by `python tools/process_assets.py instruments <zip or
   folder>` (`tools/instrumentpack.py`). The three held articulations are one recording at three gains (correlation
   1.000) and soft_short is normal_short softer, so 4 banks are kept (held cut to 3 s, normal/staccato/marcato short
@@ -1968,7 +2077,7 @@ blades circling him become larger blue boomerangs.
   bass, contrary line, broken chords, rolled arpeggios, oom-pah, march, drone + octave pulse, ostinato with a b2
   neighbour, lament bass, block chords, toccata pedal; always under the right hand), then the finishing bar from a
   compatible melody never heard after this one (`pickFinish`; heard songs persist in localStorage
-  `Dagyr_bard_heard`, 6,000 kept), ending on a low octave + rolled tonic. **Lockout**: casts write nothing only
+  `Velscour_bard_heard`, 6,000 kept), ending on a low octave + rolled tonic. **Lockout**: casts write nothing only
   while the written bar plays (4 beats, as before minus the old landing ring); during the finishing bar they write the
   next bar silently, and a bar completed then waits (`sc.pending`) and starts on the exact downbeat (if the audio clock
   agrees with game time within 120 ms). Gameplay unchanged: treble notes launch as played, the bass chord lands on
@@ -1994,8 +2103,8 @@ blades circling him become larger blue boomerangs.
 ## October 18, 2026 — MOUNTAINSIDE (beta): the first height-mapped overworld (branch `feat/mountainside`)
 
 - **What:** a 50 x 50 climb up a mountainside, foot at the bottom-left of the screen, summit at the top-right. Not in
-  any rotation (`BETA_BIOMES` in `src/data/biomes.js`, excluded from the draw and the overworld guarantee): Dagyr's
-  skull + the message `mountain`, or first on the HAIL DAGYR! list. Full write-up: [MOUNTAINSIDE.md](MOUNTAINSIDE.md).
+  any rotation (`BETA_BIOMES` in `src/data/biomes.js`, excluded from the draw and the overworld guarantee): Velscour's
+  skull + the message `mountain`, or first on the HAIL VELSCOUR! list. Full write-up: [MOUNTAINSIDE.md](MOUNTAINSIDE.md).
 - **Height map:** `map.hgt` levels (4 px each); hop up 4 levels, drop 10, taller is a wall. Movement, A*, the flow
   field, `losWide`, `los` and auto-play's nav field follow it (`stepOk`/`stepsOk`/`circleFree(..., from)` in map.js).
   `view.js` `setElevation` lifts `isoY` so everything stands on the terrain; picking inverts it. `src/gfx/terrain.js`
@@ -2178,7 +2287,7 @@ blades circling him become larger blue boomerangs.
   than the Castle. Full write-up: [DARK_FOREST.md](DARK_FOREST.md).
 - **Assets:** `python tools/darkforestpack.py <zip>` -> `assets/tiles/dark_forest/` (floors/walls/scatter via
   `biomepack.import_pack`, plus `trees.webp/json`, halved). The 101.7 MB zip is over GitHub's limit and stays outside
-  the repo (`F:\!  DAGYR\AI ASSETS\Biome Packs\`). Biome flag `packArt: true` makes `loadBiomeArt` load the pack
+  the repo (`F:\!  VELSCOUR\AI ASSETS\Biome Packs\`). Biome flag `packArt: true` makes `loadBiomeArt` load the pack
   for an overworld; `game.loadLevelArt` also loads the trees.
 - **Map** (`src/world/darkforest.js`): a DFS trail maze over 24 x 24 macro cells (main paths to every objective, side
   trails, dead ends with chests, deep-wood blobs), three walled labyrinths (3-tile corridors; mossy ruins around the
@@ -2330,7 +2439,7 @@ The user's ask: get past depths 150-160 without dying and resetting 30+ times; a
 - **Happenings** (`src/game/happenings.js`). Dungeons roll an omen (22-45%: Blood Moon, Golden Hour, The Horde,
   Gathering of Champions, Starfall, Arcane Surge, Treasure Vault, Feeding Frenzy), 0-2 shrines (Frenzy, Fortune,
   Bulwark, Wisdom, Wrath, Storm, Renewal), a fallen adventurer's remains with an epitaph, a cursed chest (three
-  ambush waves, then a hoard), a Treasure Imp (flees, sheds gold, bursts into loot, escapes after 32 s), Dagyr's
+  ambush waves, then a hoard), a Treasure Imp (flees, sheds gold, bursts into loot, escapes after 32 s), Velscour's
   Challenge (slay N in 40 s), and the Nemesis (the monster that last killed you returns as a named unique; killing it
   is a REVENGE with loot). Kill streaks (10/20/35/50/75/100/150) call out and pay XP. Every new tenth depth gets
   fireworks and a gift. Town visits can bring a festival (potions, fireworks), a 3-depth blessing (Priestess,
@@ -2580,7 +2689,7 @@ changes; each fix cites the commit that made the change.
   (100 deterministic map seeds), JavaScript parse checks, and `git diff
   --check`. Browser Playwright could not launch because the local Chromium
   headless-shell binary is absent; repository guidance says not to install it.
-- Work is on `feat/sea-of-sand-overworld`; PR: https://github.com/Agilancer/Dagyr/pull/82.
+- Work is on `feat/sea-of-sand-overworld`; PR: https://github.com/Agilancer/Velscour/pull/82.
 
 ## October 15, 2026 — Town approaches and neighborhood alignment
 
@@ -2618,10 +2727,10 @@ changes; each fix cites the commit that made the change.
   portal. Chromium screenshots were inspected for seeds 1337 and 2929; all
   targets were reachable and the test reported no errors.
 
-## October 15, 2026 — intro credits ahead of the Dagyr logo
+## October 15, 2026 — intro credits ahead of the Velscour logo
 
-- The title intro fades the supplied Blastorama Gaming Presents card in and out, then fades the Jamie Herrington curator card in and out before the existing song-synced Dagyr logo reveal and flame strike.
-- Added responsive desktop/phone layout with smaller credit cards. The sequential cards start with the title music and finish as the song-synced Dagyr reveal is underway; the intro skip also works during the credits.
+- The title intro fades the supplied Blastorama Gaming Presents card in and out, then fades the Jamie Herrington curator card in and out before the existing song-synced Velscour logo reveal and flame strike.
+- Added responsive desktop/phone layout with smaller credit cards. The sequential cards start with the title music and finish as the song-synced Velscour reveal is underway; the intro skip also works during the credits.
 - The desktop/mobile `titlefx.js` test was attempted but could not start because Playwright is not installed in this checkout. Runtime visual QA remains outstanding.
 
 ## October 15, 2026 — Barbarian Bash, hit-built Rage, and Whirlwind cyclone
@@ -2774,9 +2883,9 @@ sprite art; preserve current character/attack animations and source packs.
 
 ## 1. The user's requirements
 
-The user (GitHub `Agilancer`) asked for a rough draft of **"DAGYR"**, an epic isometric retro-pixel-art
+The user (GitHub `Agilancer`) asked for a rough draft of **"VELSCOUR"**, an epic isometric retro-pixel-art
 **Diablo 2 clone**, playable **in a web browser on PC and mobile**. They attached five images, now in
-`assets/source/`: a 16-class character design sheet, the DAGYR logo, a HUD bar, an isometric catacomb
+`assets/source/`: a 16-class character design sheet, the VELSCOUR logo, a HUD bar, an isometric catacomb
 floor-tile sheet and a catacomb wall sheet.
 
 Requirements, as stated (✅ = implemented in the draft):
@@ -2805,7 +2914,7 @@ Requirements, as stated (✅ = implemented in the draft):
   back to town, the town portal leads into the next biome.
 - ✅ On **death**, return to town keeping all gear, XP, levels and skills, but "start over at level 1"
   (see Decisions).
-- ✅ Difficulty increases up to **level 100**, where the final boss is **"DEMON LORD DAGYR"**. (Later moved to
+- ✅ Difficulty increases up to **level 100**, where the final boss is **"DEMON LORD VELSCOUR"**. (Later moved to
   **depth 500** at the user's request, item 20.)
 - Follow-up messages: "It's meant to be played in a web browser on PC and mobile!" Later: "Yes, into main. Push the
   build out so I can test it on GitHub." Later still: "Make sure to leave detailed notes so that you will be able
@@ -2815,7 +2924,7 @@ Requirements, as stated (✅ = implemented in the draft):
 - **"Start over at level 1" on death means Depth 1.** The hero keeps their character level, gear, XP and skills,
   and the descent restarts at dungeon Depth 1. The user was told about this reading and has not objected yet.
   If they meant character level 1, change `onPlayerDeath` in `src/game/game.js`.
-- **"Level 100" means Depth 100.** Depth 100 is a special throne gauntlet ending in DEMON LORD DAGYR. After
+- **"Level 100" means Depth 100.** Depth 100 is a special throne gauntlet ending in DEMON LORD VELSCOUR. After
   the victory screen, "Endless Torment" depths continue past 100.
 - **Tech stack:** vanilla JS ES modules and Canvas 2D, with no framework and no bundler. GitHub Pages can serve the
   repo as-is, and the code is easy to change.
@@ -2823,13 +2932,13 @@ Requirements, as stated (✅ = implemented in the draft):
   packs** (the Catacombs pack so far, palette swapped for all 25 biomes; see [`ART.md`](ART.md)). Monsters use the
   user's art: 7 monster sheets (set 1, 70 monsters) and `Enemy_300.zip` (set 2, 300 single sprites); see
   [`ENEMY_ART.md`](ENEMY_ART.md). Everything else
-  is placeholder ASCII pixel art with palette swaps (summons, Dagyr, items) or is drawn procedurally (town buildings). The README tells the user
+  is placeholder ASCII pixel art with palette swaps (summons, Velscour, items) or is drawn procedurally (town buildings). The README tells the user
   how to swap in real art.
 - **Enemy variety:** 22 AI archetypes, played by 370 painted monsters (`src/data/bestiary.js`; each has a main
   archetype and maybe a few it can stand in for). Each level rolls up to 2 looks per roster archetype, favouring the
   biome's art families (`prefer`) and element, each palette-swapped from the biome's swap list (29 swaps). A darker
   "greater" breed exists for each, and uniques get a random swap. Guardians come from 99 boss-flagged
-  monsters; set 2's 66 giants (`lone`) only ever play guardians and raid bosses. Dagyr keeps his own pixel sprite: no sheet has a demon lord.
+  monsters; set 2's 66 giants (`lone`) only ever play guardians and raid bosses. Velscour keeps his own pixel sprite: no sheet has a demon lord.
 - **Biome order:** the user asked for biomes to be random and not go in order. Biomes are drawn from a per-hero
   shuffle bag (`drawBiome`), so all 24 come up before any repeats, and the first descent is random, no longer
   always the catacombs. **Like-coloured mixing:** about 65% of levels borrow floors (in the far chunks) and maybe
@@ -2858,7 +2967,7 @@ Requirements, as stated (✅ = implemented in the draft):
   replays the intro without the prompt. Returning from a sub-menu while the Hymn still plays shows the logo lit. Any
   click or key during the intro skips to the burst (it seeks the song to just before the hit). The tar drips and pile
   explosions were removed at the user's request.
-- **Level-up (user request):** Dagyr now says one of 2,000 two-line taunts in six moods (dread, mock, cheer, rage, unhinged, sulk; `src/data/taunts.js`, plus class and milestone lines); the second line takes the mood's colour and motion (`#levelup[data-mood]` in style.css), a mood never repeats back to back and lines do not repeat until the pool is spent (deck in localStorage `Dagyr_taunts_v1`). no voice line any more (the wav and `tools/levelup_voice.py` were removed). `levelUpFanfare()` is a grim bell toll + choir drone, the banner bleeds in from blur over a dark vignette, crit damage numbers drip blood (`drawDrips` in vfx.js). Old notes below may still mention the voice.
+- **Level-up (user request):** Velscour now says one of 2,000 two-line taunts in six moods (dread, mock, cheer, rage, unhinged, sulk; `src/data/taunts.js`, plus class and milestone lines); the second line takes the mood's colour and motion (`#levelup[data-mood]` in style.css), a mood never repeats back to back and lines do not repeat until the pool is spent (deck in localStorage `Velscour_taunts_v1`). no voice line any more (the wav and `tools/levelup_voice.py` were removed). `levelUpFanfare()` is a grim bell toll + choir drone, the banner bleeds in from blur over a dark vignette, crit damage numbers drip blood (`drawDrips` in vfx.js). Old notes below may still mention the voice.
   pre-renders it, because a browser can't synthesize intelligible speech through WebAudio (speechSynthesis can't be
   routed through effects). The fanfare before it is procedural (`levelUpFanfare()` in `src/core/audio.js`).
 - **Dragoon leap art (user request):** every Dragoon leap skill (9) shows a glowing energy lance aimed along the jump arc (tipped up on the rise, diving on the fall, planted in the ground on landing, then shattering), with its own trail: Jump wind streaks, Aerial Strike afterimages, Dragon Dive twin fire helix, High Jump contrail + sonic boom + feathers, Comet Dive comet tail, Stardive constellation, Storm Dive lightning, Dragonfall burning wings, Cyclone Dive wind spiral. `src/gfx/lancefx.js` (styles keyed by skill name in `STYLES`), hooked from the `leap` case in `castSkill`; verified by `tools/tests/lance.js`.
@@ -2916,7 +3025,7 @@ checks (`node tools/tests/astral_plane.js`) are required before merge.
 
 **HELL biome (October 2026, draft `feature/hell-dungeon-biome`):** Added The
 Infernal Dominion as a standalone indoor dungeon, separate from Molten Depths and
-Depth-500 Dagyr's Throne. Its runtime Canvas pack in `src/gfx/hellpack.js`
+Depth-500 Velscour's Throne. Its runtime Canvas pack in `src/gfx/hellpack.js`
 provides 60 new floor designs, 40 infernal props, 5×16 modular wall masks and
 three directional arches/doors with opening states; architectural *geometry*
 reuses original validated Catacombs depth slices. Normal dungeon selection,
@@ -2950,17 +3059,17 @@ and performance-check on iOS Safari before merge. Older dated status below is re
 
 
 **October 2026 sprite replacement pass (`codex/replace-placeholder-sprites`):** 122 generated
-painted sprites replace the remaining 56 unpainted summons, Dagyr/ward crystal, 12 NPCs,
+painted sprites replace the remaining 56 unpainted summons, Velscour/ward crystal, 12 NPCs,
 generic equipment/loot and two projectile silhouettes. Existing supplied artwork is preserved.
 See [SPRITE_REPLACEMENTS.md](SPRITE_REPLACEMENTS.md) for coverage, reproduction and checks.
 Source: `assets/source/replacements/`; rebuild with `python tools/replacementart.py`.
 The older branch/status notes below describe earlier sessions.
 
-**Branch / PR:** all work is on `claude/amazing-rubin-kguehz`. PR https://github.com/Agilancer/Dagyr/pull/1
+**Branch / PR:** all work is on `claude/amazing-rubin-kguehz`. PR https://github.com/Agilancer/Velscour/pull/1
 (→ `main`) is open, and the user is to click Merge. The auto-mode permission check blocked Claude from merging,
 with the reason "Merge Without Review". GitHub Pages is already enabled on the repo and deploys from `main` (an
 earlier "pages build and deployment" run deployed the initial README commit), so merging PR #1 publishes the game
-at https://agilancer.github.io/Dagyr/.
+at https://agilancer.github.io/Velscour/.
 → **First thing in a new session:** check whether PR #1 is merged. If it is, restart the branch from `origin/main`
 before new work, as `CLAUDE.md` explains.
 
@@ -2977,7 +3086,7 @@ controls → `6657e14` fixes from browser testing → then the hand-off notes an
   weapon, combining gems, +1 upgrade, gambling, portal dialog.
 - Mobile at 844×390 touch worked (`mobile.js`): title, class select, town, vendor next to inventory, joystick,
   ATK button, skill tree, inventory. The layout was fixed to stop buttons overlapping.
-- Bosses worked (`boss.js`): the Depth 100 throne with DEMON LORD DAGYR (all 8 attack patterns) and a depth 37
+- Bosses worked (`boss.js`): the Depth 100 throne with DEMON LORD VELSCOUR (all 8 attack patterns) and a depth 37
   guardian.
 
 **Not verified:**
@@ -3098,7 +3207,7 @@ are in section 7.
    - How it decides, and the tuning knobs, are in section 7, *Auto-play*.
    - Verified with the new `tools/tests/autoplay.js` (all 16 classes for 10 game minutes each: every one descends,
      no deaths so far; long runs of 60 game minutes for wizard and paladin), a forced death (death screen clicked,
-     town routine, back to Depth 1), a level-90 wizard in the Depth 100 throne in god mode (Dagyr killed, victory
+     town routine, back to Depth 1), a level-90 wizard in the Depth 100 throne in god mode (Velscour killed, victory
      screen clicked, on to Depth 101), plus flow, ui, mobile and data_check. Mobile: the touch HUD buttons shrank to
      37 px and the touch boss bar narrowed so six buttons fit beside it at 844 and 667 px wide.
 
@@ -3158,13 +3267,13 @@ are in section 7.
 
 15. **Spectacular level-ups, damage numbers and a DPS readout (branch `claude/laughing-dirac-kv1clj`).** The user asked
    for grimdark-yet-arcadey level-ups with an arcade jingle and a heroic-but-creepy digital voice saying "YOU HAVE
-   BECOME MORE POWERFUL, BUT DAGYR STILL LIVES" on every level up; the hero's level, attack power, calculated DPS
+   BECOME MORE POWERFUL, BUT VELSCOUR STILL LIVES" on every level up; the hero's level, attack power, calculated DPS
    and "Average DPS over last 30 seconds" updating every 0.1 s; and large, comic-style damage numbers over monsters'
    heads, crits bigger, another colour and longer lasting. Done:
    - Voice: `tools/levelup_voice.py` renders `assets/audio/voice/levelup.wav` (6 s, 8-bit 16 kHz, 92 KB) with
      espeak-ng + MBROLA `us2` (`apt-get install espeak-ng mbrola mbrola-us2`): the line spoken at three pitches in
      unison, ring-modulated, bit-crushed, cavern echo. Checked with PocketSphinx: the dry voice transcribes word for word;
-     the processed one gives "you have become more powerful ... still lives" (it has no word for Dagyr). Echo and
+     the processed one gives "you have become more powerful ... still lives" (it has no word for Velscour). Echo and
      heavy crushing hurt recognition most, so both are kept light.
    - `levelUpFanfare()` (`src/core/audio.js`): D minor → Bb → C pulse-wave arpeggios with bass, kicks and hats, a held
      D major stab with vibrato and crash, a detuned tritone "ghost" sliding under it, then the voice at 1.29 s. Music and
@@ -3347,7 +3456,7 @@ are in section 7.
      `legion.js` fails `pyreknight spells 0` on `main` too (pre-existing).
 21. **Random towns, depth 500, harder monsters, rings, skill mastery, Gem Forge (branch `claude/exciting-carson-l949yd`).**
    The user asked for: a more random, less cookie-cutter town using the pack's assets for roads and lived-in areas;
-   the stone and flag by the portal removed; Dagyr moved to depth 500; dungeons a bit harder (heroes should die now
+   the stone and flag by the portal removed; Velscour moved to depth 500; dungeons a bit harder (heroes should die now
    and then, especially on auto); 4 ring slots whose rings augment skills significantly (e.g. lightning tethering the
    Paladin's swirling hammers to him, fire/poison/chain lightning enchantments) for all skills of all classes; skill XP
    and levels 1-1000 per skill with growing power and bigger effects; combining/upgrading gems in town. Done:
@@ -3400,7 +3509,7 @@ Do these in order, unless the user asks for something else. Their feedback after
 0. Get the user's feedback on item 21: town variety, ring power (augment numbers are first guesses in rings.js and
    augments.js), mastery speed (`masteryNeed`, cast XP in `Player.tryUseSkill`), and whether deaths now happen often
    enough. Then the boss rooms (item 16).
-1. Get PR #1 merged (by the user) and confirm the Pages deploy works at https://agilancer.github.io/Dagyr/.
+1. Get PR #1 merged (by the user) and confirm the Pages deploy works at https://agilancer.github.io/Velscour/.
 2. Act on the user's playtest feedback.
 3. Pre-release hardening, which was offered to the user but not yet run:
    - an iOS Safari / Firefox compatibility pass (static API audit plus fixes)
@@ -3481,7 +3590,7 @@ Do these in order, unless the user asks for something else. Their feedback after
     - `hover` (controls.js:77); `lootBoxes` (render.js:299).
     - `showAutomap` (game.js:328); `ui` (ui.js:16); `touchUI` (touch.js:19).
   - Settings keys that exist only through the settings dialog (screens.js:139-141): `autoLoot`, `pauseMenus` (read as `!== false`, so it defaults to on), `showGoldLabels`.
-  - `SETTINGS_KEY='Dagyr_settings_v1'` (:29). `loadSettings()` (:31) uses `Object.assign`, so unknown keys survive. `saveSettings()` (:37).
+  - `SETTINGS_KEY='Velscour_settings_v1'` (:29). `loadSettings()` (:31) uses `Object.assign`, so unknown keys survive. `saveSettings()` (:37).
 - **util.js**
   - `TAU`, `DEG`; `clamp`, `lerp`.
   - `rand(a=1,b?)`: with one arg returns [0,a); with two returns [a,b). `randi(a,b)` is inclusive.
@@ -3536,7 +3645,7 @@ Do these in order, unless the user asks for something else. Their feedback after
   - `potionIcon(color,size=48)` (:100): **uncached**, makes a new canvas on every call.
 - **pixelart.js**
   - `SPRITES` (:8), 68 entries:
-    - Monsters (:9-357): skeleton … abomination, Dagyr.
+    - Monsters (:9-357): skeleton … abomination, Velscour.
     - Summons (:359-505): totem, turret, drone, bird, dragon, banner, cauldron, tesla, scarecrow, lantern, drum, cloud, hydra, hive.
     - Props (:507-611): tree, pine, barrel, crate, lamp, well, grave, rock, bush, anvil.
     - Item icons (:613-859): sword … boots.
@@ -3612,7 +3721,7 @@ Do these in order, unless the user asks for something else. Their feedback after
 9. `await loadAssets(progress)`. On failure it shows a "serve over http" message and returns.
 10. `HUD.init()`; `TouchUI.init()` if touch; `applyVolumes()`.
 11. Hide `#loading`; `titleScreen()` sets `G.mode='title'`.
-12. `window.DAGYR={G,game}` as a console debug handle.
+12. `window.VELSCOUR={G,game}` as a console debug handle.
 
 **Frame** (`main.js:56`):
 - Setup: `dt=min(.05,…)` (slow motion below 20 fps), then `G.time+=dt`, `G.frame++`.
@@ -3859,7 +3968,7 @@ Data-only ES modules in `src/data/`. They have no side effects except the skill 
 - `src/data/skilldata.js` (376 lines): `SKILLDATA[classId] = [tree0[20], tree1[20], tree2[20]]`. That is 960 one-line DSL strings `"Name|kind|element|fx|mods"`.
 - `src/data/skills.js` (191 lines): parses SKILLDATA into `SKILLS` and `CLASS_SKILLS` on import. Holds the damage, mana, cooldown, range and duration formulas, `GRANTS`, and `describe()` (the tooltip text). Imports `ELEM` from `src/gfx/vfx.js`.
 - `src/data/summons.js`: `SUMMONS` has 105 minion, totem and turret definitions, keyed by the skill mod `sum=`.
-- `src/data/enemies.js` (66 lines): `ARCH` (22 monster archetypes plus `Dagyr`), `GORE`, `ELITE_AFFIXES` (names only), `bossName()`, `uniqueName()`.
+- `src/data/enemies.js` (66 lines): `ARCH` (22 monster archetypes plus `Velscour`), `GORE`, `ELITE_AFFIXES` (names only), `bossName()`, `uniqueName()`.
 - `src/data/biomes.js` (139 lines): `BIOMES` (20, including `throne`), `BIOME_BY_ID`, `randomBiome()`, `TOWN_BIOME`.
 - `src/data/items.js` (350 lines): rarities, materials, bases, `AFFIXES` (48), `LEGENDARY` (22), `GEMS` (12 normal + 9 special), item and gem rolling, names, stats, prices, service costs, potions.
 
@@ -4021,18 +4130,18 @@ Summon attacks (`monster.js:416 summonAttack`) by `atk.type`:
   - exploder: x1.6, r1.7, dies
   - boss: pattern queue
   - turret, aura, follow: summons only
-- Boss patterns (`monster.js:739`) are drawn from slam, nova, volley, charge, summon, meteor, spiral, beam. Dagyr uses all 8. Others use `3+min(3,floor(depth/20))` plus slam. A pattern fires every 2.6-4.2s. Phase 2 starts below 50% HP: speed x1.2, atkCd x0.75, about 0.7x pattern time.
+- Boss patterns (`monster.js:739`) are drawn from slam, nova, volley, charge, summon, meteor, spiral, beam. Velscour uses all 8. Others use `3+min(3,floor(depth/20))` plus slam. A pattern fires every 2.6-4.2s. Phase 2 starts below 50% HP: speed x1.2, atkCd x0.75, about 0.7x pattern time.
 - Elites (`makeElite`, `monster.js:719`):
   - champion: hp x3, dmg x1.4, xp x3, 1 affix (2 when depth > 40).
   - unique: hp x5, dmg x1.6, xp x6, 2 affixes (3 when depth > 50).
-  - boss: hp x(14+depth/4) (Dagyr x40), dmg x1.9 (x2.4), xp x25 (x200).
+  - boss: hp x(14+depth/4) (Velscour x40), dmg x1.9 (x2.4), xp x25 (x200).
 - Affix effects are hardcoded in `monster.js:45-101,332,352,747-753`.
 - Spawning (`dungeon.js:109-150`):
   - Roster index = `floor(rng^1.35 * 12)`, so earlier roster entries are more common.
   - Pack size = `ARCH.pack`, +1 at 40% chance when depth > 30.
   - Champion packs: `2+floor(depth/15)`. Unique packs: `1+floor(depth/30)`.
   - Boss arch is from the roster minus bat/spider/beetle.
-  - Depth 100 uses `generateThrone` with arch `Dagyr`.
+  - Depth 100 uses `generateThrone` with arch `Velscour`.
 
 **Biomes.**
 - `palette` is the parameter set for `recolor()` (`core/util.js:141`), applied to the floor and wall atlases via `biomeTileSet` (`core/assets.js:65`, caches 2 sets). Keys: `hue` (deg), `sat` (x), `light` (+), `contrast` (x around .5), `tint:[r,g,b,amt]`, `colorize:[hueDeg, sat]`. `null` means the raw art. `TOWN_BIOME.wallPalette` overrides walls.
@@ -4247,7 +4356,7 @@ Dungeon algorithm (dungeon.js):
 11. Exit (:193): toward the exit-room side away from the start room, inset 1.5; fallback centre.
 `game.js:187 buildDungeon` turns this into a World: chests get `opened/reach/use`, town portal at start+(1.6,-0.6), exit portal sealed until `onBossKilled`, monsters via `makeMonster` (boss level depth+2, elites depth+1; unique pack members become "Minion" normals). Seed is `Math.random()` per entry -> levels are not reproducible across visits/saves.
 
-Throne (dungeon.js:212): fixed 44x80 map: entrance hall (17,68,10x9), gauntlet rects, elliptical arena 32x27 at (6,4); fixed spawns incl. `Dagyr` boss at (22,14); 12% torches; 4 funerary obelisks; one rare chest (22.5,72.5); start (22,73), exit (22,7). `biome` arg unused. Depths >100 ("Endless Torment") use the normal generator with sizes capped.
+Throne (dungeon.js:212): fixed 44x80 map: entrance hall (17,68,10x9), gauntlet rects, elliptical arena 32x27 at (6,4); fixed spawns incl. `Velscour` boss at (22,14); 12% torches; 4 funerary obelisks; one rare chest (22.5,72.5); start (22,73), exit (22,7). `biome` arg unused. Depths >100 ("Endless Torment") use the normal generator with sizes capped.
 
 Town (`generateTown`): 44x44, all floor; a per-tile material grid (`MATS`: grass, gravel, dirt, mud, stone) is painted, then each tile next to a softer material takes the pack transition with that material on the shared side (one side: axis shape; two adjacent sides: diagonal). Stone plaza 14..30 with a gravel kerb on its open sides, well at the centre (22,22). The 8 vendor shops ring the plaza: a north row (centres y 11.5, x 15.5..27.5, doors on the +y face) and a west row (x 11.5, doors on +x), with an inn in the corner; NPCs stand 0.8 tiles out from their door (`SHOPS`, `DOOR_X`). Buildings are drawn 1.5x (`BS`): a 3x3 blocked footprint, `{cx, cy, spr, k, depth: cx+cy}`; each door torch is a `kind:'flame'` prop (lit). Bakery and stables to the east, two cottages to the south, dirt road SE to the portal (39,39) on a stone/gravel yard, two dirt lanes out. The outer 3 tiles are a blocked ring of trees; more trees, shop dressing and brush from the pack; lamps are the catacombs pack's torch stands (`light: 4.5`). Generated once and cached in `game.js townCache`; `seen` is cleared per visit; villagers wander near `t.center`. Check: `node tools/tests/town.js` (vendors + portal reachable, screenshots).
 
@@ -4306,7 +4415,7 @@ Caches: `lightCanvas` + `vignette` (module level, keyed by size), `townCache`/`t
 ### Open issues noticed
 - src/game/render.js:177 - `lights.length = 0` is executed at the start of renderWorld, before drawLighting consumes `lights` at render.js:329; all addLight calls happen during World.update (world.js:148/153/158, loot.js:58/61, hazards.js:127/309/567/649, monster.js:103, gfx/shapes.js:248), so only the player light ever appears in the lighting overlay. Fix: clear lights at the start of World.update (or snapshot after drawLighting), keeping paused frames in mind.
 - src/world/map.js:60 - los() uses isFloor and ignores `block`, so monsters/ranged checks see through towers, trees and town buildings, while losWide/walkable treat them as solid.
-- src/world/map.js:29-31 - circleFree samples only 4 bounding-box corners; for creatures with r*0.8 > 0.5 (e.g. Dagyr r=0.9, enemies.js:27) a single blocked tile can sit between the corners undetected.
+- src/world/map.js:29-31 - circleFree samples only 4 bounding-box corners; for creatures with r*0.8 > 0.5 (e.g. Velscour r=0.9, enemies.js:27) a single blocked tile can sit between the corners undetected.
 - src/game/world.js:120-123 - separate() only resolves pairs within the same CELL=2 bucket (overlaps across cell borders persist) and skips any pair whose first element is static, so static-vs-mobile separation depends on array order.
 - src/game/world.js:50-51 - query() picks cells from r only (not r + creature radius) although the hit test uses r + c.r; large creatures just outside the scanned cells are missed.
 - src/world/town.js:67-68 - shopSpots/palettes are index-aligned with VENDORS and hold exactly 8 entries; adding a 9th vendor throws (s undefined).
@@ -4435,7 +4544,7 @@ Caches: `lightCanvas` + `vignette` (module level, keyed by size), `townCache`/`t
   - Gore: amount comes from the `G.settings.gore` setting (0/1/2, where 2 means ×1.4). Gibs on overkill (>0.5 of max HP, >0.25 for aoe, >0.3 on crit), for big targets, or 35% of the time.
   - A corpse is pushed to `world.corpses` only if not overkill. `fiery` affix: death blast, 1.5×dmg fire to a player within 1.8. `split`: two `spawnChild` (one generation in practice).
   - If the killer or its owner is player-team: `world.kills++`, then `G.player.gainXp(tgt.xp)` (enemy team only), `char.kills++`, and the `bloodbath` legendary (aoe 1.6, 35% of max HP, blood DoT). `vamp` legendary heals 2%. Then `dropLoot`.
-  - Bosses always call `world.onBossKilled` (game.js:238 opens the exit, grants a bonus skill point on first clear, and shows the victory screen for Dagyr).
+  - Bosses always call `world.onBossKilled` (game.js:238 opens the exit, grants a bonus skill point on first clear, and shows the victory screen for Velscour).
 - **Skill cast flow.** controls.js → `Player.tryUseSkill` (player.js:274):
   1. Town: refuse with a message.
   2. `castLock>0`: queue the cast (latest only; replayed in `update` when the lock ends).
@@ -4520,7 +4629,7 @@ Caches: `lightCanvas` + `vignette` (module level, keyed by size), `townCache`/`t
 | champion | ×3 | ×1.4 | ×3 | 1.15 (blue aura) | 1 (2 if depth>40) |
 | unique | ×5 | ×1.6 | ×6 | 1.3 | 2 (3 if depth>50), random `uniqueName()` |
 | boss | ×(14+depth/4) | ×1.9 | ×25 | 1.9, `r×1.6` | 1 if depth>20 (excludes teleport/multishot/fast) |
-| Dagyr | ×40 | ×2.4 | ×200 | 1.6 | none |
+| Velscour | ×40 | ×2.4 | ×200 | 1.6 | none |
 
   - Bosses also get `ai='boss'`, `atkCd 1.1`, `aggroRange 9`, element = biome element (fallback fire), and `res[el]=0.4`.
   - Affix effects:
@@ -4533,9 +4642,9 @@ Caches: `lightCanvas` + `vignette` (module level, keyed by size), `townCache`/`t
   - Wake at distance ≤9 with LOS → `world.onBossAwake`.
   - At <50% HP: phase 2. Speed ×1.2, atkCd ×0.75, "ENRAGED!", and `summon` is pushed to the front of the queue.
   - Every `rand(2.6,4.2)` s (×0.7 in phase 2) the boss pops a pattern from a shuffled `patterns` queue. Between patterns it chases and melees (0.35 s windup).
-  - Pattern list: Dagyr gets all 8. Other bosses get `3+min(3, floor(depth/20))` random ones, and `slam` is always added.
+  - Pattern list: Velscour gets all 8. Other bosses get `3+min(3, floor(depth/20))` random ones, and `slam` is always added.
 
-| Pattern | Windup | Effect (normal / Dagyr) |
+| Pattern | Windup | Effect (normal / Velscour) |
 |---|---|---|
 | slam | 0.9 | r `3.2×scale/1.6`, 1.8×dmg, knock 1.5 |
 | nova | 0.7 | 18 / 28 projectiles; 2 rings in phase 2 |
