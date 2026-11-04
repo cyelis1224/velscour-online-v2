@@ -1058,6 +1058,12 @@ const server = http.createServer((req, res) => {
       serverTime: Date.now(),
       buildTime: latestBuild,
       changelog: [
+        "8 New Playable Classes: Play as the Monk, Dragoon, Totem Master, Death Knight, Arcane Sorcerer (Astronomer), Slime Lord, Boomerang Knight, and Dragon Knight — expanding the roster to 17 unique classes!",
+        "17 Bespoke Class Ultimates: Unique kill-charged power moves for all 17 classes with dynamic primary attribute scaling, multi-phase isometric animations, and procedural vector icons.",
+        "Multiplayer Ultimate Skill Synchronization: Party members now see remote player Ultimate casts in real time, complete with synchronized ground sigils, celestial VFX, screen shake, and combat log announcements.",
+        "New Regions & Biomes: Explore 10 Castle Overworld variants, Sea of Sand Dune variants with 3D Pyramids, Alpine / Mountainside snow drifts, and Snowy Summit with deterministic party synchronization.",
+        "Boss Arena Mid-Fight Join: Players arriving at sealed boss gates can now accept an entrance prompt to warp directly into active boss encounters with VFX and party notifications.",
+        "Title Screen & Boss Polish: Restored retro pixelated parallax blinking eyes to the title screen and fixed Demon Lord Velscour boss spawn art resolution.",
         "Travelling Merchant in Town: Added Malakor the Ash-Wanderer just off the town square. Trade unspent Infernal Marks for Sealed Chests (Mystery Casket, Armament Coffer, Armor Vault, and Abyssal Reliquary with guaranteed Legendary/Mythic loot) that unseal via the HUD or backpack.",
         "Mountainside Biome Overworld Overhaul: Complete integration of high-altitude rugged terrain, snow drifts, mountain goats, peak temples, avalanche hazards, and mobile performance optimizations.",
         "The Pirate Seas Naval Expansion: 12 unique naval scenarios (Flight Deck, Ninth Bell, The Lightless, Wrecker's Reef, Harpoon Weather, Lashed Together, Fire Below, Across the Plank, Three Chains, Red Tide, Sea Coming Over, Dawnwake) with 3D ship models and tactical naval battles on Bellmourn's waters.",

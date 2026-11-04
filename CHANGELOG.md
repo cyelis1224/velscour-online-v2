@@ -4,16 +4,41 @@ All notable changes to Velscour Online are documented in this file.
 
 ---
 
-## [0.2.4] - 2026-11-02
+## [0.2.4] - 2026-11-04
 
 ### Added
+- **8 New Playable Classes (Expanding Roster to 17 Classes)**:
+  - **Monk**: Disciplined martial warrior invoking the **Seven-Sided Strike** ultimate with radial spirit strikes, martial dash sweeps, and dynamic shockwaves.
+  - **Dragoon**: High-flying aerial lancer executing **Skyfall Dive** — leaps high above the clouds before plummeting back in a thunderous lightning-infused meteor crater.
+  - **Totem Master**: Primal animist summoning the **Grand Totemic Cataclysm** — channels quadruplet elemental spirit totems, violent elemental storms, and ancient ground glyphs.
+  - **Death Knight**: Unholy juggernaut unleashing **Glacial Oblivion** — smashes the earth to tear open deep glacial rifts, erupting colossal frost spikes and freezing shockwaves.
+  - **Arcane Sorcerer (Astronomer)**: Cosmic weaver triggering **Astral Collapse** — summons an astronomical void vortex pulling enemies inward before detonating in an arcane singularity.
+  - **Slime Lord**: Gelatinous sovereign commanding **Royal Deluge** — erupts high-pressure caustic acid pools and toxic geysers to corrode entire hordes of fiends.
+  - **Boomerang Knight**: Whirling bladesman releasing **Cyclone Tempest** — hurls an orbiting maelstrom of razor-sharp whirling crescent boomerangs.
+  - **Dragon Knight**: Hellfire dragon champion breathing **Dragon's Inferno** — sets the arena ablaze with draconic hellfire runes and searing ancient dragon breath.
+- **17 Bespoke Class Ultimates**:
+  - Every hero class in the game now wields a bespoke, kill-charged Ultimate power move scaled dynamically off primary attributes (STR, DEX, INT, VIT).
+  - Designed custom procedural 64x64 vector icons in `icons.js` and multi-phase canvas isometric animations in `ultimates_fx.js` for each ability.
+- **Online Multiplayer Ultimate Skill Synchronization**:
+  - Full real-time party replication across WebSockets (`game_ultimate_cast`).
+  - All party members see teammate Ultimate casts in real time, complete with synchronized ground sigils, celestial meteors, vortex animations, screen shakes, and team combat log broadcasts.
+- **New Upstream Regions & Biomes**:
+  - **Castle Overworld Variants**: 10 procedural castle layouts with stone battlements, deep moats, functioning drawbridges, and rich story encounters.
+  - **Sea of Sand Dune Variants & 3D Pyramids**: 10 rolling dune variants featuring massive 3D pyramid dungeon complexes and subterranean burial chamber raid encounters.
+  - **Alpine / Mountainside Biome**: High-altitude rugged mountain terrain, snow drifts, peak shrines, mountain wildlife, and avalanche hazards.
+  - **Serpentine Tower & Snowy Summit**: High-elevation vertical climb environments and freezing summits.
+  - **Multiplayer Biome & Variant Synchronization**: Deterministic region generation ensuring seamless party synchronization.
 - **Boss Arena Mid-Fight Join**:
   - Players who arrive at a sealed boss arena (Raid Boss or Demon Lord Velscour) after the encounter has begun can interact with or touch the entrance barrier to receive a confirmation prompt to enter the battle.
   - Upon accepting, players are teleported inside the arena past the barrier with arrival VFX and audio.
   - Arena boundaries remain locked so players cannot retreat until the boss is defeated.
   - Autoplay accounts for sealed gates and enters boss arenas smoothly.
+- **Title Screen Retro Parallax Eyes**:
+  - Restored retro pixelated blinking parallax eyes that gaze and react across the title screen background.
 
 ### Improved & Fixed
+- **Demon Lord Velscour Boss Encounter**:
+  - Fixed sprite resolution lookup error when summoning the Demon Lord Velscour boss encounter.
 - **Mobile Touch Joystick Drag-to-Start & Tap Pass-Through**:
   - In portrait mode (lower half of screen) and landscape mode (left half of screen), the virtual analog joystick now initiates upon drag (`>= 10px` displacement) rather than locking the touch immediately on `pointerdown`.
   - Tapping without dragging seamlessly clicks on underlying objects (chests, NPCs, portals, sealed arena gates, ground loot, monsters, and destination tiles) instead of being captured and blocked by the joystick.
