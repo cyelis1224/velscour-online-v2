@@ -545,7 +545,13 @@ async function ui() {
   add(g, { id: 'ui_hud', n: 'HUD bar (orbs, 15 skill and 4 potion slots)', k: 'art', src: ['assets/ui/hud.webp'], files: ['assets/ui/hud.json'] });
   for (const f of ['hud-orbs', 'hud-orb-life', 'hud-orb-mana']) add(g, { id: 'ui_' + f, n: titleCase(f.replace('hud-', '')), k: 'art', src: [`assets/ui/${f}.webp`] });
   add(g, { id: 'ui_minimap_ring', n: 'Minimap ring', k: 'art', src: ['assets/ui/minimap_ring.webp'] });
-  for (const b of hj.buttons.names) add(g, { id: 'ui_btn_' + b, n: `${titleCase(b)} button`, k: 'art', src: [`assets/ui/btn_${b}.webp`] });
+  const buttonFiles = fs.readdirSync('assets/ui')
+    .filter((f) => f.startsWith('btn_') && f.endsWith('.webp'))
+    .map((f) => f.slice(4, -5));
+  const hudButtonOrder = ['stats', 'bag', 'skills', 'talent', 'book', 'quest', 'auto', 'menu'];
+  const allButtons = [...new Set([...hudButtonOrder.filter((b) => buttonFiles.includes(b)), ...buttonFiles])];
+  const btnLabels = { stats: 'Stats', talent: 'Talent tree' };
+  for (const b of allButtons) add(g, { id: 'ui_btn_' + b, n: `${btnLabels[b] || titleCase(b)} button`, k: 'art', src: [`assets/ui/btn_${b}.webp`] });
   g = group('Logo, icon and credits', { dir: 'assets/source', cmd: 'python3 tools/process_assets.py ui', code: 'src/ui/screens.js' });
   add(g, { id: 'ui_logo', n: 'VELSCOUR logo', k: 'art', src: ['assets/ui/logo.webp'] });
   add(g, { id: 'ui_icon', n: 'App icon', k: 'art', src: ['assets/ui/icon.png'], px: 1 });

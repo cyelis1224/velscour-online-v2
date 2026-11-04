@@ -550,6 +550,10 @@ class NetworkManager {
         this.emit('game_skill_cast', msg);
         break;
 
+      case 'game_ultimate_cast':
+        this.emit('game_ultimate_cast', msg);
+        break;
+
       case 'game_bard_tabs':
         this.emit('game_bard_tabs', msg);
         break;
@@ -923,6 +927,20 @@ class NetworkManager {
     };
     if (extra) payload.extra = extra;
     this.send(payload);
+  }
+
+  sendUltimateCast(classId, ultId, x, y) {
+    if (!this.currentRoom) return;
+    this.send({
+      type: 'game_skill_cast',
+      skillId: 'ultimate_' + ultId,
+      isUltimate: true,
+      classId,
+      ultId,
+      playerName: G.char?.name || 'Hero',
+      x,
+      y,
+    });
   }
 
   sendBardTabs(tabs, tabAt = 0) {

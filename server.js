@@ -2588,6 +2588,7 @@ wss.on('connection', (ws) => {
         break;
       }
 
+      case 'game_ultimate_cast':
       case 'game_skill_cast': {
         if (!clientData.room) break;
         msg.playerId = clientData.id;

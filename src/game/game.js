@@ -22,7 +22,7 @@ import { addDefiance, clearDefiance, defianceText, tickBlessing } from './defian
 import { setupHappenings, announceHappenings, happeningsTick, townHappening, townTick, recordDepth, markNemesis, OMENS, rollOmen, anyOmen, omenable } from './happenings.js';
 import { greedOf, greedPacks, greedWorld, greedCleared, greedDeath } from './greed.js';
 import { spectateTick } from './spectate.js';
-import { toggleSmite } from './smite.js';
+import { toggleSmite, getUltimate, executeUltimate } from './smite.js';
 import { hearthTick, useHearth } from './hearth.js';
 import { generateTown, makeTownTiles, rollTownWeather } from '../world/town.js';
 import { generateOverworld } from '../world/overworld.js';
@@ -420,12 +420,35 @@ function attachNetListeners() {
     }
   });
 
+  const handleRemoteUltimate = (data) => {
+    if (!G.world || data.playerId === net.myId) return;
+    const rp = G.remotePlayers?.get(data.playerId);
+    const cls = data.classId || rp?.classId || 'paladin';
+    const ultId = data.ultId || getUltimate(cls)?.id;
+    const x = typeof data.x === 'number' ? data.x : (rp ? rp.x : G.player?.x || 0);
+    const y = typeof data.y === 'number' ? data.y : (rp ? rp.y : G.player?.y || 0);
+    if (rp) {
+      rp.onCastUltimate(cls, ultId, x, y);
+    } else {
+      const ult = getUltimate(cls);
+      executeUltimate(ult, x, y, G.world, null, { classId: cls, name: data.playerName || 'Teammate' }, true);
+    }
+  };
+
   net.on('game_skill_cast', (data) => {
     if (!G.world || data.playerId === net.myId) return;
+    if (data.isUltimate) {
+      handleRemoteUltimate(data);
+      return;
+    }
     const rp = G.remotePlayers?.get(data.playerId);
     if (rp && rp.world === G.world && G.world.creatures.includes(rp)) {
       rp.onCastSkill(data.skillId, data.x, data.y, data.targetId, data.level, data.extra);
     }
+  });
+
+  net.on('game_ultimate_cast', (data) => {
+    handleRemoteUltimate(data);
   });
 
   net.on('game_bard_tabs', (data) => {

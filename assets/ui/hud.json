@@ -169,8 +169,10 @@
  },
  "buttons": {
   "names": [
+   "stats",
    "bag",
    "skills",
+   "talent",
    "book",
    "quest",
    "auto",

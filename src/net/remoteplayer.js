@@ -20,6 +20,7 @@ import { SKILLS } from '../data/skills.js';
 import { angleTo } from '../core/util.js';
 import { bardScore, bardCompose, bardUpdate, bardRetune, ensureInstrumentsLoaded } from '../game/bard.js';
 import { getBannerSkin, getBannerRoll } from '../gfx/bannergen.js';
+import { getUltimate, executeUltimate } from '../game/smite.js';
 
 export class RemotePlayer extends Creature {
   constructor(info) {
@@ -382,6 +383,18 @@ export class RemotePlayer extends Creature {
     ctx.fillStyle = '#ffffff';
     ctx.fillText(text, x, by + h / 2);
     ctx.restore();
+  }
+
+  onCastUltimate(classId, ultId, tx, ty) {
+    const now = performance.now();
+    if (this._lastUltCast && now - this._lastUltCast < 500) return;
+    this._lastUltCast = now;
+    if (tx !== undefined && ty !== undefined) {
+      this.aim = [tx, ty];
+      this.face(angleTo(this.x, this.y, tx, ty));
+    }
+    const ult = getUltimate(classId || this.classId);
+    executeUltimate(ult, tx, ty, this.world || G.world, this, { classId: this.classId, name: this.name }, true);
   }
 
   onCastSkill(skillId, tx, ty, targetId = null, level = 1, extra = null) {

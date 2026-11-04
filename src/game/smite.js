@@ -3,6 +3,7 @@
 // When full, pressing F or tapping the dedicated HUD button arms it, and clicking/tapping on the world unleashes the strike.
 // Damage scales off each class's primary attribute (STR, DEX, INT).
 import { G } from '../state.js';
+import { net } from '../net/network.js';
 import { rand, chance, TAU } from '../core/util.js';
 import { sfx } from '../core/audio.js';
 import { camera, isoX, isoY } from '../core/view.js';
@@ -311,10 +312,24 @@ export function smiteAt(x, y) {
   c.smites = (c.smites || 0) + 1;
   const ult = getUltimate(c.classId);
   executeUltimate(ult, x, y, w, p, c);
+  if (G.room && net && net.connected) {
+    net.sendUltimateCast(c.classId, ult.id, x, y);
+  }
   return true;
 }
 
-function executeUltimate(ult, x, y, w, p, c) {
+function finishUltimate(ult, x, y, w, p, c, isRemote) {
+  if (!isRemote) {
+    dealUltimateDamage(ult, x, y, w, p);
+  } else {
+    floatText(x, y, 90, c?.name ? `${c.name.toUpperCase()}: ${ult.title}` : ult.title, ult.color, 22, { life: 1.6 });
+  }
+}
+
+export function executeUltimate(ult, x, y, w, p, c, isRemote = false) {
+  if (isRemote) {
+    UI.log(`<b>${c?.name || 'Teammate'}</b> unleashed <b>${ult.name}</b>!`, ult.color);
+  }
   switch (ult.id) {
     case 'smite': {
       // Paladin: Consecrated Holy Sigil & Cathedral God-Ray Cascade
@@ -322,7 +337,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new PaladinCathedralShaft(x, y, ult.r));
       sfx('holy', 1.0); sfx('buff', 0.8);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         explosionFx(x, y, 3.4, 'holy', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.2, ult.r + 0.8, 0.65, '#ffffff', 8));
         addEffect(new Ring(x, y, 0.2, ult.r * 0.75, 0.45, '#ffd040', 6, { fill: true }));
@@ -336,7 +351,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         }
         camera.shake(14); G.flash = Math.max(G.flash || 0, 0.5);
         sfx('explode', 0.9); sfx('boss', 0.45); sfx('holy', 0.85);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 360);
       break;
     }
@@ -346,7 +361,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new BarbarianTectonicFissure(x, y, ult.r));
       sfx('thud', 1.4); sfx('roar', 0.9);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         addEffect(new BarbarianStoneSpikes(x, y, ult.r));
         explosionFx(x, y, 3.2, 'fire', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.2, ult.r + 0.6, 0.55, '#ff8020', 8));
@@ -356,7 +371,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         smoke(x, y, 14, '#2a1a10', 16, 26);
         camera.shake(17); G.flash = Math.max(G.flash || 0, 0.4);
         sfx('explode', 1.1); sfx('roar', 0.95); sfx('thud', 1.5);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 300);
       break;
     }
@@ -367,7 +382,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new LancerCelestialJavelin(x, y));
       sfx('light', 1.0); sfx('thunder', 0.8);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         addEffect(new Column(x, y, '#c0f0ff', 0.6, 36, 750));
         explosionFx(x, y, 3.0, 'light', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.2, ult.r + 0.7, 0.6, '#a0e8ff', 8));
@@ -381,7 +396,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         }
         camera.shake(14); G.flash = Math.max(G.flash || 0, 0.45);
         sfx('thunder', 1.15); sfx('explode', 0.85); sfx('light', 1.0);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 280);
       break;
     }
@@ -392,7 +407,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new RangerArrowRain(x, y, ult.r));
       sfx('bow', 1.1); sfx('buff', 0.7);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         explosionFx(x, y, 2.9, 'phys', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.2, ult.r + 0.7, 0.6, '#a0f060', 7));
         sparkle(x, y, 36, '#80ff60', 28, ult.r * 0.8);
@@ -402,7 +417,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         }
         camera.shake(11); G.flash = Math.max(G.flash || 0, 0.28);
         sfx('bow', 1.0); sfx('crit', 1.1); sfx('hit', 0.9);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 320);
       break;
     }
@@ -414,7 +429,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       smoke(x, y, 8, '#d02818', 10, 16);
       sfx('shoot', 1.1); sfx('hit', 0.7);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         explosionFx(x, y, 3.6, 'fire', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.2, ult.r + 0.8, 0.65, '#ff8020', 9));
         addEffect(new Ring(x, y, 0.2, ult.r * 0.7, 0.45, '#ffe040', 6, { fill: true }));
@@ -424,7 +439,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         smoke(x, y, 16, '#181614', 22, 32);
         camera.shake(17); G.flash = Math.max(G.flash || 0, 0.46);
         sfx('explode', 1.2); sfx('boss', 0.55); sfx('shoot', 0.8);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 340);
       break;
     }
@@ -434,7 +449,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new BardStaffSpiral(x, y, ult.r));
       sfx('note', 1.1, 1.6); sfx('arcane', 0.8);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         explosionFx(x, y, 3.1, 'arcane', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.1, ult.r + 0.8, 0.65, '#ff80b0', 8));
         addEffect(new Ring(x, y, 0.3, ult.r + 0.4, 0.5, '#ffd0e0', 6));
@@ -443,7 +458,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         burst(x, y, 25, 'arcane', 44, 7);
         camera.shake(12); G.flash = Math.max(G.flash || 0, 0.38);
         sfx('sonic', 1.2); sfx('critping', 0.95); sfx('arcane', 0.9);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 320);
       break;
     }
@@ -453,7 +468,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new WizardSingularity(x, y, ult.r));
       sfx('portal', 0.85); sfx('fire', 0.9);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         explosionFx(x, y, 3.7, 'fire', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.1, ult.r + 1.0, 0.75, '#ffffff', 10));
         addEffect(new Ring(x, y, 0.2, ult.r * 0.75, 0.5, '#ff5020', 7, { fill: true }));
@@ -461,7 +476,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         sparkle(x, y, 50, '#fff4d0', 44, ult.r * 0.85);
         camera.shake(16); G.flash = Math.max(G.flash || 0, 0.55);
         sfx('explode', 1.15); sfx('fire', 1.05); sfx('boss', 0.45);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 380);
       break;
     }
@@ -471,7 +486,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new NecroAbyssPool(x, y, ult.r));
       sfx('shadow', 1.0); sfx('summon', 0.8);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         addEffect(new NecroBonePikes(x, y, ult.r));
         explosionFx(x, y, 3.2, 'shadow', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.2, ult.r + 0.7, 0.65, '#a060ff', 8));
@@ -487,7 +502,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         }
         camera.shake(13); G.flash = Math.max(G.flash || 0, 0.38);
         sfx('bones', 1.1); sfx('shadow', 1.05); sfx('die', 0.7);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 300);
       break;
     }
@@ -498,7 +513,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new WitchCrowCyclone(x, y, ult.r));
       sfx('poison', 1.0); sfx('roar', 0.6);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         explosionFx(x, y, 3.3, 'poison', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.2, ult.r + 0.8, 0.65, '#80e030', 8));
         smoke(x, y, 12, '#203810', 16, 26);
@@ -507,7 +522,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         sparkle(x, y, 40, '#90ff40', 34, ult.r * 0.75);
         camera.shake(12); G.flash = Math.max(G.flash || 0, 0.35);
         sfx('acid', 1.05); sfx('poison', 1.05); sfx('squish', 0.9);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 320);
       break;
     }
@@ -517,14 +532,14 @@ function executeUltimate(ult, x, y, w, p, c) {
       sfx('holy', 1.0); sfx('buff', 0.8);
       addEffect(new Ring(x, y, 0.2, ult.r + 0.8, 0.65, '#ffe060', 6));
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         explosionFx(x, y, 3.4, 'holy', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.2, ult.r * 0.8, 0.5, '#ffd840', 5));
         burst(x, y, 36, 'holy', 60, 9);
         sparkle(x, y, 50, '#ffffff', 40, ult.r * 0.8);
         camera.shake(16); G.flash = Math.max(G.flash || 0, 0.5);
         sfx('explode', 1.0); sfx('holy', 1.0); sfx('thud', 1.2);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 320);
       break;
     }
@@ -535,7 +550,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new DragoonMeteorSpear(x, y));
       sfx('thunder', 1.1); sfx('roar', 0.85);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         addEffect(new Column(x, y, '#a0e0ff', 0.6, 40, 750));
         explosionFx(x, y, 3.6, 'light', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.2, ult.r + 0.9, 0.65, '#80d0ff', 9));
@@ -549,7 +564,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         }
         camera.shake(18); G.flash = Math.max(G.flash || 0, 0.55);
         sfx('explode', 1.2); sfx('thunder', 1.2); sfx('light', 1.0);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 320);
       break;
     }
@@ -560,7 +575,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new TotemSpiritStorm(x, y, ult.r));
       sfx('summon', 1.0); sfx('buff', 0.8);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         explosionFx(x, y, 3.4, 'light', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.2, ult.r + 0.8, 0.65, '#50e8a0', 8));
         addEffect(new Ring(x, y, 0.2, ult.r * 0.7, 0.45, '#ffe050', 5, { fill: true }));
@@ -573,7 +588,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         }
         camera.shake(14); G.flash = Math.max(G.flash || 0, 0.42);
         sfx('thunder', 1.1); sfx('explode', 0.9); sfx('summon', 1.0);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 330);
       break;
     }
@@ -584,7 +599,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new DeathKnightIceSpikes(x, y, ult.r));
       sfx('freeze', 1.1); sfx('shadow', 0.85);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         explosionFx(x, y, 3.4, 'cold', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.2, ult.r + 0.8, 0.7, '#80e0ff', 8));
         addEffect(new Ring(x, y, 0.2, ult.r * 0.7, 0.45, '#4090ff', 6, { fill: true }));
@@ -594,7 +609,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         sparkle(x, y, 48, '#ffffff', 40, ult.r * 0.8);
         camera.shake(15); G.flash = Math.max(G.flash || 0, 0.45);
         sfx('freeze', 1.2); sfx('explode', 0.95); sfx('bones', 1.0);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 320);
       break;
     }
@@ -604,7 +619,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new AstronomerAstralVortex(x, y, ult.r));
       sfx('portal', 1.0); sfx('arcane', 0.9);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         explosionFx(x, y, 3.8, 'arcane', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.1, ult.r + 1.1, 0.75, '#c080ff', 10));
         addEffect(new Ring(x, y, 0.2, ult.r * 0.8, 0.5, '#40c0ff', 7, { fill: true }));
@@ -616,7 +631,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         }
         camera.shake(17); G.flash = Math.max(G.flash || 0, 0.58);
         sfx('sonic', 1.2); sfx('explode', 1.1); sfx('arcane', 1.1);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 350);
       break;
     }
@@ -627,7 +642,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new SlimeLordRoyalGeyser(x, y, ult.r));
       sfx('squish', 1.2); sfx('poison', 1.0);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         explosionFx(x, y, 3.5, 'poison', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.2, ult.r + 0.8, 0.65, '#50ff70', 8));
         addEffect(new Ring(x, y, 0.2, ult.r * 0.7, 0.45, '#20aa40', 6, { fill: true }));
@@ -637,7 +652,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         smoke(x, y, 14, '#1a3a14', 18, 28);
         camera.shake(14); G.flash = Math.max(G.flash || 0, 0.4);
         sfx('acid', 1.15); sfx('squish', 1.1); sfx('explode', 0.85);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 330);
       break;
     }
@@ -648,7 +663,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new BoomerangBladeStorm(x, y, ult.r));
       sfx('bow', 1.2); sfx('critping', 1.0);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         explosionFx(x, y, 3.2, 'phys', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.1, ult.r + 0.8, 0.6, '#40e8b0', 7));
         addEffect(new Ring(x, y, 0.3, ult.r + 0.4, 0.5, '#a0ffe0', 5));
@@ -659,7 +674,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         }
         camera.shake(13); G.flash = Math.max(G.flash || 0, 0.35);
         sfx('crit', 1.2); sfx('hit', 1.1); sfx('sonic', 0.9);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 320);
       break;
     }
@@ -670,7 +685,7 @@ function executeUltimate(ult, x, y, w, p, c) {
       addEffect(new DragonKnightBreathOfFlame(x, y, ult.r));
       sfx('roar', 1.2); sfx('fire', 1.0);
       setTimeout(() => {
-        if (G.world !== w || !G.player) return;
+        if (G.world !== w || (!G.player && !isRemote)) return;
         explosionFx(x, y, 3.7, 'fire', 'explosion', { sound: false });
         addEffect(new Ring(x, y, 0.2, ult.r + 0.9, 0.7, '#ff6020', 9));
         addEffect(new Ring(x, y, 0.2, ult.r * 0.75, 0.48, '#ffa030', 6, { fill: true }));
@@ -680,7 +695,7 @@ function executeUltimate(ult, x, y, w, p, c) {
         smoke(x, y, 16, '#200804', 20, 30);
         camera.shake(18); G.flash = Math.max(G.flash || 0, 0.55);
         sfx('explode', 1.2); sfx('roar', 1.1); sfx('fire', 1.1);
-        dealUltimateDamage(ult, x, y, w, p);
+        finishUltimate(ult, x, y, w, p, c, isRemote);
       }, 340);
       break;
     }
