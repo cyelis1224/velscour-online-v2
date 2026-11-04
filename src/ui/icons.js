@@ -1140,6 +1140,543 @@ export function nirvanaIcon(size = 64) {
   return c;
 }
 
+export function skydiveIcon(size = 64) {
+  const key = 'special_skydive|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Celestial deep space blue backdrop
+  const bg = x.createRadialGradient(h, h * 0.45, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#103468');
+  bg.addColorStop(0.5, '#061632');
+  bg.addColorStop(1, '#020814');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Speed contrails
+  x.strokeStyle = 'rgba(120, 190, 255, 0.35)';
+  x.lineWidth = 1.8 * s;
+  for (let i = -2; i <= 2; i++) {
+    x.beginPath();
+    x.moveTo(h + i * 10 * s, 4 * s);
+    x.lineTo(h + i * 4 * s, h * 0.9);
+    x.stroke();
+  }
+
+  // Diving Dragon Lance
+  x.save();
+  x.translate(h, h * 1.05);
+
+  // Flaming contrail
+  const flame = x.createLinearGradient(0, -32 * s, 0, 0);
+  flame.addColorStop(0, 'rgba(100, 180, 255, 0)');
+  flame.addColorStop(0.6, 'rgba(160, 220, 255, 0.6)');
+  flame.addColorStop(1, '#ffffff');
+  x.fillStyle = flame;
+  x.beginPath();
+  x.moveTo(-10 * s, -32 * s);
+  x.lineTo(10 * s, -32 * s);
+  x.lineTo(0, 6 * s);
+  x.closePath();
+  x.fill();
+
+  // Dragon Wings / Flared Spear Crossguard
+  x.fillStyle = '#4090f0';
+  x.strokeStyle = '#a0d0ff';
+  x.lineWidth = 1.4 * s;
+  x.beginPath();
+  x.moveTo(0, -6 * s);
+  x.lineTo(18 * s, -18 * s);
+  x.lineTo(12 * s, -4 * s);
+  x.lineTo(0, 0);
+  x.lineTo(-12 * s, -4 * s);
+  x.lineTo(-18 * s, -18 * s);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // Gleaming Silver/Gold Spear Head
+  const spearGrad = x.createLinearGradient(-5 * s, 0, 5 * s, 14 * s);
+  spearGrad.addColorStop(0, '#ffffff');
+  spearGrad.addColorStop(0.5, '#c0e0ff');
+  spearGrad.addColorStop(1, '#60a0f0');
+  x.fillStyle = spearGrad;
+  x.beginPath();
+  x.moveTo(0, 18 * s);
+  x.lineTo(6 * s, -4 * s);
+  x.lineTo(-6 * s, -4 * s);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  x.restore();
+  x.restore();
+
+  cache.set(key, c);
+  return c;
+}
+
+export function totemCataclysmIcon(size = 64) {
+  const key = 'special_totem_cataclysm|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Shamanic emerald spirit aura
+  const bg = x.createRadialGradient(h, h * 0.7, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#0c4030');
+  bg.addColorStop(0.5, '#041c14');
+  bg.addColorStop(1, '#010806');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Lightning arcs radiating
+  x.strokeStyle = 'rgba(80, 240, 180, 0.4)';
+  x.lineWidth = 1.6 * s;
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * TAU + 0.4;
+    x.beginPath();
+    x.moveTo(h, h);
+    x.lineTo(h + Math.cos(a) * 24 * s, h + Math.sin(a) * 24 * s);
+    x.stroke();
+  }
+
+  // Carved Spirit Totem
+  x.save();
+  x.translate(h, h * 1.05);
+
+  // Totem Wood Base
+  x.fillStyle = '#1e3c30';
+  x.strokeStyle = '#5ac8a0';
+  x.lineWidth = 1.8 * s;
+  x.beginPath();
+  x.roundRect(-12 * s, -22 * s, 24 * s, 32 * s, 3 * s);
+  x.fill();
+  x.stroke();
+
+  // Horned Crest
+  x.fillStyle = '#2c5846';
+  x.beginPath();
+  x.moveTo(-12 * s, -22 * s);
+  x.lineTo(-18 * s, -30 * s);
+  x.lineTo(-8 * s, -25 * s);
+  x.lineTo(0, -29 * s);
+  x.lineTo(8 * s, -25 * s);
+  x.lineTo(18 * s, -30 * s);
+  x.lineTo(12 * s, -22 * s);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // Glowing Turquoise Eyes
+  x.fillStyle = '#60ffd0';
+  x.fillRect(-8 * s, -16 * s, 5 * s, 3.5 * s);
+  x.fillRect(3 * s, -16 * s, 5 * s, 3.5 * s);
+
+  // Carved Grimace Mouth
+  x.fillStyle = '#ffe070';
+  x.beginPath();
+  x.moveTo(-7 * s, -6 * s);
+  x.lineTo(7 * s, -6 * s);
+  x.lineTo(5 * s, -2 * s);
+  x.lineTo(-5 * s, -2 * s);
+  x.closePath();
+  x.fill();
+
+  x.restore();
+  x.restore();
+
+  cache.set(key, c);
+  return c;
+}
+
+export function glacialOblivionIcon(size = 64) {
+  const key = 'special_glacial_oblivion|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Deep glacial icy backdrop
+  const bg = x.createRadialGradient(h, h * 0.7, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#0e2c48');
+  bg.addColorStop(0.5, '#051424');
+  bg.addColorStop(1, '#01050a');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Erupting Ice Crystal Spikes
+  x.fillStyle = 'rgba(120, 200, 255, 0.45)';
+  x.strokeStyle = '#a0e4ff';
+  x.lineWidth = 1.2 * s;
+
+  // Left spike
+  x.beginPath();
+  x.moveTo(h - 18 * s, h * 1.2);
+  x.lineTo(h - 12 * s, h * 0.4);
+  x.lineTo(h - 6 * s, h * 1.2);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // Right spike
+  x.beginPath();
+  x.moveTo(h + 6 * s, h * 1.2);
+  x.lineTo(h + 14 * s, h * 0.35);
+  x.lineTo(h + 19 * s, h * 1.2);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // Central Runeblade planted downward
+  x.save();
+  x.translate(h, h * 0.95);
+
+  // Blade
+  const bladeGrad = x.createLinearGradient(-3 * s, 0, 3 * s, 0);
+  bladeGrad.addColorStop(0, '#90d4ff');
+  bladeGrad.addColorStop(0.5, '#ffffff');
+  bladeGrad.addColorStop(1, '#4090d0');
+  x.fillStyle = bladeGrad;
+  x.strokeStyle = '#c0f0ff';
+  x.lineWidth = 1.4 * s;
+  x.beginPath();
+  x.moveTo(-4 * s, -8 * s);
+  x.lineTo(0, 22 * s);
+  x.lineTo(4 * s, -8 * s);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // Crossguard & Skull Pommel
+  x.fillStyle = '#204060';
+  x.fillRect(-10 * s, -11 * s, 20 * s, 3 * s);
+  x.fillRect(-2 * s, -18 * s, 4 * s, 7 * s);
+  x.fillStyle = '#a0d8ff';
+  x.beginPath();
+  x.arc(0, -19 * s, 3 * s, 0, TAU);
+  x.fill();
+
+  x.restore();
+  x.restore();
+
+  cache.set(key, c);
+  return c;
+}
+
+export function astralCollapseIcon(size = 64) {
+  const key = 'special_astral_collapse|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Cosmic void indigo/magenta backdrop
+  const bg = x.createRadialGradient(h, h, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#2c0e48');
+  bg.addColorStop(0.5, '#0e0420');
+  bg.addColorStop(1, '#020108');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Orbital planetary ellipses
+  x.strokeStyle = 'rgba(140, 200, 255, 0.45)';
+  x.lineWidth = 1.4 * s;
+  x.beginPath();
+  x.ellipse(h, h, 22 * s, 8 * s, 0.6, 0, TAU);
+  x.stroke();
+  x.strokeStyle = 'rgba(200, 140, 255, 0.35)';
+  x.beginPath();
+  x.ellipse(h, h, 22 * s, 8 * s, -0.6, 0, TAU);
+  x.stroke();
+
+  // 8-Point Diffraction Astral Starburst Rays
+  x.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+  x.lineWidth = 1.5 * s;
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI;
+    x.beginPath();
+    x.moveTo(h - Math.cos(a) * 20 * s, h - Math.sin(a) * 20 * s);
+    x.lineTo(h + Math.cos(a) * 20 * s, h + Math.sin(a) * 20 * s);
+    x.stroke();
+  }
+
+  // Blinding Core Singularity
+  const coreGrad = x.createRadialGradient(h, h, 0, h, h, 8 * s);
+  coreGrad.addColorStop(0, '#ffffff');
+  coreGrad.addColorStop(0.4, '#a0e0ff');
+  coreGrad.addColorStop(0.8, '#7040ff');
+  coreGrad.addColorStop(1, 'rgba(60, 20, 180, 0)');
+  x.fillStyle = coreGrad;
+  x.beginPath();
+  x.arc(h, h, 8 * s, 0, TAU);
+  x.fill();
+
+  x.restore();
+  cache.set(key, c);
+  return c;
+}
+
+export function royalDelugeIcon(size = 64) {
+  const key = 'special_royal_deluge|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Toxic ooze green backdrop
+  const bg = x.createRadialGradient(h, h * 0.7, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#1a4816');
+  bg.addColorStop(0.5, '#08200a');
+  bg.addColorStop(1, '#020a03');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Royal King Slime Body
+  x.save();
+  x.translate(h, h * 1.05);
+
+  const slimeGrad = x.createRadialGradient(0, -6 * s, 2, 0, 0, 20 * s);
+  slimeGrad.addColorStop(0, '#70ff90');
+  slimeGrad.addColorStop(0.6, '#30c850');
+  slimeGrad.addColorStop(1, '#107028');
+  x.fillStyle = slimeGrad;
+  x.strokeStyle = '#90ffa8';
+  x.lineWidth = 1.8 * s;
+
+  // Chubby gelatinous dome
+  x.beginPath();
+  x.moveTo(-18 * s, 8 * s);
+  x.quadraticCurveTo(-20 * s, -14 * s, 0, -16 * s);
+  x.quadraticCurveTo(20 * s, -14 * s, 18 * s, 8 * s);
+  x.quadraticCurveTo(0, 14 * s, -18 * s, 8 * s);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // Cute royal eyes
+  x.fillStyle = '#061a08';
+  x.beginPath();
+  x.arc(-6 * s, -2 * s, 2.4 * s, 0, TAU);
+  x.arc(6 * s, -2 * s, 2.4 * s, 0, TAU);
+  x.fill();
+  x.fillStyle = '#ffffff';
+  x.fillRect(-7 * s, -3.5 * s, 1.5 * s, 1.5 * s);
+  x.fillRect(5 * s, -3.5 * s, 1.5 * s, 1.5 * s);
+
+  // Golden 3-Spire Crown
+  x.fillStyle = '#ffcf30';
+  x.strokeStyle = '#b08010';
+  x.lineWidth = 1.2 * s;
+  x.beginPath();
+  x.moveTo(-10 * s, -16 * s);
+  x.lineTo(-12 * s, -24 * s);
+  x.lineTo(-5 * s, -20 * s);
+  x.lineTo(0, -26 * s);
+  x.lineTo(5 * s, -20 * s);
+  x.lineTo(12 * s, -24 * s);
+  x.lineTo(10 * s, -16 * s);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // Crown ruby
+  x.fillStyle = '#ff2040';
+  x.beginPath();
+  x.arc(0, -19 * s, 1.8 * s, 0, TAU);
+  x.fill();
+
+  x.restore();
+  x.restore();
+
+  cache.set(key, c);
+  return c;
+}
+
+export function cycloneTempestIcon(size = 64) {
+  const key = 'special_cyclone_tempest|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Gale wind seafoam backdrop
+  const bg = x.createRadialGradient(h, h, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#0c4038');
+  bg.addColorStop(0.5, '#041c18');
+  bg.addColorStop(1, '#010a08');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Slicing whirlwind spirals
+  x.strokeStyle = 'rgba(140, 255, 220, 0.4)';
+  x.lineWidth = 1.8 * s;
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * TAU;
+    x.beginPath();
+    x.arc(h, h, (10 + i * 5) * s, a, a + Math.PI * 0.9);
+    x.stroke();
+  }
+
+  // Dual Curved Razor Boomerangs
+  const drawRang = (rot) => {
+    x.save();
+    x.translate(h, h);
+    x.rotate(rot);
+
+    x.fillStyle = '#e8fffa';
+    x.strokeStyle = '#3ac8a8';
+    x.lineWidth = 1.5 * s;
+
+    x.beginPath();
+    x.moveTo(-16 * s, 6 * s);
+    x.quadraticCurveTo(0, -12 * s, 16 * s, 6 * s);
+    x.lineTo(13 * s, 11 * s);
+    x.quadraticCurveTo(0, -6 * s, -13 * s, 11 * s);
+    x.closePath();
+    x.fill();
+    x.stroke();
+
+    // Gold tip caps
+    x.fillStyle = '#ffd050';
+    x.fillRect(-16 * s, 6 * s, 3.5 * s, 5 * s);
+    x.fillRect(12.5 * s, 6 * s, 3.5 * s, 5 * s);
+
+    x.restore();
+  };
+
+  drawRang(-0.4);
+  drawRang(Math.PI - 0.4);
+
+  x.restore();
+  cache.set(key, c);
+  return c;
+}
+
+export function dragonsInfernoIcon(size = 64) {
+  const key = 'special_dragons_inferno|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Volcanic inferno magma backdrop
+  const bg = x.createRadialGradient(h, h * 0.7, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#5a1406');
+  bg.addColorStop(0.5, '#240602');
+  bg.addColorStop(1, '#0a0201');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Roaring Dragon Head
+  x.save();
+  x.translate(h, h * 0.9);
+
+  // Curved dragon horns
+  x.fillStyle = '#2c0a06';
+  x.strokeStyle = '#ff6020';
+  x.lineWidth = 1.4 * s;
+  x.beginPath();
+  x.moveTo(-6 * s, -10 * s);
+  x.quadraticCurveTo(-18 * s, -24 * s, -14 * s, -28 * s);
+  x.quadraticCurveTo(-10 * s, -20 * s, -2 * s, -12 * s);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  x.beginPath();
+  x.moveTo(6 * s, -10 * s);
+  x.quadraticCurveTo(18 * s, -24 * s, 14 * s, -28 * s);
+  x.quadraticCurveTo(10 * s, -20 * s, 2 * s, -12 * s);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // Dragon Snout & Head
+  x.fillStyle = '#b8240c';
+  x.strokeStyle = '#ff8030';
+  x.lineWidth = 1.6 * s;
+  x.beginPath();
+  x.moveTo(-10 * s, -10 * s);
+  x.lineTo(0, -16 * s);
+  x.lineTo(10 * s, -10 * s);
+  x.lineTo(8 * s, 2 * s);
+  x.lineTo(0, 8 * s);
+  x.lineTo(-8 * s, 2 * s);
+  x.closePath();
+  x.fill();
+  x.stroke();
+
+  // Glowing amber dragon eye
+  x.fillStyle = '#ffee40';
+  x.beginPath();
+  x.ellipse(-4 * s, -5 * s, 2 * s, 1.2 * s, -0.2, 0, TAU);
+  x.ellipse(4 * s, -5 * s, 2 * s, 1.2 * s, 0.2, 0, TAU);
+  x.fill();
+
+  // Breath of Dragonfire erupting from jaws
+  const flame = x.createRadialGradient(0, 10 * s, 2, 0, 14 * s, 16 * s);
+  flame.addColorStop(0, '#ffffff');
+  flame.addColorStop(0.3, '#ffea40');
+  flame.addColorStop(0.7, '#ff5010');
+  flame.addColorStop(1, 'rgba(180, 20, 0, 0)');
+  x.fillStyle = flame;
+  x.beginPath();
+  x.arc(0, 14 * s, 15 * s, 0.2, Math.PI - 0.2);
+  x.fill();
+
+  x.restore();
+  x.restore();
+
+  cache.set(key, c);
+  return c;
+}
+
 export function ultimateIcon(classId, size = 64) {
   switch (classId) {
     case 'paladin': return smiteIcon(size);
@@ -1152,6 +1689,13 @@ export function ultimateIcon(classId, size = 64) {
     case 'necromancer': return graveIcon(size);
     case 'carrion_witch': return crowsIcon(size);
     case 'monk': return nirvanaIcon(size);
+    case 'dragoon': return skydiveIcon(size);
+    case 'totem_master': return totemCataclysmIcon(size);
+    case 'death_knight': return glacialOblivionIcon(size);
+    case 'arcane_sorcerer': return astralCollapseIcon(size);
+    case 'slime_lord': return royalDelugeIcon(size);
+    case 'boomerang_knight': return cycloneTempestIcon(size);
+    case 'dragon_knight': return dragonsInfernoIcon(size);
     default: return smiteIcon(size);
   }
 }

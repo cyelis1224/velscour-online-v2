@@ -19,7 +19,14 @@ import {
   BardStaffSpiral,
   WizardSingularity,
   NecroAbyssPool, NecroBonePikes,
-  WitchPentagram, WitchCrowCyclone
+  WitchPentagram, WitchCrowCyclone,
+  DragoonSkyDiveSigil, DragoonMeteorSpear,
+  TotemMasterMonolith, TotemSpiritStorm,
+  DeathKnightGlacierSigil, DeathKnightIceSpikes,
+  AstronomerAstralVortex,
+  SlimeLordAcidPool, SlimeLordRoyalGeyser,
+  BoomerangGaleVortex, BoomerangBladeStorm,
+  DragonKnightHellfireRune, DragonKnightBreathOfFlame
 } from '../gfx/ultimates_fx.js';
 
 export const SMITE_KILLS = 45; // Plain kills to fill the meter
@@ -158,6 +165,97 @@ export const ULTIMATES = {
     desc: 'Dashes with supersonic grace, striking all nearby enemies with radiant palm shockwaves and resonant temple bells.',
     chargeSound: 'holy',
     opts: { noArc: true, knock: 1.6, stun: true },
+  },
+  dragoon: {
+    id: 'skydive',
+    name: 'Skyfall Dive',
+    title: 'SKYFALL',
+    stat: 'str',
+    el: 'light',
+    r: 4.8,
+    color: '#6aa8ff',
+    haloColor: '#2060ff',
+    desc: 'Leaps beyond the stratosphere and descends as a celestial dragon lance that shatters the earth.',
+    chargeSound: 'thunder',
+    opts: { noArc: true, knock: 2.2, stun: 1.5 },
+  },
+  totem_master: {
+    id: 'totem_cataclysm',
+    name: 'Grand Totemic Cataclysm',
+    title: 'TOTEM',
+    stat: 'int',
+    el: 'light',
+    r: 4.8,
+    color: '#5ac8a0',
+    haloColor: '#208060',
+    desc: 'Erects an ancient spiritual monolith that channels thunder, spiritual fire, and ancestral fury.',
+    chargeSound: 'summon',
+    opts: { noArc: true, aoe: true, knock: 1.6 },
+  },
+  death_knight: {
+    id: 'glacial_oblivion',
+    name: 'Glacial Oblivion',
+    title: 'OBLIVION',
+    stat: 'str',
+    el: 'cold',
+    r: 4.6,
+    color: '#7ad0ff',
+    haloColor: '#1060b0',
+    desc: 'Impales the earth with a runeblade, erecting a colossal frozen citadel of razor ice spikes.',
+    chargeSound: 'freeze',
+    opts: { noArc: true, freeze: true, knock: 1.4 },
+  },
+  arcane_sorcerer: {
+    id: 'astral_collapse',
+    name: 'Astral Collapse',
+    title: 'COLLAPSE',
+    stat: 'int',
+    el: 'arcane',
+    r: 5.0,
+    color: '#4aa8ff',
+    haloColor: '#7020ff',
+    desc: 'Manifests a celestial star that implodes into a devastating gravitational supernova.',
+    chargeSound: 'portal',
+    opts: { noArc: true, aoe: true, knock: 1.8 },
+  },
+  slime_lord: {
+    id: 'royal_deluge',
+    name: 'Royal Deluge',
+    title: 'DELUGE',
+    stat: 'vit',
+    el: 'poison',
+    r: 4.8,
+    color: '#4ae880',
+    haloColor: '#108030',
+    desc: 'Ruptures the earth with a catastrophic geyser of corrosive living slime and acidic ooze.',
+    chargeSound: 'acid',
+    opts: { noArc: true, poison: true, knock: 1.5 },
+  },
+  boomerang_knight: {
+    id: 'cyclone_tempest',
+    name: 'Cyclone Tempest',
+    title: 'TEMPEST',
+    stat: 'dex',
+    el: 'phys',
+    r: 4.6,
+    color: '#3ac8a8',
+    haloColor: '#108060',
+    desc: 'Hurls an apocalyptic hurricane of whirling razor boomerangs that shred everything in their orbit.',
+    chargeSound: 'crit',
+    opts: { noArc: true, bleed: true, knock: 1.8 },
+  },
+  dragon_knight: {
+    id: 'dragons_inferno',
+    name: "Dragon's Inferno",
+    title: 'INFERNO',
+    stat: 'str',
+    el: 'fire',
+    r: 4.8,
+    color: '#ff5a2a',
+    haloColor: '#b01808',
+    desc: 'Channels the primordial fury of the red wyrm, incinerating the battlefield with apocalyptic dragonflame.',
+    chargeSound: 'roar',
+    opts: { noArc: true, burn: true, aoe: true, knock: 2.0 },
   },
 };
 
@@ -428,6 +526,162 @@ function executeUltimate(ult, x, y, w, p, c) {
         sfx('explode', 1.0); sfx('holy', 1.0); sfx('thud', 1.2);
         dealUltimateDamage(ult, x, y, w, p);
       }, 320);
+      break;
+    }
+
+    case 'skydive': {
+      // Dragoon: Celestial Skyfall Dive & Dragon Meteor Lance
+      addEffect(new DragoonSkyDiveSigil(x, y, ult.r));
+      addEffect(new DragoonMeteorSpear(x, y));
+      sfx('thunder', 1.1); sfx('roar', 0.85);
+      setTimeout(() => {
+        if (G.world !== w || !G.player) return;
+        addEffect(new Column(x, y, '#a0e0ff', 0.6, 40, 750));
+        explosionFx(x, y, 3.6, 'light', 'explosion', { sound: false });
+        addEffect(new Ring(x, y, 0.2, ult.r + 0.9, 0.65, '#80d0ff', 9));
+        addEffect(new Ring(x, y, 0.2, ult.r * 0.75, 0.45, '#ffd040', 6, { fill: true }));
+        burst(x, y, 35, 'light', 58, 9);
+        sparkle(x, y, 50, '#ffffff', 42, ult.r * 0.8);
+        for (let i = 0; i < 4; i++) {
+          const a = (i * TAU) / 4 + rand(-0.25, 0.25);
+          const ex = x + Math.cos(a) * ult.r * 0.85, ey = y + Math.sin(a) * ult.r * 0.85;
+          addEffect(new SkyBolts(ex, ey, 1, 0.22, '#70c8ff'));
+        }
+        camera.shake(18); G.flash = Math.max(G.flash || 0, 0.55);
+        sfx('explode', 1.2); sfx('thunder', 1.2); sfx('light', 1.0);
+        dealUltimateDamage(ult, x, y, w, p);
+      }, 320);
+      break;
+    }
+
+    case 'totem_cataclysm': {
+      // Totem Master: Ancient Ancestral Monolith & Spirit Storm
+      addEffect(new TotemMasterMonolith(x, y, ult.r));
+      addEffect(new TotemSpiritStorm(x, y, ult.r));
+      sfx('summon', 1.0); sfx('buff', 0.8);
+      setTimeout(() => {
+        if (G.world !== w || !G.player) return;
+        explosionFx(x, y, 3.4, 'light', 'explosion', { sound: false });
+        addEffect(new Ring(x, y, 0.2, ult.r + 0.8, 0.65, '#50e8a0', 8));
+        addEffect(new Ring(x, y, 0.2, ult.r * 0.7, 0.45, '#ffe050', 5, { fill: true }));
+        burst(x, y, 30, 'light', 50, 8);
+        sparkle(x, y, 45, '#60ffc0', 38, ult.r * 0.75);
+        for (let i = 0; i < 4; i++) {
+          const a = (i * TAU) / 4;
+          const ex = x + Math.cos(a) * ult.r * 0.75, ey = y + Math.sin(a) * ult.r * 0.75;
+          addEffect(new SkyBolts(ex, ey, 1, 0.2, '#50e8a0'));
+        }
+        camera.shake(14); G.flash = Math.max(G.flash || 0, 0.42);
+        sfx('thunder', 1.1); sfx('explode', 0.9); sfx('summon', 1.0);
+        dealUltimateDamage(ult, x, y, w, p);
+      }, 330);
+      break;
+    }
+
+    case 'glacial_oblivion': {
+      // Death Knight: Glacial Frost Citadel & Erupting Ice Spikes
+      addEffect(new DeathKnightGlacierSigil(x, y, ult.r));
+      addEffect(new DeathKnightIceSpikes(x, y, ult.r));
+      sfx('freeze', 1.1); sfx('shadow', 0.85);
+      setTimeout(() => {
+        if (G.world !== w || !G.player) return;
+        explosionFx(x, y, 3.4, 'cold', 'explosion', { sound: false });
+        addEffect(new Ring(x, y, 0.2, ult.r + 0.8, 0.7, '#80e0ff', 8));
+        addEffect(new Ring(x, y, 0.2, ult.r * 0.7, 0.45, '#4090ff', 6, { fill: true }));
+        addDecal(x, y, '#60b8e8', ult.r * 0.9, 'splat', 1.2);
+        burst(x, y, 32, 'cold', 52, 8);
+        gibs(x, y, 16, 22, '#c8f0ff', '#e0f8ff', 2.0);
+        sparkle(x, y, 48, '#ffffff', 40, ult.r * 0.8);
+        camera.shake(15); G.flash = Math.max(G.flash || 0, 0.45);
+        sfx('freeze', 1.2); sfx('explode', 0.95); sfx('bones', 1.0);
+        dealUltimateDamage(ult, x, y, w, p);
+      }, 320);
+      break;
+    }
+
+    case 'astral_collapse': {
+      // Arcane Sorcerer (Astronomer): Celestial Planetary Singularity & Cosmic Supernova
+      addEffect(new AstronomerAstralVortex(x, y, ult.r));
+      sfx('portal', 1.0); sfx('arcane', 0.9);
+      setTimeout(() => {
+        if (G.world !== w || !G.player) return;
+        explosionFx(x, y, 3.8, 'arcane', 'explosion', { sound: false });
+        addEffect(new Ring(x, y, 0.1, ult.r + 1.1, 0.75, '#c080ff', 10));
+        addEffect(new Ring(x, y, 0.2, ult.r * 0.8, 0.5, '#40c0ff', 7, { fill: true }));
+        burst(x, y, 36, 'arcane', 58, 9);
+        sparkle(x, y, 54, '#ffffff', 44, ult.r * 0.85);
+        for (let i = 0; i < 6; i++) {
+          const a = (i * TAU) / 6;
+          addEffect(new Beam(x, y, x + Math.cos(a) * ult.r * 1.1, y + Math.sin(a) * ult.r * 1.1, '#80c0ff', 0.4, 8));
+        }
+        camera.shake(17); G.flash = Math.max(G.flash || 0, 0.58);
+        sfx('sonic', 1.2); sfx('explode', 1.1); sfx('arcane', 1.1);
+        dealUltimateDamage(ult, x, y, w, p);
+      }, 350);
+      break;
+    }
+
+    case 'royal_deluge': {
+      // Slime Lord: Corrosive Acid Pool & Crowned Living Ooze Geyser
+      addEffect(new SlimeLordAcidPool(x, y, ult.r));
+      addEffect(new SlimeLordRoyalGeyser(x, y, ult.r));
+      sfx('squish', 1.2); sfx('poison', 1.0);
+      setTimeout(() => {
+        if (G.world !== w || !G.player) return;
+        explosionFx(x, y, 3.5, 'poison', 'explosion', { sound: false });
+        addEffect(new Ring(x, y, 0.2, ult.r + 0.8, 0.65, '#50ff70', 8));
+        addEffect(new Ring(x, y, 0.2, ult.r * 0.7, 0.45, '#20aa40', 6, { fill: true }));
+        addDecal(x, y, '#30a840', ult.r * 0.95, 'splat', 1.2);
+        burst(x, y, 32, 'poison', 52, 8);
+        gibs(x, y, 16, 22, '#40d050', '#80ff90', 2.2);
+        smoke(x, y, 14, '#1a3a14', 18, 28);
+        camera.shake(14); G.flash = Math.max(G.flash || 0, 0.4);
+        sfx('acid', 1.15); sfx('squish', 1.1); sfx('explode', 0.85);
+        dealUltimateDamage(ult, x, y, w, p);
+      }, 330);
+      break;
+    }
+
+    case 'cyclone_tempest': {
+      // Boomerang Knight: Slicing Gale Vortex & Orbital Razor Boomerang Storm
+      addEffect(new BoomerangGaleVortex(x, y, ult.r));
+      addEffect(new BoomerangBladeStorm(x, y, ult.r));
+      sfx('bow', 1.2); sfx('critping', 1.0);
+      setTimeout(() => {
+        if (G.world !== w || !G.player) return;
+        explosionFx(x, y, 3.2, 'phys', 'explosion', { sound: false });
+        addEffect(new Ring(x, y, 0.1, ult.r + 0.8, 0.6, '#40e8b0', 7));
+        addEffect(new Ring(x, y, 0.3, ult.r + 0.4, 0.5, '#a0ffe0', 5));
+        burst(x, y, 28, 'phys', 46, 8);
+        sparkle(x, y, 42, '#a0ffe0', 36, ult.r * 0.8);
+        for (let i = 0; i < 12; i++) {
+          addEffect(new Slash(x + rand(-ult.r * 0.7, ult.r * 0.7), y + rand(-ult.r * 0.7, ult.r * 0.7), rand(TAU), Math.PI * 0.8, rand(0.7, 1.2), 0.3, '#3ac8a8'));
+        }
+        camera.shake(13); G.flash = Math.max(G.flash || 0, 0.35);
+        sfx('crit', 1.2); sfx('hit', 1.1); sfx('sonic', 0.9);
+        dealUltimateDamage(ult, x, y, w, p);
+      }, 320);
+      break;
+    }
+
+    case 'dragons_inferno': {
+      // Dragon Knight: Primordial Wyrm Hellfire Rune & Roaring Flame Torrent
+      addEffect(new DragonKnightHellfireRune(x, y, ult.r));
+      addEffect(new DragonKnightBreathOfFlame(x, y, ult.r));
+      sfx('roar', 1.2); sfx('fire', 1.0);
+      setTimeout(() => {
+        if (G.world !== w || !G.player) return;
+        explosionFx(x, y, 3.7, 'fire', 'explosion', { sound: false });
+        addEffect(new Ring(x, y, 0.2, ult.r + 0.9, 0.7, '#ff6020', 9));
+        addEffect(new Ring(x, y, 0.2, ult.r * 0.75, 0.48, '#ffa030', 6, { fill: true }));
+        addDecal(x, y, '#501004', ult.r * 0.9, 'splat', 1.2);
+        burst(x, y, 36, 'fire', 58, 9);
+        gibs(x, y, 14, 20, '#501408', '#802010', 2.4);
+        smoke(x, y, 16, '#200804', 20, 30);
+        camera.shake(18); G.flash = Math.max(G.flash || 0, 0.55);
+        sfx('explode', 1.2); sfx('roar', 1.1); sfx('fire', 1.1);
+        dealUltimateDamage(ult, x, y, w, p);
+      }, 340);
       break;
     }
   }

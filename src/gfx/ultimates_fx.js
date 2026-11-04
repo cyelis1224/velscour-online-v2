@@ -851,3 +851,621 @@ export class WitchCrowCyclone {
   }
 }
 
+// -----------------------------------------------------------------------------
+// 10. DRAGOON: Celestial Skyfall Dive Sigil & Plunging Dragon Meteor Lance
+// -----------------------------------------------------------------------------
+export class DragoonSkyDiveSigil {
+  constructor(x, y, r, dur = 2.0) {
+    Object.assign(this, { x, y, r, dur, t: 0, layer: 'floor', add: true });
+  }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const k = this.t / this.dur;
+    const alpha = Math.min(1, this.t / 0.2) * Math.max(0, 1 - (k - 0.5) / 0.5);
+    if (alpha <= 0) return;
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+    const R = this.r * HW * 1.41;
+    const rot = this.t * 0.8;
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.scale(1, HH / HW);
+
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 1.1);
+    grad.addColorStop(0, `rgba(100, 170, 255, ${0.45 * alpha})`);
+    grad.addColorStop(0.65, `rgba(40, 100, 240, ${0.25 * alpha})`);
+    grad.addColorStop(1, 'rgba(20, 60, 200, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 1.1, 0, TAU);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(180, 220, 255, ${0.85 * alpha})`;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, TAU);
+    ctx.stroke();
+
+    for (let i = 0; i < 4; i++) {
+      const a = rot + (i * TAU) / 4;
+      ctx.save();
+      ctx.rotate(a);
+      ctx.beginPath();
+      ctx.moveTo(0, R * 0.2);
+      ctx.lineTo(R * 0.25, R * 0.7);
+      ctx.lineTo(0, R * 0.95);
+      ctx.lineTo(-R * 0.25, R * 0.7);
+      ctx.closePath();
+      ctx.fillStyle = `rgba(120, 190, 255, ${0.3 * alpha})`;
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
+
+export class DragoonMeteorSpear {
+  constructor(x, y, dur = 0.42) {
+    Object.assign(this, { x, y, dur, t: 0, layer: 'top', add: true });
+  }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const k = this.t / this.dur;
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+    const startY = py - 850;
+    const curY = startY + (py - startY) * Math.pow(k, 2.5);
+
+    ctx.save();
+    ctx.translate(px, curY);
+
+    const trailGrad = ctx.createLinearGradient(0, -180, 0, 0);
+    trailGrad.addColorStop(0, 'rgba(100, 180, 255, 0)');
+    trailGrad.addColorStop(0.6, 'rgba(140, 210, 255, 0.5)');
+    trailGrad.addColorStop(1, 'rgba(255, 255, 255, 0.95)');
+    ctx.fillStyle = trailGrad;
+    ctx.beginPath();
+    ctx.moveTo(-16, -180); ctx.lineTo(16, -180); ctx.lineTo(6, 0); ctx.lineTo(-6, 0);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(200, 240, 255, ${1 - k * 0.5})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(0, -20, 24, 8, 0, 0, TAU);
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(0, 36);
+    ctx.lineTo(12, -30);
+    ctx.lineTo(-12, -30);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 11. TOTEM MASTER: Ancient Ancestral Monolith & Spirit Storm
+// -----------------------------------------------------------------------------
+export class TotemMasterMonolith {
+  constructor(x, y, r, dur = 2.2) {
+    Object.assign(this, { x, y, r, dur, t: 0, layer: 'floor', add: true });
+  }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const k = this.t / this.dur;
+    const alpha = Math.min(1, this.t / 0.25) * Math.max(0, 1 - (k - 0.6) / 0.4);
+    if (alpha <= 0) return;
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+    const R = this.r * HW * 1.41;
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.scale(1, HH / HW);
+
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+    grad.addColorStop(0, `rgba(90, 200, 160, ${0.45 * alpha})`);
+    grad.addColorStop(0.7, `rgba(30, 130, 90, ${0.2 * alpha})`);
+    grad.addColorStop(1, 'rgba(10, 60, 40, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, TAU);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(140, 240, 200, ${0.8 * alpha})`;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.9, 0, TAU);
+    ctx.arc(0, 0, R * 0.6, 0, TAU);
+    ctx.stroke();
+
+    for (let i = 0; i < 4; i++) {
+      const a = (i * TAU) / 4 + this.t * 0.3;
+      const cos = Math.cos(a), sin = Math.sin(a);
+      ctx.strokeStyle = `rgba(100, 255, 210, ${0.85 * alpha})`;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(cos * R * 0.2, sin * R * 0.2);
+      ctx.lineTo(cos * R * 0.85, sin * R * 0.85);
+      ctx.stroke();
+
+      ctx.fillStyle = `rgba(200, 255, 230, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(cos * R * 0.85, sin * R * 0.85, 6, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+export class TotemSpiritStorm {
+  constructor(x, y, r, dur = 1.2) {
+    Object.assign(this, { x, y, r, dur, t: 0, layer: 'top', add: true });
+    this.monolithH = 120;
+  }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const k = this.t / this.dur;
+    const alpha = Math.min(1, this.t / 0.15) * Math.max(0, 1 - Math.pow(k, 1.8));
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+
+    ctx.save();
+    ctx.translate(px, py);
+
+    const rise = Math.min(1, this.t / 0.3);
+    const h = this.monolithH * rise;
+    const w = 24;
+
+    ctx.fillStyle = `rgba(40, 70, 60, ${alpha})`;
+    ctx.strokeStyle = `rgba(120, 240, 180, ${alpha})`;
+    ctx.lineWidth = 2;
+
+    ctx.fillRect(-w / 2, -h, w, h);
+    ctx.strokeRect(-w / 2, -h, w, h);
+
+    if (rise > 0.5) {
+      ctx.fillStyle = `rgba(160, 255, 220, ${alpha})`;
+      ctx.fillRect(-7, -h + 20, 4, 4);
+      ctx.fillRect(3, -h + 20, 4, 4);
+      ctx.fillRect(-5, -h + 35, 10, 4);
+      ctx.fillRect(-7, -h + 60, 4, 4);
+      ctx.fillRect(3, -h + 60, 4, 4);
+      ctx.fillRect(-5, -h + 75, 10, 4);
+    }
+
+    for (let i = 0; i < 8; i++) {
+      const a = (i * TAU) / 8 + this.t * 4;
+      const r = (w * 1.5 + Math.sin(this.t * 3 + i) * 12);
+      const wx = Math.cos(a) * r;
+      const wy = -h * 0.5 + Math.sin(a) * 16 + (i % 2 === 0 ? -20 : 20);
+
+      ctx.fillStyle = `rgba(120, 255, 200, ${0.75 * alpha})`;
+      ctx.beginPath();
+      ctx.arc(wx, wy, 4, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 12. DEATH KNIGHT: Glacial Oblivion Frost Citadel & Ice Spikes
+// -----------------------------------------------------------------------------
+export class DeathKnightGlacierSigil {
+  constructor(x, y, r, dur = 2.2) {
+    Object.assign(this, { x, y, r, dur, t: 0, layer: 'floor', add: true });
+  }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const k = this.t / this.dur;
+    const alpha = Math.min(1, this.t / 0.25) * Math.max(0, 1 - (k - 0.6) / 0.4);
+    if (alpha <= 0) return;
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+    const R = this.r * HW * 1.41;
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.scale(1, HH / HW);
+
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+    grad.addColorStop(0, `rgba(140, 210, 255, ${0.5 * alpha})`);
+    grad.addColorStop(0.65, `rgba(40, 110, 200, ${0.28 * alpha})`);
+    grad.addColorStop(1, 'rgba(10, 40, 120, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, TAU);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(200, 240, 255, ${0.9 * alpha})`;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (i * TAU) / 6;
+      const cos = Math.cos(a), sin = Math.sin(a);
+      ctx.moveTo(0, 0);
+      ctx.lineTo(cos * R * 0.9, sin * R * 0.9);
+      ctx.moveTo(cos * R * 0.5, sin * R * 0.5);
+      ctx.lineTo(cos * R * 0.6 - sin * R * 0.15, sin * R * 0.6 + cos * R * 0.15);
+      ctx.moveTo(cos * R * 0.5, sin * R * 0.5);
+      ctx.lineTo(cos * R * 0.6 + sin * R * 0.15, sin * R * 0.6 - cos * R * 0.15);
+    }
+    ctx.stroke();
+
+    ctx.restore();
+  }
+}
+
+export class DeathKnightIceSpikes {
+  constructor(x, y, r, dur = 1.1) {
+    Object.assign(this, { x, y, r, dur, t: 0, layer: 'top', add: true });
+    this.spikes = [];
+    for (let i = 0; i < 18; i++) {
+      const a = rand(TAU), dist = rand(0.3, r * 0.85);
+      this.spikes.push({
+        x: Math.cos(a) * dist,
+        y: Math.sin(a) * dist,
+        h: rand(50, 110),
+        w: rand(12, 22),
+        lean: rand(-0.25, 0.25),
+        delay: rand(0, 0.15)
+      });
+    }
+  }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const k = this.t / this.dur;
+    const alpha = Math.max(0, 1 - (k - 0.5) / 0.5);
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+
+    ctx.save();
+    for (const s of this.spikes) {
+      if (this.t < s.delay) continue;
+      const prog = Math.min(1, (this.t - s.delay) / 0.22);
+      const curH = s.h * prog;
+      const sx = px + s.x * HW, sy = py + s.y * HH;
+
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(s.lean);
+
+      const grad = ctx.createLinearGradient(-s.w / 2, 0, s.w / 2, -curH);
+      grad.addColorStop(0, `rgba(80, 160, 240, ${0.85 * alpha})`);
+      grad.addColorStop(0.5, `rgba(180, 230, 255, ${0.95 * alpha})`);
+      grad.addColorStop(1, `rgba(255, 255, 255, ${alpha})`);
+
+      ctx.fillStyle = grad;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.9 * alpha})`;
+      ctx.lineWidth = 1.5;
+
+      ctx.beginPath();
+      ctx.moveTo(-s.w / 2, 0);
+      ctx.lineTo(0, -curH);
+      ctx.lineTo(s.w / 2, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 13. ARCANE SORCERER (ASTRONOMER): Astral Singularity & Star Collapse
+// -----------------------------------------------------------------------------
+export class AstronomerAstralVortex {
+  constructor(x, y, r, dur = 2.2) {
+    Object.assign(this, { x, y, r, dur, t: 0, layer: 'floor', add: true });
+  }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const k = this.t / this.dur;
+    const alpha = Math.min(1, this.t / 0.2) * Math.max(0, 1 - (k - 0.5) / 0.5);
+    if (alpha <= 0) return;
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+    const R = this.r * HW * 1.41;
+    const rot = this.t * 1.2;
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.scale(1, HH / HW);
+
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+    grad.addColorStop(0, `rgba(60, 140, 255, ${0.55 * alpha})`);
+    grad.addColorStop(0.45, `rgba(130, 40, 220, ${0.35 * alpha})`);
+    grad.addColorStop(0.8, `rgba(20, 10, 60, ${0.2 * alpha})`);
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, TAU);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(180, 220, 255, ${0.85 * alpha})`;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.9, 0, TAU);
+    ctx.arc(0, 0, R * 0.65, 0, TAU);
+    ctx.arc(0, 0, R * 0.35, 0, TAU);
+    ctx.stroke();
+
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.9 * alpha})`;
+    ctx.lineWidth = 1.8;
+    for (let i = 0; i < 8; i++) {
+      const a = rot + (i * TAU) / 8;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * R * 0.1, Math.sin(a) * R * 0.1);
+      ctx.lineTo(Math.cos(a) * R * 0.95, Math.sin(a) * R * 0.95);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 14. SLIME LORD: Royal Deluge Corrosive Acid Pool & Crowned Geyser
+// -----------------------------------------------------------------------------
+export class SlimeLordAcidPool {
+  constructor(x, y, r, dur = 2.2) {
+    Object.assign(this, { x, y, r, dur, t: 0, layer: 'floor', add: true });
+  }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const k = this.t / this.dur;
+    const alpha = Math.min(1, this.t / 0.25) * Math.max(0, 1 - (k - 0.6) / 0.4);
+    if (alpha <= 0) return;
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+    const R = this.r * HW * 1.41;
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.scale(1, HH / HW);
+
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+    grad.addColorStop(0, `rgba(80, 240, 120, ${0.55 * alpha})`);
+    grad.addColorStop(0.65, `rgba(20, 160, 60, ${0.35 * alpha})`);
+    grad.addColorStop(1, 'rgba(10, 60, 20, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, TAU);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(160, 255, 140, ${0.85 * alpha})`;
+    ctx.lineWidth = 2.8;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.85, 0, TAU);
+    ctx.stroke();
+
+    for (let i = 0; i < 8; i++) {
+      const a = (i * TAU) / 8 + this.t * 0.8;
+      const dist = R * (0.3 + (i % 3) * 0.2);
+      ctx.fillStyle = `rgba(180, 255, 160, ${0.9 * alpha})`;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * dist, Math.sin(a) * dist, 4 + (i % 3) * 2, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+export class SlimeLordRoyalGeyser {
+  constructor(x, y, r, dur = 1.2) {
+    Object.assign(this, { x, y, r, dur, t: 0, layer: 'top', add: true });
+  }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const k = this.t / this.dur;
+    const alpha = Math.min(1, this.t / 0.15) * Math.max(0, 1 - Math.pow(k, 1.8));
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+
+    ctx.save();
+    ctx.translate(px, py);
+
+    const curH = 130 * Math.sin(k * Math.PI);
+    ctx.fillStyle = `rgba(60, 220, 100, ${0.8 * alpha})`;
+    ctx.beginPath();
+    ctx.ellipse(0, -curH * 0.5, 26, curH * 0.5, 0, 0, TAU);
+    ctx.fill();
+
+    if (curH > 40) {
+      ctx.fillStyle = `rgba(255, 215, 40, ${alpha})`;
+      ctx.strokeStyle = `rgba(180, 120, 10, ${alpha})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-16, -curH);
+      ctx.lineTo(-20, -curH - 18);
+      ctx.lineTo(-8, -curH - 10);
+      ctx.lineTo(0, -curH - 24);
+      ctx.lineTo(8, -curH - 10);
+      ctx.lineTo(20, -curH - 18);
+      ctx.lineTo(16, -curH);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 15. BOOMERANG KNIGHT: Cyclone Tempest Vortex & Spiraling Razor Blades
+// -----------------------------------------------------------------------------
+export class BoomerangGaleVortex {
+  constructor(x, y, r, dur = 2.0) {
+    Object.assign(this, { x, y, r, dur, t: 0, layer: 'floor', add: true });
+  }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const k = this.t / this.dur;
+    const alpha = Math.min(1, this.t / 0.2) * Math.max(0, 1 - (k - 0.5) / 0.5);
+    if (alpha <= 0) return;
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+    const R = this.r * HW * 1.41;
+    const rot = this.t * 3.5;
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.scale(1, HH / HW);
+
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+    grad.addColorStop(0, `rgba(60, 210, 170, ${0.45 * alpha})`);
+    grad.addColorStop(0.7, `rgba(20, 140, 110, ${0.25 * alpha})`);
+    grad.addColorStop(1, 'rgba(0, 60, 40, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, TAU);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(160, 255, 230, ${0.85 * alpha})`;
+    ctx.lineWidth = 2.5;
+    for (let i = 0; i < 4; i++) {
+      const a = rot + (i * TAU) / 4;
+      ctx.beginPath();
+      for (let step = 0; step < 15; step++) {
+        const theta = a + step * 0.15;
+        const rad = (step / 15) * R * 0.95;
+        if (step === 0) ctx.moveTo(Math.cos(theta) * rad, Math.sin(theta) * rad);
+        else ctx.lineTo(Math.cos(theta) * rad, Math.sin(theta) * rad);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+export class BoomerangBladeStorm {
+  constructor(x, y, r, dur = 1.2) {
+    Object.assign(this, { x, y, r, dur, t: 0, layer: 'top', add: true });
+    this.blades = [];
+    for (let i = 0; i < 6; i++) {
+      this.blades.push({
+        baseAngle: (i / 6) * TAU,
+        orbitR: rand(0.4, r * 0.85),
+        spinSpeed: rand(12, 18),
+        orbitSpeed: rand(4.5, 7.5),
+        height: rand(10, 35)
+      });
+    }
+  }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const k = this.t / this.dur;
+    const alpha = Math.min(1, this.t / 0.15) * Math.max(0, 1 - (k - 0.5) / 0.5);
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+
+    ctx.save();
+    for (const b of this.blades) {
+      const curAng = b.baseAngle + this.t * b.orbitSpeed;
+      const curDist = b.orbitR * HW;
+      const bx = px + Math.cos(curAng) * curDist;
+      const by = py + Math.sin(curAng) * curDist * (HH / HW) - b.height;
+
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate(this.t * b.spinSpeed);
+
+      ctx.fillStyle = `rgba(240, 255, 250, ${alpha})`;
+      ctx.strokeStyle = `rgba(50, 200, 160, ${alpha})`;
+      ctx.lineWidth = 1.8;
+
+      ctx.beginPath();
+      ctx.moveTo(-16, 12);
+      ctx.quadraticCurveTo(0, -6, 16, 12);
+      ctx.lineTo(12, 16);
+      ctx.quadraticCurveTo(0, -1, -12, 16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 16. DRAGON KNIGHT: Primordial Dragon's Inferno Hellfire Rune & Breath of Flame
+// -----------------------------------------------------------------------------
+export class DragonKnightHellfireRune {
+  constructor(x, y, r, dur = 2.2) {
+    Object.assign(this, { x, y, r, dur, t: 0, layer: 'floor', add: true });
+  }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const k = this.t / this.dur;
+    const alpha = Math.min(1, this.t / 0.25) * Math.max(0, 1 - (k - 0.6) / 0.4);
+    if (alpha <= 0) return;
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+    const R = this.r * HW * 1.41;
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.scale(1, HH / HW);
+
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+    grad.addColorStop(0, `rgba(255, 90, 30, ${0.55 * alpha})`);
+    grad.addColorStop(0.65, `rgba(180, 40, 10, ${0.35 * alpha})`);
+    grad.addColorStop(1, 'rgba(60, 10, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, TAU);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(255, 180, 50, ${0.9 * alpha})`;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.9, 0, TAU);
+    ctx.arc(0, 0, R * 0.7, 0, TAU);
+    ctx.stroke();
+
+    for (let i = 0; i < 3; i++) {
+      const a = (i * TAU) / 3 + this.t * 0.4;
+      ctx.save();
+      ctx.rotate(a);
+      ctx.beginPath();
+      ctx.moveTo(0, R * 0.2);
+      ctx.lineTo(R * 0.2, R * 0.7);
+      ctx.lineTo(0, R * 0.9);
+      ctx.lineTo(-R * 0.2, R * 0.7);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
+
+export class DragonKnightBreathOfFlame {
+  constructor(x, y, r, dur = 1.2) {
+    Object.assign(this, { x, y, r, dur, t: 0, layer: 'top', add: true });
+  }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const k = this.t / this.dur;
+    const alpha = Math.min(1, this.t / 0.15) * Math.max(0, 1 - Math.pow(k, 1.8));
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+
+    ctx.save();
+    ctx.translate(px, py);
+
+    const grad = ctx.createLinearGradient(0, -320, 0, 0);
+    grad.addColorStop(0, `rgba(255, 240, 160, ${alpha})`);
+    grad.addColorStop(0.4, `rgba(255, 120, 30, ${0.85 * alpha})`);
+    grad.addColorStop(0.8, `rgba(220, 40, 10, ${0.65 * alpha})`);
+    grad.addColorStop(1, 'rgba(120, 10, 0, 0)');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(-10, -320);
+    ctx.lineTo(10, -320);
+    ctx.lineTo(this.r * HW * 0.9, 0);
+    ctx.lineTo(-this.r * HW * 0.9, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+}
+
