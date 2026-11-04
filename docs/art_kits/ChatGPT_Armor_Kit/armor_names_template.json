@@ -1,0 +1,53 @@
+{
+ "_help": {
+  "class": [
+   "arcane_sorcerer",
+   "barbarian",
+   "bard",
+   "boomerang_knight",
+   "carrion_witch",
+   "death_knight",
+   "dragon_knight",
+   "dragoon",
+   "gunner",
+   "lancer",
+   "necromancer",
+   "paladin",
+   "ranger",
+   "slime_lord",
+   "totem_master",
+   "wizard"
+  ],
+  "rarity": [
+   "common",
+   "uncommon",
+   "rare",
+   "epic",
+   "legendary",
+   "mythic"
+  ]
+ },
+ "class": "",
+ "armors": [
+  {
+   "name": "",
+   "rarity": ""
+  },
+  {
+   "name": "",
+   "rarity": ""
+  },
+  {
+   "name": "",
+   "rarity": ""
+  },
+  {
+   "name": "",
+   "rarity": ""
+  },
+  {
+   "name": "",
+   "rarity": ""
+  }
+ ]
+}

@@ -78,7 +78,7 @@ async function loadClassGear(cls) {
   if (a.width < meta.cols * fw || a.height < rows * fh || am.width !== a.width || am.height !== a.height) {
     throw new Error(cls + ' armor atlas does not match its gear.json');
   }
-  if (!helmetHelms.meta.classes.includes(cls)) throw new Error('No helmet art for ' + cls);
+  if (!helmetHelms.meta.classes.includes(cls) && cls !== 'monk') throw new Error('No helmet art for ' + cls);
   return { cls, meta, armor: pixels(a), amask: channel(am), helmetHelms };
 }
 
@@ -239,7 +239,7 @@ function helmetPixels(cls, id, pi, set, src = S) {
   const data = actualSrc?.[set + 'Helms'] || S[set + 'Helms'];
   if (!data?.meta || !data?.atlas) return { px: new Uint8ClampedArray(0), box: [0, 0, 0, 0] };
   const [cw, ch] = data.meta.frame;
-  const col = data.meta.classes.indexOf(cls), sx = col * cw, sy = (id - 1) * ch, aw = data.atlas.width;
+  const col = data.meta.classes.indexOf(cls >= 0 ? cls : (data.meta.classes.includes(cls) ? cls : 'barbarian')), sx = Math.max(0, col) * cw, sy = (id - 1) * ch, aw = data.atlas.width;
   if (col < 0) return { px: new Uint8ClampedArray(cw * ch * 4), box: [0, 0, 0, 0] };
   const key = set + '|' + cls + '|' + id + '|' + pi;
   let result = recolouredHelms.get(key);

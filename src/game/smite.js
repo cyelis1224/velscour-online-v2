@@ -146,6 +146,19 @@ export const ULTIMATES = {
     chargeSound: 'poison',
     opts: { noArc: true, poison: true },
   },
+  monk: {
+    id: 'nirvana',
+    name: 'Seven-Sided Strike',
+    title: 'NIRVANA',
+    stat: 'dex',
+    el: 'holy',
+    r: 4.8,
+    color: '#ffc830',
+    haloColor: '#e08010',
+    desc: 'Dashes with supersonic grace, striking all nearby enemies with radiant palm shockwaves and resonant temple bells.',
+    chargeSound: 'holy',
+    opts: { noArc: true, knock: 1.6, stun: true },
+  },
 };
 
 export function getUltimate(classId) {
@@ -396,6 +409,23 @@ function executeUltimate(ult, x, y, w, p, c) {
         sparkle(x, y, 40, '#90ff40', 34, ult.r * 0.75);
         camera.shake(12); G.flash = Math.max(G.flash || 0, 0.35);
         sfx('acid', 1.05); sfx('poison', 1.05); sfx('squish', 0.9);
+        dealUltimateDamage(ult, x, y, w, p);
+      }, 320);
+      break;
+    }
+
+    case 'nirvana': {
+      // Monk: Resonant Temple Bell Sigil & Seven-Sided Palm Shockwaves
+      sfx('holy', 1.0); sfx('buff', 0.8);
+      addEffect(new Ring(x, y, 0.2, ult.r + 0.8, 0.65, '#ffe060', 6));
+      setTimeout(() => {
+        if (G.world !== w || !G.player) return;
+        explosionFx(x, y, 3.4, 'holy', 'explosion', { sound: false });
+        addEffect(new Ring(x, y, 0.2, ult.r * 0.8, 0.5, '#ffd840', 5));
+        burst(x, y, 36, 'holy', 60, 9);
+        sparkle(x, y, 50, '#ffffff', 40, ult.r * 0.8);
+        camera.shake(16); G.flash = Math.max(G.flash || 0, 0.5);
+        sfx('explode', 1.0); sfx('holy', 1.0); sfx('thud', 1.2);
         dealUltimateDamage(ult, x, y, w, p);
       }, 320);
       break;

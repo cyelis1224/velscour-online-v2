@@ -11,7 +11,8 @@ export const input = {
   alt: false,
   mouse: { x: 0, y: 0, left: false, right: false, leftPressed: false, rightPressed: false, inside: true },
   joy: { active: false, id: -1, ox: 0, oy: 0, x: 0, y: 0, vx: 0, vy: 0 },
-  worldTouch: null, // { id, x, y, pressed }
+  pendingJoy: null, // { id, ox, oy, x, y }
+  worldTouch: null, // { id, x, y, pressed, tapOnly }
   activeTouches: new Map(),
   isPinching: false,
   lastPointerType: 'mouse',
@@ -26,7 +27,10 @@ export const input = {
     this.pressed.clear();
     this.mouse.leftPressed = false;
     this.mouse.rightPressed = false;
-    if (this.worldTouch) this.worldTouch.pressed = false;
+    if (this.worldTouch) {
+      this.worldTouch.pressed = false;
+      if (this.worldTouch.tapOnly) this.worldTouch = null;
+    }
   },
   reset() {
     this.keys.clear(); this.pressed.clear();
@@ -34,11 +38,13 @@ export const input = {
     this.mouse.left = this.mouse.right = false;
     this.endJoy();
     this.worldTouch = null;
+    this.pendingJoy = null;
     this.activeTouches.clear();
     this.isPinching = false;
   },
   endJoy() {
     this.joy.active = false; this.joy.id = -1; this.joy.vx = 0; this.joy.vy = 0;
+    this.pendingJoy = null;
     const base = document.getElementById('joy-base');
     if (base) base.classList.remove('on');
   },
@@ -68,6 +74,7 @@ export function initInput(canvas) {
   const base = document.getElementById('joy-base');
   const knob = document.getElementById('joy-knob');
   const JOY_R = 52;
+  const JOY_DRAG_THRESHOLD = 10;
 
   let pinchStartDist = 0;
   let pinchStartZoom = 1;
@@ -77,6 +84,12 @@ export function initInput(canvas) {
 
   canvas.addEventListener('pointerdown', (e) => {
     input.lastPointerType = e.pointerType;
+    if (G.cine) {
+      if (input.joy.active) input.endJoy();
+      input.pendingJoy = null;
+      input.worldTouch = null;
+      return;
+    }
     // a spectator's tap (aiming SMITE, catching a critter: game/spectate.js) never moves the hero or stops auto-play
     if (G.tapHook && G.tapHook(e.clientX, e.clientY, e)) { e.preventDefault(); return; }
     if (e.pointerType === 'mouse') {
@@ -96,6 +109,7 @@ export function initInput(canvas) {
       pinchCooldown = true;
       if (pinchCooldownTimer) { clearTimeout(pinchCooldownTimer); pinchCooldownTimer = null; }
       if (input.joy.active) input.endJoy();
+      input.pendingJoy = null;
       input.worldTouch = null;
 
       const keys = [...input.activeTouches.keys()];
@@ -114,14 +128,10 @@ export function initInput(canvas) {
     }
 
     const isPortrait = G.H > G.W || (typeof window !== 'undefined' && window.innerHeight > window.innerWidth);
-    const inJoyZone = isPortrait ? (e.clientY >= G.H * 0.5) : (e.clientX < G.W * 0.42);
+    const inJoyZone = isPortrait ? (e.clientY >= G.H * 0.5) : (e.clientX < G.W * 0.5);
     if (inJoyZone && !input.joy.active) {
-      const j = input.joy;
-      j.active = true; j.id = e.pointerId; j.ox = e.clientX; j.oy = e.clientY; j.vx = 0; j.vy = 0;
-      base.style.left = e.clientX + 'px'; base.style.top = e.clientY + 'px';
-      knob.style.transform = 'translate(0px,0px)';
-      base.classList.add('on');
-    } else if (!input.worldTouch) {
+      input.pendingJoy = { id: e.pointerId, ox: e.clientX, oy: e.clientY, x: e.clientX, y: e.clientY };
+    } else if (!input.worldTouch || input.worldTouch.tapOnly) {
       input.worldTouch = { id: e.pointerId, x: e.clientX, y: e.clientY, pressed: true };
     }
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
@@ -156,6 +166,31 @@ export function initInput(canvas) {
 
     if (pinchCooldown) return;
 
+    if (input.pendingJoy && e.pointerId === input.pendingJoy.id) {
+      const dx = e.clientX - input.pendingJoy.ox;
+      const dy = e.clientY - input.pendingJoy.oy;
+      const d = Math.hypot(dx, dy);
+      if (d >= JOY_DRAG_THRESHOLD) {
+        // Drag threshold reached: activate virtual joystick!
+        const j = input.joy;
+        j.active = true;
+        j.id = input.pendingJoy.id;
+        j.ox = input.pendingJoy.ox;
+        j.oy = input.pendingJoy.oy;
+        base.style.left = j.ox + 'px';
+        base.style.top = j.oy + 'px';
+        base.classList.add('on');
+        input.pendingJoy = null;
+
+        let kdx = dx, kdy = dy;
+        if (d > JOY_R) { kdx = kdx / d * JOY_R; kdy = kdy / d * JOY_R; }
+        j.vx = kdx / JOY_R;
+        j.vy = kdy / JOY_R;
+        knob.style.transform = `translate(${kdx}px,${kdy}px)`;
+      }
+      return;
+    }
+
     const j = input.joy;
     if (j.active && e.pointerId === j.id) {
       let dx = e.clientX - j.ox, dy = e.clientY - j.oy;
@@ -188,8 +223,24 @@ export function initInput(canvas) {
         pinchCooldownTimer = null;
       }, 350);
     }
+
+    const isCancel = e.type === 'pointercancel';
+    if (input.pendingJoy && e.pointerId === input.pendingJoy.id) {
+      if (!isCancel) {
+        // Finger released without dragging: this was a tap in the joystick zone!
+        input.worldTouch = {
+          id: input.pendingJoy.id,
+          x: input.pendingJoy.ox,
+          y: input.pendingJoy.oy,
+          pressed: true,
+          tapOnly: true,
+        };
+      }
+      input.pendingJoy = null;
+    }
+
     if (input.joy.active && e.pointerId === input.joy.id) input.endJoy();
-    if (input.worldTouch && input.worldTouch.id === e.pointerId) input.worldTouch = null;
+    if (input.worldTouch && input.worldTouch.id === e.pointerId && !input.worldTouch.tapOnly) input.worldTouch = null;
   };
   canvas.addEventListener('pointerup', up);
   canvas.addEventListener('pointercancel', up);

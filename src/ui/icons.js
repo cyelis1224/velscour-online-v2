@@ -1048,6 +1048,98 @@ export function crowsIcon(size = 64) {
   return c;
 }
 
+export function nirvanaIcon(size = 64) {
+  const key = 'special_nirvana|' + size;
+  let c = cache.get(key);
+  if (c) return c;
+  c = makeCanvas(size, size);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const s = size / 64, h = size / 2;
+
+  x.save();
+  x.beginPath();
+  x.arc(h, h, h - 2 * s, 0, TAU);
+  x.clip();
+
+  // Warm golden spiritual background
+  const bg = x.createRadialGradient(h, h * 0.65, 2, h, h, h * 1.15);
+  bg.addColorStop(0, '#5a3606');
+  bg.addColorStop(0.5, '#261402');
+  bg.addColorStop(1, '#080401');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, size, size);
+
+  // Radiating chakra rays
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * TAU;
+    x.strokeStyle = i % 2 === 0 ? 'rgba(255, 200, 50, 0.28)' : 'rgba(255, 240, 150, 0.16)';
+    x.lineWidth = 1.8 * s;
+    x.beginPath();
+    x.moveTo(h, h);
+    x.lineTo(h + Math.cos(a) * h * 0.95, h + Math.sin(a) * h * 0.95);
+    x.stroke();
+  }
+
+  // Golden concentric chakra rings
+  x.strokeStyle = '#ffc840';
+  x.lineWidth = 1.4 * s;
+  x.beginPath();
+  x.arc(h, h, 18 * s, 0, TAU);
+  x.stroke();
+  x.strokeStyle = 'rgba(255, 255, 220, 0.6)';
+  x.lineWidth = 1 * s;
+  x.beginPath();
+  x.arc(h, h, 12 * s, 0, TAU);
+  x.stroke();
+
+  // Golden Open Palm / Lotus Hand
+  x.save();
+  x.translate(h, h * 1.05);
+  x.fillStyle = '#ffe070';
+  x.strokeStyle = '#ffffff';
+  x.lineWidth = 1.2 * s;
+
+  // Palm base
+  x.beginPath();
+  x.ellipse(0, 0, 8 * s, 10 * s, 0, 0, TAU);
+  x.fill();
+  x.stroke();
+
+  // Five fingers radiating upward
+  const fingers = [
+    { x: -7 * s, y: -6 * s, w: 2.2 * s, l: 7 * s, rot: -0.35 },
+    { x: -3.5 * s, y: -10 * s, w: 2.4 * s, l: 9 * s, rot: -0.15 },
+    { x: 0, y: -11 * s, w: 2.5 * s, l: 11 * s, rot: 0 },
+    { x: 3.5 * s, y: -10 * s, w: 2.4 * s, l: 9 * s, rot: 0.15 },
+    { x: 7 * s, y: -6 * s, w: 2.2 * s, l: 7 * s, rot: 0.35 },
+  ];
+  for (const f of fingers) {
+    x.save();
+    x.translate(f.x, f.y);
+    x.rotate(f.rot);
+    x.beginPath();
+    x.roundRect(-f.w / 2, -f.l, f.w, f.l, f.w / 2);
+    x.fill();
+    x.stroke();
+    x.restore();
+  }
+  x.restore();
+
+  // Glowing center eye / bindu pearl
+  const pearlGlow = x.createRadialGradient(h, h, 0, h, h, 6 * s);
+  pearlGlow.addColorStop(0, '#ffffff');
+  pearlGlow.addColorStop(0.5, '#ffee80');
+  pearlGlow.addColorStop(1, 'rgba(255, 200, 40, 0)');
+  x.fillStyle = pearlGlow;
+  x.beginPath();
+  x.arc(h, h, 6 * s, 0, TAU);
+  x.fill();
+
+  x.restore();
+  cache.set(key, c);
+  return c;
+}
+
 export function ultimateIcon(classId, size = 64) {
   switch (classId) {
     case 'paladin': return smiteIcon(size);
@@ -1059,6 +1151,7 @@ export function ultimateIcon(classId, size = 64) {
     case 'wizard': return supernovaIcon(size);
     case 'necromancer': return graveIcon(size);
     case 'carrion_witch': return crowsIcon(size);
+    case 'monk': return nirvanaIcon(size);
     default: return smiteIcon(size);
   }
 }

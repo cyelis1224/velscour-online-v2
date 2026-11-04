@@ -149,7 +149,7 @@ export function openLobby(char, onBack) {
   doJoinBtn.style.padding = '8px 24px';
   doJoinBtn.style.fontSize = '14px';
   doJoinBtn.style.color = '#fff';
-  doJoinBtn.style.background = 'linear-gradient(180deg, #58361e, #2a150b)';
+  doJoinBtn.style.background = 'linear-gradient(180deg, #581e1eff, #2a150b)';
   joinActions.append(cancelJoinBtn, doJoinBtn);
 
   joinView.append(joinInputs, gamesSplit, joinActions);
@@ -196,7 +196,7 @@ export function openLobby(char, onBack) {
   doCreateBtn.style.padding = '8px 24px';
   doCreateBtn.style.fontSize = '14px';
   doCreateBtn.style.color = '#ffd860';
-  doCreateBtn.style.background = 'linear-gradient(180deg, #58361e, #2a150b)';
+  doCreateBtn.style.background = 'linear-gradient(180deg, #581e1eff, #2a0b0bff)';
   createActions.append(cancelCreateBtn, doCreateBtn);
   createView.appendChild(createActions);
 

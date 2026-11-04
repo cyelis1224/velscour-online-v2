@@ -1,0 +1,1094 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#090706">
+  <title>DAGYR ONLINE - Dark Fantasy Action RPG (Free in Browser)</title>
+  <meta name="description" content="DAGYR ONLINE is a free dark gothic multiplayer action RPG in an endless underworld. Play instantly in your browser with 16 classes, 1,090+ monsters, and 4-player co-op.">
+  <link rel="icon" type="image/x-icon" href="assets/ui/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Alegreya+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090706;
+      --bg-darker: #050403;
+      --panel: #140d0a;
+      --panel-hover: #1c130e;
+      --card-bg: #18110d;
+      --border: #382519;
+      --border-highlight: #704828;
+      --gold: #d4af37;
+      --gold-bright: #ffe57f;
+      --gold-dim: #9a7b2c;
+      --crimson: #c22f1c;
+      --crimson-bright: #ff3a20;
+      --crimson-glow: rgba(194, 47, 28, 0.4);
+      --text: #e6dac6;
+      --text-dim: #a8947e;
+      --text-muted: #73604f;
+      --font-title: 'Cinzel', serif;
+      --font-body: 'Alegreya Sans', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0c0807; }
+    ::-webkit-scrollbar-thumb { background: #382519; border-radius: 4px; border: 1px solid #1a120e; }
+    ::-webkit-scrollbar-thumb:hover { background: #603d25; }
+
+    /* Navigation Bar */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13, 9, 7, 0.94);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+      padding: 12px 24px;
+    }
+
+    .nav-wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: #fff;
+    }
+
+    .nav-logo {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.5));
+    }
+
+    .nav-brand-title {
+      font-family: var(--font-title);
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .nav-brand-title span {
+      color: var(--gold);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-family: var(--font-title);
+      font-size: 13px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--gold-bright);
+    }
+
+    .btn-play-nav {
+      background: linear-gradient(180deg, #d44018 0%, #8a1c08 100%);
+      color: #fff !important;
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 8px 20px;
+      border-radius: 4px;
+      border: 1px solid #ff7a40;
+      box-shadow: 0 0 16px rgba(212, 64, 24, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      transition: all 0.25s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-play-nav:hover {
+      background: linear-gradient(180deg, #ff5020 0%, #a8200a 100%);
+      box-shadow: 0 0 24px rgba(255, 80, 32, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+      transform: translateY(-1px);
+    }
+
+    /* Hero Section */
+    .hero {
+      position: relative;
+      min-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 60px 20px 80px;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 30%, rgba(45, 14, 8, 0.6) 0%, rgba(9, 7, 6, 0.98) 75%);
+    }
+
+    #hero-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .hero-logo {
+      max-width: 680px;
+      width: 90%;
+      height: auto;
+      filter: drop-shadow(0 0 35px rgba(255, 80, 20, 0.45)) drop-shadow(0 0 60px rgba(180, 30, 10, 0.3));
+      animation: logoGlow 4s ease-in-out infinite alternate;
+    }
+
+    @keyframes logoGlow {
+      from { filter: drop-shadow(0 0 25px rgba(255, 80, 20, 0.35)) drop-shadow(0 0 50px rgba(160, 25, 8, 0.2)); }
+      to { filter: drop-shadow(0 0 45px rgba(255, 100, 30, 0.6)) drop-shadow(0 0 80px rgba(200, 40, 12, 0.45)); }
+    }
+
+    .hero-tagline {
+      font-family: var(--font-title);
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      color: #ffb060;
+      text-transform: uppercase;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+    }
+
+    .hero-desc {
+      font-size: 18px;
+      color: var(--text);
+      max-width: 780px;
+      line-height: 1.65;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+    }
+
+    .hero-ctas {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 10px;
+    }
+
+    .btn-play-main {
+      background: linear-gradient(180deg, #e64516 0%, #8f1505 100%);
+      color: #fff;
+      font-family: var(--font-title);
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 16px 42px;
+      border-radius: 6px;
+      border: 2px solid #ffa060;
+      box-shadow: 0 0 30px rgba(230, 69, 22, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .btn-play-main:hover {
+      background: linear-gradient(180deg, #ff5722 0%, #b01b08 100%);
+      border-color: #ffd090;
+      box-shadow: 0 0 45px rgba(255, 87, 34, 0.85), 0 0 20px rgba(212, 175, 55, 0.5);
+      transform: translateY(-2px) scale(1.02);
+    }
+
+    .btn-secondary {
+      background: rgba(25, 16, 12, 0.85);
+      color: var(--gold);
+      border: 1px solid var(--border-highlight);
+      font-family: var(--font-title);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 16px 28px;
+      border-radius: 6px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+    }
+
+    .btn-secondary:hover {
+      background: #2a1a12;
+      border-color: var(--gold);
+      color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(212, 175, 55, 0.25);
+    }
+
+    .hero-features-bar {
+      margin-top: 36px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 24px 36px;
+      font-size: 14px;
+      color: var(--text-dim);
+      border-top: 1px solid rgba(120, 80, 50, 0.25);
+      padding-top: 24px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .feature-item b {
+      color: var(--gold-bright);
+      font-family: var(--font-title);
+      font-size: 15px;
+    }
+
+    /* Section Styling */
+    section {
+      max-width: 1400px;
+      margin: 0 auto 90px;
+      padding: 0 24px;
+    }
+
+    .section-title-wrap {
+      text-align: center;
+      margin-bottom: 40px;
+      position: relative;
+    }
+
+    .section-eyebrow {
+      font-family: var(--font-title);
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--crimson-bright);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .section-heading {
+      font-family: var(--font-title);
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #fff;
+      text-transform: uppercase;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+    }
+
+    .section-heading span {
+      color: var(--gold);
+    }
+
+    .section-desc {
+      color: var(--text-dim);
+      font-size: 16px;
+      max-width: 680px;
+      margin: 10px auto 0;
+    }
+
+    /* Screenshots Gallery */
+    .screenshots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 24px;
+    }
+
+    .screenshot-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .screenshot-card:hover {
+      transform: translateY(-6px);
+      border-color: var(--gold);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.85), 0 0 24px rgba(212, 175, 55, 0.3);
+    }
+
+    .screenshot-img-wrap {
+      width: 100%;
+      height: 250px;
+      overflow: hidden;
+      position: relative;
+      background: #000;
+    }
+
+    .screenshot-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      transition: transform 0.4s ease;
+    }
+
+    .screenshot-card:hover .screenshot-img-wrap img {
+      transform: scale(1.04);
+    }
+
+    .screenshot-zoom-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .screenshot-card:hover .screenshot-zoom-overlay {
+      opacity: 1;
+    }
+
+    .zoom-badge {
+      background: rgba(20, 12, 8, 0.85);
+      border: 1px solid var(--gold);
+      color: var(--gold-bright);
+      font-family: var(--font-title);
+      font-size: 13px;
+      letter-spacing: 1px;
+      padding: 6px 14px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .screenshot-caption {
+      padding: 16px 18px;
+    }
+
+    .screenshot-caption h3 {
+      font-family: var(--font-title);
+      font-size: 17px;
+      color: var(--gold-bright);
+      margin-bottom: 4px;
+    }
+
+    .screenshot-caption p {
+      font-size: 14px;
+      color: var(--text-dim);
+      line-height: 1.45;
+    }
+
+    /* Pillars / Feature Cards Grid */
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .pillar-card {
+      background: linear-gradient(180deg, #18110d 0%, #120c09 100%);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 28px 24px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .pillar-card:hover {
+      border-color: var(--border-highlight);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7), 0 0 16px rgba(212, 175, 55, 0.15);
+    }
+
+    .pillar-icon {
+      font-size: 32px;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .pillar-card h3 {
+      font-family: var(--font-title);
+      font-size: 19px;
+      color: var(--gold-bright);
+      letter-spacing: 0.5px;
+    }
+
+    .pillar-card p {
+      color: var(--text-dim);
+      font-size: 14.5px;
+      line-height: 1.55;
+    }
+
+    /* Spotlights Row */
+    .spotlights-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+      gap: 28px;
+    }
+
+    .spotlight-card {
+      background: linear-gradient(180deg, #1a120e 0%, #100a07 100%);
+      border: 1px solid var(--border-highlight);
+      border-radius: 8px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 20px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .spotlight-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle at 100% 0%, rgba(212, 175, 55, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .spotlight-header h3 {
+      font-family: var(--font-title);
+      font-size: 24px;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .spotlight-header p {
+      color: var(--text-dim);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .spotlight-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px 24px;
+      font-size: 13.5px;
+      color: var(--text-dim);
+      padding: 14px 0;
+      border-top: 1px solid rgba(80, 50, 30, 0.3);
+      border-bottom: 1px solid rgba(80, 50, 30, 0.3);
+    }
+
+    .spotlight-stats b {
+      color: var(--gold-bright);
+    }
+
+    /* Final CTA Banner */
+    .final-cta {
+      background: radial-gradient(ellipse at 50% 50%, rgba(160, 40, 16, 0.5) 0%, rgba(14, 9, 7, 0.98) 75%);
+      border: 2px solid var(--border-highlight);
+      border-radius: 12px;
+      padding: 60px 24px;
+      text-align: center;
+      max-width: 1200px;
+      margin: 40px auto 100px;
+      box-shadow: 0 12px 50px rgba(0, 0, 0, 0.9), 0 0 40px rgba(212, 64, 24, 0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .final-cta h2 {
+      font-family: var(--font-title);
+      font-size: 34px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #fff;
+      text-transform: uppercase;
+    }
+
+    .final-cta p {
+      font-size: 18px;
+      color: var(--text);
+      max-width: 650px;
+    }
+
+    /* Footer */
+    footer {
+      background: #060403;
+      border-top: 1px solid var(--border);
+      padding: 40px 24px 30px;
+      color: var(--text-muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .footer-wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      list-style: none;
+    }
+
+    .footer-links a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-family: var(--font-title);
+      font-size: 12.5px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: var(--gold);
+    }
+
+    /* Lightbox Modal */
+    .lightbox-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .lightbox-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .lightbox-box {
+      max-width: 1200px;
+      max-height: 85vh;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: 1px solid var(--border-highlight);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 10px 50px rgba(0, 0, 0, 0.95);
+    }
+
+    .lightbox-box img {
+      max-width: 100%;
+      max-height: 75vh;
+      object-fit: contain;
+      display: block;
+    }
+
+    .lightbox-caption {
+      background: #140d0a;
+      width: 100%;
+      padding: 14px 20px;
+      font-size: 14.5px;
+      color: var(--text);
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: rgba(20, 12, 8, 0.85);
+      border: 1px solid var(--border);
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      z-index: 210;
+    }
+
+    .lightbox-close:hover {
+      border-color: var(--gold);
+      color: var(--gold-bright);
+      background: #3a1a10;
+    }
+
+    /* Responsive */
+    @media (max-width: 860px) {
+      .nav-links { display: none; }
+      .hero-logo { max-width: 480px; }
+      .hero-tagline { font-size: 16px; letter-spacing: 2px; }
+      .hero-desc { font-size: 16px; }
+      .section-heading { font-size: 26px; }
+      .screenshots-grid { grid-template-columns: 1fr; }
+      .spotlights-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="nav-wrap">
+      <a href="home.html" class="nav-brand">
+        <img class="nav-logo" src="assets/ui/dagyr_contact_skull.png" alt="Dagyr Online">
+        <span class="nav-brand-title">DAGYR <span>ONLINE</span></span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#screenshots">Screenshots</a></li>
+        <li><a href="#classes">Classes</a></li>
+        <li><a href="#bestiary">Bestiary</a></li>
+        <li><a href="#features">Features</a></li>
+      </ul>
+
+      <a href="https://mmo.dagyr.me/" class="btn-play-nav" target="_blank" rel="noopener">⚔️ Play Now</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section with Animated Canvas Background -->
+  <div class="hero">
+    <canvas id="hero-canvas"></canvas>
+
+    <div class="hero-content">
+      <img class="hero-logo" src="assets/ui/logo.webp" alt="DAGYR ONLINE">
+      <div class="hero-tagline">A world built upon something that should have stayed dead.</div>
+      <p class="hero-desc">
+        A dark gothic multiplayer action RPG set within an isometric underworld.
+        Conquer the 500 perilous depths of the Abyss to vanquish Demon Lord Dagyr, master 16 unique hero classes,
+        collect thousands of relics, and unlock truly endless Abyssal Rifts alone or in 4-player online co-op.
+      </p>
+
+      <div class="hero-ctas">
+        <a href="https://mmo.dagyr.me/" class="btn-play-main" target="_blank" rel="noopener">
+          <span>⚔️ PLAY NOW — FREE IN BROWSER</span>
+        </a>
+        <a href="classes.html" class="btn-secondary">Hero Classes (16)</a>
+        <a href="bestiary.html" class="btn-secondary">Bestiary (1,090+ Foes)</a>
+      </div>
+
+      <div class="hero-features-bar">
+        <div class="feature-item"><span>⚡</span> <b>Zero Install</b> · Instant Browser Play</div>
+        <div class="feature-item"><span>👥</span> <b>4-Player Co-op</b> · Real-Time Multiplayer</div>
+        <div class="feature-item"><span>🛡️</span> <b>16 Classes</b> · 60+ Skill Trees</div>
+        <div class="feature-item"><span>💀</span> <b>500 Depths</b> · Endless Rifts Beyond</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screenshots Gallery Section -->
+  <section id="screenshots">
+    <div class="section-title-wrap">
+      <span class="section-eyebrow">Real In-Game Captures</span>
+      <h2 class="section-heading">GLIMPSES INTO <span>THE ABYSS</span></h2>
+      <p class="section-desc">Experience isometric real-time combat, rich procedural dungeons, social sanctuary hubs, and visceral demonic boss encounters.</p>
+    </div>
+
+    <div class="screenshots-grid">
+      <!-- Screenshot 1 -->
+      <div class="screenshot-card" data-img="assets/screenshots/dungeon_gameplay.png?_v=2" data-caption="Tactical Dungeon Combat: Battle through monster hordes with real-time isometric physics, class ultimates, life/mana orbs, and floor hazards.">
+        <div class="screenshot-img-wrap">
+          <img src="assets/screenshots/dungeon_gameplay.png?_v=2" alt="Dungeon Gameplay" loading="lazy">
+          <div class="screenshot-zoom-overlay"><span class="zoom-badge">🔍 View Fullscreen</span></div>
+        </div>
+        <div class="screenshot-caption">
+          <h3>The Abyssal Depths</h3>
+          <p>Tear through sprawling procedural dungeons filled with fiends, champion packs, elite affixes, and traps.</p>
+        </div>
+      </div>
+
+      <!-- Screenshot 2 -->
+      <div class="screenshot-card" data-img="assets/screenshots/town_gameplay.png?_v=2" data-caption="The Sanctuary Town: A bustling overworld haven featuring gem forgers, travelling relic merchants, and portal rift gates.">
+        <div class="screenshot-img-wrap">
+          <img src="assets/screenshots/town_gameplay.png?_v=2" alt="Sanctuary Town Hub" loading="lazy">
+          <div class="screenshot-zoom-overlay"><span class="zoom-badge">🔍 View Fullscreen</span></div>
+        </div>
+        <div class="screenshot-caption">
+          <h3>The Sanctuary Town</h3>
+          <p>Trade with travelling merchants, refine socketed gems, unlock storage rows, and party up with fellow wanderers.</p>
+        </div>
+      </div>
+
+      <!-- Screenshot 3 -->
+      <div class="screenshot-card" data-img="assets/screenshots/char_select.png?_v=2" data-caption="Hero Selection Screen: Choose between 9 active playable classes, each with distinct primary attributes and signature skills.">
+        <div class="screenshot-img-wrap">
+          <img src="assets/screenshots/char_select.png?_v=2" alt="Hero Class Select" loading="lazy">
+          <div class="screenshot-zoom-overlay"><span class="zoom-badge">🔍 View Fullscreen</span></div>
+        </div>
+        <div class="screenshot-caption">
+          <h3>Hero Selection</h3>
+          <p>Choose your champion among Paladin, Ranger, Wizard, Barbarian, Gunner, Necromancer, Lancer, Bard, and Witch.</p>
+        </div>
+      </div>
+
+      <!-- Screenshot 4 -->
+      <div class="screenshot-card" data-img="assets/screenshots/title_screen.png?_v=2" data-caption="The Burning Gates: Atmospheric title screen with live particle physics, the burning Dagyr Online emblem, and Hymn of the Abyss soundtrack.">
+        <div class="screenshot-img-wrap">
+          <img src="assets/screenshots/title_screen.png?_v=2" alt="Title Screen" loading="lazy">
+          <div class="screenshot-zoom-overlay"><span class="zoom-badge">🔍 View Fullscreen</span></div>
+        </div>
+        <div class="screenshot-caption">
+          <h3>Gothic Atmosphere</h3>
+          <p>Immerse yourself in authentic dark fantasy audio and visuals built from the ground up.</p>
+        </div>
+      </div>
+
+      <!-- Screenshot 5 -->
+      <div class="screenshot-card" data-img="assets/screenshots/bestiary_preview.png?_v=2" data-caption="The Bestiary Compendium: Over 1,090+ catalogued monsters, guardians, and colossal bosses across 8 expansions.">
+        <div class="screenshot-img-wrap">
+          <img src="assets/screenshots/bestiary_preview.png?_v=2" alt="Bestiary Preview" loading="lazy">
+          <div class="screenshot-zoom-overlay"><span class="zoom-badge">🔍 View Fullscreen</span></div>
+        </div>
+        <div class="screenshot-caption">
+          <h3>Bestiary Compendium</h3>
+          <p>Study creature AI archetypes, attack patterns, gore types, and preview over 20+ live biome palette recolors.</p>
+        </div>
+      </div>
+
+      <!-- Screenshot 6 -->
+      <div class="screenshot-card" data-img="assets/screenshots/classes_preview.png?_v=2" data-caption="Hero Specialization Trees: Deep build variety featuring 4 skill branches per class and screen-clearing Ultimate moves.">
+        <div class="screenshot-img-wrap">
+          <img src="assets/screenshots/classes_preview.png?_v=2" alt="Classes Compendium" loading="lazy">
+          <div class="screenshot-zoom-overlay"><span class="zoom-badge">🔍 View Fullscreen</span></div>
+        </div>
+        <div class="screenshot-caption">
+          <h3>Class Armory & Ultimates</h3>
+          <p>Unleash Divine Smite, Cataclysm, Supernova, and Gungnir's Fall with unique primary stat scaling.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Core Pillars Section -->
+  <section id="features">
+    <div class="section-title-wrap">
+      <span class="section-eyebrow">Why Play Dagyr Online</span>
+      <h2 class="section-heading">CRAFTED FOR <span>ARPG ENTHUSIASTS</span></h2>
+      <p class="section-desc">Fast, responsive combat mechanics combined with deep character itemization and persistent progression.</p>
+    </div>
+
+    <div class="pillars-grid">
+      <div class="pillar-card">
+        <div class="pillar-icon">🌐</div>
+        <h3>Instant Web & Mobile Play</h3>
+        <p>No 50GB downloads or launcher updates. Jump into the game in seconds from any desktop browser or mobile phone with responsive touch controls and PWA support.</p>
+      </div>
+
+      <div class="pillar-card">
+        <div class="pillar-icon">👥</div>
+        <h3>Seamless 4-Player Co-op</h3>
+        <p>Form parties with friends worldwide. Battle synchronized bosses, share floor progression, coordinate skill combos, and trade loot with zero multiplayer pausing.</p>
+      </div>
+
+      <div class="pillar-card">
+        <div class="pillar-icon">⚔️</div>
+        <h3>16 Unique Hero Classes</h3>
+        <p>Master 9 active playable classes and 7 upcoming archetypes. Each class wields specialized weapons, 4 skill branches, and devastating kill-charged Ultimate abilities.</p>
+      </div>
+
+      <div class="pillar-card">
+        <div class="pillar-icon">💎</div>
+        <h3>Diablo-Style Itemization</h3>
+        <p>Hunt for Rare, Unique, Set, Legendary, and Mythic equipment. Unseal forbidden coffins, socket radiant gems into sockets, and enchant rings with game-altering augments.</p>
+      </div>
+
+      <div class="pillar-card">
+        <div class="pillar-icon">🏰</div>
+        <h3>Diverse Biome Expansions</h3>
+        <p>Descend through high-altitude rugged mountainsides, 3D castle keep keeps, vast Sea of Sand dune pyramids, and the abyssal chaos of The Eternal Breach.</p>
+      </div>
+
+      <div class="pillar-card">
+        <div class="pillar-icon">⚡</div>
+        <h3>500 Depths & Endless Rifts</h3>
+        <p>Descend through 500 perilous dungeon depths to confront Demon Lord Dagyr in an apocalyptic showdown. Once Dagyr has been slain, the underworld shatters into truly endless Abyssal Rifts for uncapped endgame progression.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Class & Bestiary Spotlights -->
+  <section id="classes">
+    <div class="spotlights-grid">
+      <!-- Classes Spotlight -->
+      <div class="spotlight-card">
+        <div>
+          <div class="spotlight-header">
+            <span class="section-eyebrow">Hero Archetypes</span>
+            <h3>16 Diverse Hero Classes</h3>
+            <p>From the holy consecrated maces of the Paladin and the dual axes of the Barbarian to the black-powder turrets of the Gunner and the death curses of the Necromancer.</p>
+          </div>
+          <div class="spotlight-stats">
+            <div>Active Champions: <b>9 Playable</b></div>
+            <div>Upcoming: <b>7 Coming Soon</b></div>
+            <div>Skill Branches: <b>60+ Trees</b></div>
+          </div>
+        </div>
+        <a href="classes.html" class="btn-secondary" style="align-self: flex-start;">Explore All 16 Classes →</a>
+      </div>
+
+      <!-- Bestiary Spotlight -->
+      <div class="spotlight-card" id="bestiary">
+        <div>
+          <div class="spotlight-header">
+            <span class="section-eyebrow">Creature Compendium</span>
+            <h3>1,090+ Abyssal Monsters</h3>
+            <p>A living bestiary containing over a thousand fiends, undead horrors, colossal titans, and encounter guardians across 8 expansive biomes.</p>
+          </div>
+          <div class="spotlight-stats">
+            <div>Catalogued Foes: <b>1,090+ Enemies</b></div>
+            <div>Guardians & Lords: <b>280 Bosses</b></div>
+            <div>Biome Palettes: <b>29 Swaps</b></div>
+          </div>
+        </div>
+        <a href="bestiary.html" class="btn-secondary" style="align-self: flex-start;">Browse Full Bestiary →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final Call to Action -->
+  <div class="final-cta">
+    <span class="section-eyebrow">The Abyss Awaits Your Blade</span>
+    <h2>READY TO AWAKEN?</h2>
+    <p>Join thousands of adventurers diving into the underworld. Free to play, instantly in your browser, no registration required to begin.</p>
+    <a href="https://mmo.dagyr.me/" class="btn-play-main" target="_blank" rel="noopener">
+      <span>⚔️ PLAY DAGYR ONLINE NOW</span>
+    </a>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-wrap">
+      <ul class="footer-links">
+        <li><a href="https://mmo.dagyr.me/" target="_blank" rel="noopener">Play Game (mmo.dagyr.me)</a></li>
+        <li><a href="classes.html">Hero Classes</a></li>
+        <li><a href="bestiary.html">Bestiary</a></li>
+        <li><a href="/">Local Client</a></li>
+      </ul>
+      <p>&copy; 2026 DAGYR ONLINE. Built with pure HTML5 Canvas & WebSockets. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Lightbox Modal for Screenshots -->
+  <div class="lightbox-overlay" id="lightbox">
+    <button class="lightbox-close" id="lightbox-close" aria-label="Close Lightbox">✕</button>
+    <div class="lightbox-box">
+      <img id="lightbox-img" src="" alt="Enlarged Screenshot">
+      <div class="lightbox-caption" id="lightbox-caption"></div>
+    </div>
+  </div>
+
+  <!-- Background Embers Canvas Simulation -->
+  <script>
+    // Live Ember Canvas Simulation in Hero Header
+    const canvas = document.getElementById('hero-canvas');
+    const ctx = canvas.getContext('2d');
+    let W = 0, H = 0, dpr = 1;
+    const embers = [];
+
+    function resize() {
+      W = canvas.parentElement.clientWidth;
+      H = canvas.parentElement.clientHeight;
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function rand(min, max) { return Math.random() * (max - min) + min; }
+
+    function makeEmber(initial = false) {
+      const life = rand(4.0, 9.0);
+      return {
+        x: rand(0, canvas.width),
+        y: initial ? rand(0, canvas.height) : canvas.height + rand(10, 40),
+        vx: rand(-12, 12),
+        vy: rand(28, 75),
+        t: initial ? rand(0, life) : 0,
+        life,
+        sz: rand(0.9, 2.4),
+        seed: rand(100),
+        drift: rand(-8, 8),
+        swayAmp: rand(14, 28),
+        flutterFreq: rand(6, 14),
+        flickerRate: rand(10, 20),
+        baseAlpha: rand(0.45, 0.95),
+        trailLen: rand(0.03, 0.065),
+      };
+    }
+
+    const count = window.matchMedia('(pointer: coarse)').matches ? 60 : 120;
+    for (let i = 0; i < count; i++) embers.push(makeEmber(true));
+
+    let lastT = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.05, (now - lastT) / 1000);
+      lastT = now;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
+
+      for (let i = 0; i < embers.length; i++) {
+        const e = embers[i];
+        e.t += dt;
+        const u = e.t / e.life;
+        if (u >= 1 || e.y < -30 || e.x < -30 || e.x > canvas.width + 30) {
+          embers[i] = makeEmber(false);
+          continue;
+        }
+
+        const eddy = Math.sin(e.y * 0.007 + now * 0.0016 + e.seed) * e.swayAmp;
+        const flutter = Math.sin(now * 0.001 * e.flutterFreq + e.seed * 2.5) * (e.swayAmp * 0.35);
+
+        e.vx += (eddy + flutter + e.drift) * dt * 1.2;
+        e.vx *= (1 - dt * 1.1);
+
+        e.x += e.vx * dt * dpr;
+        e.y -= e.vy * dt * dpr;
+
+        const fadeIn = u < 0.08 ? u / 0.08 : 1;
+        const fadeOut = u > 0.8 ? (1 - u) / 0.2 : 1;
+        const flicker = 0.8 + 0.2 * Math.sin(e.t * e.flickerRate + e.seed);
+        const alpha = Math.max(0, Math.min(1, fadeIn * fadeOut * e.baseAlpha * flicker));
+        if (alpha <= 0.01) continue;
+
+        let r, g, b;
+        if (u < 0.25) {
+          const k = u / 0.25;
+          r = 255; g = Math.round(230 - 65 * k); b = Math.round(140 - 110 * k);
+        } else if (u < 0.6) {
+          const k = (u - 0.25) / 0.35;
+          r = 255; g = Math.round(165 - 95 * k); b = Math.round(30 - 20 * k);
+        } else {
+          const k = (u - 0.6) / 0.4;
+          r = Math.round(255 - 100 * k); g = Math.round(70 - 55 * k); b = 5;
+        }
+
+        const tx = e.x - e.vx * e.trailLen * dpr;
+        const ty = e.y + e.vy * e.trailLen * dpr;
+
+        ctx.strokeStyle = `rgba(${r},${g},${b},${(alpha * 0.75).toFixed(3)})`;
+        ctx.lineWidth = Math.max(0.6 * dpr, e.sz * dpr * 0.65);
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(e.x, e.y);
+        ctx.stroke();
+
+        const headR = Math.max(0.7 * dpr, e.sz * dpr * 0.6);
+        ctx.fillStyle = `rgba(${r},${g},${b},${alpha.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, headR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // Lightbox modal logic
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxCaption = document.getElementById('lightbox-caption');
+    const lightboxClose = document.getElementById('lightbox-close');
+
+    document.querySelectorAll('.screenshot-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const imgUrl = card.dataset.img;
+        const caption = card.dataset.caption;
+        lightboxImg.src = imgUrl;
+        lightboxCaption.textContent = caption;
+        lightbox.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      });
+    });
+
+    function closeLightbox() {
+      lightbox.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    lightboxClose.addEventListener('click', closeLightbox);
+    lightbox.addEventListener('click', (e) => {
+      if (e.target === lightbox) closeLightbox();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && lightbox.classList.contains('open')) closeLightbox();
+    });
+  </script>
+</body>
+</html>

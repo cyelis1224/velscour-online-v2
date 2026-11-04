@@ -1035,7 +1035,7 @@ class NetworkManager {
     if (!this.currentRoom) return;
     this.send({
       type: 'room_depth_update',
-      depth,
+      depth: typeof depth === 'number' ? Math.min(500, Math.max(1, depth)) : depth,
       biome,
       seed,
       mixId,
@@ -1047,7 +1047,7 @@ class NetworkManager {
     if (!this.currentRoom) return;
     this.send({
       type: 'game_dungeon_transition',
-      depth,
+      depth: typeof depth === 'number' ? Math.min(500, Math.max(1, depth)) : depth,
       biome,
       seed,
       mixId,
@@ -1059,7 +1059,7 @@ class NetworkManager {
     if (!this.currentRoom) return;
     this.send({
       type: 'game_town_transition',
-      depth,
+      depth: typeof depth === 'number' ? Math.min(500, Math.max(1, depth)) : depth,
     });
   }
 

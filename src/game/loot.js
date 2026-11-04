@@ -299,8 +299,25 @@ export function dropLoot(world, m) {
   if (st.legendary.greed && chance(0.15)) for (let i = 0; i < 4; i++) add('gold', { amount: Math.round((2 + lvl) * goldScale(lvl) * (1 + st.goldFind / 100)) });
   // orbs (none under the Hunger of the Abyss Heresy)
   if (heresyAllows('orb', p.char, world)) {
-    if (chance(0.14 * Math.sqrt(R))) add('orb_hp', {});
-    if (chance(0.1 * Math.sqrt(R))) add('orb_mp', {});
+    // Health orbs: primary recovery in dungeons with natural HP regen removed outside of town.
+    if (rank === 'boss') {
+      const nOrbs = randi(2, 4);
+      for (let i = 0; i < nOrbs; i++) add('orb_hp', {});
+      add('orb_mp', {});
+    } else if (rank === 'unique') {
+      add('orb_hp', {});
+      if (chance(0.75)) add('orb_hp', {});
+      if (chance(0.6)) add('orb_mp', {});
+    } else if (rank === 'champion') {
+      add('orb_hp', {});
+      if (chance(0.5)) add('orb_hp', {});
+      if (chance(0.4)) add('orb_mp', {});
+    } else {
+      // Normal monsters: 30% base chance, increased to 50% if hero is wounded (<50% life)
+      const lowHpBonus = p.hp < p.maxHp * 0.5 ? 0.20 : 0;
+      if (chance(0.30 + lowHpBonus)) add('orb_hp', {});
+      if (chance(0.12)) add('orb_mp', {});
+    }
   }
   // potions
   if (chance(0.035 * R)) add('potion', { item: potionItem(pick(['hp', 'hp', 'mp', 'mp', 'rejuv', 'fury'])) });
@@ -333,6 +350,7 @@ export function dropChest(world, chest, depth) {
   for (let i = 0; i < randi(2, 4); i++) add('gold', { amount: Math.round((10 + depthLevel(depth) * 4) * goldScale(depthLevel(depth)) * rand(0.6, 1.4) * (1 + st.goldFind / 100)) });
   if (chance(chest.rare ? 0.8 : 0.3)) add('item', { item: rollGem(depthLevel(depth) + 4) });
   if (chance(0.5)) add('potion', { item: potionItem(pick(['hp', 'mp', 'rejuv'])) });
+  if (heresyAllows('orb', G.player?.char, world) && chance(0.75)) add('orb_hp', {});
 }
 
 /** Draw D2-style ground labels for nearby items (screen space). Returns hit boxes. */

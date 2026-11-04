@@ -39,6 +39,11 @@ function bloodOf(c) {
 export function hit(src, tgt, amount, el = 'phys', o = {}) {
   if (!tgt || tgt.dead || tgt.invuln > 0 || amount <= 0) return 0;
   if (tgt.targetable === false && !o.force) return 0;
+  if (tgt.clutter) {
+    tgt.hp = 0;
+    kill(tgt, src, { ...o, crit: false, overkill: 0 });
+    return 1;
+  }
   const world = tgt.world || G.world;
   let dmg = amount;
   let crit = false;
@@ -127,6 +132,7 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
   }
   if (tgt.isPlayer && !o.dot && src && src !== tgt && tgt.st.procs && tgt.st.procs.length) relicProc(tgt, 'hurt', src, dmg);
   tgt.flash = 0.12;
+  if (tgt.team === 'enemy') tgt.regenSuppress = o.dot ? Math.max(tgt.regenSuppress || 0, 3.0) : 6.0;
   if (tgt.onDamaged && !o.dot) tgt.onDamaged(src, dmg);
   tgt.hpShow = 3;
   if (!tgt.isPlayer && !o.dot) tgt.awake = true;
@@ -138,7 +144,7 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
     if (tgt.isPlayer) {
       damageText(tgt.x, tgt.y, z, dmg, o.dot ? 'dot' : 'hurt', '#ff4030');
       if (!o.dot) { sfx('hurt'); G.hurtFlash = Math.min(0.5, (G.hurtFlash || 0) + dmg / tgt.maxHp * 2); camera.shake(Math.min(8, 2 + (dmg / tgt.maxHp) * 30)); }
-    } else if (byHero && showNum) {
+    } else if (byHero && showNum && dmg > 0) {
       damageText(tgt.x, tgt.y, z, Math.max(1, shownDmg(dmg, tLvl)), crit ? 'crit' : o.dot ? 'dot' : 'hit', elem(el).glow);
     }
   }
@@ -261,6 +267,10 @@ export function kill(tgt, src, info = {}) {
   }
   const owner = src && src.owner ? src.owner : src;
   const byPlayer = owner && (owner.isPlayer || owner.team === 'player');
+  if (tgt.clutter) {
+    if (typeof tgt.die === 'function') tgt.die(src);
+    return;
+  }
   if (tgt.onDeath) tgt.onDeath(src);
   if (tgt.summon) {
     burst(tgt.x, tgt.y, 20, tgt.el || 'arcane', 10, 2);

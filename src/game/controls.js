@@ -33,6 +33,18 @@ function interactableAt(tx, ty, sx, sy) {
   }
   for (const c of w.chests) if (!c.opened && dist(c.x, c.y, tx, ty) < 0.8) return c;
   for (const p of w.portals) if (dist(p.x, p.y, tx, ty) < 1.2 || (sy < camera.tileToScreen(p.x, p.y)[1] && sy > camera.tileToScreen(p.x, p.y, 80)[1] && Math.abs(sx - camera.tileToScreen(p.x, p.y)[0]) < 30 * camera.zoom)) return p;
+  if (w.raid && w.raid.sealed && G.player && !w.raid.inside(G.player)) {
+    const g = w.raid.arena.gate;
+    const gy = (g.y0 + g.y1 + 1) / 2;
+    if (Math.hypot(tx - (g.x - 1), ty - gy) < 2.2) {
+      return { x: g.x - 1.5, y: gy, reach: 2.2, use: () => w.raid.promptJoin(G.player, true) };
+    }
+  }
+  if (w.Dagyr && w.Dagyr.sealed && G.player) {
+    if (tx >= 18 && tx <= 26 && ty >= 31 && ty <= 33.5) {
+      return { x: 22, y: 33.5, reach: 2.2, use: () => w.Dagyr.promptJoin(G.player, true) };
+    }
+  }
   return null;
 }
 
@@ -75,13 +87,22 @@ export const controls = {
     const p = G.player, w = G.world;
     if (!p || !w) return;
     const ui = G.ui;
-    const blocked = ui.modal || (G.paused);
+    const blocked = ui.modal || G.paused || G.cine;
     // ---- hover
     const mouse = input.mouse;
     const useMouse = input.lastPointerType === 'mouse';
     G.hover = useMouse && mouse.inside ? creatureAt(mouse.x, mouse.y) : null;
     if (G.hover && G.hover.team === 'player') G.hover = null;
-    if (p.dead || blocked) { p.moveVec = [0, 0]; input.endFrame(); return; }
+    if (p.dead || blocked) {
+      p.moveVec = [0, 0];
+      p.moveTarget = null;
+      p.path = null;
+      p.attackTarget = null;
+      p.interact = null;
+      p.moving = false;
+      input.endFrame();
+      return;
+    }
 
     // ---- direct movement (WASD / joystick)
     let mx = 0, my = 0;

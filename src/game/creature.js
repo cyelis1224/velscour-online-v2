@@ -336,6 +336,7 @@ export class Creature {
   }
   /** World-px size of the sprite. */
   spriteDims(img) {
+    if (!img) return [32, 32];
     if (img._art) { const h = this.artH * this.scale * (this.artRef ? img.height / this.artRef : 1); return [h * img.width / img.height, h]; }
     if (this.classId) { const h = this.spriteH * this.scale; return [h * img.width / img.height, h]; }
     const px = (this.px || 2.3) * this.scale / 6;
@@ -558,7 +559,7 @@ export class Creature {
   }
 
   drawOverhead(ctx, px, py, w) {
-    if (this.ghostDraw) return; // a see-through copy (the Astronomer's Celestial Mirror) carries no overhead marks
+    if (this.ghostDraw || this.clutter || this.noLifeBar) return; // a see-through copy carries no overhead marks
     // stun stars / curse marks
     const s = this.status;
     if ((s.stun && s.stun.t > 0) || (s.fear && s.fear.t > 0)) {

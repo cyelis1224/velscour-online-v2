@@ -47,12 +47,25 @@ const onlineCharNames = new Map();
 function loadAccountCharacters(accountId) {
   const file = path.join(CHARS_DIR, `${accountId}.json`);
   const data = readJsonSafe(file, { characters: [] });
-  return Array.isArray(data.characters) ? data.characters : [];
+  const chars = Array.isArray(data.characters) ? data.characters : [];
+  for (const c of chars) {
+    if (c) {
+      if (typeof c.depth === 'number' && c.depth > 500) c.depth = 500;
+      if (typeof c.deepest === 'number' && c.deepest > 500) c.deepest = 500;
+    }
+  }
+  return chars;
 }
 
 function saveAccountCharacters(accountId, characters) {
   const file = path.join(CHARS_DIR, `${accountId}.json`);
   const data = readJsonSafe(file, {});
+  for (const c of characters) {
+    if (c) {
+      if (typeof c.depth === 'number' && c.depth > 500) c.depth = 500;
+      if (typeof c.deepest === 'number' && c.deepest > 500) c.deepest = 500;
+    }
+  }
   data.characters = characters;
   writeJsonAtomic(file, data);
 }
@@ -903,8 +916,8 @@ const server = http.createServer((req, res) => {
       const safeXp = safeLevel > (existing.level || 1)
         ? (charData.xp || 0)
         : (safeLevel === (existing.level || 1) ? Math.max(existing.xp || 0, charData.xp || 0) : existing.xp || 0);
-      const safeDeepest = Math.max(existing.deepest || 1, charData.deepest || 1);
-      const safeDepth = Math.max(existing.depth || 1, charData.depth || 1);
+      const safeDeepest = Math.min(500, Math.max(existing.deepest || 1, charData.deepest || 1));
+      const safeDepth = Math.min(500, Math.max(existing.depth || 1, charData.depth || 1));
 
       const levelDeficit = safeLevel - (charData.level || 1);
       const statBonus = levelDeficit > 0 ? (levelDeficit * 5) : 0;
@@ -2228,7 +2241,7 @@ wss.on('connection', (ws) => {
         const roomName = (rawName || `${clientData.name}'s Game`).slice(0, 24);
         const password = String(msg.password || '').trim();
         const maxPlayers = Math.max(2, Math.min(4, parseInt(msg.maxPlayers, 10) || 4));
-        const depth = Math.max(1, parseInt(msg.depth, 10) || 1);
+        const depth = Math.min(500, Math.max(1, parseInt(msg.depth, 10) || 1));
         const biome = msg.biome || 'town';
         const seed = parseInt(msg.seed, 10) || (Math.floor(Math.random() * 1e9) + 1);
 
@@ -2454,8 +2467,8 @@ wss.on('connection', (ws) => {
           const safeXp = safeLevel > (existing.level || 1)
             ? (charData.xp || 0)
             : (safeLevel === (existing.level || 1) ? Math.max(existing.xp || 0, charData.xp || 0) : existing.xp || 0);
-          const safeDeepest = Math.max(existing.deepest || 1, charData.deepest || 1);
-          const safeDepth = Math.max(existing.depth || 1, charData.depth || 1);
+          const safeDeepest = Math.min(500, Math.max(existing.deepest || 1, charData.deepest || 1));
+          const safeDepth = Math.min(500, Math.max(existing.depth || 1, charData.depth || 1));
 
           const levelDeficit = safeLevel - (charData.level || 1);
           const statBonus = levelDeficit > 0 ? (levelDeficit * 5) : 0;
@@ -2785,7 +2798,7 @@ wss.on('connection', (ws) => {
         if (!clientData.room) break;
         const room = rooms.get(clientData.room);
         if (room && (room.hostId === clientData.id || room.players.some(p => p.id === clientData.id))) {
-          if (typeof msg.depth === 'number' && msg.depth > 0) room.depth = msg.depth;
+          if (typeof msg.depth === 'number' && msg.depth > 0) room.depth = Math.min(500, msg.depth);
           if (msg.biome) room.biome = msg.biome;
           if (msg.seed && room.dungeonSeed !== msg.seed) {
             room.dungeonSeed = msg.seed;
@@ -2816,7 +2829,7 @@ wss.on('connection', (ws) => {
         const room = rooms.get(clientData.room);
         if (room && (room.hostId === clientData.id || room.players.some(p => p.id === clientData.id))) {
           if (typeof msg.depth === 'number' && msg.depth > 0) {
-            room.depth = msg.depth;
+            room.depth = Math.min(500, msg.depth);
           }
           room.biome = 'town';
           broadcastToRoom(clientData.room, {

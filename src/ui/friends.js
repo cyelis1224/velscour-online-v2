@@ -22,6 +22,7 @@ const CLASS_DISPLAY_NAMES = {
   bard: 'Bard',
   priestess: 'Priestess',
   lancer: 'Lancer',
+  monk: 'Monk',
 };
 
 export function isFriendsOpen() {

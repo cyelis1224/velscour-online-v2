@@ -15,7 +15,7 @@ import { equipFromBag, changed } from './inventory.js';
 export const isSealed = (it) => !!(it && it.sealed);
 export const sealedCount = (c = G.char) => (c ? c.bag.reduce((a, b) => a + (b && b.sealed ? 1 : 0), 0) : 0);
 
-const SPIN = 2.8; // seconds of spin
+const SPIN = 2.4; // seconds of spin
 const REEL = [3, 3, 3, 3, 3, 4, 4, 5]; // what flashes past: mostly Epic, some Legendary, a little Mythic
 let open = null; // the card on screen
 
@@ -31,7 +31,7 @@ export function openNextSeal() {
 export function openSeal(idx) {
   const c = G.char, it = c && c.bag[idx];
   if (!isSealed(it)) return false;
-  if (open && open.spinning) return false;
+  if (open && (open.spinning || open.revealing)) return false;
   close();
   it.sealed = false; // the item is the player's from here on, even if the card is closed mid-spin
   c.unsealed = (c.unsealed || 0) + 1;
@@ -43,17 +43,82 @@ export function openSeal(idx) {
   const reel = box.querySelector('.rv-reel'), win = box.querySelector('.rv-window');
   const TILE = G.touch ? 64 : 92; // reel tile width (px), as the CSS has it
   const n = 34 + Math.floor(Math.random() * 5), last = n + 3;
+
   for (let i = 0; i <= last; i++) {
     const r = i === n ? it.rarity : REEL[Math.floor(Math.random() * REEL.length)];
-    const t = el('div', 'rv-tile', `<b>${RARITY[r].name}</b>`);
-    t.style.setProperty('--rc', RARITY[r].color);
-    if (i === n) { const ic = itemIcon(it, 48); const img = new Image(); img.src = ic.toDataURL(); img.draggable = false; t.prepend(img); }
-    else t.prepend(el('i', 'rv-gem'));
-    reel.appendChild(t);
+    if (i === n) {
+      // The winning card: shows rarity diamond on front while spinning, flips over to reveal the item sprite
+      const t = el('div', 'rv-tile rv-flip-tile');
+      t.style.setProperty('--rc', RARITY[r].color);
+      const flipper = el('div', 'rv-card-flipper');
+
+      const front = el('div', 'rv-card-face rv-card-front', `<b>${RARITY[r].name}</b>`);
+      front.prepend(el('i', 'rv-gem'));
+
+      const back = el('div', 'rv-card-face rv-card-back', `<b>${RARITY[r].name}</b>`);
+      const ic = itemIcon(it, 48);
+      const img = new Image();
+      img.src = ic.toDataURL();
+      img.draggable = false;
+      back.prepend(img);
+
+      flipper.append(front, back);
+      t.appendChild(flipper);
+      reel.appendChild(t);
+    } else {
+      const t = el('div', 'rv-tile', `<b>${RARITY[r].name}</b>`);
+      t.style.setProperty('--rc', RARITY[r].color);
+      t.prepend(el('i', 'rv-gem'));
+      reel.appendChild(t);
+    }
   }
-  const card = open = { wrap, box, it, spinning: true, t0: performance.now(), raf: 0 };
+
+  const card = open = {
+    wrap,
+    box,
+    it,
+    spinning: true,
+    revealing: false,
+    t0: performance.now(),
+    raf: 0,
+    timers: [],
+    timeout(fn, ms) {
+      const tid = setTimeout(() => {
+        const idx = this.timers.indexOf(tid);
+        if (idx >= 0) this.timers.splice(idx, 1);
+        fn();
+      }, ms);
+      this.timers.push(tid);
+      return tid;
+    }
+  };
+
   const end = n * TILE + TILE / 2 + (Math.random() - 0.5) * TILE * 0.6;
   let lastTile = -1;
+
+  function onReelStop() {
+    if (open !== card) return;
+    card.spinning = false;
+    card.revealing = true;
+    const mid = win.clientWidth / 2;
+    reel.style.transform = `translateX(${Math.round(mid - (n * TILE + TILE / 2))}px)`;
+    const tile = reel.children[n];
+
+    // Brief tension pause, then flip the card over to reveal the sprite underneath
+    card.timeout(() => {
+      if (open !== card) return;
+      const flipper = tile.querySelector('.rv-card-flipper');
+      if (flipper) flipper.classList.add('flipped');
+      sfx('chest', 0.65, 1.25);
+
+      // Once the flip completes, show the results screen with item info & action buttons
+      card.timeout(() => {
+        if (open !== card) return;
+        land(card, tile);
+      }, 500);
+    }, 220);
+  }
+
   const step = (now) => {
     if (open !== card) return;
     const k = Math.min(1, (now - card.t0) / 1000 / SPIN), e = 1 - Math.pow(1 - k, 4);
@@ -62,9 +127,18 @@ export function openSeal(idx) {
     const tile = Math.floor(x / TILE);
     if (tile !== lastTile) { lastTile = tile; sfx('critping', 0.18, 0.8 + k * 0.6); }
     if (k < 1) { card.raf = requestAnimationFrame(step); return; }
-    reel.style.transform = `translateX(${Math.round(mid - (n * TILE + TILE / 2))}px)`;
-    land(card, reel.children[n]);
+    onReelStop();
   };
+
+  // Clicking the box during spin skips forward to the landing and flip
+  box.onclick = (e) => {
+    if (e.target.closest('button')) return;
+    if (card.spinning) {
+      cancelAnimationFrame(card.raf);
+      onReelStop();
+    }
+  };
+
   card.raf = requestAnimationFrame(step);
   return true;
 }
@@ -72,6 +146,7 @@ export function openSeal(idx) {
 function land(card, tile) {
   const { box, it } = card, c = G.char, col = itemColor(it);
   card.spinning = false;
+  card.revealing = false;
   tile.classList.add('won');
   box.style.setProperty('--rc', col);
   box.classList.add('landed', 'rv-r' + it.rarity);
@@ -95,6 +170,10 @@ function land(card, tile) {
 export function close() {
   if (!open) return;
   cancelAnimationFrame(open.raf);
+  if (open.timers) {
+    for (const tid of open.timers) clearTimeout(tid);
+    open.timers.length = 0;
+  }
   open.wrap.remove();
   open = null;
 }

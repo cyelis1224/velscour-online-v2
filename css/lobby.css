@@ -10,7 +10,7 @@
 .d2-friends-overlay,
 .d2-friends-overlay * {
   scrollbar-width: thin;
-  scrollbar-color: #5a3c20 rgba(10, 6, 4, 0.75);
+  scrollbar-color: #5a2020 rgba(10, 6, 4, 0.75);
 }
 
 #d2-lobby *::-webkit-scrollbar,
@@ -45,7 +45,7 @@
 .d2-char-select-screen::-webkit-scrollbar-thumb,
 .d2-create-screen::-webkit-scrollbar-thumb,
 .d2-friends-overlay::-webkit-scrollbar-thumb {
-  background: #5a3c20;
+  background: #5a2020;
   border: 1px solid rgba(140, 94, 48, 0.55);
   border-radius: 3px;
   box-shadow: inset 0 1px 0 rgba(255, 216, 96, 0.15);
@@ -108,8 +108,8 @@
   content: '';
   position: absolute;
   inset: 0;
-  border: 8px solid #1a120b;
-  border-image: linear-gradient(135deg, #4d3319, #140d07, #4d3319) 1;
+  border: 8px solid #1a0b0b;
+  border-image: linear-gradient(135deg, #190808, #140707, #0f0505) 1;
   pointer-events: none;
   z-index: 10;
 }
@@ -121,7 +121,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  background: linear-gradient(180deg, rgba(24, 15, 10, 0.96) 0%, rgba(12, 7, 5, 0.92) 100%);
+  background: linear-gradient(180deg, rgba(24, 10, 10, 0.96) 0%, rgba(12, 5, 5, 0.92) 100%);
   border-bottom: 2px solid #5a3c1e;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.85);
   position: relative;
@@ -187,7 +187,7 @@
 
 .d2-panel-header {
   height: 36px;
-  background: linear-gradient(180deg, #2e1c11, #160c07);
+  background: linear-gradient(180deg, #2e1111, #160c07);
   border-bottom: 2px solid #5a3a1c;
   display: flex;
   align-items: center;
@@ -207,7 +207,7 @@
 
 .d2-chat-tabs {
   display: flex;
-  background: #150d08;
+  background: #150808;
   border-bottom: 1px solid #3d2614;
   padding: 3px 8px;
   gap: 4px;
@@ -235,7 +235,7 @@
 
 .d2-chat-tab.active {
   color: #ffd34a;
-  background: rgba(58, 41, 26, 0.8);
+  background: rgba(58, 26, 26, 0.8);
   border-color: #8c6030;
 }
 
@@ -263,7 +263,7 @@
   gap: 5px;
   background: rgba(4, 2, 2, 0.7);
   scrollbar-width: thin;
-  scrollbar-color: #5a3c20 #0c0806;
+  scrollbar-color: #5a2020 #0c0806;
 }
 
 .d2-chat-log::-webkit-scrollbar {
@@ -272,18 +272,18 @@
 
 .d2-chat-log::-webkit-scrollbar-track {
   background: #0c0806;
-  border-left: 1px solid #28180c;
+  border-left: 1px solid #280c0c;
   border-radius: 3px;
 }
 
 .d2-chat-log::-webkit-scrollbar-thumb {
-  background: #5a3c20;
+  background: #5a2020;
   border: 1px solid #8c5e30;
   border-radius: 3px;
 }
 
 .d2-chat-log::-webkit-scrollbar-thumb:hover {
-  background: #7a502a;
+  background: #7a2a2a;
   border-color: #d4a34b;
 }
 
@@ -316,14 +316,14 @@
   display: flex;
   padding: 8px 12px;
   gap: 8px;
-  background: #140c08;
-  border-top: 1px solid #3c2414;
+  background: #140808;
+  border-top: 1px solid #3c1414;
 }
 
 .d2-input {
   flex: 1;
   background: #090605;
-  border: 1px solid #5a3c20;
+  border: 1px solid #5a2020;
   border-radius: 2px;
   padding: 7px 12px;
   color: #fff;
@@ -346,7 +346,7 @@
   flex-wrap: wrap;
   gap: 8px;
   padding: 8px 12px;
-  background: #0e0906;
+  background: #0e0606;
   border-top: 1px solid #2a180e;
 }
 
@@ -357,7 +357,7 @@
   letter-spacing: 1px;
   padding: 6px 14px;
   color: #ffd860;
-  background: linear-gradient(180deg, #3c2616, #1a0e08);
+  background: linear-gradient(180deg, #3c1616, #1a0e08);
   border: 1px solid #6e4822;
   border-radius: 2px;
   cursor: pointer;
@@ -366,7 +366,7 @@
 }
 
 .d2-btn-classic:hover {
-  background: linear-gradient(180deg, #58361e, #2a150b);
+  background: linear-gradient(180deg, #581e1e, #2a150b);
   border-color: #ffd860;
   color: #fff;
 }
@@ -383,7 +383,7 @@
 .d2-room-tabs {
   display: flex;
   background: #180f0a;
-  border-bottom: 2px solid #4a3018;
+  border-bottom: 2px solid #4a1818;
 }
 
 .d2-tab-btn {
@@ -395,7 +395,7 @@
   font-weight: 700;
   letter-spacing: 1.5px;
   color: #a8977c;
-  background: #120a06;
+  background: #120606;
   border: none;
   border-right: 1px solid #301e10;
   cursor: pointer;
@@ -409,7 +409,7 @@
 
 .d2-tab-btn.active {
   color: #ffd860;
-  background: linear-gradient(180deg, #321d12, #1a0e08);
+  background: linear-gradient(180deg, #321212, #1a0e08);
   border-bottom: 2px solid #ffd860;
 }
 
@@ -456,13 +456,13 @@
 .d2-games-table-wrap {
   flex: 3;
   background: #080504;
-  border: 1px solid #3e2614;
+  border: 1px solid #3e1414;
   border-radius: 2px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   scrollbar-width: thin;
-  scrollbar-color: #5a3c20 rgba(10, 6, 4, 0.75);
+  scrollbar-color: #5a2020 rgba(10, 6, 4, 0.75);
 }
 
 .d2-games-table-wrap::-webkit-scrollbar {
@@ -475,7 +475,7 @@
 }
 
 .d2-games-table-wrap::-webkit-scrollbar-thumb {
-  background: #5a3c20;
+  background: #5a2020;
   border: 1px solid rgba(140, 94, 48, 0.55);
   border-radius: 3px;
 }
@@ -489,8 +489,8 @@
   display: flex;
   justify-content: space-between;
   padding: 8px 14px;
-  background: #1e130c;
-  border-bottom: 1px solid #4a301a;
+  background: #1e0c0c;
+  border-bottom: 1px solid #4a1a1a;
   font-size: 11px;
   font-weight: 700;
   color: #ffd860;
@@ -517,7 +517,7 @@
 }
 
 .d2-game-row.selected {
-  background: #462816;
+  background: #461616;
   color: #ffd860;
   font-weight: 700;
 }
@@ -525,7 +525,7 @@
 .d2-game-preview-pane {
   flex: 2;
   background: #0a0604;
-  border: 1px solid #3e2614;
+  border: 1px solid #3e1414;
   border-radius: 2px;
   padding: 10px 14px;
   display: flex;
@@ -535,7 +535,7 @@
   font-family: var(--font-body);
   font-size: 13px;
   scrollbar-width: thin;
-  scrollbar-color: #5a3c20 rgba(10, 6, 4, 0.75);
+  scrollbar-color: #5a2020 rgba(10, 6, 4, 0.75);
 }
 
 .d2-game-preview-pane::-webkit-scrollbar {
@@ -548,13 +548,13 @@
 }
 
 .d2-game-preview-pane::-webkit-scrollbar-thumb {
-  background: #5a3c20;
+  background: #5a2020;
   border: 1px solid rgba(140, 94, 48, 0.55);
   border-radius: 3px;
 }
 
 .d2-game-preview-pane::-webkit-scrollbar-thumb:hover {
-  background: #7a502a;
+  background: #7a2a2a;
   border-color: #d4a34b;
 }
 
@@ -563,7 +563,7 @@
   font-size: 12px;
   font-weight: 700;
   color: #ffd860;
-  border-bottom: 1px solid #3a2212;
+  border-bottom: 1px solid #3a1212;
   padding-bottom: 4px;
 }
 
@@ -604,7 +604,7 @@
   -webkit-overflow-scrolling: touch;
   gap: 12px;
   scrollbar-width: thin;
-  scrollbar-color: #5a3c20 #0c0806;
+  scrollbar-color: #5a2020 #0c0806;
 }
 
 .d2-create-inputs {
@@ -615,7 +615,7 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
-  scrollbar-color: #5a3c20 #0c0806;
+  scrollbar-color: #5a2020 #0c0806;
 }
 
 .d2-create-row {
@@ -638,14 +638,14 @@
 
 .d2-create-view::-webkit-scrollbar-thumb,
 .d2-create-inputs::-webkit-scrollbar-thumb {
-  background: #5a3c20;
+  background: #5a2020;
   border: 1px solid rgba(140, 94, 48, 0.55);
   border-radius: 3px;
 }
 
 .d2-create-view::-webkit-scrollbar-thumb:hover,
 .d2-create-inputs::-webkit-scrollbar-thumb:hover {
-  background: #7a502a;
+  background: #7a2a2a;
   border-color: #d4a34b;
 }
 
@@ -653,7 +653,7 @@
 .d2-pedestal-wrap {
   width: 100%;
   height: 148px;
-  background: linear-gradient(180deg, #24160c 0%, #160c06 14%, #0a0604 100%);
+  background: linear-gradient(180deg, #240c0c 0%, #160606 14%, #0a0604 100%);
   border-top: 2px solid #8e5c2e;
   box-shadow: inset 0 1px 0 #caa050, 0 -6px 20px #000;
   display: flex;
@@ -685,7 +685,7 @@
   overflow-y: hidden;
   box-sizing: border-box;
   scrollbar-width: thin;
-  scrollbar-color: #5a3c20 rgba(10, 6, 4, 0.75);
+  scrollbar-color: #5a2020 rgba(10, 6, 4, 0.75);
 }
 
 .d2-pedestal-rail::-webkit-scrollbar {
@@ -699,13 +699,13 @@
 }
 
 .d2-pedestal-rail::-webkit-scrollbar-thumb {
-  background: #5a3c20;
+  background: #5a2020;
   border: 1px solid rgba(140, 94, 48, 0.55);
   border-radius: 3px;
 }
 
 .d2-pedestal-rail::-webkit-scrollbar-thumb:hover {
-  background: #7a502a;
+  background: #7a2a2a;
   border-color: #d4a34b;
 }
 
@@ -803,7 +803,7 @@
   top: -14px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(180deg, #3c2414, #1a0e08);
+  background: linear-gradient(180deg, #3c1414, #1a0808);
   border: 1px solid #7a4e26;
   border-radius: 12px;
   padding: 2px 16px;
@@ -822,7 +822,7 @@
 }
 
 .d2-pedestal-toggle:hover {
-  background: linear-gradient(180deg, #58361e, #2a150b);
+  background: linear-gradient(180deg, #581e1e, #2a150b);
   border-color: #ffd860;
   color: #fff;
   transform: translateX(-50%) translateY(-1px);
@@ -1658,22 +1658,252 @@ body.portrait #d2-lobby .d2-chat-area {
   color: #ffe08a;
 }
 
-/* Online Character Roster Topbar & Grid */
+/* Online Character Roster Screen & Layout */
+.online-char-screen {
+  justify-content: flex-start !important;
+  align-items: center !important;
+  padding: 14px 20px 10px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  height: 100% !important;
+}
+
 .online-roster-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
   width: 100%;
-  max-width: 980px;
-  margin: 0 auto 6px;
-  padding: 0 8px;
+  max-width: 1200px;
+  margin: 0 auto 8px;
+  padding: 0 6px;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .online-roster-topbar .screen-title {
   margin: 0;
+  text-align: left;
+}
+
+.online-roster-topbar .d2-btn-quit {
+  font-family: var(--font-head);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 6px 20px;
+  font-size: 13px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #581c14, #2a0b07);
+  border: 1px solid #8c362a;
+  color: #ffb8b0;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  transition: all 0.15s ease;
+}
+
+.online-roster-topbar .d2-btn-quit:hover {
+  background: linear-gradient(180deg, #7c261c, #3c0f0a);
+  border-color: #ff6040;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 96, 64, 0.4);
+}
+
+.online-roster-main {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 20px;
+  box-sizing: border-box;
+}
+
+.online-roster-left {
+  flex: 1 1 58%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-right: 6px;
+  box-sizing: border-box;
+}
+
+.online-roster-left::-webkit-scrollbar {
+  width: 6px;
+}
+
+.online-roster-left::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+.online-roster-left::-webkit-scrollbar-thumb {
+  background: #5c3d20;
+  border-radius: 3px;
+}
+
+.online-roster-left::-webkit-scrollbar-thumb:hover {
+  background: #8b5d32;
+}
+
+.online-char-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+  width: 100%;
+  padding: 2px 4px 10px;
+  box-sizing: border-box;
+}
+
+.online-char-card {
+  height: clamp(140px, 22vh, 175px);
+}
+
+.online-roster-right {
+  flex: 0 0 410px;
+  max-width: 440px;
+  min-width: 330px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.online-char-detail-panel {
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(ellipse at 50% 20%, #1e130a 0%, #0c0805 100%);
+  border: 1.5px solid #6e4a25;
+  border-radius: 6px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.85), inset 0 0 20px rgba(0, 0, 0, 0.8), 0 0 10px rgba(110, 74, 37, 0.3);
+  padding: 14px 16px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.online-char-detail-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.online-char-detail-panel::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+.online-char-detail-panel::-webkit-scrollbar-thumb {
+  background: #5c3d20;
+  border-radius: 3px;
+}
+
+.online-detail-header {
+  margin-bottom: 8px;
+}
+
+.online-char-name {
+  margin: 0 0 4px;
+  font: 900 24px var(--font-head);
+  color: var(--gold-bright);
+  letter-spacing: 1.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 8px rgba(255, 211, 74, 0.3);
+}
+
+.online-char-meta {
+  font-size: 13px;
+  color: #d8c7af;
+  margin-bottom: 6px;
+  line-height: 1.35;
+}
+
+.online-char-lore {
+  font-size: 12px;
+  color: #a8977c;
+  margin: 4px 0 6px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.online-char-stats {
+  font-size: 12px;
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+
+.online-detail-equip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 4px 0 10px;
+}
+
+.online-detail-equip .inv-section-title {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.online-char-paperdoll {
+  background: radial-gradient(ellipse at 50% 54%, #4b3422 0%, #261a12 55%, #130d09 100%);
+  border: 1px solid #76532c;
+  border-radius: 5px;
+  box-shadow: inset 0 0 30px #080503, 0 0 0 1px #100b07;
+  grid-template-columns: repeat(4, 56px);
+  grid-template-rows: repeat(4, 56px);
+  gap: 5px;
+  padding: 6px;
+  margin: 0 auto;
+}
+
+.online-char-paperdoll .eslot {
+  width: 56px;
+  height: 56px;
+}
+
+.online-char-paperdoll .portrait img {
+  max-height: 120px;
+  max-width: 68px;
+}
+
+.online-detail-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: 10px;
+}
+
+.online-enter-btn {
+  width: 100% !important;
+  font-size: 18px !important;
+  padding: 10px 18px !important;
+  text-align: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.online-delete-btn {
+  width: 100% !important;
+  font-size: 13px !important;
+  padding: 8px 16px !important;
+  text-align: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.online-roster-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  margin: 8px auto 0;
+  padding: 0 6px;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .online-account-bar {
@@ -1690,6 +1920,394 @@ body.portrait #d2-lobby .d2-chat-area {
 
 .online-account-email b {
   color: #ffd860;
+}
+
+@media (max-width: 860px) and (orientation: portrait) {
+  .online-char-screen {
+    overflow-y: auto !important;
+    padding: 10px !important;
+  }
+
+  .online-roster-main {
+    flex-direction: column;
+    overflow-y: visible;
+  }
+
+  .online-roster-left {
+    flex: none;
+    max-height: 250px;
+    padding-right: 0;
+  }
+
+  .online-roster-right {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .online-char-detail-panel {
+    max-height: none;
+    flex: none;
+  }
+
+  .online-roster-footer {
+    justify-content: center;
+  }
+}
+
+/* Mobile Landscape for Online Character Screen: 3-column grid on left, info panel on right with buttons below */
+@media (orientation: landscape) and (max-height: 560px),
+       (orientation: landscape) and (max-width: 950px) {
+  .online-char-screen {
+    padding: max(4px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)) !important;
+    overflow: hidden !important;
+    height: 100% !important;
+  }
+
+  .online-roster-topbar {
+    margin: 0 auto 4px !important;
+    padding: 0 4px !important;
+  }
+
+  .online-roster-topbar .screen-title {
+    font-size: 14px !important;
+  }
+
+  .online-roster-topbar .d2-btn-quit {
+    padding: 3px 14px !important;
+    font-size: 11px !important;
+  }
+
+  .online-roster-main {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 10px !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    width: 100% !important;
+  }
+
+  .online-roster-left {
+    flex: 1 1 54% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    max-height: none !important;
+    padding-right: 4px !important;
+  }
+
+  .online-char-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+    padding: 2px 2px 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .online-char-card,
+  .online-create-card {
+    height: clamp(96px, 24vh, 126px) !important;
+    min-height: 90px !important;
+    padding: 4px !important;
+  }
+
+  .online-char-card .card-lv {
+    font-size: 9px !important;
+    top: 2px !important;
+    right: 4px !important;
+  }
+
+  .online-char-card .plaque {
+    font-size: 9.5px !important;
+    padding: 1px 4px !important;
+    bottom: 2px !important;
+  }
+
+  .online-create-card-title {
+    font-size: 11px !important;
+  }
+
+  .online-create-card-sub {
+    font-size: 8.5px !important;
+  }
+
+  .online-roster-right {
+    flex: 0 0 clamp(240px, 44vw, 360px) !important;
+    max-width: 48% !important;
+    min-width: 230px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .online-char-detail-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    padding: 8px 10px !important;
+    max-height: none !important;
+  }
+
+  .online-char-name {
+    font-size: 16px !important;
+    margin: 0 0 2px !important;
+  }
+
+  .online-char-meta {
+    font-size: 11px !important;
+    margin-bottom: 3px !important;
+  }
+
+  .online-char-lore {
+    font-size: 10px !important;
+    margin: 2px 0 4px !important;
+    -webkit-line-clamp: 1 !important;
+  }
+
+  .online-char-stats {
+    font-size: 10.5px !important;
+    margin-bottom: 4px !important;
+    line-height: 1.3 !important;
+  }
+
+  .online-detail-equip {
+    margin: 2px 0 4px !important;
+  }
+
+  .online-detail-equip .inv-section-title {
+    font-size: 10.5px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .online-char-paperdoll {
+    grid-template-columns: repeat(4, 34px) !important;
+    grid-template-rows: repeat(4, 34px) !important;
+    gap: 3px !important;
+    padding: 3px !important;
+  }
+
+  .online-char-paperdoll .eslot {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .online-char-paperdoll .portrait img {
+    max-height: 72px !important;
+    max-width: 44px !important;
+  }
+
+  .online-detail-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 6px !important;
+    margin-top: 6px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .online-enter-btn {
+    flex: 1.8 !important;
+    font-size: 13.5px !important;
+    padding: 7px 10px !important;
+  }
+
+  .online-delete-btn {
+    flex: 1 !important;
+    font-size: 11px !important;
+    padding: 7px 6px !important;
+  }
+
+  .online-roster-footer {
+    margin: 4px auto 0 !important;
+    padding: 0 4px !important;
+    justify-content: flex-end !important;
+  }
+
+  .online-account-bar {
+    padding: 2px 8px !important;
+    font-size: 11px !important;
+    gap: 6px !important;
+  }
+
+  .online-account-bar .btn.small {
+    padding: 2px 8px !important;
+    font-size: 11px !important;
+  }
+}
+
+body.touch.landscape .online-char-screen,
+body.touch:not(.portrait) .online-char-screen {
+  padding: max(4px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)) !important;
+  overflow: hidden !important;
+  height: 100% !important;
+}
+
+body.touch.landscape .online-roster-main,
+body.touch:not(.portrait) .online-roster-main {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 10px !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  width: 100% !important;
+}
+
+body.touch.landscape .online-roster-left,
+body.touch:not(.portrait) .online-roster-left {
+  flex: 1 1 54% !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow-y: auto !important;
+  max-height: none !important;
+  padding-right: 4px !important;
+}
+
+body.touch.landscape .online-char-grid,
+body.touch:not(.portrait) .online-char-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 6px !important;
+  padding: 2px 2px 8px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+body.touch.landscape .online-char-card,
+body.touch.landscape .online-create-card,
+body.touch:not(.portrait) .online-char-card,
+body.touch:not(.portrait) .online-create-card {
+  height: clamp(96px, 24vh, 126px) !important;
+  min-height: 90px !important;
+  padding: 4px !important;
+}
+
+body.touch.landscape .online-char-card .card-lv,
+body.touch:not(.portrait) .online-char-card .card-lv {
+  font-size: 9px !important;
+  top: 2px !important;
+  right: 4px !important;
+}
+
+body.touch.landscape .online-char-card .plaque,
+body.touch:not(.portrait) .online-char-card .plaque {
+  font-size: 9.5px !important;
+  padding: 1px 4px !important;
+  bottom: 2px !important;
+}
+
+body.touch.landscape .online-roster-right,
+body.touch:not(.portrait) .online-roster-right {
+  flex: 0 0 clamp(240px, 44vw, 360px) !important;
+  max-width: 48% !important;
+  min-width: 230px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+}
+
+body.touch.landscape .online-char-detail-panel,
+body.touch:not(.portrait) .online-char-detail-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  padding: 8px 10px !important;
+  max-height: none !important;
+}
+
+body.touch.landscape .online-char-paperdoll,
+body.touch:not(.portrait) .online-char-paperdoll {
+  grid-template-columns: repeat(4, 34px) !important;
+  grid-template-rows: repeat(4, 34px) !important;
+  gap: 3px !important;
+  padding: 3px !important;
+}
+
+body.touch.landscape .online-char-paperdoll .eslot,
+body.touch:not(.portrait) .online-char-paperdoll .eslot {
+  width: 34px !important;
+  height: 34px !important;
+}
+
+body.touch.landscape .online-char-paperdoll .portrait img,
+body.touch:not(.portrait) .online-char-paperdoll .portrait img {
+  max-height: 72px !important;
+  max-width: 44px !important;
+}
+
+body.touch.landscape .online-detail-actions,
+body.touch:not(.portrait) .online-detail-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 6px !important;
+  margin-top: 6px !important;
+  flex-shrink: 0 !important;
+}
+
+body.touch.landscape .online-enter-btn,
+body.touch:not(.portrait) .online-enter-btn {
+  flex: 1.8 !important;
+  font-size: 13.5px !important;
+  padding: 7px 10px !important;
+}
+
+body.touch.landscape .online-delete-btn,
+body.touch:not(.portrait) .online-delete-btn {
+  flex: 1 !important;
+  font-size: 11px !important;
+  padding: 7px 6px !important;
+}
+
+@media (orientation: portrait) {
+  .online-char-screen {
+    overflow-y: auto !important;
+    padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)) !important;
+  }
+
+  .online-roster-main {
+    flex-direction: column;
+    overflow-y: visible;
+  }
+
+  .online-roster-left {
+    flex: 1 1 auto;
+    max-height: none;
+    padding-right: 0;
+  }
+
+  .online-roster-right {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .online-char-detail-panel {
+    display: none !important;
+  }
+
+  .online-roster-footer {
+    justify-content: center;
+  }
+}
+
+body.portrait .online-char-detail-panel {
+  display: none !important;
+}
+
+body.portrait .online-roster-left {
+  flex: 1 1 auto;
+  max-height: none;
 }
 
 .online-create-card {
@@ -1732,6 +2350,7 @@ body.portrait #d2-lobby .d2-chat-area {
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: #c8b08a;
+  text-align: center;
 }
 
 /* Online Character Creation Name Check */
@@ -1834,7 +2453,7 @@ body.portrait #d2-lobby .d2-chat-area {
   min-height: 180px;
   max-height: 52vh;
   scrollbar-width: thin;
-  scrollbar-color: #5a3c20 rgba(10, 6, 4, 0.75);
+  scrollbar-color: #5a2020 rgba(10, 6, 4, 0.75);
 }
 
 .d2-friends-list::-webkit-scrollbar {
@@ -1847,7 +2466,7 @@ body.portrait #d2-lobby .d2-chat-area {
 }
 
 .d2-friends-list::-webkit-scrollbar-thumb {
-  background: #5a3c20;
+  background: #5a2020;
   border: 1px solid rgba(140, 94, 48, 0.55);
   border-radius: 3px;
 }

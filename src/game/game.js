@@ -745,9 +745,10 @@ function attachNetListeners() {
   net.on('room_depth_sync', (data) => {
     if (G.room) {
       if (typeof data.depth === 'number' && data.depth > 0) {
-        G.room.depth = data.depth;
-        if (G.char && (G.world?.kind === 'town' || G.char.depth < data.depth)) {
-          G.char.depth = data.depth;
+        const d = clamp(data.depth, 1, FINAL_DEPTH);
+        G.room.depth = d;
+        if (G.char && (G.world?.kind === 'town' || G.char.depth < d)) {
+          G.char.depth = d;
         }
       }
       if (data.biome) {
@@ -775,7 +776,7 @@ function attachNetListeners() {
       }
     }
     // If local player had the exit portal choice dialog open on previous floor, refresh it with the selected choice!
-    if (G.world?.kind === 'dungeon' && data.depth === G.world.depth + 1 && document.querySelector('.portal-choice')) {
+    if (G.world?.kind === 'dungeon' && G.world.depth < FINAL_DEPTH && data.depth === G.world.depth + 1 && document.querySelector('.portal-choice')) {
       UI.closeAllDialogs();
       game.pick = null;
       game.portalChoice(G.world);
@@ -1280,8 +1281,8 @@ export const game = {
     world.portals = [{
       x: t.portal.x, y: t.portal.y, active: true, color: '#ff5020', reach: 2.2,
       get label() {
-        const d = (G.room && G.room.depth != null) ? G.room.depth : G.char.depth;
-        return `Portal — Depth ${d || 1}`;
+        const d = clamp((G.room && G.room.depth != null) ? G.room.depth : (G.char?.depth || 1), 1, FINAL_DEPTH);
+        return `Portal — Depth ${d}`;
       },
       use: () => this.confirmDungeon(),
     }];
@@ -1399,7 +1400,8 @@ export const game = {
   /** The deepest floor the town portal can open on: any floor down to the one the hero has reached. */
   maxPortalFloor(c = G.char) {
     const roomDepth = (G.room && G.room.depth != null) ? G.room.depth : 0;
-    return clamp(Math.max(c.depth || 1, (c.deepest || 0) + 1, roomDepth), 1, FINAL_DEPTH);
+    const maxAllowed = (c.deepest || 0) >= FINAL_DEPTH ? FINAL_DEPTH : (c.deepest || 0) + 1;
+    return clamp(Math.max(c.depth || 1, maxAllowed, roomDepth), 1, FINAL_DEPTH);
   },
 
   /**
@@ -1409,7 +1411,7 @@ export const game = {
   confirmDungeon() {
     const c = G.char;
     const current = clamp((G.room && G.room.depth != null) ? G.room.depth : (c.depth || 1), 1, FINAL_DEPTH);
-    const maxFloor = Math.max(current, this.maxPortalFloor(c));
+    const maxFloor = Math.min(FINAL_DEPTH, Math.max(current, this.maxPortalFloor(c)));
     const currentBiome = this.getSharedRoomBiome(G.room, current, c.nextBiome);
 
     const describe = (d) => {
@@ -1488,7 +1490,7 @@ export const game = {
   enterDungeonAt(depth) {
     const c = G.char;
     const current = (G.room && G.room.depth != null) ? G.room.depth : (c.depth || 1);
-    depth = clamp(depth | 0, 1, this.maxPortalFloor(c));
+    depth = clamp(depth | 0, 1, Math.min(FINAL_DEPTH, this.maxPortalFloor(c)));
     if (depth !== current) {
       c.depth = depth;
       // a different floor than the one the portal was set to: draw it a fresh biome and forget the old omen
@@ -1608,7 +1610,7 @@ export const game = {
     const c = G.char;
     if (!c || !biome) return;
     if (Auto.on) Auto.toggle(false);
-    const depth = Math.max(1, G.world?.kind === 'dungeon' ? G.world.depth : c.depth || 1);
+    const depth = clamp(Math.max(1, G.world?.kind === 'dungeon' ? G.world.depth : c.depth || 1), 1, FINAL_DEPTH);
     c.depth = depth;
     c.nextBiome = biome.id;
     delete c.nextOmen;
@@ -1696,8 +1698,9 @@ export const game = {
     if (this._enteringDungeon) return;
     this._enteringDungeon = true;
     const c = G.char;
-    const depth = (G.room && G.room.depth != null) ? G.room.depth : c.depth;
+    const depth = clamp((G.room && G.room.depth != null) ? G.room.depth : (c.depth || 1), 1, FINAL_DEPTH);
     c.depth = depth;
+    if (G.room) G.room.depth = depth;
     if (depth !== FINAL_DEPTH && (!c.nextBiome || c.nextBiome === 'throne')) c.nextBiome = drawBiome(c, depth);
     const biome = this.getSharedRoomBiome(G.room, depth, c.nextBiome);
     let dungeonSeed = G.room ? this.getSharedRoomDungeonSeed(G.room, depth) : (Math.floor(Math.random() * 1e9) + 1);
@@ -1807,7 +1810,7 @@ export const game = {
       active: !!isAlreadyUnsealed,
       color: isAlreadyUnsealed ? '#40a0ff' : '#5a5a60',
       reach: 1.6,
-      label: isAlreadyUnsealed ? (world.unbound ? 'Exit — to town' : 'Exit — continue') : 'Sealed Exit',
+      label: isAlreadyUnsealed ? ((world.unbound || depth >= FINAL_DEPTH || biome.id === 'throne') ? 'Exit — to town' : 'Exit — continue') : 'Sealed Exit',
       skygate: sky,
       seagate: sea,
       use: () => this.useExit(world, exit),
@@ -1889,7 +1892,7 @@ export const game = {
       if (!exit.active) {
         exit.active = true;
         exit.color = '#40a0ff';
-        exit.label = world.unbound ? 'Exit — to town' : 'Exit — continue';
+        exit.label = (world.unbound || world.depth >= FINAL_DEPTH || isDagyr || biome.id === 'throne') ? 'Exit — to town' : 'Exit — continue';
       }
     }
     world.roster = [...new Set(gen.spawns.filter((s) => s.arch && !['raid', 'boss'].includes(s.rank)).map((s) => s.arch))];
@@ -2076,7 +2079,7 @@ export const game = {
 
     exit.active = true;
     exit.color = '#40a0ff';
-    exit.label = world.unbound ? 'Exit — to town' : 'Exit — continue';
+    exit.label = (world.unbound || world.depth >= FINAL_DEPTH || isDagyr || world.biome?.id === 'throne') ? 'Exit — to town' : 'Exit — continue';
 
     const c = G.char;
     if (c) {
@@ -2127,7 +2130,35 @@ export const game = {
     }
     if (world.breach) this.breachExit(world);
     else if (world.rift) this.riftExit(world);
-    else if (world.unbound) { sfx('portal'); this.enterTown(); }
+    else if (world.unbound || world.depth >= FINAL_DEPTH || world.boss?.isDagyr || world.biome?.id === 'throne') {
+      UI.dialog({
+        title: world.unbound ? 'Dagyr Unbound Defeated' : 'Demon Lord Dagyr Defeated',
+        html: `<p>Demon Lord Dagyr has fallen. The descent is complete!</p><p class="dim">The portal behind the throne leads back to town.</p>`,
+        closable: true,
+        cls: 'portal-choice throne-portal-choice',
+        buttons: [
+          {
+            label: 'Return to Town',
+            cls: 'red',
+            fn: () => {
+              sfx('portal');
+              if (c) {
+                c.depth = Math.min(FINAL_DEPTH, c.depth || FINAL_DEPTH);
+                c.deepest = Math.min(FINAL_DEPTH, Math.max(c.deepest || 0, FINAL_DEPTH));
+              }
+              if (G.room) {
+                G.room.depth = Math.min(FINAL_DEPTH, G.room.depth || FINAL_DEPTH);
+                if (net.connected) {
+                  net.sendTownTransition(G.room.depth);
+                }
+              }
+              this.enterTown();
+            }
+          },
+          { label: 'Stay in Throne Room' }
+        ],
+      });
+    }
     else this.portalChoice(world);
   },
 
@@ -2139,7 +2170,38 @@ export const game = {
    */
   portalChoice(world, opts = {}) {
     if (this.pick) return;
-    const c = G.char, next = world.depth + 1;
+    if (world.depth >= FINAL_DEPTH || world.biome?.id === 'throne' || world.boss?.isDagyr) {
+      const c = G.char;
+      if (c) {
+        c.depth = Math.min(FINAL_DEPTH, c.depth || FINAL_DEPTH);
+        c.deepest = Math.min(FINAL_DEPTH, Math.max(c.deepest || 0, FINAL_DEPTH));
+      }
+      if (G.room) {
+        G.room.depth = Math.min(FINAL_DEPTH, G.room.depth || FINAL_DEPTH);
+        if (net.connected) {
+          net.sendTownTransition(G.room.depth);
+        }
+      }
+      UI.dialog({
+        title: world.unbound ? 'Dagyr Unbound Defeated' : 'Demon Lord Dagyr Defeated',
+        html: `<p>Demon Lord Dagyr has fallen. The descent is complete!</p><p class="dim">The portal behind the throne leads back to town.</p>`,
+        closable: true,
+        cls: 'portal-choice throne-portal-choice',
+        buttons: [
+          {
+            label: 'Return to Town',
+            cls: 'red',
+            fn: () => {
+              sfx('portal');
+              this.enterTown();
+            }
+          },
+          { label: 'Stay in Throne Room' }
+        ],
+      });
+      return;
+    }
+    const c = G.char, next = Math.min(FINAL_DEPTH, world.depth + 1);
 
     // When one player makes a selection at the exit portal, make it the default choice so other players enter the same map
     if (G.room && G.room.depth === next && G.room.biome && G.room.dungeonSeed) {
@@ -2265,7 +2327,7 @@ export const game = {
     if (w && w.rift) return this.riftDeath(src);
     if (w && w.unbound) return this.unboundDeath(src);
     c.deaths = (c.deaths || 0) + 1;
-    const depth = w && w.kind === 'dungeon' ? w.depth : c.depth;
+    const depth = clamp(w && w.kind === 'dungeon' ? w.depth : (c.depth || 1), 1, FINAL_DEPTH);
     const n = addDefiance(c, depth);
     markNemesis(c, src, depth); // the killer comes back as a unique (game/happenings.js)
     greedDeath(c); // the Hoard is lost and the Greed lever drops (game/greed.js)
@@ -2278,10 +2340,11 @@ export const game = {
       deathScreen(depth, killer, () => {
         // back to the start of this five-depth block (BOSS ROOMs are checkpoints), a Defiance stack stronger
         if (G.room) {
-          c.depth = G.room.depth || depth;
+          c.depth = clamp(G.room.depth || depth, 1, FINAL_DEPTH);
+          if (G.room.depth > FINAL_DEPTH) G.room.depth = FINAL_DEPTH;
           c.nextBiome = G.room.biome || c.nextBiome;
         } else {
-          c.depth = blockStart(depth);
+          c.depth = clamp(blockStart(depth), 1, FINAL_DEPTH);
           c.nextBiome = drawBiome(c, c.depth);
         }
         const p = G.player;
@@ -2861,7 +2924,15 @@ export const game = {
     }
     if (!G.cine) camera.follow(p.x, p.y, dt);
     camera.update(dt);
-    if (!!G.cine !== hudCine) { hudCine = !!G.cine; HUD.show(!hudCine); if (G.touch) TouchUI.show(!hudCine); }
+    if (!!G.cine !== hudCine) {
+      hudCine = !!G.cine;
+      HUD.show(!hudCine);
+      if (G.touch) TouchUI.show(!hudCine);
+      if (G.gameChat) {
+        if (hudCine) G.gameChat.hide();
+        else G.gameChat.show();
+      }
+    }
     if (G.hurtFlash > 0) G.hurtFlash = Math.max(0, G.hurtFlash - dt * 1.5);
     if (G.flash > 0) G.flash = Math.max(0, G.flash - dt * 2);
     HUD.update(dt);

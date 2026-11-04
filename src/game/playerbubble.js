@@ -100,7 +100,7 @@ function drawPointerArrow(ctx, edgeX, edgeY, tipX, tipY, nx, ny) {
 }
 
 export function drawPlayerChatBubbles(ctx, world) {
-  if (G.settings?.showChatBubbles === false) return;
+  if (G.settings?.showChatBubbles === false || G.cine) return;
   if (!world || !G.player) return;
 
   const speakers = [];

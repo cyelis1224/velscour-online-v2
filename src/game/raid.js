@@ -6,7 +6,7 @@ import { hexToRgb } from '../core/util.js';
 // break) while adds pour in. One to three random modifiers change each fight, it enrages after 3 minutes (frenzying every 45 s), and after 5 it executes the hero outright.
 // The arena seals behind the hero until the boss dies.
 import { G } from '../state.js';
-import { rand, chance, TAU, clamp, angleTo, angleDiff, dist, pick, randi, shuffle } from '../core/util.js';
+import { rand, chance, TAU, clamp, angleTo, angleDiff, dist, pick, randi, shuffle, escapeHtml } from '../core/util.js';
 import { isoX, isoY, HW, HH, camera } from '../core/view.js';
 import { sfx } from '../core/audio.js';
 import { addEffect, Telegraph, Slash, Ring, Bolt, Column, burst, spawn, sparkle, elem, floatText, smoke, addLight, glowSprite } from '../gfx/vfx.js';
@@ -18,11 +18,11 @@ import { ART_BY_ID } from '../data/bestiary.js';
 import { bodyR } from '../world/map.js';
 import { makeMonster, monsterBase, Monster } from './monster.js';
 import { riftHold } from '../data/depth.js';
-import { dropLoot } from './loot.js';
+import { dropLoot, GroundItem } from './loot.js';
 import { UI } from '../ui/ui.js';
 import { madnessReady } from './mayhem.js';
 import { SIGS, SIG_NAMES, PASSIVES } from './raidsigs.js';
-import { heresyRaid, worldHeresies } from './heresies.js';
+import { heresyRaid, worldHeresies, heresyAllows } from './heresies.js';
 
 // ------------------------------------------------------------------------------------------------ the bosses
 // art: bestiary art ids (one is picked); fx: their projectile look; adds: archetypes that come to their aid;
@@ -565,13 +565,11 @@ const ENRAGE_T = 180, EXECUTE_T = 300; // seconds from waking until the boss enr
  * on its own; tools/tests/endgame.js).
  */
 // a BOSS ROOM boss is 26 x 1.3 x this many normals of its level (monsterBase's toughness keeps a normal at ~3 s of hero
-// damage at every depth): ~12 normals at depth 5, ~19 by depth 500. Its wards, adds and mechanics stretch that ~3.5x,
-// so auto-play takes about two minutes (tools/tests/balance.js with BAL_RAID=1 ... god)
-export const raidHpMul = (depth) => 0.35 + Math.min(depth, 500) * 0.0004;
-// a BOSS ROOM boss hits for this many normals of its level: 2.7 to depth 10, easing to 1.9 by depth 100 (deeper rooms
-// bring a fourth phase and more modifiers, and every hero died in its first depth-100 room at 2.7; was 3.6 when the
-// fights lasted 20 s, not two minutes)
-export const raidHitMul = (depth) => 2.7 * (1 - 0.3 * clamp((depth - 10) / 90, 0, 1));
+// damage at every depth): ~25 normals at depth 5, ~42 by depth 500. Its wards, adds and mechanics stretch that ~3.5x,
+// so fights run ~45-90 seconds of active mechanical engagement.
+export const raidHpMul = (depth) => 0.22 + Math.pow(Math.min(depth, 500) / 500, 0.75) * 0.85;
+// a BOSS ROOM boss hits for this many normals of its level: smoothly scales so early raid bosses are survivable.
+export const raidHitMul = (depth) => 1.35 + 1.15 * Math.pow(Math.min(depth, 500) / 500, 0.6);
 /** opts.tpl / opts.art: a given template (copied, maybe renamed) and look instead of a random one (game/tower.js).
  *  opts.court: one of Dagyr Unbound's court (game/unbound.js): it never seals the arena or announces a BOSS ROOM.
  *  opts.hp / opts.dmg: multipliers on a BOSS ROOM's. */
@@ -599,7 +597,7 @@ export function makeRaidBoss(world, arena, depth, level, opts = {}) {
     ai: 'raid', el: tpl.el, res: { [tpl.el]: 0.4, ...(m.undead ? { poison: 0.5, shadow: 0.3 } : null) },
     scale: has('colossal') ? 2.75 : 2.4, r: 1.05, atkReach: 0.35, speed: 2.4 * (tpl.spd || 1) * (has('colossal') ? 0.88 : 1), atkCd: 1.3,
     maxHp: B.hp * 26 * raidHpMul(depth) * (has('colossal') ? 1.35 : 1) * (tpl.hp || 1) * 1.3 * (opts.hp || 1), dmg: raidHitMul(depth) * B.dmg * (has('empowered') ? 1.25 : 1) * (opts.dmg || 1), xp: B.xp * 60,
-    name: tpl.name.toUpperCase(), title: tpl.title, aura: elem(tpl.el).glow, affixes: has('vampiric') ? ['vampiric'] : [],
+    name: tpl.name.toUpperCase(), title: tpl.title, aura: elem(tpl.el).glow, affixes: [],
     moves: null, patterns: [], isRaid: true, ward: 1, aggroRange: 0,
   });
   m.hp = m.maxHp;
@@ -620,6 +618,7 @@ class Raid {
     this.marks = n === 4 ? [0.72, 0.46, 0.2] : [0.66, 0.33]; // life fractions where the next phase begins
     this.pi = 0; this.rot = []; this.follow = []; this.gap = 2.5; this.t = 0; this.count = 0;
     this.sealed = false; this.announced = false; this.inter = null; this.wards = []; this.minions = []; this.enraged = false;
+    this.joinPromptOpen = false; this.joinPromptCooldown = 0;
     this.E = elem(tpl.el);
     this.fx = tpl.fx;
   }
@@ -669,6 +668,14 @@ class Raid {
       this.wake();
     }
     if (!this.sealed && anyInside) this.seal();
+    if (this.joinPromptCooldown > 0) this.joinPromptCooldown -= dt;
+    if (this.sealed && p && !p.dead && !this.inside(p)) {
+      const gy = (g.y0 + g.y1 + 1) / 2;
+      const d = Math.hypot(p.x - (g.x - 1.5), p.y - gy);
+      if (d < 3.2 && p.x <= g.x + 0.5) {
+        this.promptJoin(p);
+      }
+    }
     this.t += dt;
     this.minHp = Math.min(this.minHp ?? 1, (p && !p.dead) ? p.hp / p.maxHp : 1);
     // the execute timer: after 3 minutes the boss winds up a killing blow nothing survives (the hero restarts the dungeon)
@@ -756,7 +763,7 @@ class Raid {
       }
     }
     map.flowFrom = [-9, -9];
-    w.addHazard((this.barrier = new Barrier(g, this.E)));
+    w.addHazard((this.barrier = new Barrier(g, this.E, this)));
     UI.log('The way back is sealed!', '#ff6040');
     if (madnessReady()) UI.log('Your MADNESS is ready. Save it for the boss, or unleash it now (G).', '#ff2050');
     sfx('thud'); sfx('portal', 0.6);
@@ -767,7 +774,57 @@ class Raid {
     for (const i of this.gateTiles) map.block[i] = 0;
     map.flowFrom = [-9, -9];
     this.sealed = false;
+    this.joinPromptOpen = false;
     if (this.barrier) this.barrier.dead = true;
+  }
+
+  promptJoin(p, force = false) {
+    if (!this.sealed || this.m.dead || !p || p.dead || this.inside(p)) return;
+    if (this.joinPromptOpen) return;
+    if (!force && this.joinPromptCooldown > 0) return;
+
+    if (G.auto && G.auto.on) {
+      this.joinArena(p);
+      return;
+    }
+
+    this.joinPromptOpen = true;
+    const bossName = this.tpl.name || 'The Boss';
+    const d = UI.confirm(
+      'Join Boss Battle?',
+      `The battle against <b style="color:#ff8050">${escapeHtml(bossName)}</b> is already underway.<br><br>Do you want to enter the boss chamber and join the fight?<br><br><span style="color:#ff6040;font-size:12px;">⚠️ Once you enter, the barrier seals behind you and you cannot leave until the battle ends.</span>`,
+      () => {
+        this.joinPromptOpen = false;
+        this.joinArena(p);
+      },
+      'Join Battle',
+      'Stay Outside'
+    );
+    if (d && d.close) {
+      const origClose = d.close;
+      d.close = () => {
+        this.joinPromptOpen = false;
+        this.joinPromptCooldown = 3.5;
+        origClose();
+      };
+    }
+  }
+
+  joinArena(p) {
+    if (!this.sealed || this.m.dead || !p || p.dead) return;
+    const g = this.arena.gate;
+    p.x = g.x + 2.0;
+    p.y = (g.y0 + g.y1 + 1) / 2;
+    p.moveVec = [0, 0];
+    p.moveTarget = null;
+    p.path = null;
+    p.interact = null;
+    p.attackTarget = null;
+    addEffect(new Ring(p.x, p.y, 0.3, 3, 0.6, this.E.glow, 4));
+    sparkle(p.x, p.y, 35, this.E.glow, 2, 0.3);
+    sfx('portal');
+    UI.centerMsg('JOINED BATTLE', `${this.tpl.name} awaits!`, 2.5);
+    UI.log(`You stepped through the barrier into the boss arena!`, '#ff9040');
   }
 
   enrage(why) {
@@ -824,7 +881,7 @@ class Raid {
         addEffect(new Bolt(c.x, c.y, 40, m.x, m.y, 60, this.E.glow, 0.5, 5));
         explosionFx(c.x, c.y, 1.5, this.tpl.el === 'phys' ? 'arcane' : this.tpl.el, 'explosion');
         c.dead = true;
-        m.heal(m.maxHp * 0.04);
+        m.heal(monsterBase(m.level || 1).hp * 0.1);
       }
       this.endInter('The crystals overload — it drinks their power!');
     }
@@ -840,6 +897,10 @@ class Raid {
     UI.centerMsg(this.phase.name.toUpperCase(), msg, 2.4);
     addEffect(new Ring(m.x, m.y, 0.3, 5, 0.8, this.E.glow, 6));
     sfx('explode'); sfx('roar');
+    if (heresyAllows('orb', G.player?.char, m.world)) {
+      m.world.addLoot(new GroundItem(m.x + rand(-0.8, 0.8), m.y + rand(-0.8, 0.8), 'orb_hp', {}));
+      m.world.addLoot(new GroundItem(m.x + rand(-0.8, 0.8), m.y + rand(-0.8, 0.8), 'orb_hp', {}));
+    }
     this.gap = 1.5;
   }
 
@@ -855,7 +916,7 @@ class Raid {
       c.moving = false;
       if (m.dead) { c.dead = true; return; }
       if ((c.beamT = (c.beamT || 0) - dt) <= 0) { c.beamT = 0.12; addEffect(new Bolt(c.x, c.y, 44, m.x, m.y, 70, E.glow, 0.13, 2)); }
-      m.heal(m.maxHp * 0.002 * dt);
+      m.heal(monsterBase(m.level || 1).hp * 0.005 * dt);
       const p = c.world.player;
       if ((c.cd -= dt) <= 0 && p && !p.dead && dist(c.x, c.y, p.x, p.y) < 12 && c.world.map.los(c.x, c.y, p.x, p.y)) {
         c.cd = rand(2.5, 3.5);
@@ -1312,7 +1373,15 @@ class ShieldFx {
 
 /** A wall of light across the arena's gate while it is sealed. */
 class Barrier {
-  constructor(g, E) { Object.assign(this, { g, E, t: 0 }); }
+  constructor(g, E, raid) {
+    Object.assign(this, { g, E, raid, t: 0, x: g.x - 1, y: (g.y0 + g.y1 + 1) / 2, r: 1.5, reach: 2.5 });
+  }
+  get label() { return 'Sealed Arena Barrier'; }
+  use() {
+    if (this.raid && this.raid.sealed && G.player && !this.raid.inside(G.player)) {
+      this.raid.promptJoin(G.player, true);
+    }
+  }
   get depth() { return this.g.x + (this.g.y0 + this.g.y1 + 1) / 2 - 0.4; }
   update(dt) { this.t += dt; if (chance(dt * 12)) sparkle(this.g.x - 0.1, rand(this.g.y0, this.g.y1 + 1), rand(5, 90), this.E.glow, 1, 0.1); return !this.dead; }
   draw(ctx) {

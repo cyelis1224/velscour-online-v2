@@ -16,7 +16,7 @@
 // world.practice ("final boss" in the skull's message box at any depth): the same fight scaled to that depth, without
 // the guaranteed relic drops or the victory screen.
 import { G } from '../state.js';
-import { rand, chance, TAU, clamp, angleTo, angleDiff, dist, pick, hexToRgb } from '../core/util.js';
+import { rand, chance, TAU, clamp, angleTo, angleDiff, dist, pick, hexToRgb, escapeHtml } from '../core/util.js';
 import { isoX, isoY, HW, HH } from '../core/view.js';
 import { sfx } from '../core/audio.js';
 import { addEffect, Telegraph, Ring, Bolt, Column, burst, sparkle, floatText, smoke, addLight, glowSprite } from '../gfx/vfx.js';
@@ -26,6 +26,7 @@ import { Delayed, Area, coneTargets } from './hazards.js';
 import { makeMonster, Monster, lookFor } from './monster.js';
 import { UI } from '../ui/ui.js';
 import { GroundItem } from './loot.js';
+import { heresyAllows } from './heresies.js';
 import { makeHeirloom, makeCovenant } from '../data/relics.js';
 import { rollSigil, SIGIL_MAX, makeGem } from '../data/items.js';
 import { setupUnbound, unboundTick, courtBegin, courtGate, unboundSpoils, UNBOUND } from './unbound.js';
@@ -64,6 +65,9 @@ class DagyrFight {
     Object.assign(this, { world, m, gen, phase: 0, t: 0, ground: true, team: 'enemy', parts: [], hold: false, bank: 0, lastHp: m.maxHp, cd: {}, sealBuff: 0, practice: !!world.practice });
     this.gate = 0.8; // the life fraction this phase can't be pushed below
     this.gateTiles = [];
+    this.sealed = false;
+    this.joinPromptOpen = false;
+    this.joinPromptCooldown = 0;
   }
   get p() { return this.world.player; }
   // ---------------------------------------------------------------- HUD line under the boss bar
@@ -92,6 +96,12 @@ class DagyrFight {
     this.faceHero();
     this.t += dt;
     this.pace(dt);
+    if (this.joinPromptCooldown > 0) this.joinPromptCooldown -= dt;
+    if (this.sealed && p && !p.dead && !inArena(p.x, p.y, 0.95)) {
+      if (p.y >= 32.5 && p.y <= 36.5 && p.x >= 17 && p.x <= 27) {
+        this.promptJoin(p);
+      }
+    }
     // the clock
     if (this.t > (this.enrageT || ENRAGE_T) && (this.execT || 0) < this.t) {
       this.execT = this.t + 5;
@@ -101,11 +111,11 @@ class DagyrFight {
     }
     const frac = m.hp / m.maxHp;
     switch (this.phase) {
-      case 1: this.p1(dt); if (frac <= 0.8 + 1e-6) this.startSeals(); break;
+      case 1: this.p1(dt); if (frac <= 0.8 + 1e-4) this.startSeals(); break;
       case 2: this.p2(dt); break;
-      case 3: this.p3(dt); if (frac <= 0.5 + 1e-6) this.startAbyss(); break;
+      case 3: this.p3(dt); if (frac <= 0.5 + 1e-4) this.startAbyss(); break;
       case 4: this.p4(dt); break;
-      case 5: this.p5(dt); if (frac <= 0.1 + 1e-6 && !this.bound) this.startChains(); else if (this.unbound && this.bound && !this.bound2 && frac <= 0.05 + 1e-6) this.startChains(); break;
+      case 5: this.p5(dt); if (frac <= 0.1 + 1e-4 && !this.bound) this.startChains(); else if (this.unbound && this.bound && !this.bound2 && frac <= 0.05 + 1e-4) this.startChains(); break;
       case 6: this.p5(dt, true); this.p6(dt); break;
     }
     if (this.unbound) unboundTick(this, dt); // the court, the Pact (game/unbound.js)
@@ -125,7 +135,7 @@ class DagyrFight {
   absorb(dmg) {
     const m = this.m;
     if (!this.phase) return dmg;
-    const room = Math.max(0, m.hp - m.maxHp * this.gate - (this.gate > 0 ? 1 : 0));
+    const room = Math.max(0, m.hp - m.maxHp * this.gate);
     const take = Math.min(dmg, this.bank, room);
     this.bank -= take;
     if (take < dmg * 0.5 && (this.endureT || 0) < this.t) { this.endureT = this.t + 1.2; floatText(m.x, m.y, 150, room <= 0 ? 'THE PHASE TURNS' : 'DAGYR ENDURES', '#ff9060', 13, { life: 1 }); }
@@ -168,15 +178,66 @@ class DagyrFight {
 
   /** Close the arena's mouth (the corridor at its south end) until he falls. */
   seal() {
+    this.sealed = true;
     const map = this.world.map;
     for (let x = 18; x <= 26; x++) for (const y of [31, 32]) { const i = y * map.w + x; if (map.t[i] === 1 && !map.block[i]) { map.block[i] = 1; this.gateTiles.push(i); } }
     map.flowFrom = [-9, -9];
     sfx('thud'); sfx('portal', 0.6);
   }
   unseal() {
+    this.sealed = false;
+    this.joinPromptOpen = false;
     const map = this.world.map;
     for (const i of this.gateTiles) map.block[i] = 0;
     this.gateTiles = []; map.flowFrom = [-9, -9];
+  }
+
+  promptJoin(p, force = false) {
+    if (!this.sealed || this.m.dead || !p || p.dead || inArena(p.x, p.y, 0.95)) return;
+    if (this.joinPromptOpen) return;
+    if (!force && this.joinPromptCooldown > 0) return;
+
+    if (G.auto && G.auto.on) {
+      this.joinArena(p);
+      return;
+    }
+
+    this.joinPromptOpen = true;
+    const bossName = this.unbound ? 'Dagyr Unbound' : 'Demon Lord Dagyr';
+    const d = UI.confirm(
+      'Join Final Battle?',
+      `The battle against <b style="color:#ff4020">${escapeHtml(bossName)}</b> is already underway.<br><br>Do you want to enter the throne room and join the fight?<br><br><span style="color:#ff6040;font-size:12px;">⚠️ Once you enter, the throne room seals behind you and you cannot leave until the battle ends.</span>`,
+      () => {
+        this.joinPromptOpen = false;
+        this.joinArena(p);
+      },
+      'Join Battle',
+      'Stay Outside'
+    );
+    if (d && d.close) {
+      const origClose = d.close;
+      d.close = () => {
+        this.joinPromptOpen = false;
+        this.joinPromptCooldown = 3.5;
+        origClose();
+      };
+    }
+  }
+
+  joinArena(p) {
+    if (!this.sealed || this.m.dead || !p || p.dead) return;
+    p.x = 22;
+    p.y = 29.5;
+    p.moveVec = [0, 0];
+    p.moveTarget = null;
+    p.path = null;
+    p.interact = null;
+    p.attackTarget = null;
+    addEffect(new Ring(p.x, p.y, 0.3, 3, 0.6, '#ff4020', 4));
+    sparkle(p.x, p.y, 35, '#ff4020', 2, 0.3);
+    sfx('portal');
+    UI.centerMsg('JOINED BATTLE', 'Demon Lord Dagyr awaits!', 2.5);
+    UI.log(`You stepped past the throne seal into the final battle!`, '#ff6040');
   }
 
   // ---------------------------------------------------------------- phase 1: The Lord Upon the Throne
@@ -241,7 +302,6 @@ class DagyrFight {
     this.walls = new FlameWalls(this);
     w.addHazard(this.walls);
     sfx('roar'); sfx('summon');
-    if (G.room && !G.game?.isDungeonAuthority(w.depth)) return;
     for (const [x, y, n] of SEALS) {
       const [sx, sy] = w.map.nudge(x, y, 0.45);
       const seal = this.crystal(sx, sy, {
@@ -263,7 +323,7 @@ class DagyrFight {
   p2(dt) {
     this.p2t += dt;
     const left = this.parts.filter((c) => c.vk === 'seal' && !c.dead);
-    if (!left.length) return this.endSeals('The seals shatter!');
+    if (!left.length && this.p2t > 0.5) return this.endSeals('The seals shatter!');
     if (this.p2t > 120) {
       for (const c of left) { addEffect(new Bolt(c.x, c.y, 50, this.m.x, this.m.y, 110, '#ff4040', 0.5, 5)); c.dead = true; if (c.warden) c.warden.dead = true; }
       this.sealBuff = left.length;
@@ -279,6 +339,11 @@ class DagyrFight {
     this.cd = { spiral: 6, doom: 10, mirror: 18, brand: 5, legion: 8 };
     this.lava = new LavaRing(this);
     this.world.addHazard(this.lava);
+    if (heresyAllows('orb', G.player?.char, this.world)) {
+      for (let i = 0; i < 2; i++) {
+        this.world.addLoot(new GroundItem(this.m.x + rand(-1.2, 1.2), this.m.y + rand(-1.2, 1.2), 'orb_hp', {}));
+      }
+    }
     UI.centerMsg('CROWN OF HELLFIRE', msg, 3);
     UI.log('The floor of the arena begins to melt from the edges in.', '#ffb080');
   }
@@ -358,7 +423,6 @@ class DagyrFight {
     const n = this.unbound ? 4 : 3, cut = this.unbound ? 0.04 : 0.05; // the Abyssal Crown: four shards, the same 15-16% in all
     UI.log(`The floor gives way to the dark. ${n === 4 ? 'Four' : 'Three'} <b style="color:#ff3050">Heart Shards</b> drift in it: each one you break tears at Dagyr. Stay near a <b style="color:#ffe08a">Soul Lantern</b>: the dark itself hurts.`, '#ffc0c0');
     this.cd = { shades: 3 };
-    if (G.room && !G.game?.isDungeonAuthority(w.depth)) return;
     for (let i = 0; i < n; i++) {
       const a0 = (i / n) * TAU, R = 7;
       const sh = this.crystal(C.x + Math.cos(a0) * R, C.y + Math.sin(a0) * R * 0.8, {
@@ -387,7 +451,7 @@ class DagyrFight {
     const nearL = LANTERNS.some(([x, y]) => dist(p.x, p.y, x, y) < 4.5);
     if (!nearL && this.p4t > 12 && !p.st.legendary.dreadless) { this.dread = (this.dread || 0) + dt; if (this.dread > 0.5) { this.dread = 0; hit(this.m, p, p.maxHp * 0.015, 'shadow', { dot: true, silent: true }); } } // (dreadless: the Mantle of the Unbound)
     const left = this.parts.filter((c) => c.vk === 'shard' && !c.dead).length;
-    if (!left || this.p4t > 75) this.endAbyss(left);
+    if ((!left && this.p4t > 0.5) || this.p4t > 75) this.endAbyss(left);
   }
   /** Auto-play: back to a lantern when the dark has been eating at the hero. */
   autoGoal() {
@@ -408,6 +472,11 @@ class DagyrFight {
     m.patterns = ['slam', 'nova', 'volley', 'charge', 'summon', 'meteor', 'spiral', 'beam'];
     m.patternQ = [];
     this.cd = { apoc: 8, brand: 5, spiral: 9, doom: 12, legion: 14 };
+    if (heresyAllows('orb', G.player?.char, w)) {
+      for (let i = 0; i < 2; i++) {
+        w.addLoot(new GroundItem(m.x + rand(-1.2, 1.2), m.y + rand(-1.2, 1.2), 'orb_hp', {}));
+      }
+    }
     UI.centerMsg('TRUE FORM', left ? `${left} shard${left > 1 ? 's' : ''} survived the dark` : 'The heart is broken — he is not', 3);
     UI.log('Dagyr sheds his crown. <b>APOCALYPSE</b> will scour the arena: get into a glowing circle when it comes.', '#ffb0a0');
     addEffect(new Ring(m.x, m.y, 0.3, 7, 1, '#ff2000', 8)); sfx('roar'); sfx('boss');
@@ -457,12 +526,11 @@ class DagyrFight {
   startChains() {
     const m = this.m, w = this.world;
     const again = this.bound; // the Unbound Chains: a second binding at 5%
-    this.bound = true; this.phase = 6; this.gate = again ? 0.05 : 0.1;
+    this.bound = true; this.phase = 6; this.p6t = 0; this.gate = again ? 0.05 : 0.1;
     if (again) this.bound2 = true;
     this.hold = true; m.invuln = 1e9; m.targetable = false;
     UI.centerMsg(again ? 'THE UNBOUND CHAINS' : 'BOUND TO THE OBELISKS', again ? 'The obelisks rise again — break them!' : 'Break the four obelisks!', 3);
     UI.log(again ? 'The chains will not stay broken: Dagyr binds himself to four fresh obelisks.' : 'Dagyr chains himself to the four obelisks and drinks their strength. Break them all.', '#ffd0a0');
-    if (G.room && !G.game?.isDungeonAuthority(w.depth)) return;
     for (let i = 0; i < OBELISKS.length; i++) {
       const [ox, oy] = OBELISKS[i];
       const [x, y] = w.map.nudge(ox + 0.5 + Math.sign(C.x - ox) * 1.2, oy + 0.5 + Math.sign(C.y - oy) * 1.2, 0.45);
@@ -474,7 +542,8 @@ class DagyrFight {
     }
   }
   p6(dt) {
-    if (this.parts.some((c) => c.vk === 'obelisk' && !c.dead)) return;
+    this.p6t = (this.p6t || 0) + dt;
+    if (this.parts.some((c) => c.vk === 'obelisk' && !c.dead) || this.p6t < 0.5) return;
     const more = this.unbound && !this.bound2; // Dagyr Unbound binds himself once more at 5%
     this.hold = false; this.m.invuln = 0; this.m.targetable = true; this.gate = more ? 0.05 : 0;
     this.phase = 5;

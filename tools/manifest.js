@@ -4,6 +4,9 @@ const crypto = require('crypto');
 
 const RUNTIME_ITEMS = [
   'index.html',
+  'home.html',
+  'bestiary.html',
+  'classes.html',
   'manifest.webmanifest',
   'assets',
   'css',

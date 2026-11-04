@@ -7,6 +7,7 @@ import { TAB_SLOTS } from '../data/tabs.js';
 import { newMacros, migrateMacros } from '../data/macros.js';
 import { fixBag, fixGemBag, fixStash, fixJewelBox } from '../data/bag.js';
 import { stashRaw, listRaw } from './herobackup.js';
+import { FINAL_DEPTH } from '../data/depth.js';
 
 const KEY = 'Dagyr_saves_v1';
 const ASIDE = KEY + '_unreadable_';   // + time: save data that couldn't be read, set aside before anything replaced it
@@ -162,6 +163,8 @@ export function newCharData(classId, name) {
 
 /** Fill in fields added by later versions. */
 export function migrate(c) {
+  if (typeof c.depth === 'number' && c.depth > FINAL_DEPTH) c.depth = FINAL_DEPTH;
+  if (typeof c.deepest === 'number' && c.deepest > FINAL_DEPTH) c.deepest = FINAL_DEPTH;
   c.potions = Object.assign({ hp: 0, mp: 0, rejuv: 0, fury: 0 }, c.potions);
   c.cleared = c.cleared || {};
   c.seaOfSandRuns = c.seaOfSandRuns || {};

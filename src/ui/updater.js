@@ -886,7 +886,7 @@ export function showUpdateDialog(updateInfo) {
       <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap;">
         <button class="btn" data-cancel style="padding:8px 14px;font-size:12px;">Dismiss</button>
         ${apkFallbackBtnHtml}
-        <button class="btn big" data-update style="padding:10px 18px;font-size:13px;background:linear-gradient(180deg,#593e28 0%,#2e1c10 100%);color:#fff0a0;border-color:#ffd34a;box-shadow:0 0 12px rgba(255,211,74,0.35);">
+        <button class="btn big" data-update style="padding:10px 18px;font-size:13px;background:linear-gradient(180deg,#592828 0%,#2e1c10 100%);color:#fff0a0;border-color:#ffd34a;box-shadow:0 0 12px rgba(255,211,74,0.35);">
           ${actionBtnText}
         </button>
       </div>

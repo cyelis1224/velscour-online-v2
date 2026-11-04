@@ -1332,8 +1332,10 @@ export const GameChat = {
   },
 
   show() {
+    if (G.cine) return;
     if (!this.container) this.init();
     this.container.classList.remove('hidden');
+    if (this.landscapeHandleEl) this.landscapeHandleEl.classList.remove('hidden');
     this.applyDesktopMode();
     if (this.isPortraitMobile()) {
       this.toggleMinimize(true);
@@ -1349,6 +1351,7 @@ export const GameChat = {
 
   hide() {
     if (this.container) this.container.classList.add('hidden');
+    if (this.landscapeHandleEl) this.landscapeHandleEl.classList.add('hidden');
     if (this.landscapeBackdropEl) {
       this.landscapeBackdropEl.classList.remove('visible');
       this.landscapeBackdropEl.classList.add('hidden');

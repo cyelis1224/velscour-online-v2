@@ -59,15 +59,37 @@ export const Cine = {
     if (this.active) { this.steps.push(...steps); if (onEnd) { const prev = this.onEnd; this.onEnd = () => { prev && prev(); onEnd(); }; } return; }
     this.active = true; G.cine = true; this.steps = steps.slice(); this.i = 0; this.t = 0; this.onEnd = onEnd; this.line = null; this.card = null;
     this.zoom0 = baseZoom(); this.back = null; this.cam = null;
+    if (G.gameChat) G.gameChat.hide();
+    if (G.player) {
+      G.player.moveVec = [0, 0];
+      G.player.moveTarget = null;
+      G.player.path = null;
+      G.player.attackTarget = null;
+      G.player.interact = null;
+      G.player.moving = false;
+    }
   },
   stop() {
     this.active = false; G.cine = false; this.fast = false; this.steps = []; this.line = null; this.card = null; this.cam = null;
     this.back = { t: 0, z0: camera.zoom };   // ease the zoom home (game.js's camera.follow brings the frame back to the hero)
+    if (G.gameChat) G.gameChat.show();
+    if (G.player) {
+      G.player.moveVec = [0, 0];
+      G.player.moveTarget = null;
+      G.player.path = null;
+    }
     const f = this.onEnd; this.onEnd = null; if (f) f();
   },
   /** Drop a scene without its ending: the hero left the world it played in (else its camera and hidden HUD follow
    *  him to town, which then draws black). */
-  abort() { this.onEnd = null; if (this.active) this.stop(); this.back = null; camera.computeZoom(); this.bars = 0; },
+  abort() {
+    this.onEnd = null;
+    if (this.active) this.stop();
+    this.back = null;
+    camera.computeZoom();
+    this.bars = 0;
+    if (G.gameChat) G.gameChat.show();
+  },
   update(dt) {
     dt *= this.speed;
     this.bars = clamp(this.bars + (this.active ? dt : -dt) * 2.5, 0, 1);

@@ -6,8 +6,8 @@ export const FINAL_DEPTH = 500;
 /** The hero level cap (game/player.js re-exports it): no item asks for more (data/items.js rollItem). */
 export const MAX_LEVEL = 100;
 export const depthLevel = (d) => {
-  if (d <= 40) return Math.max(1, d);
-  if (d <= FINAL_DEPTH) return Math.min(MAX_LEVEL, Math.round(40 + 60 * Math.pow((d - 40) / (FINAL_DEPTH - 40), 0.78)));
+  if (d <= 30) return Math.max(1, d);
+  if (d <= FINAL_DEPTH) return Math.min(MAX_LEVEL, Math.round(30 + 70 * Math.pow((d - 30) / (FINAL_DEPTH - 30), 0.85)));
   return Math.min(120, MAX_LEVEL + Math.floor((d - FINAL_DEPTH) / 25));
 };
 /** Every fifth depth but the last ends in a BOSS ROOM. */
@@ -30,12 +30,12 @@ export function logCurve(T, x) {
   }
   return T[T.length - 1][1];
 }
-/** Monster life multiplier by monster level: unified 1:1 polynomial curve in monsterBase. */
-export const toughness = (_lvl) => 1;
+/** Monster life multiplier by monster level: smooth power curve back-loaded to keep early levels gentle while challenging high-level builds. */
+export const toughness = (lvl) => (lvl <= 10 ? 1 : 1 + Math.pow((lvl - 10) / 90, 1.5) * 6.5);
 /** Abyssal Rifts hold multiplier: 1.0 on the unified 1-100 scale. */
 export const riftHold = (_lvl) => 1;
-/** Monster damage multiplier by monster level: unified 1:1 polynomial curve in monsterBase. */
-export const danger = (_lvl) => 1;
+/** Monster damage multiplier by monster level: maintains meaningful incoming hit threat against player life pools without early one-shots. */
+export const danger = (lvl) => (lvl <= 10 ? 1 : 1 + Math.pow((lvl - 10) / 90, 1.4) * 2.2);
 /** Monster packs per room area by depth (world/dungeon.js). */
 export const density = (d) => 1 + Math.min(d, 120) * 0.006;
 const OLD_DENSITY = (d) => 1.1 + Math.min(d, 120) * 0.013;

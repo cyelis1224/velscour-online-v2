@@ -3,16 +3,19 @@ import { G, saveSettings } from '../state.js';
 import { camera } from '../core/view.js';
 import { el, escapeHtml, fmtInt } from '../core/util.js';
 import { sfx, applyVolumes, initAudio } from '../core/audio.js';
-import { CLASS_IDS, A } from '../core/assets.js';
+import { CLASS_IDS, A, classSprite } from '../core/assets.js';
 import { CLASSES, ACTIVE_CLASS_IDS, ATTRS } from '../data/classes.js';
 import { UI, $ } from './ui.js';
 import { listSaves, heroesByClass, deleteClassSaves, classSaves, writeSave, savesReadable, unreadableSaves } from '../game/save.js';
 import { backupHeroes, listBackups } from '../game/herobackup.js';
 import { heroCanvas, excitable, preloadPortraits } from './heroanim.js';
-import { savedGearPreview } from '../core/gearart.js';
+import { savedGearPreview, heroPortrait, heroLook } from '../core/gearart.js';
+import { heldPortraitArgs } from '../gfx/heldart.js';
 import { attachTitleFx } from './titlefx.js';
 import { creditsScreen } from './credits.js';
-import { RARITY, shownEquip } from '../data/items.js';
+import { RARITY, shownEquip, SLOTS, SLOT_NAMES } from '../data/items.js';
+import { DOLL } from './inventory.js';
+import { itemCell, rarityClass, itemTooltip } from './itemui.js';
 import { FILTER_ROWS, lootFilter } from '../game/lootfilter.js';
 import { Cloud } from '../game/cloud.js';
 import { initTitleUpdater, checkForUpdates, showUpdateDialog, compareVersions, CLIENT_VERSION, getClientVersion, hardReload } from './updater.js';
@@ -93,6 +96,8 @@ export function titleScreen() {
     onlineBtn.id = 'title-online-btn';
 
     add('Settings', settingsDialog, 'btn');
+    add('Classes', () => window.open('classes.html', '_blank'), 'btn');
+    add('Bestiary', () => window.open('bestiary.html', '_blank'), 'btn');
     add('Credits', () => creditsScreen(titleScreen), 'btn');
     add('How to Play', helpDialog, 'btn');
   };
@@ -537,47 +542,91 @@ export function onlineCharSelectScreen(selectedCharId = null, back = titleScreen
 
   const s = el('div', 'screen class-screen online-char-screen');
 
-  // Top Header with Account Info & Logout
+  // Top Header with Title and Red Back Button (top right)
   const topBar = el('div', 'online-roster-topbar');
   topBar.innerHTML = `
     <div class="online-roster-heading">
       <h2 class="screen-title">ONLINE CHARACTERS <small id="online-char-count">${chars.length} ${chars.length === 1 ? 'Hero' : 'Heroes'}</small></h2>
     </div>
+    <button type="button" class="btn red d2-btn-quit" id="online-roster-back-btn">Back</button>
+  `;
+  s.appendChild(topBar);
+
+  const backBtn = topBar.querySelector('#online-roster-back-btn');
+  backBtn.onclick = () => {
+    sfx('ui');
+    back();
+  };
+
+  // Main Layout: Left (Characters Grid) + Right (Character Info & Equipment Panel)
+  const mainLayout = el('div', 'online-roster-main');
+  const leftCol = el('div', 'online-roster-left');
+  const grid = el('div', 'class-grid online-char-grid');
+  leftCol.appendChild(grid);
+
+  const rightCol = el('div', 'online-roster-right');
+  const detailPanel = el('div', 'online-char-detail-panel');
+  rightCol.appendChild(detailPanel);
+
+  mainLayout.append(leftCol, rightCol);
+  s.appendChild(mainLayout);
+
+  // Bottom Footer with Account Info & Logout in bottom right
+  const footer = el('div', 'online-roster-footer');
+  footer.innerHTML = `
     <div class="online-account-bar">
       <span class="online-account-email" title="Logged in account">Account: <b>${escapeHtml(acc ? acc.email : '')}</b></span>
       <button type="button" class="btn small" id="online-logout-btn">Log Out</button>
     </div>
   `;
-  s.appendChild(topBar);
+  s.appendChild(footer);
 
-  const logoutBtn = topBar.querySelector('#online-logout-btn');
+  const logoutBtn = footer.querySelector('#online-logout-btn');
   logoutBtn.onclick = async () => {
     sfx('ui');
     await logoutOnlineAccount();
     onlineAuthScreen('login', back);
   };
 
-  const grid = el('div', 'class-grid online-char-grid');
-  const info = el('div', 'class-info');
-  const bigBox = el('div', 'class-big');
-  const initialClass = (chars.find(c => c.id === selId)?.classId) || 'paladin';
-  const big = heroCanvas(initialClass, 'hero-cv');
-  bigBox.appendChild(big.canvas);
-  const text = el('div', 'class-text');
-  info.append(bigBox, text);
-
-  const row = el('div', 'row online-roster-actions');
-  row.style.justifyContent = 'center';
-  row.style.margin = '6px 0 14px';
-
-  const backBtn = el('button', 'btn', 'Back');
-  backBtn.id = 'online-roster-back-btn';
-  const createBtn = el('button', 'btn', '+ Create Character');
-  createBtn.id = 'online-create-char-btn';
-  const delBtn = el('button', 'btn red', 'Delete Character');
-  delBtn.id = 'online-delete-char-btn';
-  const playBtn = el('button', 'btn big', 'Enter Lobby');
+  const playBtn = el('button', 'btn big online-enter-btn', 'Enter Lobby');
   playBtn.id = 'online-enter-lobby-btn';
+  const delBtn = el('button', 'btn red online-delete-btn', 'Delete Character');
+  delBtn.id = 'online-delete-char-btn';
+
+  const actions = el('div', 'online-detail-actions');
+  actions.append(playBtn, delBtn);
+  rightCol.appendChild(actions);
+
+  const enterSelectedLobby = () => {
+    const selChar = chars.find(c => c.id === selId);
+    if (!selChar) return;
+    sfx('ui');
+    G.game.selectAndEnterLobby(selChar, false, () => onlineCharSelectScreen(selChar.id, back));
+  };
+
+  playBtn.onclick = enterSelectedLobby;
+
+  delBtn.onclick = () => {
+    const selChar = chars.find(c => c.id === selId);
+    if (!selChar) return;
+    sfx('ui');
+    const C = CLASSES[selChar.classId] || { name: 'Hero' };
+    UI.confirm(
+      'Delete Online Character?',
+      `Permanently delete <b>${escapeHtml(selChar.name)}</b> (Level ${selChar.level || 1} ${escapeHtml(C.name)}) from your account? This frees the name "${escapeHtml(selChar.name)}" and cannot be undone.`,
+      async () => {
+        try {
+          const res = await deleteOnlineCharacter(selChar.id);
+          chars = res.characters.filter(c => c && ACTIVE_CLASS_IDS.includes(c.classId));
+          selId = chars[0] ? chars[0].id : null;
+          renderRoster();
+        } catch (err) {
+          UI.dialog({ title: 'Delete Failed', html: `<p>${escapeHtml(err.message || 'Could not delete character.')}</p>`, buttons: [{ label: 'OK' }] });
+        }
+      },
+      'Delete'
+    );
+  };
 
   const showCharGear = (charObj, anim) => {
     if (!charObj || !charObj.equip) return;
@@ -647,74 +696,89 @@ export function onlineCharSelectScreen(selectedCharId = null, back = titleScreen
       card.classList.toggle('sel', id === selId);
     }
     const selChar = chars.find(c => c.id === selId) || null;
+    detailPanel.innerHTML = '';
+
     if (!selChar) {
-      bigBox.style.display = 'none';
-      text.innerHTML = `
-        <h2>No Online Characters Yet</h2>
-        <p>Your account currently has no characters on the realm. Click <b>+ Create Character</b> to forge a new hero and claim your unique character name.</p>
-        <p class="dim">You can create multiple characters of any class, all stored and protected on the server under your account.</p>
+      detailPanel.innerHTML = `
+        <div class="online-detail-header">
+          <h2 class="online-char-name">No Online Characters Yet</h2>
+          <p>Your account currently has no characters on the realm. Click the <b>+ New Character</b> card on the left to forge a new hero and claim your unique character name.</p>
+          <p class="dim">You can create multiple characters of any class, all stored and protected on the server under your account.</p>
+        </div>
       `;
       delBtn.disabled = true;
       playBtn.disabled = true;
       return;
     }
 
-    bigBox.style.display = '';
-    const C = CLASSES[selChar.classId] || CLASSES.paladin;
-    big.setId(selChar.classId);
-    showCharGear(selChar, big);
-    const slots = { weapon: 'Weapon', offhand: 'Offhand', body: 'Armor', head: 'Helm', hands: 'Gloves', legs: 'Legs', feet: 'Boots', ring1: 'Ring I', ring2: 'Ring II', ring3: 'Ring III', ring4: 'Ring IV' };
-    const gear = selChar.equip ? Object.entries(slots).filter(([slot]) => selChar.equip[slot])
-      .map(([slot, label]) => '<span><b>' + label + ':</b> ' + escapeHtml(selChar.equip[slot].name || selChar.equip[slot].base || 'Equipped') + '</span>').join('') : '';
-
-    text.innerHTML = `
-      <h2>${escapeHtml(selChar.name)}</h2>
-      <p><b style="color:#ffd34a">Level ${selChar.level || 1} ${escapeHtml(C.name)}</b> · Depth ${selChar.depth || 1} · Deepest ${selChar.deepest || 0} · ${fmtInt(selChar.gold || 0)} gold</p>
-      <p>${escapeHtml(C.desc)}</p>
-      <p class="dim">Skill trees: <b style="color:#e9dcc4">${C.trees.join(' · ')}</b><br>Primary attribute: <b style="color:#ffd34a">${ATTRS[C.primary].name}</b> · Life ${C.life} · Mana ${C.mana}</p>
-      ${gear ? '<div class="class-gear-summary" aria-label="Saved equipped gear">' + gear + '</div>' : ''}
-    `;
     delBtn.disabled = false;
     playBtn.disabled = false;
+    const C = CLASSES[selChar.classId] || CLASSES.paladin;
+
+    // Header info
+    const header = el('div', 'online-detail-header');
+    header.innerHTML = `
+      <h2 class="online-char-name">${escapeHtml(selChar.name)}</h2>
+      <div class="online-char-meta">
+        <b style="color:#ffd34a">Level ${selChar.level || 1} ${escapeHtml(C.name)}</b>
+        · Depth ${selChar.depth || 1} · Deepest ${selChar.deepest || 0} · <span style="color:#ffd34a">${fmtInt(selChar.gold || 0)} gold</span>
+      </div>
+      <p class="online-char-lore">${escapeHtml(C.desc)}</p>
+      <div class="online-char-stats dim">
+        Skill trees: <b style="color:#e9dcc4">${C.trees.join(' · ')}</b><br>
+        Primary attribute: <b style="color:#ffd34a">${ATTRS[C.primary].name}</b> · Life ${C.life} · Mana ${C.mana}
+      </div>
+    `;
+    detailPanel.appendChild(header);
+
+    // Equipment Paperdoll Section
+    const equipSection = el('div', 'online-detail-equip');
+    const titleRow = el('div', 'inv-section-title');
+    titleRow.appendChild(el('div', 'inv-title-label', 'Equipment'));
+    equipSection.appendChild(titleRow);
+
+    const doll = el('div', 'paperdoll online-char-paperdoll');
+
+    // Paperdoll center portrait
+    const portrait = el('div', 'portrait');
+    const img = new Image();
+    const eq = shownEquip(selChar);
+    const look = heroLook(selChar.classId, eq?.body, eq?.head);
+    const held = heldPortraitArgs(look, selChar.classId, eq);
+    const pCv = heroPortrait(selChar.classId, eq?.body, eq?.head, 130, 260, ...held) || classSprite(selChar.classId, 260);
+    if (pCv) {
+      img.src = pCv.toDataURL();
+    }
+    portrait.appendChild(img);
+    portrait.style.gridColumn = '3';
+    portrait.style.gridRow = '3 / span 2';
+    doll.appendChild(portrait);
+
+    savedGearPreview(selChar.classId, eq?.body, eq?.head, eq?.weapon, eq?.offhand).then(art => {
+      if (!art || !s.isConnected || selId !== selChar.id) return;
+      const updated = heroPortrait(selChar.classId, eq?.body, eq?.head, 130, 260, ...held);
+      if (updated) img.src = updated.toDataURL();
+    });
+
+    // 11 Equipment Slots
+    for (const sKey of SLOTS) {
+      const it = selChar.equip ? selChar.equip[sKey] : null;
+      const slotEl = el('div', 'eslot ' + rarityClass(it));
+      const [cx, cy] = DOLL[sKey];
+      slotEl.style.gridColumn = cx;
+      slotEl.style.gridRow = cy;
+      if (it) {
+        slotEl.appendChild(itemCell(it));
+        UI.tip(slotEl, () => itemTooltip(it));
+      } else {
+        slotEl.appendChild(el('span', 'lbl', SLOT_NAMES[sKey] || sKey));
+      }
+      doll.appendChild(slotEl);
+    }
+    equipSection.appendChild(doll);
+    detailPanel.appendChild(equipSection);
   };
 
-  const enterSelectedLobby = () => {
-    const selChar = chars.find(c => c.id === selId);
-    if (!selChar) return;
-    sfx('ui');
-    G.game.selectAndEnterLobby(selChar, false, () => onlineCharSelectScreen(selChar.id, back));
-  };
-
-  backBtn.onclick = () => { sfx('ui'); back(); };
-  createBtn.onclick = () => {
-    sfx('ui');
-    onlineCreateCharScreen(() => onlineCharSelectScreen(selId, back));
-  };
-  delBtn.onclick = () => {
-    const selChar = chars.find(c => c.id === selId);
-    if (!selChar) return;
-    sfx('ui');
-    const C = CLASSES[selChar.classId] || { name: 'Hero' };
-    UI.confirm(
-      'Delete Online Character?',
-      `Permanently delete <b>${escapeHtml(selChar.name)}</b> (Level ${selChar.level || 1} ${escapeHtml(C.name)}) from your account? This frees the name "${escapeHtml(selChar.name)}" and cannot be undone.`,
-      async () => {
-        try {
-          const res = await deleteOnlineCharacter(selChar.id);
-          chars = res.characters.filter(c => c && ACTIVE_CLASS_IDS.includes(c.classId));
-          selId = chars[0] ? chars[0].id : null;
-          renderRoster();
-        } catch (err) {
-          UI.dialog({ title: 'Delete Failed', html: `<p>${escapeHtml(err.message || 'Could not delete character.')}</p>`, buttons: [{ label: 'OK' }] });
-        }
-      },
-      'Delete'
-    );
-  };
-  playBtn.onclick = enterSelectedLobby;
-
-  row.append(backBtn, createBtn, delBtn, playBtn);
-  s.append(grid, info, row);
   renderRoster();
   show(s);
 
@@ -1048,7 +1112,7 @@ export function victoryScreen(onContinue) {
   s.innerHTML = `<img class="title-logo" src="assets/ui/logo.webp" style="max-height:28vh"><div class="death-title" style="color:#ffb030;text-shadow:0 0 30px #f80">DAGYR HAS FALLEN</div>
   <p style="font-size:18px;text-align:center;max-width:620px;padding:0 12px">${escapeHtml(c.name)} the ${CLASSES[c.classId].name} has slain the Demon Lord at the bottom of the world.</p>
   <p class="dim">Level ${c.level} · ${fmtInt(c.kills || 0)} kills · ${c.deaths || 0} deaths</p>
-  <p class="dim" style="text-align:center;max-width:560px">The abyss stirs still. Endless Torment depths beyond 500 now await the truly mad.</p>`;
+  <p class="dim" style="text-align:center;max-width:560px">Demon Lord Dagyr is defeated. Return through the throne portal to Herrington Hollow.</p>`;
   const b = el('button', 'btn big', 'Continue');
   b.onclick = () => { sfx('ui'); hide(); onContinue(); };
   s.appendChild(b);
@@ -1270,6 +1334,8 @@ export function pauseMenu() {
       { label: 'Resume' },
       { label: 'Settings', fn: settingsDialog },
       { label: 'Macros', fn: () => G.ui.macros.open() },
+      { label: 'Classes', fn: () => window.open('classes.html', '_blank') },
+      { label: 'Bestiary', fn: () => window.open('bestiary.html', '_blank') },
       { label: 'How to Play', fn: helpDialog },
       {
         label: 'Save & Quit',

@@ -92,7 +92,11 @@ export class Monster extends Creature {
   deal(target, amount, el, o = {}) {
     const d = hit(this, target, amount, el, o);
     if (d > 0) {
-      if (this.affixes && this.affixes.includes('vampiric')) this.heal(d * 0.3);
+      if (this.affixes && this.affixes.includes('vampiric') && this.rank !== 'boss') {
+        const cap = (monsterBase(this.level || 1).hp || 100) * 0.01;
+        const targetMul = target.isPlayer ? 1 : 0.2; // hitting player pets/summons gives heavily reduced drain
+        this.heal(Math.min(d * 0.08 * targetMul, cap));
+      }
       const th = this.curses.thorns;
       if (th && th.t > 0) hit(th.src, this, d * th.amt / 100 * (target.isPlayer ? dmgScale(this.level || 1) : 1), 'phys', { dot: true, crit: false }); // a blow on the hero is on the life scale (combat.js thorns)
       if (this.leech && this.owner) leechHeal(this.owner, target, d, this.leech * 0.15);
@@ -100,7 +104,8 @@ export class Monster extends Creature {
     return d;
   }
 
-  onDamaged(src) {
+  onDamaged(src, dmg) {
+    this.regenSuppress = 6.0; // Taking direct damage suppresses regeneration for 6 seconds
     if (!this.affixes) return;
     if (this.affixes.includes('shocking') && (this.shockCd || 0) <= 0) {
       this.shockCd = 1.2;
@@ -140,6 +145,7 @@ export class Monster extends Creature {
     const w = this.world;
     this.animT += dt;
     this.lifeT += dt;
+    if (this.regenSuppress > 0) this.regenSuppress -= dt;
     if (this.shockCd > 0) this.shockCd -= dt;
     if (this.thornCd > 0) this.thornCd -= dt;
     if (this.invuln > 0) this.invuln -= dt;
@@ -151,7 +157,19 @@ export class Monster extends Creature {
     const ch = this.curses.charm;
     if (ch && ch.t <= 0 && ch.team) { this.team = ch.team; ch.team = null; this.aggro = null; }
     if (this.partyBuff && (this.partyBuff.t -= dt) <= 0) this.partyBuff = null;
-    if (this.affixes && this.affixes.includes('regen')) this.heal(this.maxHp * 0.02 * dt);
+
+    // Regeneration: suppressed for 6s after taking hits; DoTs (burn, poison, bleed) keep it suppressed for 3s
+    const hasDot = (this.status.burn && this.status.burn.t > 0) ||
+                   (this.status.poison && this.status.poison.t > 0) ||
+                   (this.status.bleed && this.status.bleed.t > 0);
+    if (hasDot) this.regenSuppress = Math.max(this.regenSuppress || 0, 3.0);
+
+    // Only non-boss monsters with 'regen' affix regenerate, and ONLY when completely out of combat (regenSuppress <= 0)
+    if (this.affixes && this.affixes.includes('regen') && !(this.regenSuppress > 0) && this.hp < this.maxHp && this.rank !== 'boss') {
+      const capPerSec = (monsterBase(this.level || 1).hp || 100) * 0.01;
+      const healAmt = Math.min(this.maxHp * 0.001, capPerSec) * dt;
+      this.heal(healAmt);
+    }
     if (this.affixes && this.affixes.includes('frozen') && w.player) {
       const p = w.player;
       if (dist(this.x, this.y, p.x, p.y) < 3) p.status.chill = { t: 0.5, amt: 0.3 };
@@ -1391,24 +1409,25 @@ export function makeElite(m, rank, depth, world, rnd = Math.random) {
   m.rank = rank;
   const keys = Object.keys(ELITE_AFFIXES).filter((k) => k !== 'multishot' || ['ranged', 'caster'].includes(m.ai));
   if (rank === 'champion') {
-    m.maxHp *= 3; m.dmg *= 1.4; m.xp *= 3; m.aura = '#4a8aff'; m.scale = 1.15;
+    m.maxHp *= 3.5; m.dmg *= 1.35; m.xp *= 3.5; m.aura = '#4a8aff'; m.scale = 1.15;
     m.affixes = shuffle(keys, rnd).slice(0, depth > 40 ? 2 : 1);
     m.name = 'Champion ' + m.name;
   } else if (rank === 'unique') {
-    m.maxHp *= 5; m.dmg *= 1.6; m.xp *= 6; m.aura = '#ffb030'; m.scale = 1.3;
+    m.maxHp *= 6; m.dmg *= 1.5; m.xp *= 7; m.aura = '#ffb030'; m.scale = 1.3;
     m.affixes = shuffle(keys, rnd).slice(0, depth > 50 ? 3 : 2);
     m.name = uniqueName(rnd);
     if (m.art) m.swap = uniqueSwap(rnd);
   } else if (rank === 'boss') {
     const vel = m.arch === 'Dagyr' || m.arch === 'dagyr' || m.arch === 'velscour';
     if (vel) { m.art = 'va_Dagyr'; m.artH = 94; m.swap = null; }
-    // Dagyr: the final fight (was 40x, less than a plain depth-500 guardian)
-    // a guardian is 10-22 plain normals whatever its build (a brute archetype's own bulk counts only partly)
-    m.maxHp *= vel ? DAGYR_HP : (10 + Math.min(depth, 120) / 10) / Math.pow(Math.max(1, ARCH[m.arch]?.hp || 1), 0.7); m.dmg *= vel ? 2.8 : 1.9; m.xp *= vel ? 200 : 25;
+    // Dagyr: final encounter (~120x normal monster life after HP_MUL)
+    // Floor Guardians: scales smoothly from 6x at depth 1 up to ~38x at depth 500
+    const fgMul = 6 + Math.pow(Math.min(depth, 500) / 500, 0.75) * 32;
+    m.maxHp *= vel ? DAGYR_HP : fgMul / Math.pow(Math.max(1, ARCH[m.arch]?.hp || 1), 0.7); m.dmg *= vel ? 2.8 : 1.7; m.xp *= vel ? 200 : 25;
     m.aura = vel ? '#ff2000' : '#ff4020';
     m.scale = vel ? 1.6 : 1.9; m.r *= vel ? 1 : 1.6;
     m.ai = 'boss';
-    m.affixes = depth > 20 && !vel ? shuffle(keys.filter((k) => !['teleport', 'multishot', 'fast'].includes(k)), rnd).slice(0, 1) : [];
+    m.affixes = depth > 20 && !vel ? shuffle(keys.filter((k) => !['teleport', 'multishot', 'fast', 'regen', 'vampiric'].includes(k)), rnd).slice(0, 1) : [];
     m.name = vel ? 'DEMON LORD DAGYR' : (ARCH[m.arch]?.bossName || bossName(rnd));
     m.isDagyr = vel;
     const base = ['slam', 'nova', 'volley', 'charge', 'summon', 'meteor', 'spiral', 'beam'];

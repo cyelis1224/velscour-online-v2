@@ -25,7 +25,7 @@ import { heresyRankOf } from '../game/heresies.js';
 import { endgameUnlocked } from '../game/endgame.js';
 import { sparkle, floatText } from '../gfx/vfx.js';
 
-const DOLL = { head: [2, 1], weapon: [1, 2], body: [2, 2], offhand: [3, 2], hands: [1, 3], legs: [2, 3], feet: [2, 4], ring1: [4, 1], ring2: [4, 2], ring3: [4, 3], ring4: [4, 4] };
+export const DOLL = { head: [2, 1], weapon: [1, 2], body: [2, 2], offhand: [3, 2], hands: [1, 3], legs: [2, 3], feet: [2, 4], ring1: [4, 1], ring2: [4, 2], ring3: [4, 3], ring4: [4, 4] };
 
 export function getItem(ref) {
   const c = G.char;

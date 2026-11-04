@@ -107,7 +107,7 @@ button {
   font-weight: 700;
   letter-spacing: 1px;
   color: var(--gold-bright);
-  background: linear-gradient(#3a2414, #1c0f08);
+  background: linear-gradient(#3a1414, #1c0f08);
   border: 2px solid var(--gold-dim);
   border-radius: 4px;
   padding: 8px 18px;
@@ -120,7 +120,7 @@ button {
 .btn:hover {
   border-color: var(--gold);
   color: #fff;
-  background: linear-gradient(#5a3418, #24120a);
+  background: linear-gradient(#5a1818, #24120a);
 }
 
 .btn:active {
@@ -1068,6 +1068,74 @@ body.touch .class-gauge #smite-text {
   background: linear-gradient(color-mix(in srgb, var(--rc) 55%, #0a0604), #0a0604);
 }
 
+/* 3D Card Flip for the won tile */
+.rv-flip-tile {
+  perspective: 700px;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.rv-card-flipper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transition: transform 0.52s cubic-bezier(0.34, 1.45, 0.64, 1);
+}
+
+.rv-card-flipper.flipped {
+  transform: rotateY(180deg);
+}
+
+.rv-card-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-sizing: border-box;
+}
+
+.rv-card-front {
+  transform: rotateY(0deg);
+  background: linear-gradient(color-mix(in srgb, var(--rc) 28%, #0a0604), #0a0604);
+}
+
+.rv-card-back {
+  transform: rotateY(180deg);
+  background: linear-gradient(color-mix(in srgb, var(--rc) 60%, #0a0604), #0a0604);
+  box-shadow: inset 0 0 16px color-mix(in srgb, var(--rc) 80%, transparent), 0 0 10px var(--rc);
+}
+
+.rv-tile.won .rv-card-back {
+  background: linear-gradient(color-mix(in srgb, var(--rc) 70%, #0a0604), #0a0604);
+  box-shadow: inset 0 0 20px color-mix(in srgb, var(--rc) 90%, transparent), 0 0 16px var(--rc);
+}
+
+.rv-result:not(:empty) {
+  animation: rvFadeIn 0.35s ease-out forwards;
+}
+
+.rv-btns:not(:empty) {
+  animation: rvFadeIn 0.35s ease-out forwards;
+}
+
+@keyframes rvFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .rv-marker {
   position: absolute;
   left: 50%;
@@ -1133,6 +1201,24 @@ body.touch .rv-gem {
   height: 20px;
 }
 
+body.touch .rv-card-face {
+  gap: 1px;
+}
+
+body.touch .rv-card-face img {
+  width: 34px;
+  height: 34px;
+}
+
+body.touch .rv-card-face b {
+  font-size: 8px;
+}
+
+body.touch .rv-card-face .rv-gem {
+  width: 20px;
+  height: 20px;
+}
+
 body.touch .rv-result {
   font-size: 11px;
   margin-top: 6px;
@@ -1167,7 +1253,7 @@ body.touch .rv-btns {
   cursor: pointer;
   border: 2px solid #4a3420;
   border-radius: 8px;
-  background: radial-gradient(ellipse at 50% 22%, color-mix(in srgb, var(--pc) 30%, transparent), #120a06 70%);
+  background: radial-gradient(ellipse at 50% 22%, color-mix(in srgb, var(--pc) 30%, transparent), #120606 70%);
   color: var(--text);
   font: 400 12px var(--font-body);
   transition: transform .12s, border-color .12s;
@@ -2129,7 +2215,11 @@ body.touch #sealed-btn i {
 }
 
 /* level-up banner */
-body.at-sea #levelup { top: 31%; } /* the Pirate Seas: the top band is the scenario pressure */
+body.at-sea #levelup {
+  top: 31%;
+}
+
+/* the Pirate Seas: the top band is the scenario pressure */
 #levelup {
   position: absolute;
   top: 9%;
@@ -4021,16 +4111,6 @@ body.touch .reliquary-panel .codex-cell {
   pointer-events: none;
 }
 
-.title-eyes {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  pointer-events: none;
-  image-rendering: pixelated;
-}
-
 .title-logo.intro {
   position: relative;
   z-index: 1;
@@ -4043,7 +4123,7 @@ body.touch .reliquary-panel .codex-cell {
 .title-screen .title-menu,
 .title-screen .title-foot {
   z-index: 3;
-  transition: opacity .9s ease-out;
+  transition: opacity .4s ease-out;
 }
 
 .title-screen:not(.title-lit) .title-tag,
@@ -4152,7 +4232,7 @@ body.touch .reliquary-panel .codex-cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, rgba(42, 28, 16, 0.95) 0%, rgba(20, 14, 10, 0.95) 100%);
+  background: linear-gradient(180deg, rgba(42, 16, 16, 0.95) 0%, rgba(20, 14, 10, 0.95) 100%);
   border: 1px solid #ffd34a;
   border-radius: 4px;
   color: #ffd860;
@@ -4466,7 +4546,7 @@ body.touch .reliquary-panel .codex-cell {
 
 .name-input {
   font: 700 16px var(--font-head);
-  background: #120a06;
+  background: #120606;
   border: 2px solid var(--gold-dim);
   color: var(--gold-bright);
   padding: 8px 10px;
@@ -4620,7 +4700,7 @@ body.touch .reliquary-panel .codex-cell {
   padding: 9px 12px;
   border: 2px solid var(--gold-dim);
   border-radius: 4px;
-  background: #120a06;
+  background: #120606;
   color: var(--gold-bright);
   font: 700 15px var(--font-head);
 }
@@ -4998,7 +5078,7 @@ body.touch .credits-event {
 .loading-backdrop {
   position: absolute;
   inset: 0;
-  background-image: 
+  background-image:
     radial-gradient(1px 1px at 20px 30px, rgba(255, 140, 40, 0.25), rgba(0, 0, 0, 0)),
     radial-gradient(1.5px 1.5px at 150px 80px, rgba(255, 80, 20, 0.3), rgba(0, 0, 0, 0)),
     radial-gradient(1px 1px at 280px 220px, rgba(255, 200, 80, 0.2), rgba(0, 0, 0, 0));
@@ -5012,7 +5092,7 @@ body.touch .credits-event {
   width: min(540px, 92vw);
   background: rgba(14, 7, 5, 0.94);
   border: 1px solid rgba(196, 139, 54, 0.45);
-  box-shadow: 
+  box-shadow:
     0 0 50px rgba(0, 0, 0, 0.9),
     0 0 25px rgba(226, 80, 42, 0.18),
     inset 0 0 35px rgba(24, 10, 6, 0.85);
@@ -5031,10 +5111,30 @@ body.touch .credits-event {
   border-style: solid;
   pointer-events: none;
 }
-.corner-tl { top: -2px; left: -2px; border-width: 2px 0 0 2px; }
-.corner-tr { top: -2px; right: -2px; border-width: 2px 2px 0 0; }
-.corner-bl { bottom: -2px; left: -2px; border-width: 0 0 2px 2px; }
-.corner-br { bottom: -2px; right: -2px; border-width: 0 2px 2px 0; }
+
+.corner-tl {
+  top: -2px;
+  left: -2px;
+  border-width: 2px 0 0 2px;
+}
+
+.corner-tr {
+  top: -2px;
+  right: -2px;
+  border-width: 2px 2px 0 0;
+}
+
+.corner-bl {
+  bottom: -2px;
+  left: -2px;
+  border-width: 0 0 2px 2px;
+}
+
+.corner-br {
+  bottom: -2px;
+  right: -2px;
+  border-width: 0 2px 2px 0;
+}
 
 .loading-content {
   display: flex;
@@ -5216,20 +5316,33 @@ body.touch .credits-event {
 }
 
 @keyframes spinSigil {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes spinSigilRev {
-  from { transform: rotate(360deg); }
-  to { transform: rotate(0deg); }
+  from {
+    transform: rotate(360deg);
+  }
+
+  to {
+    transform: rotate(0deg);
+  }
 }
 
 @keyframes pulseCore {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
     box-shadow: 0 0 14px rgba(226, 80, 42, 0.75);
   }
+
   50% {
     transform: scale(1.1);
     box-shadow: 0 0 24px #ff6600, 0 0 35px rgba(255, 100, 0, 0.45);
@@ -5237,9 +5350,17 @@ body.touch .credits-event {
 }
 
 @keyframes shimmerFill {
-  0% { opacity: 0.35; }
-  50% { opacity: 0.9; }
-  100% { opacity: 0.35; }
+  0% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0.35;
+  }
 }
 
 .spinner {
@@ -5547,7 +5668,11 @@ body.touch:not(.portrait) #target-box.big #tb-info {
   text-align: left;
 }
 
-body.touch body.at-sea #levelup { top: 31%; } /* the Pirate Seas: the top band is the scenario pressure */
+body.touch body.at-sea #levelup {
+  top: 31%;
+}
+
+/* the Pirate Seas: the top band is the scenario pressure */
 #levelup {
   top: 21%;
 }

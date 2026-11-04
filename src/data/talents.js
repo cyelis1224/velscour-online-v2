@@ -1367,6 +1367,155 @@ const RAW_TALENTS = {
       ],
     },
   ],
+
+  monk: [
+    // Branch 0: Martial Arts
+    {
+      name: 'Martial Arts',
+      el: 'phys',
+      nodes: [
+        {
+          key: 'iron_body', row: 0, choice: null, maxRank: 5, el: 'phys', fx: 'smash',
+          name: 'Iron Body',
+          stats: { physPct: 7, armor: 15, lifeMax: 16 },
+          desc: (r) => `+${r * 7}% Physical Damage, +${r * 15} Armor, and +${r * 16} Maximum Life.`,
+        },
+        {
+          key: 'thousand_fists', row: 1, choice: 'A', maxRank: 3, el: 'phys', fx: 'smash',
+          name: 'Thousand Fists',
+          mod: 'monk_punch_flurry',
+          stats: { atkSpeed: 5, physPct: 8 },
+          skillMult: { tree: 0, kind: 'melee', pct: 24 },
+          desc: (r) => `<b>Augment (Hand Strikes):</b> Fist of Fury, Hundred Fists, Iron Palm, and Thousand Lotus Flurry strike with +${r * 5}% Attack Speed and deal +${r * 24}% damage.`,
+        },
+        {
+          key: 'flying_crane', row: 1, choice: 'B', maxRank: 3, el: 'phys', fx: 'charge',
+          name: 'Flying Crane',
+          mod: 'monk_kick_burst',
+          stats: { areaPct: 10, moveSpeed: 4 },
+          skillMult: { tree: 0, kind: 'dash', pct: 30 },
+          desc: (r) => `<b>Augment (Kicks & Dashes):</b> Flying Kick, Vaulting Leap, Spinning Crane Kick, and Wind Walker deal +${r * 30}% damage with +${r * 10}% Area of Effect and +${r * 4}% Move Speed.`,
+        },
+        {
+          key: 'zen_focus', row: 2, choice: null, maxRank: 5, el: 'phys', fx: 'smash',
+          name: 'Zen Focus',
+          stats: { critChance: 3, atkSpeed: 4, dex: 4 },
+          desc: (r) => `+${r * 3}% Critical Chance, +${r * 4}% Attack Speed, and +${r * 4} Dexterity.`,
+        },
+        {
+          key: 'asura_wrath', row: 3, choice: 'A', maxRank: 1, el: 'phys', fx: 'smash',
+          name: 'Asura Incarnate',
+          mod: 'monk_asura_key',
+          stats: { atkSpeed: 25, critChance: 8, lifeSteal: 5 },
+          desc: () => `<b>Keystone:</b> +25% Attack Speed, +8% Critical Chance, and +5% Life Steal. Melee strikes unleash shockwaves that tear through lines of foes.`,
+        },
+        {
+          key: 'crane_momentum', row: 3, choice: 'B', maxRank: 1, el: 'phys', fx: 'wind',
+          name: 'Flowing Wind',
+          mod: 'monk_momentum_key',
+          stats: { moveSpeed: 20, reduce: 10, dmgPct: 20 },
+          desc: () => `<b>Keystone:</b> +20% Move Speed, +10% Damage Reduction, and +20% All Damage. Dashing and leaping creates cyclones that pull enemies inward.`,
+        },
+      ],
+    },
+    // Branch 1: Spirit & Mantras
+    {
+      name: 'Spirit & Mantras',
+      el: 'holy',
+      nodes: [
+        {
+          key: 'inner_light', row: 0, choice: null, maxRank: 5, el: 'holy', fx: 'light',
+          name: 'Inner Radiance',
+          stats: { holyPct: 7, castSpeed: 4, manaMax: 14 },
+          desc: (r) => `+${r * 7}% Holy Damage, +${r * 4}% Cast Speed, and +${r * 14} Maximum Mana.`,
+        },
+        {
+          key: 'temple_bell', row: 1, choice: 'A', maxRank: 3, el: 'holy', fx: 'shock',
+          name: 'Resonant Temple Bells',
+          mod: 'monk_bell_resonate',
+          stats: { areaPct: 12, holyPct: 8 },
+          skillMult: { tree: 1, kind: 'aoe', pct: 25 },
+          desc: (r) => `<b>Augment (Bells & Shockwaves):</b> Radiant Bell, Sanctified Bell, and Pillar of Nirvana deal +${r * 25}% damage with +${r * 12}% Area of Effect, stunning foes for 1.5 seconds.`,
+        },
+        {
+          key: 'ascetic_shield', row: 1, choice: 'B', maxRank: 3, el: 'holy', fx: 'shield',
+          name: 'Ascetic Bastion',
+          mod: 'monk_mantra_shield',
+          stats: { armorPct: 8, resAll: 4 },
+          desc: (r) => `<b>Augment (Mantras & Wards):</b> Activating any Mantra grants +${r * 8}% Armor, +${r * 4}% All Resistances, and reflects +${r * 20}% damage back to attackers.`,
+        },
+        {
+          key: 'serene_mind', row: 2, choice: null, maxRank: 5, el: 'holy', fx: 'light',
+          name: 'Serene Mind',
+          stats: { cdr: 4, holyPct: 6, int: 4 },
+          desc: (r) => `+${r * 4}% Cooldown Reduction, +${r * 6}% Holy Damage, and +${r * 4} Intellect.`,
+        },
+        {
+          key: 'nirvana_resonance', row: 3, choice: 'A', maxRank: 1, el: 'holy', fx: 'holy',
+          name: 'Echoing Divinity',
+          mod: 'monk_divinity_key',
+          stats: { holyPct: 35, cdr: 12, areaPct: 20 },
+          desc: () => `<b>Keystone:</b> +35% Holy Damage, +12% Cooldown Reduction, and +20% Area of Effect. Bell strikes trigger an immediate secondary holy tremor.`,
+        },
+        {
+          key: 'transcendent_soul', row: 3, choice: 'B', maxRank: 1, el: 'holy', fx: 'aura',
+          name: 'Transcendent Soul',
+          mod: 'monk_transcendent_key',
+          stats: { reduce: 12, lifeRegen: 8, dmgPct: 20 },
+          desc: () => `<b>Keystone:</b> +12% Damage Reduction, +8 Life Regen, and +20% All Damage. Being hit below 40% Life unleashes a full cleansing burst of healing light.`,
+        },
+      ],
+    },
+    // Branch 2: Dragon & Tiger
+    {
+      name: 'Dragon & Tiger',
+      el: 'fire',
+      nodes: [
+        {
+          key: 'dragon_ferocity', row: 0, choice: null, maxRank: 5, el: 'fire', fx: 'fireball',
+          name: 'Draconic Ferocity',
+          stats: { firePct: 8, critDmg: 10 },
+          desc: (r) => `+${r * 8}% Fire Damage and +${r * 10}% Critical Damage.`,
+        },
+        {
+          key: 'blazing_claws', row: 1, choice: 'A', maxRank: 3, el: 'fire', fx: 'flame',
+          name: 'Blazing Claws',
+          mod: 'monk_fire_palm',
+          stats: { firePct: 12, critChance: 3 },
+          skillMult: { tree: 2, pct: 22 },
+          desc: (r) => `<b>Augment (Dragon Techniques):</b> Dragon Strike, Blazing Palm, Twin Dragons, and Inferno Palm deal +${r * 22}% damage and ignite foes for severe burning over 4 seconds.`,
+        },
+        {
+          key: 'tiger_pounce_leap', row: 1, choice: 'B', maxRank: 3, el: 'fire', fx: 'charge',
+          name: 'Apex Pounce',
+          mod: 'monk_tiger_pounce',
+          stats: { areaPct: 14, lifeSteal: 3 },
+          skillMult: { tree: 2, kind: 'leap', pct: 28 },
+          desc: (r) => `<b>Augment (Tiger Techniques):</b> Tiger Pounce, Tiger Roar, and Tiger Pounce Storm deal +${r * 28}% damage, knock enemies down, and leech +${r * 3}% Life.`,
+        },
+        {
+          key: 'primal_vigor', row: 2, choice: null, maxRank: 5, el: 'fire', fx: 'flame',
+          name: 'Primal Vigor',
+          stats: { dmgPct: 6, vit: 4, lifeSteal: 2 },
+          desc: (r) => `+${r * 6}% All Damage, +${r * 4} Vitality, and +${r * 2}% Life Steal.`,
+        },
+        {
+          key: 'avatar_of_the_dragon', row: 3, choice: 'A', maxRank: 1, el: 'fire', fx: 'fireball',
+          name: 'Avatar of the Dragon',
+          mod: 'monk_dragon_key',
+          stats: { firePct: 40, critDmg: 50, dmgPct: 15 },
+          desc: () => `<b>Keystone:</b> +40% Fire Damage, +50% Critical Damage, and +15% All Damage. Fire skills have a chance to summon spiralling flaming wyrms.`,
+        },
+        {
+          key: 'white_tiger_strike', row: 3, choice: 'B', maxRank: 1, el: 'phys', fx: 'smash',
+          name: 'Wrath of the White Tiger',
+          mod: 'monk_tiger_key',
+          stats: { critChance: 12, atkSpeed: 20, bossDmg: 25 },
+          desc: () => `<b>Keystone:</b> +12% Critical Chance, +20% Attack Speed, and +25% Damage to Champions and Bosses. Critical hits strike twice.`,
+        },
+      ],
+    },
+  ],
 };
 
 // Build indexed lookup tables
