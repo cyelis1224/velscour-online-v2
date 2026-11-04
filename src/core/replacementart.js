@@ -41,7 +41,7 @@ export function loadReplacementArt() {
 
 export function replacementImage(id, swap = null, mode = '') {
   id = id.replace(/^va_/, '');
-  const cell = meta && meta[id];
+  const cell = meta && (meta[id] || meta[id.toLowerCase()] || meta[id.charAt(0).toUpperCase() + id.slice(1)]);
   if (!cell || !sheet) return null;
   const key = `${id}|${swapKey(swap)}`;
   let image = cache.get(key);

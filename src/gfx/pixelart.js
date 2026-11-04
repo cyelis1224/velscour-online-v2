@@ -877,12 +877,15 @@ b...........w..
 .bbbbb.bbbbb....`,
 };
 
+SPRITES.velscour = SPRITES.Velscour = SPRITES.dagyr = SPRITES.demon;
+
 // Parsed sprite grids
 const parsed = {};
 function parse(name) {
   if (parsed[name]) return parsed[name];
-  const rows = SPRITES[name].replace(/^\n/, '').split('\n');
-  const w = Math.max(...rows.map((r) => r.length));
+  const src = SPRITES[name] || SPRITES[name?.toLowerCase()] || SPRITES.demon || '';
+  const rows = src.replace(/^\n/, '').split('\n');
+  const w = Math.max(1, ...rows.map((r) => r.length));
   const grid = rows.map((r) => r.padEnd(w, '.'));
   return (parsed[name] = { w, h: grid.length, grid });
 }

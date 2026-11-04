@@ -43,11 +43,14 @@ function logoGeometry(img) {
 export function attachTitleFx(screen, logoEl, els = {}) {
   const cv = document.createElement('canvas');
   cv.className = 'title-fx';
-  screen.prepend(cv);
-  const ctx = cv.getContext('2d');
+  const eyeCv = document.createElement('canvas');
+  eyeCv.className = 'title-eyes';
+  screen.prepend(cv); screen.prepend(eyeCv);
+  const ctx = cv.getContext('2d'), ectx = eyeCv.getContext('2d');
   const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const lowCv = document.createElement('canvas'), lctx = lowCv.getContext('2d');   // eyes, drawn chunky then upscaled
   let W = 0, H = 0, PX = 3, D = 1, S = 3, cssW = 0, cssH = 0;
-  let parts = [];
+  let parts = [], eyes = [];
   let flash = 0, shake = 0, last = performance.now(), raf = 0, ready = false;
   const LITE = document.body.classList.contains('touch');
   let Q = LITE ? 0.4 : 1, slow = 0;   // particle budget scale (adaptive)
@@ -56,7 +59,7 @@ export function attachTitleFx(screen, logoEl, els = {}) {
 
   // ------------------------------------------------------------------ intro timeline
   // phase: 'gate' (waiting for a click so audio may play) -> 'credits' -> 'intro' (logo fading in) -> 'lit' (burning)
-  let phase = 'gate', t0 = 0, ts = FADE0 - 1, burstAt = 0, creditsAt = 0, creditsClockAnchored = false, skipAfterCredits = false;
+  let phase = 'gate', t0 = 0, ts = FADE0 - 1, eyeT = 0.4, burstAt = 0, creditsAt = 0, creditsClockAnchored = false, skipAfterCredits = false;
   const clockNow = () => (performance.now() - t0) / 1000;   // wall clock in song time
   let priming = false;
   function startIntro(skipNow = false) {
@@ -182,8 +185,10 @@ export function attachTitleFx(screen, logoEl, els = {}) {
     if (r.width === cssW && r.height === cssH && dpr === D) return;
     cssW = r.width; cssH = r.height; D = dpr;
     PX = Math.max(2, Math.round(Math.min(r.width, r.height) / 240)); S = PX * D;   // device px per sim unit
-    cv.width = Math.max(1, Math.round(r.width * D)); cv.height = Math.max(1, Math.round(r.height * D));
+    cv.width = eyeCv.width = Math.max(1, Math.round(r.width * D));
+    cv.height = eyeCv.height = Math.max(1, Math.round(r.height * D));
     W = Math.max(1, Math.round(r.width / PX)); H = Math.max(1, Math.round(r.height / PX));
+    lowCv.width = W; lowCv.height = H;
   }
   // logo native px -> sim px, honouring object-fit: contain and the intro scale
   function place() {
@@ -354,7 +359,128 @@ export function attachTitleFx(screen, logoEl, els = {}) {
     }
   }
 
-  const watcher = () => { };
+  // ------------------------------------------------------------------ eyes
+  // An eye: almond (or round) socket that opens, glares (pupil follows the pointer, darts now and then), blinks, closes.
+  // A "watcher" is a group of eyes that share timing: a pair, one huge eye, a cluster, or a vertical stack.
+  const look = { x: 0.5, y: 0.5 };   // pointer in 0..1 screen space
+  const onMove = (e) => { look.x = e.clientX / Math.max(1, innerWidth); look.y = e.clientY / Math.max(1, innerHeight); };
+  window.addEventListener('pointermove', onMove, true);
+  const avoid = () => [logoEl, els.menu, els.tag].filter(Boolean).map((n) => {
+    const r = n.getBoundingClientRect(), c = cv.getBoundingClientRect();
+    return { x0: (r.left - c.left) / PX - 6, y0: (r.top - c.top) / PX - 6, x1: (r.right - c.left) / PX + 6, y1: (r.bottom - c.top) / PX + 6 };
+  });
+  function spot(rx, ry) {   // somewhere in the dark, clear of the logo and menu (and not on top of another watcher)
+    const boxes = avoid();
+    let best = null;
+    for (let i = 0; i < 30; i++) {
+      const x = rand(rx + 4, W - rx - 4), y = rand(ry + 4, H - ry - 4);
+      const hit = boxes.some((b) => x + rx > b.x0 && x - rx < b.x1 && y + ry > b.y0 && y - ry < b.y1) ||
+        eyes.some((w) => Math.abs(w.x - x) < rx + w.rx && Math.abs(w.y - y) < ry + w.ry);
+      if (!hit) return [x, y];
+      if (!best) best = [x, y];
+    }
+    return Math.random() < 0.3 ? best : null;
+  }
+  function watcher() {
+    const r = Math.random(), list = [];
+    const slit = Math.random() < 0.55, hue = rand(-12, 14);
+    let rx, ry;
+    if (r < 0.45) {                                    // a pair, maybe slanted in anger
+      const w = rand(4, 13), gap = w * rand(1.4, 2.6), tilt = rand(-0.35, 0.45);
+      list.push({ dx: -gap / 2, dy: 0, w, h: w * rand(0.35, 0.6), rot: tilt }, { dx: gap / 2, dy: 0, w, h: w * rand(0.35, 0.6), rot: -tilt });
+      rx = gap / 2 + w; ry = w;
+    } else if (r < 0.65) {                             // one big eye
+      const w = rand(18, 42);
+      list.push({ dx: 0, dy: 0, w, h: w * rand(0.4, 0.62), rot: rand(-0.12, 0.12) });
+      rx = w * 0.6; ry = w * 0.4;
+    } else if (r < 0.88) {                             // a cluster of little eyes, opening one after another
+      const n = randi(3, 8), R = rand(6, 14);
+      for (let i = 0; i < n; i++) { const a = rand(6.28), d = rand(0, R), w = rand(2.5, 6.5); list.push({ dx: Math.cos(a) * d, dy: Math.sin(a) * d * 0.7, w, h: w * rand(0.4, 0.75), rot: rand(-0.6, 0.6), lag: rand(0, 0.9) }); }
+      rx = R + 7; ry = R * 0.7 + 5;
+    } else {                                           // a vertical stack, like something tall pressed to the dark
+      const n = randi(2, 4), w = rand(4, 8);
+      for (let i = 0; i < n; i++) list.push({ dx: rand(-1.5, 1.5), dy: (i - (n - 1) / 2) * w * 0.9, w: w * rand(0.8, 1.15), h: w * 0.42, rot: rand(-0.15, 0.15), lag: i * 0.12 });
+      rx = w; ry = n * w * 0.5 + 2;
+    }
+    const at = spot(rx, ry); if (!at) return;
+    const open = Math.random() < 0.3 ? rand(0.9, 1.6) : rand(0.18, 0.4);   // sometimes they open slowly, which is worse
+    const hold = rand(1.4, 4.2);
+    const blinks = []; for (let n = randi(0, 2), t = rand(0.5, 1.2); n-- > 0 && t < hold - 0.3; t += rand(0.6, 1.6)) blinks.push(open + t);
+    const depth = rand(0.4, 1.2);
+    eyes.push({
+      x: at[0], y: at[1], rx, ry, list, slit, hue, t: 0, open, hold, close: rand(0.2, 0.7), blinks,
+      gaze: [0, 0], dart: rand(0.8, 2), dartTo: null, glare: Math.random() < 0.25, depth
+    });
+  }
+  function lid(w, tt) {   // 0 closed .. 1 open
+    if (tt <= 0) return 0;
+    let o = tt < w.open ? Math.pow(tt / w.open, 0.7) : tt < w.open + w.hold ? 1 : 1 - (tt - w.open - w.hold) / w.close;
+    for (const b of w.blinks) { const d = Math.abs(tt - b); if (d < 0.11) o = Math.min(o, d / 0.11); }
+    return clamp(o, 0, 1);
+  }
+  function updateEyes(dt) {
+    eyeT -= dt;
+    if (eyeT <= 0) {
+      eyeT = rand(0.7, 2.4);
+      const n = Math.random() < 0.25 ? randi(2, 3) : 1;
+      for (let i = 0; i < n && eyes.length < 7; i++) watcher();
+    }
+    for (let i = eyes.length - 1; i >= 0; i--) {
+      const w = eyes[i];
+      w.t += dt;
+      if (w.t > w.open + w.hold + w.close + 1) { eyes.splice(i, 1); continue; }
+      // gaze: toward the pointer (or a glare straight out), with sudden darts aside
+      w.dart -= dt;
+      if (w.dart <= 0) { w.dart = rand(0.7, 2.2); w.dartTo = Math.random() < 0.5 ? [rand(-1, 1), rand(-0.6, 0.6)] : null; }
+      let gx = (look.x * W - w.x) / (W * 0.35), gy = (look.y * H - w.y) / (H * 0.35);
+      if (w.glare) { gx = 0; gy = 0; }
+      if (w.dartTo) [gx, gy] = w.dartTo;
+      const m = Math.hypot(gx, gy); if (m > 1) { gx /= m; gy /= m; }
+      const k = Math.min(1, dt * (w.dartTo ? 18 : 5));
+      w.gaze[0] += (gx - w.gaze[0]) * k; w.gaze[1] += (gy - w.gaze[1]) * k;
+    }
+  }
+  function drawEyes() {
+    lctx.clearRect(0, 0, W, H);
+    const glows = [];
+    for (const w of eyes) {
+      const pxShift = (look.x - 0.5) * 14 * (w.depth || 0.6);
+      const pyShift = (look.y - 0.5) * 10 * (w.depth || 0.6);
+      for (const e of w.list) {
+        const o = lid(w, w.t - (e.lag || 0)); if (o <= 0.02) continue;
+        const x = w.x + e.dx + pxShift, y = w.y + e.dy + pyShift, hw = e.w / 2, hh = Math.max(0.5, e.h / 2 * o);
+        glows.push([x, y, e.w, o]);
+        lctx.save(); lctx.translate(x, y); lctx.rotate(e.rot);
+        lctx.beginPath(); lctx.moveTo(-hw, 0);
+        lctx.quadraticCurveTo(0, -hh * 2, hw, 0); lctx.quadraticCurveTo(0, hh * 2, -hw, 0); lctx.closePath();
+        const g = lctx.createRadialGradient(0, 0, 0, 0, 0, hw);
+        g.addColorStop(0, `hsl(${18 + w.hue},100%,62%)`); g.addColorStop(0.45, `hsl(${4 + w.hue},100%,45%)`); g.addColorStop(1, `hsl(${356 + w.hue},90%,16%)`);
+        lctx.fillStyle = g; lctx.fill();
+        lctx.save(); lctx.clip();
+        const px = w.gaze[0] * hw * 0.45, py = w.gaze[1] * hh * 0.5;   // pupil
+        lctx.fillStyle = '#ffd27a'; lctx.beginPath(); lctx.ellipse(px, py, e.w * 0.2, e.h * 0.34, 0, 0, 7); lctx.globalAlpha = 0.45; lctx.fill(); lctx.globalAlpha = 1;
+        lctx.fillStyle = '#060000'; lctx.beginPath();
+        if (w.slit) lctx.ellipse(px, py, Math.max(0.5, e.w * 0.055), e.h * 0.48, 0, 0, 7);
+        else lctx.ellipse(px, py, Math.max(0.6, e.w * 0.13), Math.max(0.6, e.w * 0.13), 0, 0, 7);
+        lctx.fill();
+        if (e.w > 9) { lctx.fillStyle = 'rgba(255,240,220,.8)'; lctx.fillRect(Math.round(px - e.w * 0.12), Math.round(py - e.h * 0.2), 1, 1); }   // a wet glint
+        lctx.restore();
+        lctx.strokeStyle = 'rgba(20,0,0,.9)'; lctx.lineWidth = 0.8; lctx.stroke();   // lids
+        lctx.restore();
+      }
+    }
+    ectx.clearRect(0, 0, eyeCv.width, eyeCv.height);
+    if (!glows.length) return;
+    ectx.globalCompositeOperation = 'lighter';
+    for (const [x, y, w, o] of glows) {   // a dim red bloom round each eye
+      const r = w * 1.6 * S, g = ectx.createRadialGradient(x * S, y * S, 0, x * S, y * S, r);
+      g.addColorStop(0, `rgba(200,20,6,${(0.22 * o).toFixed(3)})`); g.addColorStop(1, 'rgba(120,0,0,0)');
+      ectx.fillStyle = g; ectx.fillRect(x * S - r, y * S - r, r * 2, r * 2);
+    }
+    ectx.globalCompositeOperation = 'source-over';
+    ectx.imageSmoothingEnabled = false;   // chunky pixels, like the rest of the game
+    ectx.drawImage(lowCv, 0, 0, W, H, 0, 0, W * S, H * S);
+  }
 
   // ------------------------------------------------------------------ draw fire & embers
   function draw() {
@@ -494,8 +620,9 @@ export function attachTitleFx(screen, logoEl, els = {}) {
 
   // ------------------------------------------------------------------ loop
   function detach() {
-    cancelAnimationFrame(raf); cv.remove(); screen.style.transform = '';
+    cancelAnimationFrame(raf); cv.remove(); eyeCv.remove(); screen.style.transform = '';
     for (const k of EVTS) window.removeEventListener(k, onInput, true);
+    window.removeEventListener('pointermove', onMove, true);
   }
   function frame(now) {
     if (!cv.isConnected) { detach(); return; }
@@ -508,6 +635,7 @@ export function attachTitleFx(screen, logoEl, els = {}) {
     resize();
     updateTimeline();
     styleLogo(now);
+    updateEyes(dt); drawEyes();
     if (ready) {
       place();
       emitLogo(dt);
@@ -522,7 +650,7 @@ export function attachTitleFx(screen, logoEl, els = {}) {
     }
   }
 
-  cv.fx = { state: () => ({ phase, ts, Q, ready: screen.classList.contains('title-ready'), W, H, parts: parts.length, eyes: 0, opacity: +logoEl.style.opacity }), skip, begin, watcher };   // test hooks
+  cv.fx = { state: () => ({ phase, ts, Q, ready: screen.classList.contains('title-ready'), W, H, parts: parts.length, eyes: eyes.length, opacity: +logoEl.style.opacity }), skip, begin, watcher };   // test hooks
   const start = (img) => {
     try { geo = geo || logoGeometry(img); } catch (e) { return; }   // never let FX break the menu: just no flames
     if (!geo.top.length) return;
