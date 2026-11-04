@@ -1597,8 +1597,6 @@ export const game = {
     inputEl?.addEventListener('input', () => { countEl.textContent = `${inputEl.value.length} / 50`; });
   },
 
-  openVelscourContact() { return this.openVelscourContact(); },
-
   openVelscourTeleport() {
     const options = [...BETA_BIOMES, ...BIOMES].map((biome) => { const need = regionNeeds(biome, G.char?.level); return `<option value="${escapeHtml(biome.id)}"${need ? ' disabled' : ''}>${escapeHtml(biome.name)}${biome.overworld ? ' · Overworld' : ''}${biome.beta ? ' (Beta)' : ''}${need ? ` · Reach level ${need}` : ''}</option>`; }).join('')
       + Object.values(REGIONS).flatMap((r) => { const b = BIOME_BY_ID[r.id], need = regionNeeds(b, G.char?.level); return (r.variants || []).map((v) => `<option value="${escapeHtml(r.id)}:${escapeHtml(v.id)}"${need ? ' disabled' : ''}>${escapeHtml(b.name)}: ${escapeHtml(v.name)}${need ? ` · Reach level ${need}` : ''}</option>`); }).join('')
@@ -1621,8 +1619,6 @@ export const game = {
       ],
     });
   },
-
-  openVelscourTeleport() { return this.openVelscourTeleport(); },
 
   /** The skull's "final boss": Velscour's throne at the hero's depth, the hero set down inside his arena. */
   async finalBoss() {
