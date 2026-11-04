@@ -1,1 +1,0 @@
-dagyrthrone.js

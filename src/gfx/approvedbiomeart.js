@@ -22,7 +22,7 @@ const FAMILIES = Object.freeze([
 ]);
 const urls = {
   floors: 'floors.webp', props: 'props.webp', monsters: 'heavenly_monsters.webp',
-  variants: 'dagyr_variants.webp', worldScatter: 'dagyr_overworld_scatter.webp',
+  variants: 'velscour_variants.webp', worldScatter: 'velscour_overworld_scatter.webp',
   wildSupplemental: 'forsaken_wilds_supplemental.webp'
 };
 const sheetPromises = new Map(), sheets = new Map();

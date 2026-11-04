@@ -1,14 +1,13 @@
 import { TREE4_NAMES } from './skilltrees4.js';
 
-// The 9 active playable classes on the Character Select screen (the 7 legacy classes remain in CLASSES with disabled: true).
+// All 17 playable classes on the Character Select screen (16 core classes + Monk).
 export const ACTIVE_CLASS_IDS = [
-  'paladin', 'ranger', 'wizard', 'barbarian',
-  'gunner', 'necromancer', 'lancer', 'bard', 'carrion_witch', 'monk',
+  'paladin', 'ranger', 'wizard', 'necromancer',
+  'barbarian', 'dragoon', 'totem_master', 'death_knight',
+  'arcane_sorcerer', 'carrion_witch', 'bard', 'slime_lord',
+  'boomerang_knight', 'lancer', 'dragon_knight', 'gunner', 'monk',
 ];
-export const DISABLED_CLASS_IDS = [
-  'dragoon', 'totem_master', 'death_knight', 'arcane_sorcerer',
-  'slime_lord', 'boomerang_knight', 'dragon_knight',
-];
+export const DISABLED_CLASS_IDS = [];
 
 // primary: attribute that adds +1% damage to all of the class' skills per point.
 export const CLASSES = {
@@ -43,25 +42,25 @@ export const CLASSES = {
     desc: 'A hardened warlord of the northern wastes. Cleaves through ranks with dual-wielded steel, earth-shattering leaps, and warcries.',
   },
   dragoon: {
-    name: 'Dragoon', disabled: true, primary: 'str', base: { str: 24, dex: 22, vit: 22, int: 12 }, life: 88, mana: 35, lifeLvl: 16, manaLvl: 3,
+    name: 'Dragoon', primary: 'str', base: { str: 24, dex: 22, vit: 22, int: 12 }, life: 88, mana: 35, lifeLvl: 16, manaLvl: 3,
     weapon: 'spear', offhand: 'shield', element: 'fire', color: '#6aa8ff',
     trees: ['Lancework', 'Sky Dive', 'Wyrmblood', 'Spearstorm'],
     desc: 'A lance-wielding knight who leaps from the heavens. Dragon dives, lance flurries and wyrm breath.',
   },
   totem_master: {
-    name: 'Totem Master', disabled: true, primary: 'int', base: { str: 18, dex: 16, vit: 22, int: 24 }, life: 82, mana: 55, lifeLvl: 15, manaLvl: 4,
+    name: 'Totem Master', primary: 'int', base: { str: 18, dex: 16, vit: 22, int: 24 }, life: 82, mana: 55, lifeLvl: 15, manaLvl: 4,
     weapon: 'staff', offhand: 'idol', element: 'light', color: '#5ac8a0',
     trees: ['Totems', 'Ancestors', 'Earth & Storm'],
     desc: 'A shaman who plants spirit totems that burn, shock and heal while ancestors fight at their side.',
   },
   death_knight: {
-    name: 'Death Knight', disabled: true, primary: 'str', base: { str: 26, dex: 14, vit: 26, int: 14 }, life: 98, mana: 35, lifeLvl: 18, manaLvl: 3,
+    name: 'Death Knight', primary: 'str', base: { str: 26, dex: 14, vit: 26, int: 14 }, life: 98, mana: 35, lifeLvl: 18, manaLvl: 3,
     weapon: 'sword', offhand: 'skull', element: 'cold', color: '#7ad0ff',
     trees: ['Frost', 'Unholy', 'Blood'],
     desc: 'A fallen champion bound by runic frost. Obliterating strikes, plague and life-stealing blood magic.',
   },
   arcane_sorcerer: {
-    name: 'Astronomer', disabled: true, primary: 'int', base: { str: 12, dex: 16, vit: 16, int: 34 }, life: 68, mana: 80, lifeLvl: 12, manaLvl: 6,
+    name: 'Astronomer', primary: 'int', base: { str: 12, dex: 16, vit: 16, int: 34 }, life: 68, mana: 80, lifeLvl: 12, manaLvl: 6,
     weapon: 'wand', offhand: 'orb', element: 'arcane', color: '#4aa8ff',
     trees: ['Starfire', 'Celestial Bodies', 'Gravity'],
     desc: 'A stargazer who wields the heavens. Swarms of star missiles, meteors, falling suns and black holes.',
@@ -79,13 +78,13 @@ export const CLASSES = {
     desc: 'A battle-skald and blade-dancer. Weaves war-chants that bolster allies, resonant chords that fracture armor, and lethal daggers.',
   },
   slime_lord: {
-    name: 'Slime Lord', disabled: true, primary: 'vit', base: { str: 18, dex: 14, vit: 32, int: 16 }, life: 105, mana: 45, lifeLvl: 20, manaLvl: 3.5,
+    name: 'Slime Lord', primary: 'vit', base: { str: 18, dex: 14, vit: 32, int: 16 }, life: 105, mana: 45, lifeLvl: 20, manaLvl: 3.5,
     weapon: 'mace', offhand: 'jar', element: 'acid', color: '#4aa8ff',
     trees: ['Ooze', 'Spawn', 'Mutation'],
     desc: 'A crowned king of living ooze. Acid floods, endless slimeling broods and grotesque mutations.',
   },
   boomerang_knight: {
-    name: 'Boomerang Knight', disabled: true, primary: 'dex', base: { str: 20, dex: 28, vit: 20, int: 12 }, life: 82, mana: 40, lifeLvl: 15, manaLvl: 3,
+    name: 'Boomerang Knight', primary: 'dex', base: { str: 20, dex: 28, vit: 20, int: 12 }, life: 82, mana: 40, lifeLvl: 15, manaLvl: 3,
     weapon: 'boomerang', offhand: 'rang', element: 'phys', color: '#3ac8a8',
     trees: ['Throwing', 'Bladesmanship', 'Gale Knight'],
     desc: 'A dashing knight whose blades always come back. Ricochets, swirling sword storms and gale cyclones.',
@@ -97,7 +96,7 @@ export const CLASSES = {
     desc: 'An ironclad vanguard commander. Drives storm-forged war lances through enemy lines behind a phalanx of tower shields.',
   },
   dragon_knight: {
-    name: 'Dragon Knight', disabled: true, primary: 'str', base: { str: 26, dex: 18, vit: 24, int: 12 }, life: 92, mana: 40, lifeLvl: 17, manaLvl: 3,
+    name: 'Dragon Knight', primary: 'str', base: { str: 26, dex: 18, vit: 24, int: 12 }, life: 92, mana: 40, lifeLvl: 17, manaLvl: 3,
     weapon: 'sword', offhand: 'shield', element: 'fire', color: '#ff5a2a',
     trees: ['Flame', 'Scale', 'Draconic'],
     desc: 'Blood of the wyrm runs hot. Fire breath, dragon-scale armor and the power to become a dragon.',

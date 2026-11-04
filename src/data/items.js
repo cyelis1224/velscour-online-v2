@@ -230,43 +230,42 @@ export function canEquipItem(c, it, slot = null) {
 }
 
 export const WEAPONS = {
-  sword: { names: ['Shortsword', 'Longsword', 'Broadsword', 'Bastard Sword', 'Runeblade'], icon: 'sword', dmg: 1.0, spd: 1.0, crit: 3, classes: ['paladin', 'barbarian', 'bard', 'lancer'] },
+  sword: { names: ['Shortsword', 'Longsword', 'Broadsword', 'Bastard Sword', 'Runeblade'], icon: 'sword', dmg: 1.0, spd: 1.0, crit: 3, classes: ['paladin', 'barbarian', 'bard', 'lancer', 'death_knight', 'dragon_knight'] },
   axe: { names: ['Hatchet', 'War Axe', 'Bearded Axe', 'Battle Axe', 'Executioner'], icon: 'axe', dmg: 1.15, spd: 0.92, critDmg: 12, classes: ['barbarian'] },
-  mace: { names: ['Cudgel', 'Mace', 'Flanged Mace', 'Morning Star', 'Sanctified Mace'], icon: 'mace', dmg: 1.08, spd: 0.96, holyPct: 8, classes: ['paladin', 'monk'] },
+  mace: { names: ['Cudgel', 'Mace', 'Flanged Mace', 'Morning Star', 'Sanctified Mace'], icon: 'mace', dmg: 1.08, spd: 0.96, holyPct: 8, classes: ['paladin', 'monk', 'slime_lord'] },
   hammer: { names: ['War Hammer', 'Maul', 'Great Maul', 'Earthbreaker', 'Titan Maul'], icon: 'hammer', dmg: 1.25, spd: 0.85, areaPct: 8, classes: ['paladin', 'barbarian'] },
   dagger: { names: ['Poignard', 'Dirk', 'Stiletto', 'Kris', 'Ritual Blade'], icon: 'dagger', dmg: 0.80, spd: 1.22, crit: 6, classes: ['bard', 'ranger', 'necromancer', 'carrion_witch', 'monk'] },
-  staff: { names: ['Quarterstaff', 'Gnarled Staff', 'Runed Staff', 'Archon Staff', 'Elder Staff'], icon: 'staff', dmg: 0.95, spd: 1.0, cast: 8, spell: 8, classes: ['wizard', 'carrion_witch', 'monk'] },
-  wand: { names: ['Yew Wand', 'Bone Wand', 'Grim Wand', 'Lich Wand', 'Grave Wand'], icon: 'wand', dmg: 0.85, spd: 1.1, cast: 10, cdr: 4, classes: ['necromancer', 'wizard'] },
+  staff: { names: ['Quarterstaff', 'Gnarled Staff', 'Runed Staff', 'Archon Staff', 'Elder Staff'], icon: 'staff', dmg: 0.95, spd: 1.0, cast: 8, spell: 8, classes: ['wizard', 'carrion_witch', 'monk', 'totem_master'] },
+  wand: { names: ['Yew Wand', 'Bone Wand', 'Grim Wand', 'Lich Wand', 'Grave Wand'], icon: 'wand', dmg: 0.85, spd: 1.1, cast: 10, cdr: 4, classes: ['necromancer', 'wizard', 'arcane_sorcerer'] },
   bow: { names: ['Short Bow', "Hunter's Bow", 'Composite Bow', 'Long War Bow', 'Wardwood Bow'], icon: 'bow', dmg: 1.0, spd: 1.06, atkSpeed: 6, classes: ['ranger'] },
   crossbow: { names: ['Light Crossbow', 'Arbalest', 'Siege Crossbow', 'Heavy Arbalest', 'Dread Crossbow'], icon: 'crossbow', dmg: 1.18, spd: 0.88, critDmg: 15, classes: ['ranger', 'gunner'] },
-  spear: { names: ['Spear', 'Pike', 'Partizan', 'War Lance', 'Vanguard Lance'], icon: 'spear', dmg: 1.12, spd: 0.96, pierce: 1, classes: ['lancer'] },
+  spear: { names: ['Spear', 'Pike', 'Partizan', 'War Lance', 'Vanguard Lance'], icon: 'spear', dmg: 1.12, spd: 0.96, pierce: 1, classes: ['lancer', 'dragoon'] },
   scythe: { names: ['Sickle', 'Scythe', 'War Scythe', 'Reaper', 'Soul Thresher'], icon: 'scythe', dmg: 1.18, spd: 0.9, lifeSteal: 2, classes: ['necromancer', 'carrion_witch'] },
   pistol: { names: ['Flintlock', 'Blunderbuss', 'Hand Cannon', 'Repeater', 'Ironclad Pistol'], icon: 'pistol', dmg: 1.0, spd: 1.12, crit: 4, classes: ['gunner'] },
   lute: { names: ['Lute', 'Mandolin', 'War Lyre', 'Skald Harp', 'Choir Lute'], icon: 'lute', dmg: 0.88, spd: 1.1, cast: 6, cdr: 5, classes: ['bard'] },
-  boomerang: { names: ['Throwing Stick', 'Boomerang', 'Glaive', 'Chakram', 'Moon Glaive'], icon: 'boomerang', dmg: 0.95, spd: 1.1, legacy: true },
+  boomerang: { names: ['Throwing Stick', 'Boomerang', 'Glaive', 'Chakram', 'Moon Glaive'], icon: 'boomerang', dmg: 0.95, spd: 1.1, crit: 4, classes: ['boomerang_knight'] },
 };
-export const ACTIVE_WEAPONS = Object.keys(WEAPONS).filter((k) => !WEAPONS[k].legacy);
+export const ACTIVE_WEAPONS = Object.keys(WEAPONS);
 
 export const OFFHANDS = {
-  shield: { names: ['Buckler', 'Kite Shield', 'Tower Shield', 'Aegis', 'Bulwark'], icon: 'shield', armor: 1.1, block: [10, 18], reduce: [2, 4], classes: ['paladin', 'lancer'] },
-  orb: { names: ['Glass Orb', 'Eldritch Orb', 'Phylactery Globe', 'Eye of Night', 'Void Sphere'], icon: 'orb', armor: 0.3, spell: [8, 16], summon: [8, 14], classes: ['necromancer', 'wizard'] },
+  shield: { names: ['Buckler', 'Kite Shield', 'Tower Shield', 'Aegis', 'Bulwark'], icon: 'shield', armor: 1.1, block: [10, 18], reduce: [2, 4], classes: ['paladin', 'lancer', 'dragoon', 'dragon_knight'] },
+  orb: { names: ['Glass Orb', 'Eldritch Orb', 'Phylactery Globe', 'Eye of Night', 'Void Sphere'], icon: 'orb', armor: 0.3, spell: [8, 16], summon: [8, 14], classes: ['necromancer', 'wizard', 'arcane_sorcerer'] },
   tome: { names: ['Primer', 'Grimoire', 'Tome of Embers', 'Codex Arcanum', 'Book of Ages'], icon: 'orb', armor: 0.25, spell: [10, 18], cdr: [4, 8], classes: ['wizard', 'monk'] },
   lantern: { names: ['Tin Lantern', 'Iron Lantern', 'Corpse Lantern', 'Grave Lantern', 'Hollow Moon Lantern'], icon: 'orb', armor: 0.35, spell: [8, 16], leech: [2, 4], classes: ['carrion_witch'] },
   bomb: { names: ['Powder Bomb', 'Iron Grenade', 'Shrapnel Charge', 'Siege Satchel', 'Ordnance Pack'], icon: 'orb', armor: 0.3, crit: [4, 8], area: [6, 12], classes: ['gunner'] },
   drum: { names: ['Tambourine', 'Frame Drum', 'War Drum', 'Skald Bell', 'Thunder Drum'], icon: 'orb', armor: 0.35, cast: [6, 12], cdr: [4, 8], classes: ['bard'] },
   quiver: { names: ['Broadhead Quiver', 'Barbed Quiver', "Stalker's Quiver", 'Bodkin Quiver', 'Warden Quiver'], icon: 'bow', armor: 0.25, crit: [4, 8], atkSpd: [6, 12], classes: ['ranger'] },
-  // Legacy off-hands kept for backwards save/test compatibility, excluded from active drops
-  skull: { names: ['Bleached Skull', 'Rime Skull', 'Frost Skull', 'Lich Skull', 'Skull of the Old King'], icon: 'orb', armor: 0.4, spell: [5, 12], legacy: true },
-  idol: { names: ['Carved Idol', 'Spirit Idol', 'Ancestor Idol', 'Thunder Idol', 'Idol of the First Tribe'], icon: 'orb', armor: 0.4, spell: [5, 12], legacy: true },
-  jar: { names: ['Specimen Jar', 'Ooze Flask', 'Gel Reliquary', 'Living Jar', 'Heart of the Mire'], icon: 'orb', armor: 0.6, spell: [4, 10], legacy: true },
-  rang: { names: ['Throwing Stick', 'Small Rang', 'Twin Rang', 'Glaive', 'Moon Rang'], icon: 'boomerang', armor: 0.25, spell: [4, 10], legacy: true },
+  skull: { names: ['Bleached Skull', 'Rime Skull', 'Frost Skull', 'Lich Skull', 'Skull of the Old King'], icon: 'orb', armor: 0.4, spell: [8, 16], cdr: [4, 8], classes: ['death_knight'] },
+  idol: { names: ['Carved Idol', 'Spirit Idol', 'Ancestor Idol', 'Thunder Idol', 'Idol of the First Tribe'], icon: 'orb', armor: 0.4, spell: [8, 16], summon: [6, 12], classes: ['totem_master'] },
+  jar: { names: ['Specimen Jar', 'Ooze Flask', 'Gel Reliquary', 'Living Jar', 'Heart of the Mire'], icon: 'orb', armor: 0.6, spell: [6, 14], reduce: [2, 4], classes: ['slime_lord'] },
+  rang: { names: ['Throwing Stick', 'Small Rang', 'Twin Rang', 'Glaive', 'Moon Rang'], icon: 'boomerang', armor: 0.25, spell: [6, 14], crit: [4, 8], classes: ['boomerang_knight'] },
 };
-export const ACTIVE_OFFHANDS = Object.keys(OFFHANDS).filter((k) => !OFFHANDS[k].legacy);
+export const ACTIVE_OFFHANDS = Object.keys(OFFHANDS);
 
-/** A random off-hand base from the 9-class off-hand pool: favors the wearer's focus, shields, and caster off-hands. */
+/** A random off-hand base from the active pool: favors the wearer's focus, shields, and caster off-hands. */
 function offhandBase() {
   const own = CLASS_FOCUS[ringCtx.classId];
-  return chance(0.35) && own && !OFFHANDS[own]?.legacy ? own : chance(0.35) ? 'shield' : pick(ACTIVE_OFFHANDS);
+  return chance(0.4) && own ? own : chance(0.35) ? 'shield' : pick(ACTIVE_OFFHANDS);
 }
 export const ARMORS = {
   head: { names: ['Cap', 'Helm', 'Great Helm', 'Winged Helm', 'Crown'], icon: 'helm', armor: 0.6 },

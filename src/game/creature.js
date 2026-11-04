@@ -391,7 +391,7 @@ export class Creature {
     }
     const fly = this.fly ? 16 + Math.sin(this.animT * 3) * 4 : 0;
     const z = this.z + fly + bob;
-    // shadow (none under Dagyr's Mirror of Sin copies: game/dagyr.js)
+    // shadow (none under Velscour's Mirror of Sin copies: game/velscour.js)
     if (!this.noShadow) {
       ctx.fillStyle = 'rgba(0,0,0,0.38)';
       const sw = Math.max(8, Math.min(w, h) * 0.32);

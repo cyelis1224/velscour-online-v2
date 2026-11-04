@@ -404,7 +404,8 @@ async function boot() {
   loadEnemyArt().then(redrawIcons).then(loadPetArt).then(redrawIcons).catch((e) => console.warn(e));
   // debug helpers for testing in the console
   window.UI = UI;
-  window.DAGYR = { G, game, UI };
+  window.VELSCOUR = { G, game, UI };
+  window.DAGYR = window.VELSCOUR;
 }
 
 boot();

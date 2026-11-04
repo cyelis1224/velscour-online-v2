@@ -1,8 +1,8 @@
-// Dagyr without god mode: a hero geared for depth 500 (like dagyr.js part 3) is set down in his arena and
+// Velscour without god mode: a hero geared for depth 500 (like velscour.js part 3) is set down in his arena and
 // auto-play fights; a death is one attempt. Prints, per class, wins, the phase each loss got to and fight lengths.
 // Target: a well-geared hero beats him more often than not, in 5-10 minutes, and a loss usually reaches phase 3+.
-//   node tools/tests/Dagyr_real.js [classes] [attempts]      # default paladin,wizard,ranger 3
-//   node tools/tests/Dagyr_real.js [classes] [attempts] unbound [depth=600]   # Dagyr Unbound (docs/ENDGAME.md), the
+//   node tools/tests/velscour_real.js [classes] [attempts]      # default paladin,wizard,ranger 3
+//   node tools/tests/velscour_real.js [classes] [attempts] unbound [depth=600]   # Velscour Unbound (docs/ENDGAME.md), the
 //       hero geared for that depth (keys drop past 600) the way the plain fight's hero is for 500 (level mlvl+1, gear mlvl+4)
 const { openGame, report } = require('./harness');
 const classes = (process.argv[2] || 'paladin,wizard,ranger').split(',');
@@ -15,7 +15,7 @@ const depth = +((process.argv.find((a) => a.startsWith('depth=')) || `depth=${un
   const rows = [];
   for (const cls of classes) for (let a = 0; a < attempts; a++) {
     const r = await page.evaluate(async ({ cls, unbound, depth }) => {
-      const { G, game } = window.DAGYR;
+      const { G, game } = window.VELSCOUR;
       const { Auto, charScore } = await import('/src/game/autoplay.js');
       const { rollItem, rollGem, SLOTS } = await import('/src/data/items.js');
       const { depthLevel } = await import('/src/data/depth.js');
@@ -45,7 +45,7 @@ const depth = +((process.argv.find((a) => a.startsWith('depth=')) || `depth=${un
       game.enterTown(); await new Promise((r) => setTimeout(r, 600));
       if (unbound) { const { unlockEndgame } = await import('/src/game/endgame.js'); unlockEndgame(); c.keys = 3; await game.enterUnbound(); }
       else await game.finalBoss();
-      const w = G.world, V = w.Dagyr;
+      const w = G.world, V = w.velscour;
       Auto.toggle(true);
       let maxPhase = 0;
       for (let t = 0; t < 30 * 60 * (unbound ? 21 : 16) && !w.boss.dead && !G.player.dead && G.world === w; t++) {

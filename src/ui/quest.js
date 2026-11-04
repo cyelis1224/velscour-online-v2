@@ -1,4 +1,4 @@
-// Quest Log (HUD button "Quest", key Q): this depth's objectives, the road to Dagyr, boss rooms conquered.
+// Quest Log (HUD button "Quest", key Q): this depth's objectives, the road to Velscour, boss rooms conquered.
 import { G } from '../state.js';
 import { el, escapeHtml, fmtInt } from '../core/util.js';
 import { UI } from './ui.js';
@@ -23,7 +23,7 @@ export function renderQuest(body) {
     const b = BIOME_BY_ID[c.depth === FINAL_DEPTH ? 'throne' : c.nextBiome];
     h += `<div class="q-title">Descend to Depth ${c.depth}</div>`;
     h += step(false, `Step into the <b style="color:#ff8050">portal</b> at the edge of Herrington Hollow${b ? `. It opens on <b>${escapeHtml(b.name)}</b>` : ''}.`);
-    if (c.depth === FINAL_DEPTH) h += step(false, '<b style="color:#ff4020">Demon Lord Dagyr</b> waits on his throne.');
+    if (c.depth === FINAL_DEPTH) h += step(false, '<b style="color:#ff4020">Demon Lord Velscour</b> waits on his throne.');
     else if (isRaidDepth(c.depth) && !b?.overworld) h += step(false, '<b style="color:#ff6030">A BOSS ROOM</b> lies at the end of this depth.');
     if (b?.id === 'sea_of_sand') h += step(false, 'A linked Sea of Sand route with one to five timed scenario areas lies beyond.');
     else if (b?.id === 'mountainside') h += step(false, 'The Mountainside lies beyond: a switchback climb up the cliffs to the summit.');
@@ -38,7 +38,7 @@ export function renderQuest(body) {
     const boss = w.boss, slain = !!(boss && boss.dead);
     const raid = boss && boss.raid;
     h += `<div class="q-title">Depth ${w.depth} &middot; ${escapeHtml(w.biome ? w.biome.name : '')}</div>`;
-    const who = boss && (boss.awake || slain) ? `<b>${escapeHtml(boss.name)}</b>` : raid || isRaidDepth(w.depth) ? 'the lord of the <b>Boss Room</b>' : w.depth === FINAL_DEPTH ? '<b>Demon Lord Dagyr</b>' : 'the guardian of this depth';
+    const who = boss && (boss.awake || slain) ? `<b>${escapeHtml(boss.name)}</b>` : raid || isRaidDepth(w.depth) ? 'the lord of the <b>Boss Room</b>' : w.depth === FINAL_DEPTH ? '<b>Demon Lord Velscour</b>' : 'the guardian of this depth';
     if (w.breach) {
       // THE ETERNAL BREACH (game/breach.js)
       const sc = w.overworldScenario, cur = sc.current, others = sc.scenarios.filter((S) => S !== sc.heart);
@@ -131,9 +131,9 @@ export function renderQuest(body) {
   h += '</div>';
   const deepest = c.deepest || 0, pctV = Math.min(100, deepest / FINAL_DEPTH * 100);
   h += commissionsHtml(c, w, step);
-  h += `<div class="q-sec"><h3>The Great Quest</h3><div class="q-title">Slay Demon Lord Dagyr at Depth ${FINAL_DEPTH}</div>`;
+  h += `<div class="q-sec"><h3>The Great Quest</h3><div class="q-title">Slay Demon Lord Velscour at Depth ${FINAL_DEPTH}</div>`;
   h += `<div class="q-bar"><div style="width:${pctV}%"></div><span>Deepest depth cleared: ${deepest} / ${FINAL_DEPTH}</span></div>`;
-  if (deepest >= FINAL_DEPTH) h += step(true, 'Dagyr has fallen. The Endless Torment goes on below.');
+  if (deepest >= FINAL_DEPTH) h += step(true, 'Velscour has fallen. The Endless Torment goes on below.');
   else h += step(false, `Next boss room: <b>Depth ${nextRaid(Math.max(c.depth, (w && w.depth) || 1))}</b>`);
   h += '</div>';
   // the Endgame (docs/ENDGAME.md)
@@ -143,10 +143,10 @@ export function renderQuest(body) {
     if (R) h += step(R.done, `<b style="color:#20e0ff">Abyssal Rift Tier ${R.tier}</b> — ${R.done ? 'closed' : R.failed ? 'collapsed' : R.guardian ? 'slay the Guardian' : `${R.pct}% of the quota`} · ${fmtTime(R.left)} left`);
     h += step(false, `Heresy rank <b>${rank}</b>${rank ? ` (${escapeHtml(heresyText(heresiesOf(c)))})` : ' — none embraced; the Altar of Heresy stands by the plaza'}`);
     h += step(c.rifts.best > 0, `Abyssal Rifts: best Tier <b>${c.rifts.best || 0}</b>, Tier ${riftOpen(c)} open${c.rifts.best ? ` · ${c.rifts.runs || 0} runs, ${c.rifts.fails || 0} collapsed` : ''}`);
-    h += step(c.unbound.wins > 0, `Dagyr Unbound: <b>${Math.min(3, c.keys)}/3</b> Abyssal Keys${c.unbound.wins ? ` · beaten ${c.unbound.wins}x` : ''}`);
+    h += step(c.unbound.wins > 0, `Velscour Unbound: <b>${Math.min(3, c.keys)}/3</b> Abyssal Keys${c.unbound.wins ? ` · beaten ${c.unbound.wins}x` : ''}`);
     h += step(false, `Infernal Marks: <b>${marksTotal()}</b> (${marksFree()} free)`);
     h += '</div>';
-  } else if (deepest >= FINAL_DEPTH - 50) h += `<div class="q-sec"><h3>The Endgame</h3>${step(false, 'Slay Dagyr at Depth 500: the Altar of Heresy and the Abyssal Rift gate open for every hero.')}</div>`;
+  } else if (deepest >= FINAL_DEPTH - 50) h += `<div class="q-sec"><h3>The Endgame</h3>${step(false, 'Slay Velscour at Depth 500: the Altar of Heresy and the Abyssal Rift gate open for every hero.')}</div>`;
   const raids = Object.keys(c.cleared || {}).map(Number).filter((d) => isRaidDepth(d)).sort((a, b) => a - b);
   h += `<div class="q-sec"><h3>Boss Rooms Conquered</h3>${raids.length ? `<div class="q-raids">${raids.map((d) => `<span>${d}</span>`).join('')}</div>` : '<div class="dim">None yet. Every 5th depth ends in one.</div>'}</div>`;
   h += `<div class="q-sec dim">Depths cleared: ${Object.keys(c.cleared || {}).length} &middot; Foes slain: ${fmtInt(c.kills || 0)} &middot; Deaths: ${c.deaths || 0}</div>`;

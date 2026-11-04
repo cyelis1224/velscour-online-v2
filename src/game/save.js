@@ -9,7 +9,7 @@ import { fixBag, fixGemBag, fixStash, fixJewelBox } from '../data/bag.js';
 import { stashRaw, listRaw } from './herobackup.js';
 import { FINAL_DEPTH } from '../data/depth.js';
 
-const KEY = 'Dagyr_saves_v1';
+const KEY = 'velscour_saves_v1';
 const ASIDE = KEY + '_unreadable_';   // + time: save data that couldn't be read, set aside before anything replaced it
 var watchers = [];
 /** fn(classId, deletedIds) after a hero of that class is saved, or deleted by the player (game/cloud.js syncs it). */

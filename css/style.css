@@ -1611,6 +1611,7 @@ body.touch #sealed-btn i {
   pointer-events: none;
 }
 
+#velscour-skull,
 #Dagyr-skull {
   pointer-events: auto;
   display: grid;
@@ -1628,6 +1629,7 @@ body.touch #sealed-btn i {
   right: -10px;
 }
 
+#velscour-skull img,
 #Dagyr-skull img {
   display: block;
   width: 30px;
@@ -1637,11 +1639,13 @@ body.touch #sealed-btn i {
   filter: drop-shadow(0 0 2px #000);
 }
 
+#velscour-skull:hover,
 #Dagyr-skull:hover {
   border-color: var(--gold-bright);
   box-shadow: 0 0 10px rgba(255, 170, 70, .55);
 }
 
+#velscour-skull:active,
 #Dagyr-skull:active {
   transform: scale(.94);
 }
@@ -5900,6 +5904,7 @@ body.touch.portrait #hud-dials {
   pointer-events: none;
 }
 
+body.touch.portrait #velscour-skull,
 body.touch.portrait #Dagyr-skull {
   grid-area: skull;
   position: static;
@@ -5911,6 +5916,7 @@ body.touch.portrait #Dagyr-skull {
   justify-self: center;
 }
 
+body.touch.portrait #velscour-skull img,
 body.touch.portrait #Dagyr-skull img {
   width: 26px;
   height: 26px;

@@ -117,13 +117,17 @@ export function titleScreen() {
   if (Cloud.conflicts.size) conflictDialogs();
   if (!unreadableNoted && !savesReadable()) {
     unreadableNoted = true;
-    UI.dialog({ title: 'Saved heroes unreadable', html: `<p>The heroes saved in this browser could not be read. DAGYR ONLINE will not write over them: before anything new is saved, the old data is set aside.</p><p class="dim">Settings &gt; Hero backups can download it, so it can be recovered.${Cloud.signedIn ? ' Heroes in your Google cloud save come back on their own once the next save is made.' : ''}</p>`, buttons: [{ label: 'OK' }] });
+    UI.dialog({ title: 'Saved heroes unreadable', html: `<p>The heroes saved in this browser could not be read. VELSCOUR will not write over them: before anything new is saved, the old data is set aside.</p><p class="dim">Settings &gt; Hero backups can download it, so it can be recovered.${Cloud.signedIn ? ' Heroes in your Google cloud save come back on their own once the next save is made.' : ''}</p>`, buttons: [{ label: 'OK' }] });
   }
 }
 let unreadableNoted = false;
-if (typeof addEventListener === 'function') addEventListener('Dagyr-save-blocked', () => {
-  UI.dialog({ title: 'Not saving', html: '<p>The heroes saved in this browser could not be read, and there was no room to set them aside, so the game is not saving over them. Free some browser storage (or use another browser) and reload.</p>', buttons: [{ label: 'OK' }] });
-});
+if (typeof addEventListener === 'function') {
+  const onBlocked = () => {
+    UI.dialog({ title: 'Not saving', html: '<p>The heroes saved in this browser could not be read, and there was no room to set them aside, so the game is not saving over them. Free some browser storage (or use another browser) and reload.</p>', buttons: [{ label: 'OK' }] });
+  };
+  addEventListener('velscour-save-blocked', onBlocked);
+  addEventListener('Dagyr-save-blocked', onBlocked);
+}
 
 // ------------------------------------------------------------ cloud saves (game/cloud.js)
 const ago = (t) => {
@@ -187,7 +191,7 @@ export function backupsDialog() {
         sfx('ui');
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([r.text], { type: 'application/json' }));
-        a.download = `Dagyr-unreadable-saves-${new Date(r.at).toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+        a.download = `Velscour-unreadable-saves-${new Date(r.at).toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 10000);
       };
@@ -977,7 +981,7 @@ export function gameModeScreen(charInfo, fresh = false, onBack = () => { }) {
   s.appendChild(heroBox);
 
   s.appendChild(el('h1', 'gamemode-title', 'CHOOSE GAME MODE'));
-  s.appendChild(el('p', 'gamemode-subtitle', 'Select your path into the depths of Dagyr Online'));
+  s.appendChild(el('p', 'gamemode-subtitle', 'Select your path into the depths of Velscour'));
 
   const grid = el('div', 'gamemode-grid');
 
@@ -1109,10 +1113,10 @@ export function deathScreen(depth, killer, onReturn, o = {}) {
 export function victoryScreen(onContinue) {
   const c = G.char;
   const s = el('div', 'screen');
-  s.innerHTML = `<img class="title-logo" src="assets/ui/logo.webp" style="max-height:28vh"><div class="death-title" style="color:#ffb030;text-shadow:0 0 30px #f80">DAGYR HAS FALLEN</div>
+  s.innerHTML = `<img class="title-logo" src="assets/ui/logo.webp" style="max-height:28vh"><div class="death-title" style="color:#ffb030;text-shadow:0 0 30px #f80">VELSCOUR HAS FALLEN</div>
   <p style="font-size:18px;text-align:center;max-width:620px;padding:0 12px">${escapeHtml(c.name)} the ${CLASSES[c.classId].name} has slain the Demon Lord at the bottom of the world.</p>
   <p class="dim">Level ${c.level} · ${fmtInt(c.kills || 0)} kills · ${c.deaths || 0} deaths</p>
-  <p class="dim" style="text-align:center;max-width:560px">Demon Lord Dagyr is defeated. Return through the throne portal to Herrington Hollow.</p>`;
+  <p class="dim" style="text-align:center;max-width:560px">Demon Lord Velscour is defeated. Return through the throne portal to Herrington Hollow.</p>`;
   const b = el('button', 'btn big', 'Continue');
   b.onclick = () => { sfx('ui'); hide(); onContinue(); };
   s.appendChild(b);
@@ -1316,7 +1320,7 @@ export function helpDialog() {
     <div><b style="color:#ffe2a0">Goal</b></div>
     <div>Enter the portal in town. Find the exit of each depth — it is sealed until its guardian falls.</div>
     <div>Die and you restart a few depths back (the start of the previous five), keeping everything else.</div>
-    <div>Reach Depth 500 and slay Demon Lord Dagyr.</div>
+    <div>Reach Depth 500 and slay Demon Lord Velscour.</div>
     <div><b style="color:#ffe2a0">Growing stronger</b></div>
     <div><b>Rings</b> (four slots): each carries augments that change a skill, a kind of skill or every skill — burning or venomous hits, chain lightning, a storm tether to your orbiting weapons, meteors, extra projectiles and more. The Jeweler sells them; guardians drop them.</div>
     <div><b>Skill mastery</b>: every skill levels from 1 to 1000 as you use it and kill with it, growing stronger and its effects bigger.</div>

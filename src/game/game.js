@@ -93,8 +93,8 @@ import { toggleTree, toggleBook } from '../ui/skills.js';
 import { toggleFriends } from '../ui/friends.js';
 import { toggleTalents } from '../ui/talents.js';
 import { toggleQuest } from '../ui/quest.js';
-import { setupDagyr } from './dagyr.js';
-import { loadDagyrThrone } from '../gfx/dagyrthrone.js';
+import { setupVelscour } from './velscour.js';
+import { loadVelscourThrone } from '../gfx/velscourthrone.js';
 import { offerCommissions, setupCommissions, commissionClear, wantedBiomes, LINE_BY_ID, commState } from './commissions.js';
 import { titleScreen, onlineCharSelectScreen, hide as hideScreen, deathScreen, victoryScreen, pauseMenu, helpDialog } from '../ui/screens.js';
 import { openLobby } from '../ui/lobby.js';
@@ -120,31 +120,30 @@ const PICK_WAIT = 8; // seconds auto-play gives the player to choose a portal do
 
 const STEP_SURFACE = { sunken: 'water', plague: 'water', sewers: 'water', serpent: 'water', library: 'wood', gilded: 'wood', sea_of_sand: 'sand', dark_forest: 'wood', skyship: 'wood', pirate_seas: 'wood', mountainside: 'dirt' };   // footstep sounds; default stone
 
-const DAGYR_TAUNT_STARTS = [
-  'YOUR VOICE ECHOES THROUGH THE ASHEN HALLS',
-  'THE ABYSS HEARS YOUR DEFIANCE',
-  'YOU DARE WHISPER INTO THE DARKNESS',
-  'YOUR WORDS CARVE NOTHING INTO THE STONE',
-  'EVEN NOW YOU CALL UPON THE THRONE BELOW',
-  'THE SEALED DEPTHS TREMBLE AT YOUR INSOLENCE',
-  'DO YOU BELIEVE PRAYER OR THREAT WILL SAVE YOU',
-  'THE IRON CROWN HAS NO MERCY FOR MORTALS',
-  'YOUR CHALLENGE RINGS HOLLOW IN THE VOID',
-  'MANY HAVE SPOKEN THAT NAME BEFORE FALLING',
+const VELSCOUR_TAUNT_STARTS = [
+  'WHY ARE YOU TRYING TO CONTACT VELSCOUR', 'WHAT MADE YOU THINK VELSCOUR WANTS TO HEAR FROM YOU',
+  'DID YOU REALLY EXPECT VELSCOUR TO ANSWER', 'WHO TOLD YOU VELSCOUR TAKES MESSAGES',
+  'IS THIS HOW YOU PLAN TO CHALLENGE VELSCOUR', 'DO YOU HAVE A DEATH WISH OR JUST POOR MANNERS',
+  'WHY SUMMON A DEMON LORD WHEN YOU CAN BOTHER ANYONE ELSE', 'DID THE GRAVEYARD RECOMMEND THIS CONTACT METHOD',
+  'ARE YOU LOST OR JUST COMMITTED TO MAKING THINGS WORSE', 'WHAT PART OF DOOM DID YOU MISTAKE FOR CUSTOMER SERVICE',
+  'DO YOU THINK HELL HAS A RECEPTION DESK', 'HOW MANY BAD DECISIONS FIT IN ONE SHORT MESSAGE',
+  'ARE YOU TRYING TO NEGOTIATE WITH THE END OF YOU', 'DID YOUR COMMON SENSE DIE BEFORE YOU GOT HERE',
+  'WHAT COULD POSSIBLY GO WRONG THIS TIME', 'WHY ASK THE ABYSS TO NOTICE YOU',
+  'IS THIS BRAVERY OR A VERY SPECIFIC KIND OF STUPID', 'DID YOU THINK THE DEMON LORD WAS BETWEEN APPOINTMENTS',
 ];
-const DAGYR_TAUNT_ENDS = [
-  'Only silence and cold iron await your descent.',
-  'The dark remembers every oath broken in its halls.',
-  'Walk deeper, and see what answers in blood.',
-  'Your blade will dull long before the pit ends.',
-  'The throne below has outlasted greater champions than you.',
-  'Ash and bone are the only replies the abyss grants.',
-  'Every step downward seals your covenant with ruin.',
-  'The shadows gather where your lantern fades.',
-  'No herald returns from the final gate.',
-  'Save your breath for the guardians below.',
+const VELSCOUR_TAUNT_ENDS = [
+  'He is busy polishing the thing that will end your adventure.', 'The abyss has a strict no refunds policy.',
+  'Your courage is adorable. Your odds are not.', 'Hell called; it said to stop making it awkward.',
+  'Please leave a message after the screaming.', 'The last visitor left as a cautionary stain.',
+  'He read your aura and marked it spam.', 'Your odds are somewhere beneath the floor.',
+  'This conversation may be recorded for the inquest.', 'Even the skeletons are embarrassed for you.',
+  'Your message will be delivered by a very nervous imp.', 'There is no safe word in the terms of service.',
+  'Somewhere, a lich just sighed at your decision.', 'The abyss knows your name and still declined.',
+  'This is why the dead keep their phones on silent.', 'Try again when your survival instinct returns.',
+  'Your next of kin may appreciate the initiative.',
 ];
-const DAGYR_TAUNTS = DAGYR_TAUNT_STARTS.flatMap((start) => DAGYR_TAUNT_ENDS.map((end) => `${start}? ${end}`));
+const VELSCOUR_TAUNTS = VELSCOUR_TAUNT_STARTS.flatMap((start) => VELSCOUR_TAUNT_ENDS.map((end) => `${start}? ${end}`));
+const DAGYR_TAUNTS = VELSCOUR_TAUNTS;
 
 let townCache = null, townTiles = null;
 let saveT = 0;
@@ -567,17 +566,19 @@ function attachNetListeners() {
           }
         };
       }
-      if (data.vk && G.world.Dagyr) {
-        G.world.Dagyr.parts.push(m);
+      const velBoss = G.world.velscour || G.world.Dagyr;
+      if (data.vk && velBoss) {
+        velBoss.parts.push(m);
         if (data.vk === 'shard') {
           const bm = G.world.boss;
           m.onDeath = () => {
             if (!bm || bm.dead) return;
             const cut = bm.maxHp * 0.05;
             bm.hp = Math.max(bm.maxHp * 0.3, bm.hp - cut);
-            if (G.world.Dagyr) G.world.Dagyr.lastHp = bm.hp;
+            const vb = G.world.velscour || G.world.Dagyr;
+            if (vb) vb.lastHp = bm.hp;
             addEffect(new Column(m.x, m.y, '#ff3050', 1, 60, 300));
-            floatText(m.x, m.y, 80, '-5% DAGYR', '#ff6080', 16, { life: 1.6 });
+            floatText(m.x, m.y, 80, '-5% VELSCOUR', '#ff6080', 16, { life: 1.6 });
             sfx('explode');
           };
         }
@@ -1506,20 +1507,20 @@ export const game = {
     this.enterDungeon();
   },
 
-  openDagyrContact() {
-    const taunt = DAGYR_TAUNTS[(Math.random() * DAGYR_TAUNTS.length) | 0];
+  openVelscourContact() {
+    const taunt = VELSCOUR_TAUNTS[(Math.random() * VELSCOUR_TAUNTS.length) | 0];
     const dialog = UI.dialog({
-      title: 'WHY ARE YOU TRYING TO CONTACT DAGYR',
-      cls: 'Dagyr-contact-dialog',
-      html: `<p class="Dagyr-taunt">${escapeHtml(taunt)}</p><label class="Dagyr-message-label" for="Dagyr-message">Send a message into the abyss</label><div class="Dagyr-message-row"><input id="Dagyr-message" class="name-input" type="text" maxlength="50" autocomplete="off" placeholder="50 characters, tops"><span id="Dagyr-message-count">0 / 50</span></div>`,
+      title: 'WHY ARE YOU TRYING TO CONTACT VELSCOUR',
+      cls: 'velscour-contact-dialog',
+      html: `<p class="velscour-taunt">${escapeHtml(taunt)}</p><label class="velscour-message-label" for="velscour-message">Send a message into the abyss</label><div class="velscour-message-row"><input id="velscour-message" class="name-input" type="text" maxlength="50" autocomplete="off" placeholder="50 characters, tops"><span id="velscour-message-count">0 / 50</span></div>`,
       buttons: [
         { label: 'Close' },
         {
           label: 'Send', cls: 'red', keepOpen: true, fn: (close) => {
-            const message = document.getElementById('Dagyr-message')?.value || '';
-            if (['HAIL DAGYR!', '13', '65', '69', '666', '6669'].includes(message)) {
+            const message = document.getElementById('velscour-message')?.value || '';
+            if (['HAIL VELSCOUR!', 'HAIL DAGYR!', '13', '65', '69', '666', '6669'].includes(message)) {
               close();
-              this.openDagyrTeleport();
+              this.openVelscourTeleport();
             } else if (message === DEATH_PHRASE) { // exact, case sensitive
               close();
               if (Auto.on) Auto.toggle(false);
@@ -1541,10 +1542,10 @@ export const game = {
               G.char.skyVariant = SKY_ALL.find((v) => v.id === want || v.weather.toLowerCase().includes(want || '#') || v.name.toLowerCase().includes(want || '#'))?.id;
               close();
               this.teleportToBiome(BIOME_BY_ID.skyship);
-            } else if (['final boss', 'finalboss', 'Dagyr'].includes(message.trim().toLowerCase())) {
+            } else if (['final boss', 'finalboss', 'velscour', 'dagyr'].includes(message.trim().toLowerCase())) {
               close();
-              this.finalBoss(); // straight into Dagyr's arena, scaled to this depth
-            } else if (['unbound', 'Dagyr unbound'].includes(message.trim().toLowerCase())) {
+              this.finalBoss(); // straight into Velscour's arena, scaled to this depth
+            } else if (['unbound', 'velscour unbound', 'dagyr unbound'].includes(message.trim().toLowerCase())) {
               close();
               this.enterUnbound(); // the rematch, for three Abyssal Keys (docs/ENDGAME.md)
             } else if (['heresy', 'heresies', 'altar'].includes(message.trim().toLowerCase())) { close(); Heresies.open(); }
@@ -1566,24 +1567,26 @@ export const game = {
         },
       ],
     });
-    const inputEl = dialog.box.querySelector('#Dagyr-message');
-    const countEl = dialog.box.querySelector('#Dagyr-message-count');
-    inputEl.addEventListener('input', () => { countEl.textContent = `${inputEl.value.length} / 50`; });
+    const inputEl = dialog.box.querySelector('#velscour-message');
+    const countEl = dialog.box.querySelector('#velscour-message-count');
+    inputEl?.addEventListener('input', () => { countEl.textContent = `${inputEl.value.length} / 50`; });
   },
 
-  openDagyrTeleport() {
+  openDagyrContact() { return this.openVelscourContact(); },
+
+  openVelscourTeleport() {
     const options = [...BETA_BIOMES, ...BIOMES].map((biome) => `<option value="${escapeHtml(biome.id)}">${escapeHtml(biome.name)}${biome.overworld ? ' · Overworld' : ''}${biome.beta ? ' (Beta)' : ''}</option>`).join('')
       + SKY_ALL.map((v) => `<option value="skyship:${v.id}">${escapeHtml(BIOME_BY_ID.skyship.name)}: ${escapeHtml(v.name)} (${escapeHtml(v.weather)})</option>`).join('')
       + SEA_VARIANTS.map((v) => `<option value="pirate_seas:${v.id}">${escapeHtml(BIOME_BY_ID.pirate_seas.name)}: ${escapeHtml(v.name)} (${escapeHtml(v.weatherName)})</option>`).join('');
     const dialog = UI.dialog({
       title: 'CHOOSE YOUR DOOM',
-      cls: 'Dagyr-teleport-dialog',
-      html: `<p>Select a biome. Your current depth will be reforged with a fresh path.</p><label class="Dagyr-message-label" for="Dagyr-biome">Destination biome</label><select id="Dagyr-biome" class="Dagyr-biome-select">${options}</select>`,
+      cls: 'velscour-teleport-dialog',
+      html: `<p>Select a biome. Your current depth will be reforged with a fresh path.</p><label class="velscour-message-label" for="velscour-biome">Destination biome</label><select id="velscour-biome" class="velscour-biome-select">${options}</select>`,
       buttons: [
         { label: 'Cancel' },
         {
           label: 'Teleport', cls: 'red', fn: () => {
-            let id = dialog.box.querySelector('#Dagyr-biome').value;
+            let id = dialog.box.querySelector('#velscour-biome').value;
             if (id.startsWith('skyship:')) { G.char.skyVariant = id.slice(8); id = 'skyship'; }
             const biome = BIOME_BY_ID[id];
             if (biome) this.teleportToBiome(biome);
@@ -1593,17 +1596,20 @@ export const game = {
     });
   },
 
-  /** The skull's "final boss": Dagyr's throne at the hero's depth, the hero set down inside his arena. */
+  openDagyrTeleport() { return this.openVelscourTeleport(); },
+
+  /** The skull's "final boss": Velscour's throne at the hero's depth, the hero set down inside his arena. */
   async finalBoss() {
     await this.teleportToBiome(BIOME_BY_ID.throne);
     const w = G.world, p = G.player;
-    if (!w || !w.Dagyr || !p) return;
+    const vBoss = w && (w.velscour || w.Dagyr);
+    if (!w || !vBoss || !p) return;
     const [x, y] = w.map.nudge(22.5, 26.5, 0.4);
     p.x = x; p.y = y; p.path = null; p.moveTarget = null; p.attackTarget = null;
     for (const s of w.creatures) if (s.team === 'player' && s !== p) [s.x, s.y] = w.map.randomNear(x, y, 1.5);
     w.map.reveal(x, y, 30);
     camera.follow(x, y, 0, true);
-    UI.log(`<b style="color:#ff4020">Dagyr answers.</b> ${w.practice ? `This is a practice fight at Depth ${w.depth}: no victory, no relic hoard, but every phase of the real one.` : 'This is the real thing.'}`, '#ffb0a0');
+    UI.log(`<b style="color:#ff4020">Velscour answers.</b> ${w.practice ? `This is a practice fight at Depth ${w.depth}: no victory, no relic hoard, but every phase of the real one.` : 'This is the real thing.'}`, '#ffb0a0');
   },
 
   async teleportToBiome(biome) {
@@ -1622,7 +1628,7 @@ export const game = {
     LoadingScreen.show({
       title: (biome.name || 'ABYSSAL REALM').toUpperCase(),
       subtitle: `Depth ${depth}`,
-      text: `Answering Dagyr — Depth ${depth} · ${biome.name}…`,
+      text: `Answering Velscour — Depth ${depth} · ${biome.name}…`,
       progress: 10
     });
     try {

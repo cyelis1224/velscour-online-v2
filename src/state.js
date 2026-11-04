@@ -49,11 +49,11 @@ export const G = {
   },
 };
 
-export const SETTINGS_KEY = 'Dagyr_settings_v1';
+export const SETTINGS_KEY = 'velscour_settings_v1';
 
 export function loadSettings() {
   try {
-    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || localStorage.getItem('Dagyr_settings_v1') || '{}');
     Object.assign(G.settings, s);
     // v1.0.7: landscape phones switched to the compact HUD by default; flip older saves over once
     if (!s.mobileHudV2) { G.settings.mobileSkillBar = false; G.settings.mobileHudV2 = true; }

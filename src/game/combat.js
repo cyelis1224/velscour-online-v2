@@ -111,7 +111,7 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
   } else if (o.fromNetwork && o.crit) {
     crit = true;
   }
-  if (tgt.vel) dmg = tgt.vel.absorb(dmg); // Dagyr's life gates and damage cap (game/dagyr.js)
+  if (tgt.vel) dmg = tgt.vel.absorb(dmg); // Velscour's life gates and damage cap (game/velscour.js)
 
   const byHero = !tgt.isPlayer && tgt.team !== 'player' && (fromPlayer || (src && src.team === 'player'));
   // o.lightFx: a rapid multi-hit (the Lancer's tower-shield rings) shows its full feedback on about one hit in sixteen,

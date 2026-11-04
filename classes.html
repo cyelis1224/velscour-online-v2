@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#090706">
-  <title>DAGYR ONLINE - Hero Classes</title>
+  <title>VELSCOUR - Hero Classes</title>
   <link rel="icon" type="image/x-icon" href="assets/ui/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -962,25 +962,22 @@
   <header>
     <div class="header-top">
       <div class="brand-wrap">
-        <img class="brand-logo" src="assets/ui/dagyr_contact_skull.png" alt="Dagyr Online">
+        <img class="brand-logo" src="assets/ui/velscour_contact_skull.png" alt="Velscour">
         <div class="brand-titles">
-          <h1>DAGYR <span>ONLINE</span> · HERO CLASSES</h1>
-          <p>The 9 playable champions of the realm, and the 7 upcoming legends</p>
+          <h1>VELSCOUR · HERO CLASSES</h1>
+          <p>The 17 playable champions and legends of the realm</p>
         </div>
       </div>
       <div class="header-actions">
         <a href="home.html" class="btn-action">Home</a>
         <a href="bestiary.html" class="btn-action">Bestiary Compendium</a>
-        <a href="https://mmo.dagyr.me/" class="btn-action" style="color:var(--gold-bright);border-color:var(--gold);">Play Now →</a>
-        <a href="/" class="btn-action">Client</a>
+        <a href="/" class="btn-action" style="color:var(--gold-bright);border-color:var(--gold);">Play Now →</a>
       </div>
     </div>
     <div class="stats-ribbon">
-      <div class="stat-badge"><span>Active Heroes:</span> <b>9 Playable</b></div>
-      <div class="stat-badge"><span>Upcoming Classes:</span> <b>7 Coming Soon</b></div>
-      <div class="stat-badge"><span>Total Roster:</span> <b>16 Classes</b></div>
-      <div class="stat-badge"><span>Skill Trees:</span> <b>60+ Distinct Trees</b></div>
-      <div class="stat-badge"><span>Signature Ultimates:</span> <b>9 Ultimate Moves</b></div>
+      <div class="stat-badge"><span>Total Roster:</span> <b>17 Playable Classes</b></div>
+      <div class="stat-badge"><span>Skill Trees:</span> <b>68 Distinct Trees</b></div>
+      <div class="stat-badge"><span>Passive Talents:</span> <b>17 Deep Talent Trees</b></div>
     </div>
   </header>
 
@@ -1031,17 +1028,17 @@
     <!-- Section 1: Active Playable Classes -->
     <div class="section-wrap" id="section-active">
       <div class="section-header">
-        <h2>⚔️ Active Playable Heroes</h2>
-        <span class="section-tag">9 Currently Playable in Game</span>
+        <h2>⚔️ Playable Heroes</h2>
+        <span class="section-tag">17 Playable Classes</span>
       </div>
       <div class="classes-grid" id="grid-active" style="margin-top: 18px;"></div>
     </div>
 
     <!-- Section 2: Upcoming Classes (Coming Soon) -->
-    <div class="section-wrap" id="section-disabled">
+    <div class="section-wrap" id="section-disabled" style="display:none;">
       <div class="section-header upcoming">
         <h2>🔒 Upcoming Legends · Coming Soon</h2>
-        <span class="section-tag">7 In Active Development</span>
+        <span class="section-tag">In Active Development</span>
       </div>
       <div class="classes-grid" id="grid-disabled" style="margin-top: 18px;"></div>
     </div>
@@ -1215,7 +1212,12 @@
       'Flame': 'Scorching dragon breath cones, magma trails, and incinerating claws.',
       'Scale': 'Hardened draconic scales granting immense elemental and physical resistances.',
       'Draconic': 'Dragon wing flaps, tail whips, and ferocious roar stuns.',
-      'Wyrmfire Ascendant': 'Full transformation into a majestic fire-breathing dragon avatar.'
+      'Wyrmfire Ascendant': 'Full transformation into a majestic fire-breathing dragon avatar.',
+      // Monk
+      'Martial Arts': 'Lightning-fast palm strikes, flying kicks, sweeping roundhouses, and fist flurries.',
+      'Spirit & Mantras': 'Inner chi focus, sacred healing chants, defensive mantras, and spiritual harmony.',
+      'Dragon & Tiger': 'Ferocious elemental stances, spirit dragon surges, and leaping tiger pounces.',
+      'Transcendence': 'Ascended spiritual enlightenment, ethereal clones, and devastating radiant palm waves.'
     };
 
     const ELEMENT_INFO = {

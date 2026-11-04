@@ -90,7 +90,7 @@ export function torchAtWallSegment(s) {
 
 /** Every fifth depth (but the throne at FINAL_DEPTH) ends in a BOSS ROOM with a raid boss (game/raid.js). */
 import { isRaidDepth, FINAL_DEPTH, density } from '../data/depth.js';
-import { throneSprite, THRONE_ART } from '../gfx/dagyrthrone.js';
+import { throneSprite, THRONE_ART } from '../gfx/velscourthrone.js';
 export { isRaidDepth };
 
 // the boss room: an arena east of the maze, reached by a corridor from its far end
@@ -774,9 +774,9 @@ function generateThrone(biome, tileset, seed) {
     { x: 10, y: 45, arch: 'imp', n: 6, rank: 'normal' },
     { x: 33, y: 45, arch: 'gargoyle', n: 4, rank: 'normal' },
     { x: 22, y: 38, arch: 'abomination', n: 2, rank: 'unique' },
-    { x: 22, y: 14, arch: 'Dagyr', n: 1, rank: 'boss' },
+    { x: 22, y: 14, arch: 'velscour', n: 1, rank: 'boss' },
   ];
-  // The throne remains Dagyr's scripted boss arena, but its corridors
+  // The throne remains Velscour's scripted boss arena, but its corridors
   // now also draw gauntlet guards from the FULL biome roster. This allows
   // all 50 registered throne-native look variants (and the existing global
   // bestiary) to be encountered across differently seeded final levels.
@@ -792,8 +792,8 @@ function generateThrone(biome, tileset, seed) {
   for (const [x, y] of [[12, 10], [32, 10], [12, 24], [32, 24]]) {
     if (ob && map.walkableTile(x, y)) { map.block[y * W + x] = 1; props.push({ kind: 'scatter', x: x + 0.5, y: y + 0.5, spr: ob, k: tileset.k }); }
   }
-  // his throne (gfx/Dagyrthrone.js): the Castle's throne dais in his colours on a 2 x 2 footing, its front corner at
-  // (23, 12); he sits on it until the fight begins (game/dagyr.js SEAT)
+  // his throne (gfx/velscourthrone.js): the Castle's throne dais in his colours on a 2 x 2 footing, its front corner at
+  // (23, 12); he sits on it until the fight begins (game/velscour.js SEAT)
   for (let y = 10; y <= 11; y++) for (let x = 21; x <= 22; x++) map.block[y * W + x] = 1;
   props.push({ kind: 'scatter', x: 23, y: 12, spr: throneSprite(), k: 1 / THRONE_ART.over, throne: true });
   return {

@@ -59,7 +59,8 @@ function rollMoves(arch, rank, variant, depth) {
 }
 
 /** Demon Lord Dagyr's life in normal monsters of his level: ~3x the last BOSS ROOM boss (~3 minutes of hero damage). */
-export const DAGYR_HP = 60;
+export const VELSCOUR_HP = 60;
+export const DAGYR_HP = VELSCOUR_HP;
 export function monsterBase(level) {
   return {
     // Polynomial Level 1-100 monster HP and damage on the same 1:1 scale as Player HP and Player Damage:
@@ -1129,7 +1130,7 @@ export class Monster extends Creature {
 
   // ------------------------------------------------------------------ bosses
   bossUpdate(dt) {
-    if (this.vel && this.vel.holdBoss()) return; // Dagyr hovering, hidden or bound (game/dagyr.js)
+    if (this.vel && this.vel.holdBoss()) return; // Velscour hovering, hidden or bound (game/velscour.js)
     const w = this.world, p = w.player;
     const players = [];
     if (p && !p.dead) players.push(p);
@@ -1418,17 +1419,18 @@ export function makeElite(m, rank, depth, world, rnd = Math.random) {
     m.name = uniqueName(rnd);
     if (m.art) m.swap = uniqueSwap(rnd);
   } else if (rank === 'boss') {
-    const vel = m.arch === 'Dagyr' || m.arch === 'dagyr' || m.arch === 'velscour';
-    if (vel) { m.art = 'va_Dagyr'; m.artH = 94; m.swap = null; }
-    // Dagyr: final encounter (~120x normal monster life after HP_MUL)
+    const vel = m.arch === 'velscour' || m.arch === 'Velscour' || m.arch === 'dagyr' || m.arch === 'Dagyr';
+    if (vel) { m.art = 'va_velscour'; m.artH = 94; m.swap = null; }
+    // Velscour: final encounter (~120x normal monster life after HP_MUL)
     // Floor Guardians: scales smoothly from 6x at depth 1 up to ~38x at depth 500
     const fgMul = 6 + Math.pow(Math.min(depth, 500) / 500, 0.75) * 32;
-    m.maxHp *= vel ? DAGYR_HP : fgMul / Math.pow(Math.max(1, ARCH[m.arch]?.hp || 1), 0.7); m.dmg *= vel ? 2.8 : 1.7; m.xp *= vel ? 200 : 25;
+    m.maxHp *= vel ? VELSCOUR_HP : fgMul / Math.pow(Math.max(1, ARCH[m.arch]?.hp || 1), 0.7); m.dmg *= vel ? 2.8 : 1.7; m.xp *= vel ? 200 : 25;
     m.aura = vel ? '#ff2000' : '#ff4020';
     m.scale = vel ? 1.6 : 1.9; m.r *= vel ? 1 : 1.6;
     m.ai = 'boss';
     m.affixes = depth > 20 && !vel ? shuffle(keys.filter((k) => !['teleport', 'multishot', 'fast', 'regen', 'vampiric'].includes(k)), rnd).slice(0, 1) : [];
-    m.name = vel ? 'DEMON LORD DAGYR' : (ARCH[m.arch]?.bossName || bossName(rnd));
+    m.name = vel ? 'DEMON LORD VELSCOUR' : (ARCH[m.arch]?.bossName || bossName(rnd));
+    m.isVelscour = vel;
     m.isDagyr = vel;
     const base = ['slam', 'nova', 'volley', 'charge', 'summon', 'meteor', 'spiral', 'beam'];
     m.patterns = vel ? base : ARCH[m.arch]?.bossPatterns ? ARCH[m.arch].bossPatterns.slice() : shuffle(base.slice(), rnd).slice(0, 3 + Math.min(3, Math.floor(depth / 20)));

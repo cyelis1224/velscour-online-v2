@@ -1,6 +1,6 @@
-// Demon Lord Dagyr's last stand (the throne arena, world/dungeon.js generateThrone): five phases, 5-10 minutes.
-//   0  He waits seated on his throne (the Castle's throne dais in his colours, gfx/Dagyrthrone.js) and leaps down.
-//   1  The Lord Upon the Throne (100-80%): Hellbrand cleaves, Chains of Dagyr drag the hero in, Throne Guard.
+// Demon Lord Velscour's last stand (the throne arena, world/dungeon.js generateThrone): five phases, 5-10 minutes.
+//   0  He waits seated on his throne (the Castle's throne dais in his colours, gfx/velscourthrone.js) and leaps down.
+//   1  The Lord Upon the Throne (100-80%): Hellbrand cleaves, Chains of Velscour drag the hero in, Throne Guard.
 //   2  The Four Seals (at 80%, he can't be hurt): four seal crystals, each held by a Seal Warden, while flame walls
 //      sweep the floor. Seals left after two minutes make him 15% stronger each for the rest of the fight.
 //   3  Crown of Hellfire (80-50%): lava creeps in from the arena's edge and ebbs; meteor spirals, Doom Brand (a lava
@@ -11,12 +11,12 @@
 //      At 10% he chains himself to the four obelisks and can't be hurt until they break.
 // Pacing: life gates (damage can't carry past a phase threshold) and a damage cap (at most PACE of his life a second,
 // banked up to 3 s) keep even an overgeared hero in the fight for about five minutes; at ENRAGE_T (15 min) he executes.
-// Measured (tools/tests/Dagyr_real.js, depth-500 gear, no god mode): paladin/wizard 6-8 min, ranger 8-12, most win.
+// Measured (tools/tests/velscour_real.js, depth-500 gear, no god mode): paladin/wizard 6-8 min, ranger 8-12, most win.
 // Auto-play reads the hazards: danger() (lava, flame walls), safeAt() (APOCALYPSE's circles), autoGoal() (lanterns).
 // world.practice ("final boss" in the skull's message box at any depth): the same fight scaled to that depth, without
 // the guaranteed relic drops or the victory screen.
 import { G } from '../state.js';
-import { rand, chance, TAU, clamp, angleTo, angleDiff, dist, pick, hexToRgb, escapeHtml } from '../core/util.js';
+import { rand, chance, TAU, clamp, angleTo, angleDiff, dist, pick, hexToRgb } from '../core/util.js';
 import { isoX, isoY, HW, HH } from '../core/view.js';
 import { sfx } from '../core/audio.js';
 import { addEffect, Telegraph, Ring, Bolt, Column, burst, sparkle, floatText, smoke, addLight, glowSprite } from '../gfx/vfx.js';
@@ -26,18 +26,17 @@ import { Delayed, Area, coneTargets } from './hazards.js';
 import { makeMonster, Monster, lookFor } from './monster.js';
 import { UI } from '../ui/ui.js';
 import { GroundItem } from './loot.js';
-import { heresyAllows } from './heresies.js';
 import { makeHeirloom, makeCovenant } from '../data/relics.js';
 import { rollSigil, SIGIL_MAX, makeGem } from '../data/items.js';
 import { setupUnbound, unboundTick, courtBegin, courtGate, unboundSpoils, UNBOUND } from './unbound.js';
 import { legionGate } from './heresies.js';
 
-export const HP_MUL = 2;          // his life on top of a boss's x40 (tuned with tools/tests/dagyr.js)
+export const HP_MUL = 2;          // his life on top of a boss's x40 (tuned with tools/tests/velscour.js)
 export const DMG_MUL = 0.7;       // his hits: the fight runs ~4x longer than the old one, so each hurts less (tools/tests/balance.js BAL_BIOME=throne)
 export const PACE = 1 / 220;      // the most of his life he can lose a second (banked up to 3 s)
 export const ENRAGE_T = 15 * 60;  // he executes the hero after fifteen minutes (slow builds: geared rangers took 9-12)
 const C = { x: 22, y: 17.5, rx: 16, ry: 13.5 }; // the arena ellipse
-// his throne (gfx/Dagyrthrone.js, tiles 21-22 x 10-11): where he sits, how high the seat is, where he lands
+// his throne (gfx/velscourthrone.js, tiles 21-22 x 10-11): where he sits, how high the seat is, where he lands
 const SEAT = [22.95, 12.2], SEAT_Z = 74, FRONT = [22.5, 15];
 const SEALS = [[22, 6.5, 'North'], [35, 17.5, 'East'], [22, 28.5, 'South'], [9, 17.5, 'West']];
 const OBELISKS = [[12, 10], [32, 10], [12, 24], [32, 24]];
@@ -45,9 +44,9 @@ const LANTERNS = [[13.5, 20], [30.5, 20]];
 const GUARDS = [[13, 13], [31, 13]];
 const inArena = (x, y, k = 1) => ((x - C.x) / (C.rx * k)) ** 2 + ((y - C.y) / (C.ry * k)) ** 2 <= 1;
 
-export function setupDagyr(world, m, gen) {
-  const V = new DagyrFight(world, m, gen);
-  m.vel = V; world.Dagyr = V;
+export function setupVelscour(world, m, gen) {
+  const V = new VelscourFight(world, m, gen);
+  m.vel = V; world.velscour = V;
   // the looks of everything he calls in later, chosen now: their sheets load and their sprites are built with the
   // level, behind the loading screen, not on the frame the first demon steps out (45 ms on a slowed phone)
   for (const a of ['demon', 'knight', 'gargoyle', 'wraith', 'imp']) lookFor(world, a);
@@ -60,14 +59,11 @@ export function setupDagyr(world, m, gen) {
   return V;
 }
 
-class DagyrFight {
+class VelscourFight {
   constructor(world, m, gen) {
     Object.assign(this, { world, m, gen, phase: 0, t: 0, ground: true, team: 'enemy', parts: [], hold: false, bank: 0, lastHp: m.maxHp, cd: {}, sealBuff: 0, practice: !!world.practice });
     this.gate = 0.8; // the life fraction this phase can't be pushed below
     this.gateTiles = [];
-    this.sealed = false;
-    this.joinPromptOpen = false;
-    this.joinPromptCooldown = 0;
   }
   get p() { return this.world.player; }
   // ---------------------------------------------------------------- HUD line under the boss bar
@@ -77,7 +73,7 @@ class DagyrFight {
     const live = (k) => this.parts.filter((c) => c.vk === k && !c.dead).length;
     const name = ['', 'The Lord Upon the Throne', 'The Four Seals', 'Crown of Hellfire', 'Into the Abyss', 'True Form', 'Bound to the Obelisks'][this.phase];
     const extra = this.phase === 2 ? ` — break the seals (${live('seal')} left)` : this.phase === 4 ? ` — break the Heart Shards (${live('shard')} left)` : this.phase === 6 ? ` — break the obelisks (${live('obelisk')} left)` : '';
-    const pact = this.unbound && this.m.ward < 1 ? ' · Pact: slay his court' : ''; // Dagyr Unbound (game/unbound.js)
+    const pact = this.unbound && this.m.ward < 1 ? ' · Pact: slay his court' : ''; // Velscour Unbound (game/unbound.js)
     return `Phase ${Math.min(5, this.phase === 6 ? 5 : this.phase)}/5 · ${name}${extra}${pact}${clock}`;
   }
 
@@ -96,26 +92,20 @@ class DagyrFight {
     this.faceHero();
     this.t += dt;
     this.pace(dt);
-    if (this.joinPromptCooldown > 0) this.joinPromptCooldown -= dt;
-    if (this.sealed && p && !p.dead && !inArena(p.x, p.y, 0.95)) {
-      if (p.y >= 32.5 && p.y <= 36.5 && p.x >= 17 && p.x <= 27) {
-        this.promptJoin(p);
-      }
-    }
     // the clock
     if (this.t > (this.enrageT || ENRAGE_T) && (this.execT || 0) < this.t) {
       this.execT = this.t + 5;
-      UI.centerMsg('YOUR TIME IS UP', 'Dagyr ends this', 2.5);
+      UI.centerMsg('YOUR TIME IS UP', 'Velscour ends this', 2.5);
       addEffect(new Column(p.x, p.y, '#ff1010', 1.2, 60, 400)); burst(p.x, p.y, 30, 'blood', 50, 6); sfx('thud'); sfx('roar');
       if (!G.godMode) { p.phoenixCd = Math.max(p.phoenixCd || 0, 1); p.hp = 0; p.die(m); return true; }
     }
     const frac = m.hp / m.maxHp;
     switch (this.phase) {
-      case 1: this.p1(dt); if (frac <= 0.8 + 1e-4) this.startSeals(); break;
+      case 1: this.p1(dt); if (frac <= 0.8 + 1e-6) this.startSeals(); break;
       case 2: this.p2(dt); break;
-      case 3: this.p3(dt); if (frac <= 0.5 + 1e-4) this.startAbyss(); break;
+      case 3: this.p3(dt); if (frac <= 0.5 + 1e-6) this.startAbyss(); break;
       case 4: this.p4(dt); break;
-      case 5: this.p5(dt); if (frac <= 0.1 + 1e-4 && !this.bound) this.startChains(); else if (this.unbound && this.bound && !this.bound2 && frac <= 0.05 + 1e-4) this.startChains(); break;
+      case 5: this.p5(dt); if (frac <= 0.1 + 1e-6 && !this.bound) this.startChains(); else if (this.unbound && this.bound && !this.bound2 && frac <= 0.05 + 1e-6) this.startChains(); break;
       case 6: this.p5(dt, true); this.p6(dt); break;
     }
     if (this.unbound) unboundTick(this, dt); // the court, the Pact (game/unbound.js)
@@ -135,10 +125,10 @@ class DagyrFight {
   absorb(dmg) {
     const m = this.m;
     if (!this.phase) return dmg;
-    const room = Math.max(0, m.hp - m.maxHp * this.gate);
+    const room = Math.max(0, m.hp - m.maxHp * this.gate - (this.gate > 0 ? 1 : 0));
     const take = Math.min(dmg, this.bank, room);
     this.bank -= take;
-    if (take < dmg * 0.5 && (this.endureT || 0) < this.t) { this.endureT = this.t + 1.2; floatText(m.x, m.y, 150, room <= 0 ? 'THE PHASE TURNS' : 'DAGYR ENDURES', '#ff9060', 13, { life: 1 }); }
+    if (take < dmg * 0.5 && (this.endureT || 0) < this.t) { this.endureT = this.t + 1.2; floatText(m.x, m.y, 150, room <= 0 ? 'THE PHASE TURNS' : 'VELSCOUR ENDURES', '#ff9060', 13, { life: 1 }); }
     return take;
   }
 
@@ -170,74 +160,23 @@ class DagyrFight {
     m.patternQ = [];
     this.seal();
     if (w.onBossAwake) w.onBossAwake(m);
-    UI.centerMsg(this.unbound ? 'DAGYR UNBOUND' : 'DEMON LORD DAGYR', this.unbound ? 'The Court of the Abyss rises with him' : this.practice ? 'The last battle (practice)' : 'The last battle', 3.4);
-    UI.log('<b style="color:#ff4020">Dagyr rises from his throne.</b> Five trials stand between you and the end of him.', '#ffb0a0');
+    UI.centerMsg(this.unbound ? 'VELSCOUR UNBOUND' : 'DEMON LORD VELSCOUR', this.unbound ? 'The Court of the Abyss rises with him' : this.practice ? 'The last battle (practice)' : 'The last battle', 3.4);
+    UI.log('<b style="color:#ff4020">Velscour rises from his throne.</b> Five trials stand between you and the end of him.', '#ffb0a0');
     this.cd = { brand: 3, chain: 9, guard: 20 };
     if (this.unbound) courtBegin(this);
   }
 
   /** Close the arena's mouth (the corridor at its south end) until he falls. */
   seal() {
-    this.sealed = true;
     const map = this.world.map;
     for (let x = 18; x <= 26; x++) for (const y of [31, 32]) { const i = y * map.w + x; if (map.t[i] === 1 && !map.block[i]) { map.block[i] = 1; this.gateTiles.push(i); } }
     map.flowFrom = [-9, -9];
     sfx('thud'); sfx('portal', 0.6);
   }
   unseal() {
-    this.sealed = false;
-    this.joinPromptOpen = false;
     const map = this.world.map;
     for (const i of this.gateTiles) map.block[i] = 0;
     this.gateTiles = []; map.flowFrom = [-9, -9];
-  }
-
-  promptJoin(p, force = false) {
-    if (!this.sealed || this.m.dead || !p || p.dead || inArena(p.x, p.y, 0.95)) return;
-    if (this.joinPromptOpen) return;
-    if (!force && this.joinPromptCooldown > 0) return;
-
-    if (G.auto && G.auto.on) {
-      this.joinArena(p);
-      return;
-    }
-
-    this.joinPromptOpen = true;
-    const bossName = this.unbound ? 'Dagyr Unbound' : 'Demon Lord Dagyr';
-    const d = UI.confirm(
-      'Join Final Battle?',
-      `The battle against <b style="color:#ff4020">${escapeHtml(bossName)}</b> is already underway.<br><br>Do you want to enter the throne room and join the fight?<br><br><span style="color:#ff6040;font-size:12px;">⚠️ Once you enter, the throne room seals behind you and you cannot leave until the battle ends.</span>`,
-      () => {
-        this.joinPromptOpen = false;
-        this.joinArena(p);
-      },
-      'Join Battle',
-      'Stay Outside'
-    );
-    if (d && d.close) {
-      const origClose = d.close;
-      d.close = () => {
-        this.joinPromptOpen = false;
-        this.joinPromptCooldown = 3.5;
-        origClose();
-      };
-    }
-  }
-
-  joinArena(p) {
-    if (!this.sealed || this.m.dead || !p || p.dead) return;
-    p.x = 22;
-    p.y = 29.5;
-    p.moveVec = [0, 0];
-    p.moveTarget = null;
-    p.path = null;
-    p.interact = null;
-    p.attackTarget = null;
-    addEffect(new Ring(p.x, p.y, 0.3, 3, 0.6, '#ff4020', 4));
-    sparkle(p.x, p.y, 35, '#ff4020', 2, 0.3);
-    sfx('portal');
-    UI.centerMsg('JOINED BATTLE', 'Demon Lord Dagyr awaits!', 2.5);
-    UI.log(`You stepped past the throne seal into the final battle!`, '#ff6040');
   }
 
   // ---------------------------------------------------------------- phase 1: The Lord Upon the Throne
@@ -253,22 +192,17 @@ class DagyrFight {
     const ang = angleTo(m.x, m.y, p.x, p.y), half = 0.55, len = 7.5;
     addEffect(new Telegraph({ kind: 'cone', x: m.x, y: m.y, ang, half, len, dur: 1.0 }), 'ground');
     m.face(ang); m.cd = Math.max(m.cd || 0, 1.1); // he holds the swing a moment
-    w.addHazard({
-      t: 1.0, team: 'enemy', update(dt) {
-        this.t -= dt; if (this.t > 0) return true;
-        for (const c of coneTargets(w, m.team, m.x, m.y, ang, len, half)) hit(m, c, m.dmg * 1.8, 'fire', { knock: 1 });
-        explosionFx(m.x + Math.cos(ang) * 3, m.y + Math.sin(ang) * 3, 3, 'fire', 'eruption'); sfx('explode'); return false;
-      }, draw() { }
-    });
+    w.addHazard({ t: 1.0, team: 'enemy', update(dt) { this.t -= dt; if (this.t > 0) return true;
+      for (const c of coneTargets(w, m.team, m.x, m.y, ang, len, half)) hit(m, c, m.dmg * 1.8, 'fire', { knock: 1 });
+      explosionFx(m.x + Math.cos(ang) * 3, m.y + Math.sin(ang) * 3, 3, 'fire', 'eruption'); sfx('explode'); return false; }, draw() {} });
     floatText(m.x, m.y, 150, 'HELLBRAND', '#ff7040', 15, { life: 1 });
   }
   chains() {
     const m = this.m, p = this.p, w = this.world, V = this;
     if (this.hold) return;
-    UI.log('<b style="color:#ffb050">Chains of Dagyr</b> bind you to him!', '#ffd0a0');
+    UI.log('<b style="color:#ffb050">Chains of Velscour</b> bind you to him!', '#ffd0a0');
     sfx('lock_unlock', 0.6);
-    w.addHazard({
-      t: 0, dur: 3.5, team: 'enemy', ground: false,
+    w.addHazard({ t: 0, dur: 3.5, team: 'enemy', ground: false,
       update(dt) {
         this.t += dt;
         if (m.dead || p.dead || V.hold) return false;
@@ -280,8 +214,7 @@ class DagyrFight {
       draw(ctx) {
         ctx.save(); ctx.strokeStyle = '#ffb050'; ctx.lineWidth = 3; ctx.setLineDash([8, 6]); ctx.globalAlpha = 0.85;
         ctx.beginPath(); ctx.moveTo(isoX(m.x, m.y), isoY(m.x, m.y) - 60); ctx.lineTo(isoX(p.x, p.y), isoY(p.x, p.y) - 24); ctx.stroke(); ctx.restore();
-      }
-    });
+      } });
   }
   throneGuard() {
     const m = this.m, w = this.world;
@@ -299,31 +232,26 @@ class DagyrFight {
     this.phase = 2; this.p2t = 0; this.gate = 0.8;
     this.rise();
     UI.centerMsg('THE FOUR SEALS', 'Break the seals before they make him stronger', 3.2);
-    this.walls = new FlameWalls(this);
-    w.addHazard(this.walls);
-    sfx('roar'); sfx('summon');
+    UI.log('Velscour rises over his throne, beyond harm. <b>Four seals</b> feed him; their Wardens hold them. Each seal left after two minutes makes him stronger.', '#ffd0a0');
     for (const [x, y, n] of SEALS) {
       const [sx, sy] = w.map.nudge(x, y, 0.45);
-      const seal = this.crystal(sx, sy, {
-        vk: 'seal', name: `Seal of the ${n}`, color: '#b080ff', hp: 0.03, h: 54,
-        tick: (c, dt) => {
-          if ((c.beamT = (c.beamT || 0) - dt) <= 0) { c.beamT = 0.15; addEffect(new Bolt(c.x, c.y, 50, m.x, m.y, 110, '#b080ff', 0.14, 2)); }
-          c.ward = c.warden && !c.warden.dead ? 0.25 : 1;
-        }
-      });
-      seal.netId = `vel_seal_${n.toLowerCase()}`;
+      const seal = this.crystal(sx, sy, { vk: 'seal', name: `Seal of the ${n}`, color: '#b080ff', hp: 0.03, h: 54,
+        tick: (c, dt) => { if ((c.beamT = (c.beamT || 0) - dt) <= 0) { c.beamT = 0.15; addEffect(new Bolt(c.x, c.y, 50, m.x, m.y, 110, '#b080ff', 0.14, 2)); }
+          c.ward = c.warden && !c.warden.dead ? 0.25 : 1; } });
       const [gx, gy] = w.map.randomNear(sx, sy, 2.2);
       const warden = makeMonster(w, pick(['demon', 'knight', 'gargoyle']), w.biome, m.level, 'unique', gx, gy);
-      warden.netId = `vel_warden_${n.toLowerCase()}`;
       warden.awake = true; warden.aggro = this.p; warden.name = `Warden of the ${n}`;
       w.add(warden); seal.warden = warden;
       addEffect(new Ring(sx, sy, 0.2, 2.5, 0.8, '#b080ff', 5));
     }
+    this.walls = new FlameWalls(this);
+    w.addHazard(this.walls);
+    sfx('roar'); sfx('summon');
   }
   p2(dt) {
     this.p2t += dt;
     const left = this.parts.filter((c) => c.vk === 'seal' && !c.dead);
-    if (!left.length && this.p2t > 0.5) return this.endSeals('The seals shatter!');
+    if (!left.length) return this.endSeals('The seals shatter!');
     if (this.p2t > 120) {
       for (const c of left) { addEffect(new Bolt(c.x, c.y, 50, this.m.x, this.m.y, 110, '#ff4040', 0.5, 5)); c.dead = true; if (c.warden) c.warden.dead = true; }
       this.sealBuff = left.length;
@@ -339,11 +267,6 @@ class DagyrFight {
     this.cd = { spiral: 6, doom: 10, mirror: 18, brand: 5, legion: 8 };
     this.lava = new LavaRing(this);
     this.world.addHazard(this.lava);
-    if (heresyAllows('orb', G.player?.char, this.world)) {
-      for (let i = 0; i < 2; i++) {
-        this.world.addLoot(new GroundItem(this.m.x + rand(-1.2, 1.2), this.m.y + rand(-1.2, 1.2), 'orb_hp', {}));
-      }
-    }
     UI.centerMsg('CROWN OF HELLFIRE', msg, 3);
     UI.log('The floor of the arena begins to melt from the edges in.', '#ffb080');
   }
@@ -377,31 +300,23 @@ class DagyrFight {
   doomBrand() {
     const m = this.m, p = this.p, w = this.world;
     floatText(p.x, p.y, 90, 'DOOM BRAND', '#ff5030', 15, { life: 1.4 });
-    w.addHazard({
-      t: 0, dur: 2.6, team: 'enemy', x: p.x, y: p.y, r: 1.6, ground: true,
-      update(dt) {
-        this.t += dt; if (this.t < this.dur - 0.6) { this.x = p.x; this.y = p.y; }
-        if (this.t >= this.dur) {
-          explosionFx(this.x, this.y, 1.8, 'fire', 'eruption'); for (const c of w.hostiles(m.team, this.x, this.y, 1.8)) hit(m, c, m.dmg * 1.6, 'fire', {});
-          w.addHazard(new Area({ world: w, src: m, x: this.x, y: this.y, r: 1.6, dur: 14, tick: 0.5, dmg: [m.dmg * 0.25, m.dmg * 0.3], el: 'fire', fx: 'fire' })); sfx('explode'); return false;
-        }
-        return true;
-      },
+    w.addHazard({ t: 0, dur: 2.6, team: 'enemy', x: p.x, y: p.y, r: 1.6, ground: true,
+      update(dt) { this.t += dt; if (this.t < this.dur - 0.6) { this.x = p.x; this.y = p.y; }
+        if (this.t >= this.dur) { explosionFx(this.x, this.y, 1.8, 'fire', 'eruption'); for (const c of w.hostiles(m.team, this.x, this.y, 1.8)) hit(m, c, m.dmg * 1.6, 'fire', {});
+          w.addHazard(new Area({ world: w, src: m, x: this.x, y: this.y, r: 1.6, dur: 14, tick: 0.5, dmg: [m.dmg * 0.25, m.dmg * 0.3], el: 'fire', fx: 'fire' })); sfx('explode'); return false; }
+        return true; },
       danger(out) { if (this.t >= this.dur - 0.6) out.push({ x: this.x, y: this.y, r: this.r + 0.5 }); },
-      draw(ctx) {
-        const k = this.t / this.dur, x = isoX(this.x, this.y), y = isoY(this.x, this.y);
+      draw(ctx) { const k = this.t / this.dur, x = isoX(this.x, this.y), y = isoY(this.x, this.y);
         ctx.save(); ctx.strokeStyle = '#ff3010'; ctx.lineWidth = 2 + k * 3; ctx.globalAlpha = 0.5 + k * 0.5;
-        ctx.beginPath(); ctx.ellipse(x, y, this.r * HW * Math.SQRT2, this.r * HH * Math.SQRT2, 0, 0, TAU); ctx.stroke(); ctx.restore();
-      }
-    });
+        ctx.beginPath(); ctx.ellipse(x, y, this.r * HW * Math.SQRT2, this.r * HH * Math.SQRT2, 0, 0, TAU); ctx.stroke(); ctx.restore(); } });
   }
   mirror() {
     const m = this.m, w = this.world;
-    UI.log('<b style="color:#ff70b0">Mirror of Sin</b>: copies of Dagyr step out of the flames. Only the real one casts a shadow.', '#ffc0e0');
+    UI.log('<b style="color:#ff70b0">Mirror of Sin</b>: copies of Velscour step out of the flames. Only the real one casts a shadow.', '#ffc0e0');
     for (let i = 0; i < 2; i++) {
       const [x, y] = w.map.randomNear(m.x, m.y, 4);
       const c = makeMonster(w, 'demon', w.biome, m.level, 'champion', x, y);
-      Object.assign(c, { art: m.art, artH: m.artH, swap: { tint: [255, 90, 170, 0.35] }, scale: m.scale, name: 'Mirror of Dagyr', noShadow: true, alpha: 0.82, aura: '#ff70b0' });
+      Object.assign(c, { art: m.art, artH: m.artH, swap: { tint: [255, 90, 170, 0.35] }, scale: m.scale, name: 'Mirror of Velscour', noShadow: true, alpha: 0.82, aura: '#ff70b0' });
       c.maxHp = m.maxHp * 0.012; c.hp = c.maxHp; c.dmg = m.dmg * 0.3; c.awake = true; c.aggro = this.p; c.vk = 'mirror';
       c.born = this.t; // gone on their own after 22 s (update)
       w.add(c); this.parts.push(c);
@@ -421,17 +336,14 @@ class DagyrFight {
     this.dark0 = w.darkK || 0; w.darkK = 0.93; w.night = true;
     UI.centerMsg('INTO THE ABYSS', 'Break the Heart Shards — stay near the lanterns', 3.4);
     const n = this.unbound ? 4 : 3, cut = this.unbound ? 0.04 : 0.05; // the Abyssal Crown: four shards, the same 15-16% in all
-    UI.log(`The floor gives way to the dark. ${n === 4 ? 'Four' : 'Three'} <b style="color:#ff3050">Heart Shards</b> drift in it: each one you break tears at Dagyr. Stay near a <b style="color:#ffe08a">Soul Lantern</b>: the dark itself hurts.`, '#ffc0c0');
-    this.cd = { shades: 3 };
+    UI.log(`The floor gives way to the dark. ${n === 4 ? 'Four' : 'Three'} <b style="color:#ff3050">Heart Shards</b> drift in it: each one you break tears at Velscour. Stay near a <b style="color:#ffe08a">Soul Lantern</b>: the dark itself hurts.`, '#ffc0c0');
     for (let i = 0; i < n; i++) {
       const a0 = (i / n) * TAU, R = 7;
-      const sh = this.crystal(C.x + Math.cos(a0) * R, C.y + Math.sin(a0) * R * 0.8, {
-        vk: 'shard', name: 'Heart Shard', color: '#ff3050', hp: 0.035, h: 40, fly: true,
-        tick: (c, dt) => { c.a = (c.a ?? a0) + dt * 0.12; const tx = C.x + Math.cos(c.a) * R, ty = C.y + Math.sin(c.a) * R * 0.8; if (w.map.walkable(tx, ty)) { c.x = tx; c.y = ty; } }
-      });
-      sh.netId = `vel_shard_${i}`;
-      sh.onDeath = () => { if (m.dead) return; m.hp = Math.max(m.maxHp * 0.3, m.hp - m.maxHp * cut); this.lastHp = m.hp; addEffect(new Column(sh.x, sh.y, '#ff3050', 1, 60, 300)); floatText(sh.x, sh.y, 80, `-${Math.round(cut * 100)}% DAGYR`, '#ff6080', 16, { life: 1.6 }); sfx('explode'); };
+      const sh = this.crystal(C.x + Math.cos(a0) * R, C.y + Math.sin(a0) * R * 0.8, { vk: 'shard', name: 'Heart Shard', color: '#ff3050', hp: 0.035, h: 40, fly: true,
+        tick: (c, dt) => { c.a = (c.a ?? a0) + dt * 0.12; const tx = C.x + Math.cos(c.a) * R, ty = C.y + Math.sin(c.a) * R * 0.8; if (w.map.walkable(tx, ty)) { c.x = tx; c.y = ty; } } });
+      sh.onDeath = () => { if (m.dead) return; m.hp = Math.max(m.maxHp * 0.3, m.hp - m.maxHp * cut); this.lastHp = m.hp; addEffect(new Column(sh.x, sh.y, '#ff3050', 1, 60, 300)); floatText(sh.x, sh.y, 80, `-${Math.round(cut * 100)}% VELSCOUR`, '#ff6080', 16, { life: 1.6 }); sfx('explode'); };
     }
+    this.cd = { shades: 3 };
   }
   p4(dt) {
     const w = this.world, p = this.p;
@@ -439,19 +351,14 @@ class DagyrFight {
     for (const [x, y] of LANTERNS) addLight(x, y, 5, 1, 30, '#ffe08a');
     addLight(p.x, p.y, 2.2, 0.6);
     this.tick('shades', dt, 7, () => {
-      if (G.room && !G.game?.isDungeonAuthority(w.depth)) return;
-      for (let i = 0; i < 2; i++) {
-        const a = rand(TAU); const [x, y] = w.map.nudge(C.x + Math.cos(a) * 11, C.y + Math.sin(a) * 9, 0.4); if (!w.map.walkable(x, y)) continue;
-        const s = makeMonster(w, pick(['wraith', 'wraith', 'imp']), w.biome, this.m.level - 3, 'normal', x, y);
-        s.netId = `vel_shade_${Math.floor(this.p4t)}_${i}`;
-        s.awake = true; s.aggro = p; s.maxHp *= 0.45; s.hp = s.maxHp; s.name = 'Abyssal Shade'; w.add(s);
-      }
+      for (let i = 0; i < 2; i++) { const a = rand(TAU); const [x, y] = w.map.nudge(C.x + Math.cos(a) * 11, C.y + Math.sin(a) * 9, 0.4); if (!w.map.walkable(x, y)) continue;
+        const s = makeMonster(w, pick(['wraith', 'wraith', 'imp']), w.biome, this.m.level - 3, 'normal', x, y); s.awake = true; s.aggro = p; s.maxHp *= 0.45; s.hp = s.maxHp; s.name = 'Abyssal Shade'; w.add(s); }
     });
     // the dark: away from a lantern it hurts, more the longer the hero stays out
     const nearL = LANTERNS.some(([x, y]) => dist(p.x, p.y, x, y) < 4.5);
     if (!nearL && this.p4t > 12 && !p.st.legendary.dreadless) { this.dread = (this.dread || 0) + dt; if (this.dread > 0.5) { this.dread = 0; hit(this.m, p, p.maxHp * 0.015, 'shadow', { dot: true, silent: true }); } } // (dreadless: the Mantle of the Unbound)
     const left = this.parts.filter((c) => c.vk === 'shard' && !c.dead).length;
-    if ((!left && this.p4t > 0.5) || this.p4t > 75) this.endAbyss(left);
+    if (!left || this.p4t > 75) this.endAbyss(left);
   }
   /** Auto-play: back to a lantern when the dark has been eating at the hero. */
   autoGoal() {
@@ -472,13 +379,8 @@ class DagyrFight {
     m.patterns = ['slam', 'nova', 'volley', 'charge', 'summon', 'meteor', 'spiral', 'beam'];
     m.patternQ = [];
     this.cd = { apoc: 8, brand: 5, spiral: 9, doom: 12, legion: 14 };
-    if (heresyAllows('orb', G.player?.char, w)) {
-      for (let i = 0; i < 2; i++) {
-        w.addLoot(new GroundItem(m.x + rand(-1.2, 1.2), m.y + rand(-1.2, 1.2), 'orb_hp', {}));
-      }
-    }
     UI.centerMsg('TRUE FORM', left ? `${left} shard${left > 1 ? 's' : ''} survived the dark` : 'The heart is broken — he is not', 3);
-    UI.log('Dagyr sheds his crown. <b>APOCALYPSE</b> will scour the arena: get into a glowing circle when it comes.', '#ffb0a0');
+    UI.log('Velscour sheds his crown. <b>APOCALYPSE</b> will scour the arena: get into a glowing circle when it comes.', '#ffb0a0');
     addEffect(new Ring(m.x, m.y, 0.3, 7, 1, '#ff2000', 8)); sfx('roar'); sfx('boss');
   }
 
@@ -502,8 +404,7 @@ class DagyrFight {
     for (const [x, y] of spots) addEffect(new Telegraph({ kind: 'circle', x, y, r: R, dur: 5, color: '#40ff60' }), 'ground');
     UI.centerMsg('APOCALYPSE', 'Into the light!', 2);
     sfx('boss'); sfx('roar');
-    w.addHazard({
-      t: 0, dur: 5, team: 'enemy', ground: true,
+    w.addHazard({ t: 0, dur: 5, team: 'enemy', ground: true,
       safeAt: (x, y) => spots.some(([u, v]) => dist(u, v, x, y) < R - 0.35),
       update(dt) {
         this.t += dt;
@@ -517,34 +418,26 @@ class DagyrFight {
         G.flash = 0.6; sfx('explode'); sfx('thud');
         return false;
       },
-      draw(ctx) {
-        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.18 + (this.t / this.dur) * 0.3;
-        for (const [u, v] of spots) { const x = isoX(u, v), y = isoY(u, v); ctx.drawImage(glowSprite('#60ff80'), x - R * 64, y - R * 32, R * 128, R * 64); } ctx.restore();
-      }
-    });
+      draw(ctx) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.18 + (this.t / this.dur) * 0.3;
+        for (const [u, v] of spots) { const x = isoX(u, v), y = isoY(u, v); ctx.drawImage(glowSprite('#60ff80'), x - R * 64, y - R * 32, R * 128, R * 64); } ctx.restore(); } });
   }
   startChains() {
     const m = this.m, w = this.world;
     const again = this.bound; // the Unbound Chains: a second binding at 5%
-    this.bound = true; this.phase = 6; this.p6t = 0; this.gate = again ? 0.05 : 0.1;
+    this.bound = true; this.phase = 6; this.gate = again ? 0.05 : 0.1;
     if (again) this.bound2 = true;
     this.hold = true; m.invuln = 1e9; m.targetable = false;
     UI.centerMsg(again ? 'THE UNBOUND CHAINS' : 'BOUND TO THE OBELISKS', again ? 'The obelisks rise again — break them!' : 'Break the four obelisks!', 3);
-    UI.log(again ? 'The chains will not stay broken: Dagyr binds himself to four fresh obelisks.' : 'Dagyr chains himself to the four obelisks and drinks their strength. Break them all.', '#ffd0a0');
-    for (let i = 0; i < OBELISKS.length; i++) {
-      const [ox, oy] = OBELISKS[i];
+    UI.log(again ? 'The chains will not stay broken: Velscour binds himself to four fresh obelisks.' : 'Velscour chains himself to the four obelisks and drinks their strength. Break them all.', '#ffd0a0');
+    for (const [ox, oy] of OBELISKS) {
       const [x, y] = w.map.nudge(ox + 0.5 + Math.sign(C.x - ox) * 1.2, oy + 0.5 + Math.sign(C.y - oy) * 1.2, 0.45);
-      const ob = this.crystal(x, y, {
-        vk: 'obelisk', name: 'Bound Obelisk', color: '#d0d0d0', hp: this.unbound ? UNBOUND.obelisk : 0.02, h: 50,
-        tick: (c, dt) => { if ((c.beamT = (c.beamT || 0) - dt) <= 0) { c.beamT = 0.2; addEffect(new Bolt(c.x, c.y, 50, m.x, m.y, 120, '#e0e0e0', 0.2, 2)); } }
-      });
-      ob.netId = `vel_obelisk_${i}`;
+      this.crystal(x, y, { vk: 'obelisk', name: 'Bound Obelisk', color: '#d0d0d0', hp: this.unbound ? UNBOUND.obelisk : 0.02, h: 50,
+        tick: (c, dt) => { if ((c.beamT = (c.beamT || 0) - dt) <= 0) { c.beamT = 0.2; addEffect(new Bolt(c.x, c.y, 50, m.x, m.y, 120, '#e0e0e0', 0.2, 2)); } } });
     }
   }
   p6(dt) {
-    this.p6t = (this.p6t || 0) + dt;
-    if (this.parts.some((c) => c.vk === 'obelisk' && !c.dead) || this.p6t < 0.5) return;
-    const more = this.unbound && !this.bound2; // Dagyr Unbound binds himself once more at 5%
+    if (this.parts.some((c) => c.vk === 'obelisk' && !c.dead)) return;
+    const more = this.unbound && !this.bound2; // Velscour Unbound binds himself once more at 5%
     this.hold = false; this.m.invuln = 0; this.m.targetable = true; this.gate = more ? 0.05 : 0;
     this.phase = 5;
     UI.centerMsg(more ? 'THE CHAINS SNAP' : 'FINISH HIM', more ? 'He is not finished' : 'The chains are broken', 2.4);
@@ -590,8 +483,8 @@ class DagyrFight {
     if (this.lava) this.lava.dead = true;
     for (const c of this.parts) c.dead = true;
     w.darkK = this.dark0 ?? w.darkK;
-    UI.log(`Dagyr falls after ${Math.floor(this.t / 60)}:${String(Math.floor(this.t % 60)).padStart(2, '0')}.`, '#ffd0a0');
-    (G.DagyrLog || (G.DagyrLog = [])).push({ t: this.t, phase: this.phase, practice: this.practice, unbound: !!this.unbound });
+    UI.log(`Velscour falls after ${Math.floor(this.t / 60)}:${String(Math.floor(this.t % 60)).padStart(2, '0')}.`, '#ffd0a0');
+    (G.velscourLog || (G.velscourLog = [])).push({ t: this.t, phase: this.phase, practice: this.practice, unbound: !!this.unbound });
     if (this.practice || !w.player) return;
     const lvl = m.level + 2, drop = (it) => it && w.addLoot(new GroundItem(m.x + rand(-1, 1), m.y + rand(-1, 1), 'item', { item: it }));
     drop(makeHeirloom(lvl)); drop(makeCovenant(lvl)); drop(makeGem('sig', Math.min(SIGIL_MAX, 15 + Math.floor(rand(0, 5))))); drop(rollSigil(w.depth, 2));
@@ -599,7 +492,7 @@ class DagyrFight {
   }
   /** The boss's own AI pauses while he hovers, hides or is bound (game/monster.js bossUpdate). */
   holdBoss() { const m = this.m; if (!this.hold && !this.seated) return false; m.moving = false; return true; }
-  draw() { }
+  draw() {}
 }
 
 /** Phase 2: two flame walls sweep round the arena like the hands of a clock. */

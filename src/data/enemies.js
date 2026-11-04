@@ -25,9 +25,9 @@ export const ARCH = {
   gargoyle: { sprite: 'gargoyle', ai: 'charger', hp: 1.5, dmg: 1.2, spd: 3.0, px: 2.6, r: 0.38, fly: true, pal: { a: '#6a6a70', b: '#4a4a50', e: '#ff4020', w: '#d0d0d0' }, gore: 'rock', armor: true, names: ['Gargoyle', 'Stone Watcher', 'Grotesque'], pack: [1, 3] },
   beetle: { sprite: 'beetle', ai: 'exploder', hp: 0.5, dmg: 2.0, spd: 4.0, px: 2.3, r: 0.3, el: 'fire', pal: { a: '#3a3020', c: '#c06020', e: '#ffff40', k: '#100808' }, gore: 'goo', names: ['Bombardier', 'Blast Beetle', 'Volatile Scarab'], pack: [3, 6] },
   abomination: { sprite: 'abomination', ai: 'brute', hp: 4.0, dmg: 2.0, spd: 1.5, px: 3.4, r: 0.6, pal: { a: '#a07a70', r: '#801010', w: '#e0d0c0', e: '#ffcc20' }, gore: 'flesh', names: ['Abomination', 'Flesh Golem', 'Gorger'], xp: 3, pack: [1, 1] },
-  velscour: { sprite: 'velscour', ai: 'boss', hp: 1, dmg: 1, spd: 2.4, px: 3.6, r: 0.9, pal: { a: '#5a0c0c', b: '#1a0606', c: '#2a0808', w: '#e8d8b0', g: '#ffb020', e: '#ffee40', r: '#ff2010', k: '#000000' }, gore: 'flesh', demon: true, names: ['Dagyr', 'Demon Lord Dagyr'] },
-  dagyr: { sprite: 'velscour', ai: 'boss', hp: 1, dmg: 1, spd: 2.4, px: 3.6, r: 0.9, pal: { a: '#5a0c0c', b: '#1a0606', c: '#2a0808', w: '#e8d8b0', g: '#ffb020', e: '#ffee40', r: '#ff2010', k: '#000000' }, gore: 'flesh', demon: true, names: ['Dagyr', 'Demon Lord Dagyr'] },
-  Dagyr: { sprite: 'velscour', ai: 'boss', hp: 1, dmg: 1, spd: 2.4, px: 3.6, r: 0.9, pal: { a: '#5a0c0c', b: '#1a0606', c: '#2a0808', w: '#e8d8b0', g: '#ffb020', e: '#ffee40', r: '#ff2010', k: '#000000' }, gore: 'flesh', demon: true, names: ['Dagyr', 'Demon Lord Dagyr'] },
+  velscour: { sprite: 'velscour', ai: 'boss', hp: 1, dmg: 1, spd: 2.4, px: 3.6, r: 0.9, pal: { a: '#5a0c0c', b: '#1a0606', c: '#2a0808', w: '#e8d8b0', g: '#ffb020', e: '#ffee40', r: '#ff2010', k: '#000000' }, gore: 'flesh', demon: true, names: ['Velscour', 'Demon Lord Velscour'] },
+  dagyr: { sprite: 'velscour', ai: 'boss', hp: 1, dmg: 1, spd: 2.4, px: 3.6, r: 0.9, pal: { a: '#5a0c0c', b: '#1a0606', c: '#2a0808', w: '#e8d8b0', g: '#ffb020', e: '#ffee40', r: '#ff2010', k: '#000000' }, gore: 'flesh', demon: true, names: ['Velscour', 'Demon Lord Velscour'] },
+  Dagyr: { sprite: 'velscour', ai: 'boss', hp: 1, dmg: 1, spd: 2.4, px: 3.6, r: 0.9, pal: { a: '#5a0c0c', b: '#1a0606', c: '#2a0808', w: '#e8d8b0', g: '#ffb020', e: '#ffee40', r: '#ff2010', k: '#000000' }, gore: 'flesh', demon: true, names: ['Velscour', 'Demon Lord Velscour'] },
 };
 
 const SAND_BASE = {

@@ -145,7 +145,7 @@ export const HUD = {
     window.addEventListener('resize', () => this.layoutMobile());
     this.layoutMobile();
     $('#minimap').addEventListener('click', () => { G.showAutomap = !G.showAutomap; });
-    $('#Dagyr-skull').addEventListener('click', () => { sfx('ui'); G.game.openDagyrContact(); });
+    ($('#velscour-skull') || $('#Dagyr-skull'))?.addEventListener('click', () => { sfx('ui'); (G.game.openVelscourContact || G.game.openDagyrContact).call(G.game); });
     const spark = $('#hs-spark');
     spark.width = 150 * G.dpr; spark.height = 18 * G.dpr;
     UI.tip($('#hero-stats'), () => `<b style="color:#ffe2a0">Battle Ledger</b>

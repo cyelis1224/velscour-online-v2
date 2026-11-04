@@ -25,7 +25,7 @@ export const LORE_TIPS = [
   "Monsters with radiant golden auras are Champions. They possess dangerous affixes but carry rare treasure.",
   "Town Commissions offer lucrative bounties for slaying specific monsters or collecting rare materials.",
   "Death in Herrington Hollow does not erase your hero, but Defiance builds with every fall in the deep.",
-  "Three Abyssal Keys unlock the throne of Dagyr Unbound. Only the most fortified heroes survive the rematch.",
+  "Three Abyssal Keys unlock the throne of Velscour Unbound. Only the most fortified heroes survive the rematch.",
   "Socket gems into socketed weapons and armor to boost attributes, critical damage, and survivability.",
   "Use the /w and /r chat commands to whisper and reply to fellow adventurers across any game room.",
   "Overworld biomes like the Sea of Sand and Castle Hollow feature massive multi-phase raid encounters.",

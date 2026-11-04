@@ -1,6 +1,6 @@
-# DAGYR ART BIBLE: "GRIM NOCTURNE" PIXEL STYLE
+# VELSCOUR ART BIBLE: "GRIM NOCTURNE" PIXEL STYLE
 
-This is the law for every sprite in DAGYR: heroes, armor, helmets, gloves, boots, townsfolk, monsters, bosses,
+This is the law for every sprite in VELSCOUR: heroes, armor, helmets, gloves, boots, townsfolk, monsters, bosses,
 pets, biome floors, walls and props. Every image prompt starts from it. Where this document and a prompt
 disagree, this document wins.
 
@@ -8,7 +8,7 @@ disagree, this document wins.
 
 ## 0. The style in one paragraph
 
-DAGYR is **hand-placed 2D pixel art from the 16/32-bit era, pushed to PlayStation 2 density**: every sprite is
+VELSCOUR is **hand-placed 2D pixel art from the 16/32-bit era, pushed to PlayStation 2 density**: every sprite is
 drawn one deliberate pixel at a time from a **tiny palette**, like a Super Famicom sprite that grew up. Its lead
 ancestor is **Final Fantasy VI**; two others season it. The result belongs to none of them:
 
@@ -34,7 +34,7 @@ The house name for this look is **Grim Nocturne**.
 ## 0A. The Final Fantasy VI lead: what to take (craft only, never content)
 
 - **Palette discipline (the biggest single source of character):** a SNES sprite has 15 colours plus transparency.
-  A DAGYR character sprite has **one 16-colour palette** (15 + transparent): skin 3, hair 2, and 10 for the outfit
+  A VELSCOUR character sprite has **one 16-colour palette** (15 + transparent): skin 3, hair 2, and 10 for the outfit
   shared between materials, plus outline and rim. Rare and above may use up to 20, Legendary and Mythic 24 (the
   Pixel Remaster tier). Few colours force bold, flat, designed shapes: exactly what generic AI art lacks.
 - **Flat-then-band shading:** large flat areas of a mid tone, 1-2 shadow bands, 1 highlight band. Shadows are
@@ -94,9 +94,9 @@ that looks like a default "dark fantasy RPG character" or a stock-asset pack.
 **Art pixel (AP):** the smallest square of colour in a sprite. Every sprite in the game is made of whole art pixels,
 all the same size inside one image. No half pixels, no blur between pixels, no mixed pixel sizes ("mixels").
 
-**Density:** DAGYR is drawn at **about twice the pixel density of Symphony of the Night on PlayStation.** On the
+**Density:** VELSCOUR is drawn at **about twice the pixel density of Symphony of the Night on PlayStation.** On the
 PSX's 256 x 240 screen, Alucard stands about 54 pixels from crown to sole (measured from an in-game screenshot).
-A DAGYR hero stands **108 AP** from crown to sole: exactly 2x.
+A VELSCOUR hero stands **108 AP** from crown to sole: exactly 2x.
 
 **Hero frame (the contract every hero, armor and overlay uses):**
 
@@ -461,14 +461,14 @@ never change. Use the theatre to pick design cards; never repeat a card.
 
 - Diablo II postmortem (Erich Schaefer, Game Developer): player characters are about 75 pixels tall in game,
   modelled and rendered in 3D Studio Max, 640 x 480 with 8-bit colour, equipment as separately rendered components
-  (head, torso, legs, arms, weapon, shield) composited at runtime: the root of DAGYR's body-armor + overlay system.
+  (head, torso, legs, arms, weapon, shield) composited at runtime: the root of VELSCOUR's body-armor + overlay system.
   https://www.gamedeveloper.com/design/postmortem-blizzard-s-i-diablo-ii-i-
 - Symphony of the Night: 256 x 240 on PlayStation (Hardcore Gaming 101); character designs by Ayami Kojima, whose
   painted, gothic, bishonen-influenced art the sprites translate into pixels; Alucard measured at about 54 px tall.
   http://blog.hardcoregaming101.net/2012/03/explaining-resolution-intro-of.html ,
   https://en.wikipedia.org/wiki/Castlevania:_Symphony_of_the_Night , https://en.wikipedia.org/wiki/Ayami_Kojima
 - Super Famicom sprites: 4 bits per pixel, so each sprite palette is 16 colours with one reserved for transparency:
-  the origin of DAGYR's 16-colour character rule.
+  the origin of VELSCOUR's 16-colour character rule.
 - Final Fantasy VI and its Pixel Remaster: sprites by Kazuko Shibuya, redrawn for the remaster "to display clearly on
   modern high-resolution screens" while keeping the original feel; Yoshitaka Amano's concept art behind the
   ornamental enemies. https://finalfantasypixelremaster.square-enix-games.com/en_US/faq

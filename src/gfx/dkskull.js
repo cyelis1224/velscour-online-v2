@@ -1,7 +1,7 @@
-// The Death Knight's skulls: the Dagyr contact skull by the minimap (assets/ui/Dagyr_contact_skull.png),
+// The Death Knight's skulls: the Velscour contact skull by the minimap (assets/ui/velscour_contact_skull.png),
 // recoloured to his frost palette (bone -> ice, the glowing eye dots taken out: dark empty sockets) and baked small,
 // so the skulls his casts and hits throw off (classfx.js) and Death Coil (shapes.js 'dkskull') share the button's art.
-const SRC = 'assets/ui/dagyr_contact_skull.png';
+const SRC = 'assets/ui/velscour_contact_skull.png';
 const EYES = [[46, 66], [81, 66]];           // the eye sockets in the 128 x 128 source
 let img = null, ready = false;
 const CACHE = new Map();
