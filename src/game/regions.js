@@ -56,6 +56,10 @@ export function rollRegionVariant(r) {
   const c = G.char, want = G.regionWant?.[r.id];
   if (G.regionWant) delete G.regionWant[r.id];
   let v = findVariant(r, want);
+  if (!v && G.room) {
+    const s = Math.abs(G.room.dungeonSeed || G.room.seed || 1);
+    v = findVariant(r, G.room.variantId) || r.variants[s % r.variants.length] || r.variants[0];
+  }
   if (!v) { const last = c?.lastRegionVariant?.[r.id], pool = r.variants.filter((q) => q.id !== last); v = pool[Math.floor(Math.random() * pool.length)] || r.variants[0]; }
   (G.regionNext ||= {})[r.id] = v;
   if (c) (c.lastRegionVariant ||= {})[r.id] = v.id;

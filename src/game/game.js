@@ -114,7 +114,7 @@ import { Heresies } from '../ui/heresies.js';
 import { Rifts } from '../ui/rifts.js';
 import { Marks } from '../ui/marks.js';
 import { MacrosUI } from '../ui/macros.js';
-import { REGIONS, regionOf, parseRegionWord, regionNeeds, rollRegionVariant } from './regions.js';
+import { REGIONS, regionOf, parseRegionWord, regionNeeds, rollRegionVariant, findVariant } from './regions.js';
 import './regions/index.js';
 import { Macros } from './macros.js';
 
@@ -498,7 +498,25 @@ function attachNetListeners() {
     G.room.unsealedDepths.add(data.depth);
 
     if (G.world && G.world.kind === 'dungeon' && G.world.depth === data.depth) {
-      game.unsealDungeonExit(G.world, data.bossName);
+      if (G.world.biome?.overworld) {
+        const exit = G.world.portals?.find(p => p.type === 'exit');
+        if (exit && !exit.active) {
+          exit.active = true; exit.color = '#40a0ff'; exit.label = 'Exit — continue';
+          const c = G.char;
+          if (c) {
+            const first = !c.cleared[G.world.depth];
+            c.cleared[G.world.depth] = true;
+            c.deepest = Math.max(c.deepest || 0, G.world.depth);
+            game.brokeThrough(G.world.depth);
+            if (first) { c.skillPoints++; UI.log('Bonus skill point for clearing a new depth!', '#ffd860'); }
+            game.autosave();
+          }
+          addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#40a0ff', 5));
+          sfx('gate'); UI.refresh();
+        }
+      } else {
+        game.unsealDungeonExit(G.world, data.bossName);
+      }
     }
   });
 
@@ -1663,7 +1681,24 @@ export const game = {
       progress: 10
     });
     try {
-      const mix = mixPartner(biome);
+      let dungeonSeed = Math.floor(Math.random() * 1e9) + 1;
+      const reg = regionOf(biome);
+      if (G.room) {
+        if (reg && G.regionWant?.[reg.id] && reg.variants?.length) {
+          const wv = findVariant(reg, G.regionWant[reg.id]);
+          const vi = wv ? reg.variants.indexOf(wv) : -1;
+          if (vi >= 0) dungeonSeed = (Math.floor(Math.random() * 1e7) + 1) * reg.variants.length + vi;
+        }
+        G.room.depth = depth;
+        G.room.biome = biome.id;
+        G.room.dungeonSeed = dungeonSeed;
+        G.room.heresies = heresiesOf(c);
+      }
+      const mix = G.room ? (dungeonSeed ? mixPartner(biome, () => new RNG(dungeonSeed ^ 0x3d17a892).next()) : null) : mixPartner(biome);
+      if (G.room) {
+        G.room.mixId = mix ? mix.id : null;
+        if (net.connected) net.sendRoomDepthUpdate(depth, biome.id, dungeonSeed, G.room.mixId, G.room.heresies);
+      }
       LoadingScreen.setProgress(30, `Summoning ${biome.name}…`);
       await this.loadLevelArt(biome, mix);
       LoadingScreen.setProgress(55, 'Forging realm…');
@@ -1696,6 +1731,13 @@ export const game = {
     const p = G.player, depth = old.depth, carry = p ? old.loot.filter((l) => Math.hypot(l.x - p.x, l.y - p.y) < 14) : [];
     c.nextBiome = id;
     if (id === 'snowy_summit' && c.summitRuns) delete c.summitRuns[depth];   // a fresh range above a fresh summit
+    if (G.room && G.room.biome !== id) {
+      G.room.depth = depth;
+      G.room.biome = id;
+      G.room.mixId = null;
+      if (!G.room.dungeonSeed) G.room.dungeonSeed = Math.floor(Math.random() * 1e9) + 1;
+      if (net.connected) net.sendRoomDepthUpdate(depth, id, G.room.dungeonSeed, null, G.room.heresies);
+    }
     const loading = document.getElementById('loading');
     document.getElementById('loading-text').textContent = `Depth ${depth} — ${biome.name}…`;
     loading.classList.remove('hidden');
@@ -1750,7 +1792,15 @@ export const game = {
     if (biome.challenge) return loadBiomeArt(biome); // the Breach's two packs (pack, wallPack, moreFloors/morePacks)
     if (biome.id === 'skyship') return Promise.all([loadBaked('assets/tiles/skyship/'), preloadTownSheets(TOWNSFOLK_KNIGHTS)]); // the baked ironclad, boats and galleon; the sky-knights
     if (biome.sea) {   // the scenario is picked now, so its fleet's models and its own monsters' art load with the rest
-      const c = G.char, sc = pickSeaVariant(c?.seaVariant, c?.lastSeaVariant, c?.seaSeen || {});
+      const c = G.char;
+      let sc;
+      if (G.room && !c?.seaVariant) {
+        const s = Math.abs(G.room.dungeonSeed || G.room.seed || 1);
+        const nonFin = SEA_VARIANTS.filter((v) => !v.finale);
+        sc = nonFin[s % nonFin.length] || SEA_VARIANTS[0];
+      } else {
+        sc = pickSeaVariant(c?.seaVariant, c?.lastSeaVariant, c?.seaSeen || {});
+      }
       G.seaNext = sc.id;
       return Promise.all([loadFleet([...(sc.fleet || []), 'longboat', 'cutter', 'brig']), preloadTownSheets(['05_road_guard', '25_royal_heir', '41_friar']), sc.art ? loadArtFor(sc.art) : null]);
     }
@@ -1956,11 +2006,10 @@ export const game = {
         });
       }
     }
-    if (world.boss && (
+    if ((world.boss && (
       (world.boss.netId && (G.room?.killedMonsters?.get(depth)?.has(world.boss.netId) || world.killedMonsterIds?.has(world.boss.netId))) ||
-      (world.boss.idx != null && (G.room?.killedMonsters?.get(depth)?.has(world.boss.idx) || world.killedMonsterIds?.has(world.boss.idx))) ||
-      (G.room?.unsealedDepths && G.room.unsealedDepths.has(depth))
-    )) {
+      (world.boss.idx != null && (G.room?.killedMonsters?.get(depth)?.has(world.boss.idx) || world.killedMonsterIds?.has(world.boss.idx)))
+    )) || (G.room?.unsealedDepths && G.room.unsealedDepths.has(depth))) {
       if (!exit.active) {
         exit.active = true;
         exit.color = '#40a0ff';
@@ -1990,9 +2039,18 @@ export const game = {
       }
       this.unsealDungeonExit(world, m.name, m.isVelscour, !!m.raid);
     };
+    const syncOverworldUnseal = (label) => {
+      if (G.room) {
+        if (!G.room.unsealedDepths) G.room.unsealedDepths = new Set();
+        G.room.unsealedDepths.add(depth);
+        if (net.connected) net.sendFloorUnsealed(depth, null, label || biome.name);
+      }
+    };
     if (sky) {   // the Sky Battle (game/skybattle.js): one of eight weathers or thirty stories, never the last one twice
-      world.overworldScenario = createSkyBattle(world, gen, biome, depth, { variant: c.skyVariant, last: c.lastSkyVariant, seen: c.skySeen || {} }, () => {
+      const skyVar = (G.room && !c.skyVariant) ? SKY_ALL[Math.abs(seed) % SKY_ALL.length]?.id : c.skyVariant;
+      world.overworldScenario = createSkyBattle(world, gen, biome, depth, { variant: skyVar, last: c.lastSkyVariant, seen: c.skySeen || {} }, () => {
         exit.active = true; exit.color = '#40a0ff'; exit.label = 'Exit — continue';
+        syncOverworldUnseal(biome.name);
         const first = !c.cleared[depth];
         c.cleared[depth] = true;
         c.deepest = Math.max(c.deepest || 0, depth);
@@ -2004,6 +2062,7 @@ export const game = {
     } else if (sea) {   // the Pirate Seas (game/seabattle.js): a battle the hero hasn't won, never the last one twice
       createSeaBattle(world, gen, biome, depth, { variant: G.seaNext || c.seaVariant, last: c.lastSeaVariant, seen: c.seaSeen || {} }, () => {
         exit.active = true; exit.color = '#40a0ff'; exit.label = 'Exit — continue';
+        syncOverworldUnseal(biome.name);
         const first = !c.cleared[depth];
         c.cleared[depth] = true;
         c.deepest = Math.max(c.deepest || 0, depth);
@@ -2016,6 +2075,7 @@ export const game = {
     } else if (reg) {   // a new region (game/regions.js)
       world.overworldScenario = reg.createRun(world, gen, biome, depth, () => {
         exit.active = true; exit.color = '#40a0ff'; exit.label = 'Exit — continue';
+        syncOverworldUnseal(biome.name);
         const first = !c.cleared[depth];
         c.cleared[depth] = true;
         c.deepest = Math.max(c.deepest || 0, depth);
@@ -2026,6 +2086,7 @@ export const game = {
       }) || world.overworldScenario;
     } else if (gen.dunes) createDuneRun(world, gen, biome, () => {
       exit.active = true; exit.color = '#40a0ff'; exit.label = 'Exit — continue';
+      syncOverworldUnseal(gen.variant?.pyramid?.name || biome.name);
       const first = !c.cleared[depth];
       c.cleared[depth] = true;
       c.deepest = Math.max(c.deepest || 0, depth);
@@ -2036,6 +2097,7 @@ export const game = {
     });
     else if (biome.id === 'sea_of_sand') world.overworldScenario = createSeaOfSandScenario(world, gen, biome, () => {
       exit.active = true; exit.color = '#40a0ff'; exit.label = 'Exit — continue';
+      syncOverworldUnseal(biome.name);
       const first = !c.cleared[depth];
       c.cleared[depth] = true;
       c.deepest = Math.max(c.deepest || 0, depth);
@@ -2046,6 +2108,7 @@ export const game = {
     });
     else if (forest) world.overworldScenario = createDarkForestRun(world, gen, biome, () => {
       exit.active = true; exit.color = '#40a0ff'; exit.label = 'Exit — continue';
+      syncOverworldUnseal(biome.name);
       const first = !c.cleared[depth];
       c.cleared[depth] = true;
       c.deepest = Math.max(c.deepest || 0, depth);
@@ -2056,6 +2119,7 @@ export const game = {
     });
     else if (biome.tower) createTowerRun(world, gen, biome, () => {
       exit.active = true; exit.color = '#40a0ff'; exit.label = 'Exit — continue';
+      syncOverworldUnseal(biome.name);
       const first = !c.cleared[depth];
       c.cleared[depth] = true;
       c.deepest = Math.max(c.deepest || 0, depth);
@@ -2066,6 +2130,7 @@ export const game = {
     });
     else if (biome.cave) createCaveRun(world, gen, biome, () => {
       exit.active = true; exit.color = '#40a0ff'; exit.label = 'Exit — continue';
+      syncOverworldUnseal(biome.name);
       const first = !c.cleared[depth];
       c.cleared[depth] = true;
       c.deepest = Math.max(c.deepest || 0, depth);
@@ -2076,6 +2141,7 @@ export const game = {
     });
     else if (biome.overworld) world.overworldScenario = createOverworldScenario(world, gen, biome, () => {
       exit.active = true; exit.color = '#40a0ff'; exit.label = 'Exit — continue';
+      syncOverworldUnseal(biome.name);
       const first = !c.cleared[depth];
       c.cleared[depth] = true;
       c.deepest = Math.max(c.deepest || 0, depth);
