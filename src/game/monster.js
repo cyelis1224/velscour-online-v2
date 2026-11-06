@@ -15,6 +15,7 @@ import { bodyR } from '../world/map.js';
 import { toughness, danger, densityXp, riftHold, dmgScale } from '../data/depth.js';
 import { attachSlime, slimeUpdate, courtDef } from './slimecourt.js';
 import { ART_BY_ID, REVIVED, greaterSwap, rollLooks, uniqueSwap } from '../data/bestiary.js';
+import { skillMorphFor } from '../data/talents.js';
 
 const LEASH = 10; // minions fight what's within this many tiles of the hero
 const CHASE = 1.3, CHASE_MAX = 4.6; // monsters' pursuit pace: x1.3, up to 4.6 tiles/s (the hero runs 4.2) unless faster already
@@ -1489,79 +1490,30 @@ export function createSummon(p, sk, L, x, y, dmgRange, corpse) {
   if (SUMMONS[key] && SUMMONS[key].court) [key, def] = courtDef(key, p); // the Slime Lord's rainbow broods
   else { if (SUMMONS[key] && SUMMONS[key].pool) key = pick(SUMMONS[key].pool); def = SUMMONS[key]; } // Grave Warband, Conclave of Bones
   if (!def) return null;
-  const T = (p.st && p.st.talents) || {};
-  const sp = 1 + (p.st.summonPct || 0) / 100;
+  const morph = p && p.isPlayer ? skillMorphFor(p, sk) : null;
+  const sp = 1 + ((p.st && p.st.summonPct) || 0) / 100;
   const avg = (dmgRange[0] + dmgRange[1]) / 2;
   let hp = Math.max(20, p.maxHp * def.hp * (1 + 0.08 * (L - 1)) * sp);
   let dmg = avg * def.dmg * sp;
-  let dur = sk.m.dur || 0;
-  if (T.wiz_fire_hydra && key === 'hydra') dur += 3 * T.wiz_fire_hydra;
-  if (T.rng_trap_cluster && key.includes('sentry')) { hp *= 1 + 0.4 * T.rng_trap_cluster; if (dur) dur += 3 * T.rng_trap_cluster; }
+  const dur = sk.m.dur || 0;
   const m = buildSummon(p, def, key, x, y, dmg, hp, dur);
   m.skillId = sk.id;
   m.aug = p.augFor ? p.augFor(sk) : null; // ring augments ride on the minion's hits (combat.hit)
   if (p.mastery) { const M = p.mastery(sk); m.scale = (m.scale || 1) * (1 + Math.min(1, (M - 1) / 999) * 0.35); }
-  // Passive Talent Tree minion augments (data/talents.js)
-  if (T.witch_murder_crows && (key === 'raven' || sk.tree === 1)) {
-    const r = T.witch_murder_crows;
-    m.maxHp = m.hp = Math.round(m.maxHp * (1 + 0.65 * r));
-    m.dmgReduce = Math.min(0.65, (m.dmgReduce || 0) + 0.15 * r);
-    m.leech = (m.leech || 0) + 0.18 * r;
-    m.selfLeech = (m.selfLeech || 0) + 0.15 * r;
-    m.name = 'Murder ' + m.name;
-    m.aura = '#a020ff';
-  }
-  if (T.witch_plague_leech && (key === 'plaguebearer' || key === 'hive')) {
-    m.maxHp = m.hp = Math.round(m.maxHp * (1 + 0.45 * T.witch_plague_leech));
-    m.leech = (m.leech || 0) + 0.12 * T.witch_plague_leech;
-  }
-  if (T.witch_hex_totem && ['cauldron', 'totem_bone', 'lantern', 'effigy', 'witch'].includes(key)) {
-    m.maxHp = m.hp = Math.round(m.maxHp * (1 + 0.5 * T.witch_hex_totem));
-    m.dmg *= 1 + 0.5 * T.witch_hex_totem;
-  }
-  if (T.nec_summon_fort) {
-    const r = T.nec_summon_fort;
-    m.maxHp = m.hp = Math.round(m.maxHp * (1 + 0.6 * r));
-    m.dmgReduce = Math.min(0.65, (m.dmgReduce || 0) + 0.12 * r);
-  }
-  if (T.nec_summon_frenzy) {
-    const r = T.nec_summon_frenzy;
-    m.dmg *= 1 + 0.25 * r;
-    m.atkCd = Math.max(0.3, m.atkCd * (1 - 0.1 * r));
-    m.leech = (m.leech || 0) + 0.12 * r;
-    m.selfLeech = (m.selfLeech || 0) + 0.1 * r;
-  }
-  if (T.rng_pack_alpha && ['hawk', 'wolf', 'bear', 'spiritwolf', 'stormhawk', 'direwolf'].includes(key)) {
-    const r = T.rng_pack_alpha;
-    m.maxHp = m.hp = Math.round(m.maxHp * (1 + 0.5 * r));
-    m.dmgReduce = Math.min(0.65, (m.dmgReduce || 0) + 0.12 * r);
-    m.leech = (m.leech || 0) + 0.12 * r;
-    m.selfLeech = (m.selfLeech || 0) + 0.1 * r;
-  }
-  if (T.bard_chorus_fort && key === 'chorus') {
-    const r = T.bard_chorus_fort;
-    m.maxHp = m.hp = Math.round(m.maxHp * (1 + 0.55 * r));
-    m.dmg *= 1 + 0.55 * r;
-    m.dmgReduce = Math.min(0.65, (m.dmgReduce || 0) + 0.12 * r);
-  }
-  if (T.bard_sonic_amp && (key === 'drum' || key === 'amp')) {
-    m.maxHp = m.hp = Math.round(m.maxHp * (1 + 0.5 * T.bard_sonic_amp));
-    m.dmg *= 1 + 0.5 * T.bard_sonic_amp;
-  }
-  if (T.lnc_knight_fort && key.startsWith('kn_')) {
-    const r = T.lnc_knight_fort;
-    m.maxHp = m.hp = Math.round(m.maxHp * (1 + 0.65 * r));
-    m.dmgReduce = Math.min(0.65, (m.dmgReduce || 0) + 0.14 * r);
-  }
-  if (T.gun_turret_fort && ['turret', 'flameturret', 'rocketturret', 'cryoturret', 'drone', 'bombdrone', 'mech', 'tesla'].includes(key)) {
-    const r = T.gun_turret_fort;
-    m.maxHp = m.hp = Math.round(m.maxHp * (1 + 0.65 * r));
-    m.dmgReduce = Math.min(0.65, (m.dmgReduce || 0) + 0.14 * r);
-    m.atkCd = Math.max(0.25, m.atkCd * (1 - 0.1 * r));
-  }
-  if (T.barb_shout_frenzy && (key === 'ancient' || key === 'ancientstorm')) {
-    m.maxHp = m.hp = Math.round(m.maxHp * (1 + 0.35 * T.barb_shout_frenzy));
-    m.dmg *= 1 + 0.35 * T.barb_shout_frenzy;
+  // Talent Morph minion fortification & offense (data/talents.js)
+  if (morph) {
+    if (morph.summonHpPct > 0) {
+      m.maxHp = m.hp = Math.round(m.maxHp * (1 + morph.summonHpPct / 100));
+      m.dmgReduce = Math.min(0.65, (m.dmgReduce || 0) + Math.min(0.35, morph.summonHpPct * 0.003));
+    }
+    if (morph.summonDmgPct > 0) {
+      m.dmg *= 1 + morph.summonDmgPct / 100;
+      m.atkCd = Math.max(0.25, m.atkCd * (1 - Math.min(0.25, morph.summonDmgPct * 0.003)));
+    }
+    if (morph.leech) {
+      m.leech = (m.leech || 0) + 0.2;
+      m.selfLeech = (m.selfLeech || 0) + 0.15;
+    }
   }
   if (corpse) {
     m.sprite = corpse.sprite; m.pal = shiftPalette(corpse.pal || {}, { hue: 120, sat: 0.5, light: 0.05 }); m.px = corpse.px; m.fly = corpse.fly;
@@ -1572,11 +1524,10 @@ export function createSummon(p, sk, L, x, y, dmgRange, corpse) {
   }
   // enforce per-skill maximum and a global cap
   const mine = w.creatures.filter((c) => c.summon && c.skillId === sk.id && !c.dead);
-  const maxBonus = (T.nec_summon_fort && p.classId === 'necromancer' ? 1 : 0) + (T.gun_architect_key && p.classId === 'gunner' ? 1 : 0) + (T.witch_queen_key && key === 'raven' ? 2 : 0);
-  const max = (sk.m.max || (sk.m.dur ? 99 : (sk.m.n || 1))) + (sk.m.grow ? Math.floor((L - 1) / 5) : 0) + maxBonus;
+  const max = (sk.m.max || (sk.m.dur ? 99 : (sk.m.n || 1))) + (sk.m.grow ? Math.floor((L - 1) / 5) : 0);
   while (mine.length >= max) { const old = mine.shift(); old.dead = true; burst(old.x, old.y, 20, old.el || 'arcane', 8, 2); }
-  if (key.startsWith('kn_')) { // the Lancer's Knight Order: at most 4 knights in the field (6 with Grand Commander keystone)
-    const knCap = T.lnc_commander_key ? 6 : 4;
+  if (key.startsWith('kn_')) { // the Lancer's Knight Order: at most 4 knights in the field (+knightCapPlus with Grand Commander)
+    const knCap = 4 + ((p.st && p.st.knightCapPlus) || 0);
     const kn = w.creatures.filter((c) => c.summon && !c.dead && c.owner === p && c.summonKey && c.summonKey.startsWith('kn_'));
     while (kn.length >= knCap) { const old = kn.shift(); old.dead = true; burst(old.x, old.y, 20, old.el || 'arcane', 8, 2); }
   }

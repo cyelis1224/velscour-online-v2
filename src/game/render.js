@@ -1404,7 +1404,7 @@ export function drawMinimap(world, dt, canvas, big = false) {
   for (const ch of world.chests) if (!ch.opened && map.seen[Math.floor(ch.y) * map.w + Math.floor(ch.x)]) dot(ch.x, ch.y, ch.dot || '#ffd040', big ? 4 : 2.5);
   for (const n of world.npcs) dot(n.x, n.y, '#ffe090', big ? 4 : 2.5);
   for (const m of world.creatures) {
-    if (m.dead || m === p) continue;
+    if (m.dead || m === p || m.clutter) continue;
     const d = Math.hypot(m.x - p.x, m.y - p.y);
     if (m.team === 'enemy' && d < 14) dot(m.x, m.y, m.rank === 'boss' ? '#ff8000' : m.rank !== 'normal' ? '#ffb040' : '#ff3030', m.rank === 'boss' ? 4 : 2);
     else if (m.isRemotePlayer) {

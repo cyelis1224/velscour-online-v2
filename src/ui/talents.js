@@ -3,7 +3,7 @@ import { G } from '../state.js';
 import { el, escapeHtml } from '../core/util.js';
 import { sfx } from '../core/audio.js';
 import { UI } from './ui.js';
-import { skillIcon } from './icons.js';
+import { talentIcon, talentIconURL } from './icons.js';
 import { elem } from '../gfx/vfx.js';
 import {
   CLASS_TALENTS,
@@ -33,9 +33,10 @@ function talentWhyNot(c, node) {
   }
   if ((c.level || 1) < node.reqLevel) return `Requires character level ${node.reqLevel}`;
   if (!isTalentPrereqMet(c, node)) {
-    if (node.row === 1) return 'Requires 3 points in Tier 1 of this branch';
-    if (node.row === 2) return 'Requires 1 point in a Tier 2 Augment of this branch';
-    if (node.row === 3) return 'Requires 3 points in Tier 3 of this branch';
+    if (node.row === 1) return 'Requires 1 point in Tier 1 of this branch';
+    if (node.row === 2) return 'Requires 1 point in a Tier 2 Morph of this branch';
+    if (node.row === 3) return 'Requires 2 points in Tier 3 of this branch';
+    if (node.row === 4) return 'Requires 2 points in a Tier 4 Morph of this branch';
     return 'Prerequisite not met';
   }
   if ((c.talentPoints || 0) <= 0) return 'No talent points available';
@@ -104,17 +105,28 @@ function renderTalentDetail(node) {
   const c = G.char;
   const box = el('div', 'skill-detail talent-detail');
   if (!node) {
-    box.innerHTML = `<div class="dim">Select a passive talent or branch augment to inspect its effects. Tier 2 (Lv 10) and Tier 4 (Lv 40) nodes are <b>mutually exclusive branch choices</b> that directly augment your active skills.</div>`;
+    box.innerHTML = `<div class="dim">Select a passive talent or skill morph to inspect its effects. Tier 2 (Lv 10), Tier 4 (Lv 30), and Tier 5 (Lv 45) nodes are <b>mutually exclusive A/B choices</b> that transform your active skills and define your build.</div>`;
     return box;
   }
   const cur = getTalents(c)[node.id] || 0;
   const E = elem(node.el || 'phys');
   const sib = getSiblingChoice(node);
   const lockedByChoice = isTalentLockedByChoice(c, node);
-  const tierNames = ['Tier 1 · Foundation Passive', 'Tier 2 · Branch Skill Augment (Exclusive Choice)', 'Tier 3 · Synergy Mastery', 'Tier 4 · Apex Keystone (Exclusive Choice)'];
-  let h = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-    <h3 style="margin:0;color:${E.glow}">${escapeHtml(node.name)}</h3>
-    <span class="tag">${escapeHtml(tierNames[node.row] || 'Passive')}</span>
+  const tierNames = [
+    'Tier 1 · Foundation Passive',
+    'Tier 2 · Skill Morph (Exclusive Choice)',
+    'Tier 3 · Synergy Mastery',
+    'Tier 4 · Major Skill Morph (Exclusive Choice)',
+    'Tier 5 · Apex Keystone (Exclusive Choice)',
+  ];
+  let h = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+    <img src="${talentIconURL(node)}" alt="" style="width:48px;height:48px;border-radius:5px;border:1px solid #6b4e28;flex-shrink:0">
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <h3 style="margin:0;color:${E.glow}">${escapeHtml(node.name)}</h3>
+        <span class="tag">${escapeHtml(tierNames[node.row] || 'Passive')}</span>
+      </div>
+    </div>
   </div>`;
   h += `<div class="dim" style="margin:4px 0">Rank <b>${cur} / ${node.maxRank}</b> · Requires Hero Level ${node.reqLevel}${sib ? ` · <span style="color:${lockedByChoice ? '#ff6b6b' : '#ffb86c'}">Mutually Exclusive with <b>${escapeHtml(sib.name)}</b></span>` : ''}</div>`;
   const showRank = Math.max(1, cur);
@@ -196,7 +208,7 @@ export function renderTalents(body) {
     bHead.innerHTML = `<span style="color:${bE.glow};font-weight:700">${escapeHtml(b.name)}</span> <span class="dim">(${bPts} pts)</span>`;
     bCol.appendChild(bHead);
 
-    for (let rowIdx = 0; rowIdx < 4; rowIdx++) {
+    for (let rowIdx = 0; rowIdx < TALENT_ROW_LEVELS.length; rowIdx++) {
       const rowNodes = b.nodes.filter((n) => n.row === rowIdx);
       const rowEl = el('div', 'talent-row' + (rowNodes.length > 1 ? ' talent-fork-row' : ''));
       const reqLv = TALENT_ROW_LEVELS[rowIdx] || 1;
@@ -214,25 +226,18 @@ export function renderTalents(body) {
 
         const card = el('div', 'snode talent-node');
         if (node.choice) card.classList.add('talent-choice');
-        if (node.row === 3) card.classList.add('talent-keystone');
+        if (node.row === 4) card.classList.add('talent-keystone');
         if (rank > 0) card.classList.add('has');
         else if (!why) card.classList.add('avail');
         else if (why !== 'No talent points available') card.classList.add('locked');
         if (lockedChoice) card.classList.add('choice-locked');
         if (selectedTalentId === node.id) card.classList.add('sel');
 
-        const iconCanvas = skillIcon({
-          id: 'tal_' + node.id,
-          classId: node.classId,
-          el: node.el || b.el || 'phys',
-          fx: node.fx || 'light',
-          kind: node.choice ? 'aoe' : 'buff',
-          m: {},
-        }, 64);
+        const iconCanvas = talentIcon(node, 64);
         const cv = document.createElement('canvas');
-        cv.width = 56;
-        cv.height = 56;
-        cv.getContext('2d').drawImage(iconCanvas, 0, 0, 56, 56);
+        cv.width = 64;
+        cv.height = 64;
+        cv.getContext('2d').drawImage(iconCanvas, 0, 0, 64, 64);
         card.appendChild(cv);
 
         const nameSpan = el('div', 'talent-node-name', escapeHtml(node.name));
@@ -245,7 +250,7 @@ export function renderTalents(body) {
           const lockTag = el('span', 'talent-lock-tag', 'LOCKED');
           card.appendChild(lockTag);
         } else if (node.choice) {
-          const chTag = el('span', 'talent-choice-tag', node.row === 3 ? 'KEY' : `PATH ${node.choice}`);
+          const chTag = el('span', 'talent-choice-tag', node.row === 4 ? 'KEY' : `PATH ${node.choice}`);
           card.appendChild(chTag);
         }
 

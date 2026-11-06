@@ -402,7 +402,14 @@ class Deck {
     this.gen++; this.name = name;
     this.el.loop = loop;
     if (!this.el.src.endsWith(url)) this.el.src = url;
-    try { this.el.currentTime = at; } catch (e) { /* not seekable yet */ }
+    if (at) {
+      try { this.el.currentTime = at; } catch (e) { /* not seekable yet */ }
+      if (this.el.readyState < 1) {
+        this.el.addEventListener('loadedmetadata', () => {
+          try { this.el.currentTime = at; } catch (e) {}
+        }, { once: true });
+      }
+    }
     const p = this.el.play(); if (p) p.catch(() => {});
     return this.gen;
   }
@@ -461,12 +468,15 @@ export function primeMusic(kind, wait = 4000) {
 /** Start a music kind (no-op if it's already the current one). opts.delay: seconds before the first song starts. */
 export function playMusic(kind, opts = {}) {
   if (!ac) { pending.music = { kind, opts }; return; }
-  if (music && music.kind === kind) return;
+  if (music && music.kind === kind && !opts.force) return;
   const def = MUSIC[kind]; if (!def) return;
   if (music && music.deck) music.deck.stop(1.5);
   const deck = decks.music.find((d) => !d.playing && (!music || d !== music.deck)) || decks.music[0];
   const queue = def.shuffle ? [...def.songs].sort(() => Math.random() - 0.5) : [...def.songs];
   music = { kind, def, deck, queue, next: ac.currentTime + (opts.delay ?? (music ? 1.2 : 0.3)), song: null };
+  if (opts.delay === 0 || opts.at !== undefined) {
+    startSong(opts.at || 0);
+  }
 }
 
 export function stopMusic(sec = 1.5) {

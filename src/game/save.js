@@ -1,6 +1,6 @@
 // LocalStorage persistence for heroes.
 import { CLASSES } from '../data/classes.js';
-import { rollItem, HOLLOW } from '../data/items.js';
+import { rollItem, HOLLOW, augTarget } from '../data/items.js';
 import { drawBiome } from '../data/biomes.js';
 import { migrateBar, BAR_SIZE } from '../data/bar.js';
 import { TAB_SLOTS } from '../data/tabs.js';
@@ -8,6 +8,9 @@ import { newMacros, migrateMacros } from '../data/macros.js';
 import { fixBag, fixGemBag, fixStash, fixJewelBox, BAG_COLS, BAG_ROWS } from '../data/bag.js';
 import { stashRaw, listRaw } from './herobackup.js';
 import { FINAL_DEPTH } from '../data/depth.js';
+import { SKILLS, CLASS_SKILLS, MAX_SKILL_LEVEL, grantedSkillsAt } from '../data/skills.js';
+import { augmentable, AUGMENTS } from '../data/rings.js';
+import { TALENTS, isTalentLockedByChoice, isTalentPrereqMet } from '../data/talents.js';
 
 const KEY = 'velscour_saves_v1';
 const ASIDE = KEY + '_unreadable_';   // + time: save data that couldn't be read, set aside before anything replaced it
@@ -188,6 +191,33 @@ export function migrate(c) {
     };
   }
   c.granted = c.granted || {};
+  c.skills = c.skills || {};
+  c.skillPoints = Math.max(0, c.skillPoints | 0);
+  // Migrate pruned or out-of-class skill IDs: refund spent skill points, preserve free grants on valid skills
+  for (const [id, rawLv] of Object.entries(c.skills)) {
+    const lv = Math.max(0, rawLv | 0);
+    const sk = SKILLS[id];
+    if (!sk || sk.classId !== c.classId || lv <= 0) {
+      const paid = Math.max(0, lv - (c.granted[id] ? 1 : 0));
+      c.skillPoints += paid;
+      delete c.skills[id];
+      delete c.granted[id];
+    } else if (lv > MAX_SKILL_LEVEL) {
+      c.skillPoints += lv - MAX_SKILL_LEVEL;
+      c.skills[id] = MAX_SKILL_LEVEL;
+    } else {
+      c.skills[id] = lv;
+    }
+  }
+  for (const gid of Object.keys(c.granted)) {
+    if (!SKILLS[gid] || SKILLS[gid].classId !== c.classId) delete c.granted[gid];
+  }
+  for (const gid of grantedSkillsAt(c.classId, c.level || 1)) {
+    if (!c.granted[gid] && SKILLS[gid]) {
+      c.granted[gid] = true;
+      c.skills[gid] = Math.min(MAX_SKILL_LEVEL, (c.skills[gid] || 0) + 1);
+    }
+  }
   c.talents = c.talents || {};
   if (!Number.isInteger(c.talentPoints)) {
     const earnedTalents = Math.floor((c.level || 1) / 5);
@@ -206,6 +236,30 @@ export function migrate(c) {
     }
   }
   c.talentPoints = Math.max(0, c.talentPoints | 0);
+  // Migrate overhauled talent IDs, ranks, and prerequisite/choice constraints: refund orphaned points cleanly
+  for (const [tid, rawRk] of Object.entries(c.talents)) {
+    const rk = Math.max(0, rawRk | 0);
+    const node = TALENTS[tid];
+    if (!node || node.classId !== c.classId || rk <= 0) {
+      c.talentPoints += rk;
+      delete c.talents[tid];
+    } else if (rk > node.maxRank) {
+      c.talentPoints += rk - node.maxRank;
+      c.talents[tid] = node.maxRank;
+    } else {
+      c.talents[tid] = rk;
+    }
+  }
+  for (let row = 0; row <= 4; row++) {
+    for (const [tid, rk] of Object.entries(c.talents)) {
+      const node = TALENTS[tid];
+      if (!node || node.row !== row) continue;
+      if ((c.level || 1) < node.reqLevel || isTalentLockedByChoice(c, node) || !isTalentPrereqMet(c, node)) {
+        c.talentPoints += rk;
+        delete c.talents[tid];
+      }
+    }
+  }
   c.tips = c.tips || {};
   if (c.classId === 'barbarian') c.rage = Math.max(0, Math.min(100, Number(c.rage) || 0));
   c.homunculus = c.homunculus || { talks: 0, chapter: 0, told: [], recap: [] }; // the blacksmith's axe story (game/homunculus.js)
@@ -228,6 +282,9 @@ export function migrate(c) {
   c.vanity = Object.assign({ head: null, body: null, weapon: null, offhand: null }, c.vanity); // looks only: worn over the real gear, no stats
   c.hideHelm = !!c.hideHelm;
   c.macros = migrateMacros(c.macros);
+  for (const m of c.macros) {
+    if (Array.isArray(m.skills)) m.skills = m.skills.filter((id) => SKILLS[id] && SKILLS[id].classId === c.classId);
+  }
   if (c.townSeed === undefined) c.townSeed = (Math.random() * 1e9) | 0;
   if (!Array.isArray(c.biomeBag)) c.biomeBag = [];
   if (!Number.isInteger(c.overworldMisses)) c.overworldMisses = 0;
@@ -236,6 +293,12 @@ export function migrate(c) {
   // heroes made before the shuffle bag always started in the catacombs: give an unexplored hero a random start
   if (c.nextBiome === 'catacombs' && !c.deepest && !c.lastBiome) c.nextBiome = drawBiome(c, c.depth || 1);
   c.bar = migrateBar(c.bar); // 10 slots (LMB, 1-8, RMB) -> 15 (LMB, ` 1-9 0 - =, RMB)
+  c.bar = c.bar.map((id) => (id && SKILLS[id] && SKILLS[id].classId === c.classId && c.skills[id] > 0 ? id : null));
+  if (!c.bar[0]) {
+    const clsSkills = CLASS_SKILLS[c.classId] || [];
+    const def = clsSkills.find((s) => s.m.free && c.skills[s.id] > 0) || clsSkills.find((s) => c.skills[s.id] > 0);
+    if (def) c.bar[0] = def.id;
+  }
   fixBag(c); // 6 rows, plus any bought
   fixGemBag(c);
   // Migrate existing gems from regular bag to the dedicated Gem Bag
@@ -257,6 +320,29 @@ export function migrate(c) {
   }
   fixStash(c);
   fixJewelBox(c);
+  // Remap orphaned ring skill augments from pruned 80-skill trees onto valid augmentable skills in the same tree/class
+  for (const it of [...Object.values(c.equip || {}), ...(c.bag || []), ...(c.stash || []), ...(c.jewelBox || [])]) {
+    if (!it || !Array.isArray(it.aug)) continue;
+    let remapped = false;
+    for (const a of it.aug) {
+      if (a && a.sk && !SKILLS[a.sk]) {
+        const parts = String(a.sk).split('.');
+        const targetCls = CLASS_SKILLS[parts[0]] ? parts[0] : c.classId;
+        const targetTree = Number(parts[1]) || 0;
+        const oldIdx = Number(parts[2]) || 0;
+        const allPool = (CLASS_SKILLS[targetCls] || []).filter(augmentable);
+        const treePool = allPool.filter((s) => s.tree === targetTree);
+        const pool = treePool.length ? treePool : allPool;
+        if (pool.length) {
+          a.sk = pool[oldIdx % pool.length].id;
+          remapped = true;
+        }
+      }
+    }
+    if (remapped && it.slot === 'ring' && it.rname && !it.uname && it.aug[0] && AUGMENTS[it.aug[0].id]) {
+      it.rname = `${AUGMENTS[it.aug[0].id].word} ${it.baseName} of ${augTarget(it.aug[0])}`;
+    }
+  }
   if (!Array.isArray(c.tabs)) c.tabs = [];
   while (c.tabs.length < TAB_SLOTS) c.tabs.push(null);
   if (!Number.isInteger(c.tabAt) || c.tabAt < 0 || c.tabAt >= TAB_SLOTS) c.tabAt = 0;

@@ -64,35 +64,28 @@ export function attachTitleFx(screen, logoEl, els = {}) {
   let priming = false;
   function startIntro(skipNow = false) {
     phase = 'intro';
-    const startT = skipNow ? (HIT - 0.35) : LOGO_FADE_START;
+    const startT = skipNow ? (HIT - 0.05) : LOGO_FADE_START;
     ts = Math.max(ts, startT);
     t0 = performance.now() - startT * 1000;
-    creditsAt = t0;
+    creditsAt = performance.now();
     creditsClockAnchored = false;
     if (els.credits) for (const card of els.credits.children) card.style.opacity = '0';
     if (skipNow) {
-      seekMusic(HIT - 0.35);
+      seekMusic(HIT - 0.05);
       light(true);
     }
   }
   function begin() {   // called inside the tap: start logo fade and music immediately
     if (phase !== 'gate') return;
     phase = 'intro';
-    priming = true;
+    priming = false;
     screen.classList.remove('title-gated');
-    const startT = skipAfterCredits ? (HIT - 0.35) : LOGO_FADE_START;
+    const startT = skipAfterCredits ? (HIT - 0.05) : LOGO_FADE_START;
     ts = startT;
     t0 = performance.now() - startT * 1000;
-    creditsAt = t0;
+    creditsAt = performance.now();
     creditsClockAnchored = false;
-    primeMusic('title').then(() => {
-      if (!cv.isConnected) return;
-      priming = false;
-      playMusic('title', { delay: 0 });
-      seekMusic(ts);
-    }).catch(() => {
-      priming = false;
-    });
+    playMusic('title', { delay: 0, at: startT, force: true });
     if (skipAfterCredits) light(true);
   }
   function light(instant) {   // the hit: the logo bursts into flame and the menu appears
@@ -109,10 +102,8 @@ export function attachTitleFx(screen, logoEl, els = {}) {
       begin();
       return;
     }
-    seekMusic(HIT - 0.35);
-    const songT = HIT - 0.35 + INTRO_DELAY;
-    t0 = performance.now() - songT * 1000;
-    creditsAt = t0; creditsClockAnchored = true; ts = Math.max(ts, songT);
+    seekMusic(HIT - 0.05);
+    ts = HIT;
     light(true);
   }
   if (window.VELSCOUR_TEST_MENU) screen.classList.add('title-ready');   // headless tests click the menu straight away
@@ -158,12 +149,24 @@ export function attachTitleFx(screen, logoEl, els = {}) {
       return;
     }
     if (phase !== 'intro') return;
-    const wall = clockNow(), c = musicClock();
+    const c = musicClock();
     let t;
-    if (c && c.kind === 'title' && c.t > 0.02) t = c.t;   // the song's own clock (when playing)
-    else if (creditsAt) t = (performance.now() - creditsAt) / 1000;   // scheduled time aligned to logo start
-    else if (wall < 0) t = wall;                                // before the song is due
-    else t = wall;
+    if (c && c.kind === 'title' && c.t > 0.02) {
+      t = c.t;
+      if (!creditsClockAnchored) {
+        creditsClockAnchored = true;
+        t0 = performance.now() - c.t * 1000;
+      }
+    } else if (creditsClockAnchored) {
+      t = (performance.now() - t0) / 1000;
+    } else {
+      const elapsed = (performance.now() - creditsAt) / 1000;
+      // Fade in smoothly on wall clock while audio initializes, but hold just before HIT
+      // so the fire burst NEVER detonates before the audio hit sound effect plays!
+      t = Math.min(LOGO_FADE_START + elapsed, HIT - 0.05);
+      // Failsafe: if audio context failed or device is muted after 3.0s, allow detonation anyway
+      if (elapsed > 3.0) t = LOGO_FADE_START + elapsed;
+    }
     ts = Math.max(ts, t);
     if (ts >= HIT) light();
   }
@@ -663,5 +666,520 @@ export function attachTitleFx(screen, logoEl, els = {}) {
   if (geo || A.logo) start(A.logo);
   else if (logoEl.complete && logoEl.naturalWidth) start(logoEl);
   else logoEl.addEventListener('load', () => start(logoEl), { once: true });
+  return detach;
+}
+
+/**
+ * Attach the title screen's signature pixel fire and trailing embers to a logo element.
+ * Specially designed for the lobby screen header logo. Returns a cleanup/detach function.
+ */
+export function attachLobbyLogoFire(wrapEl, logoEl) {
+  let cv = wrapEl.querySelector('.d2-logo-fire');
+  if (!cv) {
+    cv = document.createElement('canvas');
+    cv.className = 'd2-logo-fire';
+    cv.setAttribute('aria-hidden', 'true');
+    wrapEl.prepend(cv);
+  }
+  const ctx = cv.getContext('2d');
+  let W = 0, H = 0, PX = 2, D = 1, S = 2, cssW = 0, cssH = 0;
+  const parts = [];
+  const MAX_LOBBY_PARTS = 350;
+  let raf = 0, last = performance.now(), ready = false;
+  const LITE = document.body.classList.contains('touch');
+  const Q = LITE ? 0.6 : 1;
+  const ZS = LITE ? 1.25 : 1;
+  const lg = { s: 1, x: 0, y: 0 };
+
+  function resize() {
+    const r = cv.getBoundingClientRect();
+    const dpr = Math.min(LITE ? 1.5 : 2, window.devicePixelRatio || 1);
+    if (r.width === cssW && r.height === cssH && dpr === D) return;
+    cssW = r.width; cssH = r.height; D = dpr;
+    PX = Math.max(1.5, Math.round(Math.min(r.width, r.height) / 45));
+    S = PX * D;
+    cv.width = Math.max(1, Math.round(r.width * D));
+    cv.height = Math.max(1, Math.round(r.height * D));
+    W = Math.max(1, Math.round(r.width / PX));
+    H = Math.max(1, Math.round(r.height / PX));
+  }
+
+  function place() {
+    if (!geo || !geo.w || !geo.h) return;
+    const c = cv.getBoundingClientRect(), r = logoEl.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) return;
+    const s = Math.min(r.width / geo.w, r.height / geo.h);
+    lg.s = s / PX;
+    lg.x = (r.left + (r.width - geo.w * s) / 2 - c.left) / PX;
+    lg.y = (r.top + (r.height - geo.h * s) / 2 - c.top) / PX;
+  }
+
+  const P = (nx, ny) => [lg.x + nx * lg.s, lg.y + ny * lg.s];
+  const topPt = () => (geo && geo.top.length ? P(...geo.top[randi(0, geo.top.length - 1)]) : [W / 2, H * 0.7]);
+  const crackPt = () => (geo && geo.cracks.length ? P(...geo.cracks[randi(0, geo.cracks.length - 1)]) : [W / 2, H * 0.7]);
+
+  const add = (o) => { if (parts.length < MAX_LOBBY_PARTS * Q) parts.push(o); };
+  const flame = (x, y, vx, vy, life, sz = 1) => add({
+    k: 0, x, y, originX: x, vx, vy, t: 0, life, sz: sz * ZS,
+    ph: rand(6.28), buoyancy: rand(20, 44), pinch: rand(1.6, 3.2), flickerSpeed: rand(12, 20)
+  });
+  const spark = (x, y, vx, vy, life, g) => add({ k: 1, x, y, vx, vy, t: 0, life, g });
+  const ember = (x, y, vx, vy, life, sz = 1, emberType = 0) => add({
+    k: 3, x, y, vx, vy, t: 0, life, sz: sz * ZS, seed: rand(100), drift: rand(-8, 8),
+    swayAmp: rand(10, 22), flutterFreq: rand(8, 16), flutterAmp: rand(3, 7),
+    buoyancy: rand(14, 32), flickerRate: rand(12, 22), baseAlpha: rand(0.75, 1.0),
+    popTimer: rand(0.6, 2.2), flare: 0, emberType
+  });
+
+  function emit(dt) {
+    if (!ready || !geo || !geo.top.length) return;
+    const s = lg.s;
+    // Flame tongues along top edge
+    for (let n = Math.floor(dt * 340 * Q + Math.random()); n-- > 0;) {
+      const [x, y] = topPt();
+      flame(x + rand(-0.8, 0.8), y + rand(0, 2 * s * 6), rand(-3, 3), -rand(12, 26), rand(0.3, 0.65), rand(0.8, 1.8));
+    }
+    // Flame licks from cracks
+    for (let n = Math.floor(dt * 70 * Q + Math.random()); n-- > 0;) {
+      const [x, y] = crackPt();
+      flame(x + rand(-1.2, 1.2), y, rand(-2, 2), -rand(10, 22), rand(0.2, 0.45), rand(0.7, 1.4));
+    }
+    // Realistic floating embers
+    for (let n = Math.floor(dt * 40 * Q + Math.random()); n-- > 0;) {
+      const [x, y] = Math.random() < 0.5 ? crackPt() : topPt();
+      const r = Math.random();
+      const type = r < 0.65 ? 0 : r < 0.9 ? 1 : 2;
+      const sz = type === 0 ? rand(0.6, 1.0) : type === 1 ? rand(1.0, 1.5) : rand(1.5, 2.0);
+      ember(x + rand(-1.5, 1.5), y + rand(-1, 2), rand(-8, 8), -rand(20, 50), rand(1.6, 3.4), sz, type);
+    }
+    // Occasional spark
+    for (let n = Math.floor(dt * 10 * Q + Math.random()); n-- > 0;) {
+      const [x, y] = topPt();
+      spark(x, y, rand(-18, 18), -rand(20, 55), rand(0.5, 1.2), rand(-5, 20));
+    }
+  }
+
+  function updateParts(dt) {
+    const logoMidX = lg.x + (geo ? geo.w * lg.s * 0.5 : W * 0.5);
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      p.t += dt;
+      if (p.t >= p.life || p.y < -30 || p.x < -20 || p.x > W + 20 || p.y > H + 20) {
+        parts[i] = parts[parts.length - 1];
+        parts.pop();
+        continue;
+      }
+      if (p.k === 0) {
+        const u = p.t / p.life;
+        p.vy -= p.buoyancy * (1 - u * 0.4) * dt;
+        p.vx -= (p.x - p.originX) * p.pinch * dt;
+        p.vx += Math.sin(p.t * p.flickerSpeed + p.ph) * (16 * (1 - u)) * dt;
+        p.vx *= (1 - dt * 2.2);
+        p.vy *= (1 - dt * 1.0);
+      } else if (p.k === 1) {
+        p.vy += p.g * dt;
+        p.vx *= (1 - dt * 0.6);
+      } else if (p.k === 3) {
+        const distFromCenter = Math.abs(p.x - logoMidX) / Math.max(20, geo ? geo.w * lg.s * 0.5 : 80);
+        const chimney = Math.max(0, 1 - distFromCenter * 0.5) * 10;
+        p.vy -= (p.buoyancy + chimney) * dt;
+
+        const eddy1 = Math.sin(p.y * 0.02 + p.t * 2.2 + p.seed) * p.swayAmp;
+        const eddy2 = Math.cos(p.x * 0.03 - p.t * 3.2 + p.seed * 1.6) * (p.swayAmp * 0.55);
+        const flutter = Math.sin(p.t * p.flutterFreq + p.seed * 2.8) * p.flutterAmp;
+        p.vx += (eddy1 + eddy2 + flutter + p.drift) * 1.3 * dt;
+
+        p.popTimer -= dt;
+        if (p.popTimer <= 0) {
+          p.popTimer = rand(1.2, 3.0);
+          p.vx += rand(-16, 16);
+          p.vy -= rand(12, 24);
+          p.flare = 0.5;
+          p.drift = rand(-10, 10);
+        }
+        if (p.flare > 0) p.flare = Math.max(0, p.flare - dt * 2.2);
+
+        p.vx *= (1 - dt * 1.25);
+        p.vy *= (1 - dt * 0.65);
+      }
+
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+    }
+  }
+
+  function draw() {
+    const cw = cv.width, ch = cv.height, lw = D;
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+
+    // 1. Flame tongues
+    for (let tier = 0; tier < 4; tier++) {
+      const strokeCol = tier === 0 ? '#b81c04' : tier === 1 ? '#ff5a0a' : tier === 2 ? '#ffb818' : '#fffbe0';
+      const widthMult = (tier === 0 ? 2.2 : tier === 1 ? 1.5 : tier === 2 ? 0.95 : 0.5) * ZS;
+      ctx.strokeStyle = strokeCol;
+      ctx.lineWidth = Math.max(1, lw * widthMult);
+      ctx.beginPath();
+      let count = 0;
+      for (const p of parts) {
+        if (p.k !== 0) continue;
+        const u = p.t / p.life;
+        if (tier === 3 && u > 0.35) continue;
+        if (tier === 2 && u > 0.65) continue;
+        if (tier === 1 && u > 0.88) continue;
+
+        const hx = p.x * S, hy = p.y * S;
+        const tailDt = (tier === 3 ? 0.022 : 0.038) * p.sz;
+        const tx = (p.x - p.vx * tailDt) * S, ty = (p.y - p.vy * tailDt) * S;
+
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(hx, hy);
+        count++;
+      }
+      if (count > 0) ctx.stroke();
+    }
+
+    // 2. Sparks
+    for (const hot of [true, false]) {
+      ctx.strokeStyle = hot ? '#fff0a0' : '#ff7a10';
+      ctx.globalAlpha = hot ? 0.95 : 0.65;
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      for (const p of parts) {
+        if (p.k !== 1 || (p.t / p.life < 0.45) !== hot) continue;
+        ctx.moveTo((p.x - p.vx * 0.04) * S, (p.y - p.vy * 0.04) * S);
+        ctx.lineTo(p.x * S, p.y * S);
+      }
+      ctx.stroke();
+    }
+
+    // 3. Embers
+    for (const p of parts) {
+      if (p.k !== 3) continue;
+      const u = p.t / p.life;
+      const flicker = 0.75 + 0.25 * Math.sin(p.t * p.flickerRate + p.seed);
+      const flare = p.flare || 0;
+      const brightness = Math.min(1.6, (1 - u * 0.7) * flicker + flare);
+      const fadeIn = u < 0.05 ? u / 0.05 : 1;
+      const fadeOut = u > 0.85 ? (1 - u) / 0.15 : 1;
+      const alpha = Math.max(0, Math.min(1, fadeIn * fadeOut * p.baseAlpha));
+      if (alpha <= 0.01) continue;
+
+      let r, g, b;
+      if (u < 0.18) {
+        const k = u / 0.18;
+        r = 255; g = Math.round(250 - 45 * k); b = Math.round(200 - 160 * k);
+      } else if (u < 0.52) {
+        const k = (u - 0.18) / 0.34;
+        r = 255; g = Math.round(205 - 115 * k); b = Math.round(40 - 30 * k);
+      } else if (u < 0.82) {
+        const k = (u - 0.52) / 0.30;
+        r = Math.round(255 - 75 * k); g = Math.round(90 - 72 * k); b = Math.round(10 - 5 * k);
+      } else {
+        const k = (u - 0.82) / 0.18;
+        r = Math.round(180 - 115 * k); g = Math.round(18 - 14 * k); b = 5;
+      }
+      r = Math.min(255, Math.round(r * brightness));
+      g = Math.min(255, Math.round(g * brightness));
+      b = Math.min(255, Math.round(b * brightness));
+
+      const cx = p.x * S, cy = p.y * S;
+      const radius = Math.max(1, (p.sz || 1) * D * (p.emberType === 2 ? 1.3 : p.emberType === 1 ? 1.0 : 0.75));
+
+      ctx.fillStyle = `rgba(${r},${g},${b},${alpha.toFixed(2)})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function frame(now) {
+    if (!wrapEl.isConnected) {
+      detach();
+      return;
+    }
+    const raw = (now - last) / 1000, dt = Math.min(0.05, raw); last = now;
+    resize();
+    if (ready) {
+      place();
+      emit(dt);
+      updateParts(dt);
+      draw();
+    }
+    raf = requestAnimationFrame(frame);
+  }
+
+  function detach() {
+    if (raf) {
+      cancelAnimationFrame(raf);
+      raf = 0;
+    }
+    parts.length = 0;
+  }
+
+  const start = (img) => {
+    try { geo = geo || logoGeometry(img); } catch (e) { return; }
+    if (!geo || !geo.top.length) return;
+    if (!geo.cracks.length) geo.cracks = geo.top;
+    ready = true;
+    place();
+  };
+
+  last = performance.now();
+  raf = requestAnimationFrame(frame);
+  if (geo || A.logo) start(A.logo);
+  else if (logoEl.complete && logoEl.naturalWidth) start(logoEl);
+  else logoEl.addEventListener('load', () => start(logoEl), { once: true });
+
+  return detach;
+}
+
+/**
+ * Attach title screen background effects (dark background, blinking demon eyes, floating embers)
+ * to the lobby screen, running continuously without any "tap to awaken" gate or intro delay.
+ */
+export function attachLobbyBackground(screen) {
+  const cv = document.createElement('canvas');
+  cv.className = 'title-fx';
+  cv.setAttribute('aria-hidden', 'true');
+  const eyeCv = document.createElement('canvas');
+  eyeCv.className = 'title-eyes';
+  eyeCv.setAttribute('aria-hidden', 'true');
+  screen.prepend(cv);
+  screen.prepend(eyeCv);
+
+  const ctx = cv.getContext('2d'), ectx = eyeCv.getContext('2d');
+  const lowCv = document.createElement('canvas'), lctx = lowCv.getContext('2d');
+  let W = 0, H = 0, PX = 3, D = 1, S = 3, cssW = 0, cssH = 0;
+  let parts = [], eyes = [];
+  let last = performance.now(), raf = 0, eyeT = 0.5;
+  const LITE = document.body.classList.contains('touch');
+  const Q = LITE ? 0.45 : 0.85;
+  const ZS = LITE ? 1.35 : 1;
+  const MAX_BG_PARTS = 250;
+
+  const look = { x: 0.5, y: 0.5 };
+  const onMove = (e) => {
+    look.x = e.clientX / Math.max(1, window.innerWidth);
+    look.y = e.clientY / Math.max(1, window.innerHeight);
+  };
+  window.addEventListener('pointermove', onMove, { passive: true });
+
+  function resize() {
+    const r = cv.getBoundingClientRect();
+    const dpr = Math.min(LITE ? 1.5 : 2, window.devicePixelRatio || 1);
+    if (r.width === cssW && r.height === cssH && dpr === D) return;
+    cssW = r.width; cssH = r.height; D = dpr;
+    PX = Math.max(2, Math.round(Math.min(r.width, r.height) / 240)); S = PX * D;
+    cv.width = eyeCv.width = Math.max(1, Math.round(r.width * D));
+    cv.height = eyeCv.height = Math.max(1, Math.round(r.height * D));
+    W = Math.max(1, Math.round(r.width / PX)); H = Math.max(1, Math.round(r.height / PX));
+    lowCv.width = W; lowCv.height = H;
+  }
+
+  function spot(rx, ry) {
+    for (let i = 0; i < 20; i++) {
+      const x = rand(rx + 4, W - rx - 4), y = rand(ry + 4, H - ry - 4);
+      const hit = eyes.some((w) => Math.abs(w.x - x) < rx + w.rx && Math.abs(w.y - y) < ry + w.ry);
+      if (!hit) return [x, y];
+    }
+    return [rand(rx + 4, W - rx - 4), rand(ry + 4, H - ry - 4)];
+  }
+
+  function watcher() {
+    const r = Math.random(), list = [];
+    const slit = Math.random() < 0.55, hue = rand(-12, 14);
+    let rx, ry;
+    if (r < 0.45) {
+      const w = rand(4, 13), gap = w * rand(1.4, 2.6), tilt = rand(-0.35, 0.45);
+      list.push({ dx: -gap / 2, dy: 0, w, h: w * rand(0.35, 0.6), rot: tilt }, { dx: gap / 2, dy: 0, w, h: w * rand(0.35, 0.6), rot: -tilt });
+      rx = gap / 2 + w; ry = w;
+    } else if (r < 0.65) {
+      const w = rand(18, 42);
+      list.push({ dx: 0, dy: 0, w, h: w * rand(0.4, 0.62), rot: rand(-0.12, 0.12) });
+      rx = w * 0.6; ry = w * 0.4;
+    } else if (r < 0.88) {
+      const n = randi(3, 8), R = rand(6, 14);
+      for (let i = 0; i < n; i++) { list.push({ dx: Math.cos(rand(6.28)) * rand(0, R), dy: Math.sin(rand(6.28)) * rand(0, R) * 0.7, w: rand(2.5, 6.5), h: rand(2.5, 6.5) * rand(0.4, 0.75), rot: rand(-0.6, 0.6), lag: rand(0, 0.9) }); }
+      rx = R + 7; ry = R * 0.7 + 5;
+    } else {
+      const n = randi(2, 4), w = rand(4, 8);
+      for (let i = 0; i < n; i++) list.push({ dx: rand(-1.5, 1.5), dy: (i - (n - 1) / 2) * w * 0.9, w: w * rand(0.8, 1.15), h: w * 0.42, rot: rand(-0.15, 0.15), lag: i * 0.12 });
+      rx = w; ry = n * w * 0.5 + 2;
+    }
+    const at = spot(rx, ry); if (!at) return;
+    const open = Math.random() < 0.3 ? rand(0.9, 1.6) : rand(0.18, 0.4);
+    const hold = rand(1.4, 4.2);
+    const blinks = []; for (let n = randi(0, 2), t = rand(0.5, 1.2); n-- > 0 && t < hold - 0.3; t += rand(0.6, 1.6)) blinks.push(open + t);
+    const depth = rand(0.4, 1.2);
+    eyes.push({
+      x: at[0], y: at[1], rx, ry, list, slit, hue, t: 0, open, hold, close: rand(0.2, 0.7), blinks,
+      gaze: [0, 0], dart: rand(0.8, 2), dartTo: null, glare: Math.random() < 0.25, depth
+    });
+  }
+
+  function lid(w, tt) {
+    if (tt <= 0) return 0;
+    let o = tt < w.open ? Math.pow(tt / w.open, 0.7) : tt < w.open + w.hold ? 1 : 1 - (tt - w.open - w.hold) / w.close;
+    for (const b of w.blinks) { const d = Math.abs(tt - b); if (d < 0.11) o = Math.min(o, d / 0.11); }
+    return clamp(o, 0, 1);
+  }
+
+  function updateEyes(dt) {
+    eyeT -= dt;
+    if (eyeT <= 0) {
+      eyeT = rand(0.8, 2.6);
+      const n = Math.random() < 0.25 ? randi(2, 3) : 1;
+      for (let i = 0; i < n && eyes.length < 8; i++) watcher();
+    }
+    for (let i = eyes.length - 1; i >= 0; i--) {
+      const w = eyes[i];
+      w.t += dt;
+      if (w.t > w.open + w.hold + w.close + 1) { eyes.splice(i, 1); continue; }
+      w.dart -= dt;
+      if (w.dart <= 0) { w.dart = rand(0.7, 2.2); w.dartTo = Math.random() < 0.5 ? [rand(-1, 1), rand(-0.6, 0.6)] : null; }
+      let gx = (look.x * W - w.x) / (W * 0.35), gy = (look.y * H - w.y) / (H * 0.35);
+      if (w.glare) { gx = 0; gy = 0; }
+      if (w.dartTo) [gx, gy] = w.dartTo;
+      const m = Math.hypot(gx, gy); if (m > 1) { gx /= m; gy /= m; }
+      const k = Math.min(1, dt * (w.dartTo ? 18 : 5));
+      w.gaze[0] += (gx - w.gaze[0]) * k; w.gaze[1] += (gy - w.gaze[1]) * k;
+    }
+  }
+
+  function drawEyes() {
+    lctx.clearRect(0, 0, W, H);
+    const glows = [];
+    for (const w of eyes) {
+      const pxShift = (look.x - 0.5) * 14 * (w.depth || 0.6);
+      const pyShift = (look.y - 0.5) * 10 * (w.depth || 0.6);
+      for (const e of w.list) {
+        const o = lid(w, w.t - (e.lag || 0)); if (o <= 0.02) continue;
+        const x = w.x + e.dx + pxShift, y = w.y + e.dy + pyShift, hw = e.w / 2, hh = Math.max(0.5, e.h / 2 * o);
+        glows.push([x, y, e.w, o]);
+        lctx.save(); lctx.translate(x, y); lctx.rotate(e.rot);
+        lctx.beginPath(); lctx.moveTo(-hw, 0);
+        lctx.quadraticCurveTo(0, -hh * 2, hw, 0); lctx.quadraticCurveTo(0, hh * 2, -hw, 0); lctx.closePath();
+        const g = lctx.createRadialGradient(0, 0, 0, 0, 0, hw);
+        g.addColorStop(0, `hsl(${18 + w.hue},100%,62%)`); g.addColorStop(0.45, `hsl(${4 + w.hue},100%,45%)`); g.addColorStop(1, `hsl(${356 + w.hue},90%,16%)`);
+        lctx.fillStyle = g; lctx.fill();
+        lctx.save(); lctx.clip();
+        const px = w.gaze[0] * hw * 0.45, py = w.gaze[1] * hh * 0.5;
+        lctx.fillStyle = '#ffd27a'; lctx.beginPath(); lctx.ellipse(px, py, e.w * 0.2, e.h * 0.34, 0, 0, 7); lctx.globalAlpha = 0.45; lctx.fill(); lctx.globalAlpha = 1;
+        lctx.fillStyle = '#060000'; lctx.beginPath();
+        if (w.slit) lctx.ellipse(px, py, Math.max(0.5, e.w * 0.055), e.h * 0.48, 0, 0, 7);
+        else lctx.ellipse(px, py, Math.max(0.6, e.w * 0.13), Math.max(0.6, e.w * 0.13), 0, 0, 7);
+        lctx.fill();
+        if (e.w > 9) { lctx.fillStyle = 'rgba(255,240,220,.8)'; lctx.fillRect(Math.round(px - e.w * 0.12), Math.round(py - e.h * 0.2), 1, 1); }
+        lctx.restore();
+        lctx.strokeStyle = 'rgba(20,0,0,.9)'; lctx.lineWidth = 0.8; lctx.stroke();
+        lctx.restore();
+      }
+    }
+    ectx.clearRect(0, 0, eyeCv.width, eyeCv.height);
+    if (!glows.length) return;
+    ectx.globalCompositeOperation = 'lighter';
+    for (const [x, y, w, o] of glows) {
+      const r = w * 1.6 * S, g = ectx.createRadialGradient(x * S, y * S, 0, x * S, y * S, r);
+      g.addColorStop(0, `rgba(200,20,6,${(0.22 * o).toFixed(3)})`); g.addColorStop(1, 'rgba(120,0,0,0)');
+      ectx.fillStyle = g; ectx.fillRect(x * S - r, y * S - r, r * 2, r * 2);
+    }
+    ectx.globalCompositeOperation = 'source-over';
+    ectx.imageSmoothingEnabled = false;
+    ectx.drawImage(lowCv, 0, 0, W, H, 0, 0, W * S, H * S);
+  }
+
+  const addEmber = (x, y, vx, vy, life, sz = 1) => {
+    if (parts.length >= MAX_BG_PARTS * Q) return;
+    parts.push({
+      x, y, vx, vy, t: 0, life, sz: sz * ZS,
+      seed: rand(100), drift: rand(-8, 8), swayAmp: rand(10, 22),
+      buoyancy: rand(14, 32), flickerRate: rand(10, 20),
+      baseAlpha: rand(0.6, 0.95), popTimer: rand(1, 3), flare: 0
+    });
+  };
+
+  function emitEmbers(dt) {
+    if (W <= 0 || H <= 0) return;
+    const count = dt * 28 * Q;
+    const n = Math.floor(count + Math.random());
+    for (let i = 0; i < n; i++) {
+      const x = rand(2, W - 2);
+      const y = H + rand(0, 8);
+      addEmber(x, y, rand(-4, 4), -rand(12, 28), rand(4, 9), rand(0.8, 1.8));
+    }
+  }
+
+  function updateEmbers(dt) {
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      p.t += dt;
+      if (p.t >= p.life || p.y < -10) { parts.splice(i, 1); continue; }
+      p.vy -= p.buoyancy * dt;
+      const sway = Math.sin(p.t * 2.5 + p.seed) * p.swayAmp;
+      p.vx = p.drift + sway * 0.3;
+      p.vx *= (1 - dt * 0.8);
+      p.vy *= (1 - dt * 0.4);
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+    }
+  }
+
+  function drawEmbers() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of parts) {
+      const u = p.t / p.life;
+      const fade = u < 0.15 ? u / 0.15 : (1 - u);
+      const flicker = 0.85 + 0.15 * Math.sin(p.t * p.flickerRate);
+      const alpha = Math.max(0, p.baseAlpha * fade * flicker);
+      if (alpha <= 0.01) continue;
+
+      let r, g, b;
+      if (u < 0.25) { r = 255; g = 210; b = 120; }
+      else if (u < 0.6) { r = 255; g = 140; b = 30; }
+      else { r = 220; g = 50; b = 10; }
+
+      const cx = p.x * S, cy = p.y * S;
+      const radius = Math.max(1, p.sz * D * 1.1);
+      ctx.fillStyle = `rgba(${r},${g},${b},${alpha.toFixed(2)})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function frame(now) {
+    if (!screen.isConnected) {
+      detach();
+      return;
+    }
+    const raw = (now - last) / 1000, dt = Math.min(0.05, raw); last = now;
+    resize();
+    updateEyes(dt);
+    drawEyes();
+    emitEmbers(dt);
+    updateEmbers(dt);
+    drawEmbers();
+    raf = requestAnimationFrame(frame);
+  }
+
+  function detach() {
+    if (raf) {
+      cancelAnimationFrame(raf);
+      raf = 0;
+    }
+    window.removeEventListener('pointermove', onMove);
+    eyes.length = 0;
+    parts.length = 0;
+  }
+
+  last = performance.now();
+  for (let i = 0; i < 35; i++) {
+    addEmber(rand(2, 400), rand(50, 300), rand(-4, 4), -rand(12, 28), rand(3, 7), rand(0.8, 1.8));
+  }
+  raf = requestAnimationFrame(frame);
+
   return detach;
 }

@@ -1,7 +1,7 @@
 // Gear art (Grim Nocturne): per class 26 body armors (two to seven per rarity) and one shared atlas of enclosed helmets
 // (three sets), a column per class and a row per design (each design has a rarity). Built by tools/nocturnegear.py.
 import { makeCanvas, hexToRgb, clamp, pick, chance } from './util.js';
-import { RARITY } from '../data/items.js';
+import { RARITY, shownEquip } from '../data/items.js';
 import { PALETTES, GEAR_FX, FX_CHANCE } from '../data/gear.js';
 import { resolveHelmetFit } from './helmetfit.js';
 
@@ -443,6 +443,7 @@ export function savedGearPreview(cls, body, head, weapon = null, offhand = null)
   if (savedPreviews.has(signature)) return savedPreviews.get(signature);
   const work = previewQueue.then(async () => {
     const src = await loadClassGear(cls);
+    if (src && !classGearCache.has(cls)) classGearCache.set(cls, src);
     const base = heroLook(cls, body, head, src, new Map());
     if (!base) return null;
     let finalArt = base;
@@ -467,4 +468,28 @@ export function savedGearPreview(cls, body, head, weapon = null, offhand = null)
   savedPreviews.set(signature, result);
   if (savedPreviews.size > 24) savedPreviews.delete(savedPreviews.keys().next().value);
   return result;
+}
+
+/**
+ * Resolves the hero's full paperdoll portrait with their current equipped gear and held weapons.
+ * Yields a fitted canvas portrait, or falls back to saved preview.
+ */
+export async function characterPaperdollPortrait(char, w = 130, h = 260) {
+  if (!char || !char.classId) return null;
+  const cls = char.classId;
+  const eq = shownEquip(char);
+  try {
+    const { loadHeld, heldPortraitArgs } = await import('../gfx/heldart.js');
+    await Promise.all([
+      loadGearArt(cls, false),
+      loadHeld(cls, { equip: eq })
+    ]);
+    const base = heroLook(cls, eq?.body, eq?.head);
+    const held = heldPortraitArgs(base, cls, eq);
+    const portrait = heroPortrait(cls, eq?.body, eq?.head, w, h, ...held);
+    if (portrait) return portrait;
+  } catch (e) {
+    console.warn('Paperdoll portrait failed for', cls, e);
+  }
+  return savedGearPreview(cls, eq?.body, eq?.head, eq?.weapon, eq?.offhand);
 }

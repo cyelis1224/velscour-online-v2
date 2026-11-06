@@ -109,7 +109,6 @@ export const GameChat = {
 
     // Header & Tabs
     const header = el('div', 'gc-header');
-    const toggleIcon = this.isMinimized ? '&#9650;' : '&#9660;';
     header.innerHTML = `
       <div class="gc-tabs">
         <button type="button" class="gc-tab active" data-tab="all">All</button>
@@ -127,8 +126,9 @@ export const GameChat = {
           <span>Filters</span>
           <span class="gc-filter-dot hidden" id="gc-filter-dot"></span>
         </button>
-        <button type="button" class="gc-tool-btn" id="gc-btn-clear" title="Clear history">&#128465;</button>
-        <button type="button" class="gc-tool-btn" id="gc-btn-toggle" title="Minimize/Expand">${toggleIcon}</button>
+        <button type="button" class="gc-tool-btn gc-pin-btn" id="gc-btn-toggle" title="Pin chat open">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M16 3l5 5-2 1-3 3 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 3-3z"/></svg>
+        </button>
       </div>
     `;
 
@@ -269,22 +269,17 @@ export const GameChat = {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         sfx('ui');
+        // In mobile portrait mode, clicking the already active tab collapses/minimizes the chat
+        if (this.isPortraitMobile() && !this.isMinimized && this.activeTab === btn.dataset.tab) {
+          this.toggleMinimize(true);
+          return;
+        }
         this.setTab(btn.dataset.tab);
         if (this.isMinimized) {
           this.toggleMinimize(false);
         }
       });
     });
-
-    // Clear button
-    const clearBtn = this.container.querySelector('#gc-btn-clear');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        sfx('ui');
-        this.clearHistory();
-      });
-    }
 
     // Filter button & popover menu
     if (this.filterBtnEl && this.filterMenuEl) {
@@ -467,6 +462,7 @@ export const GameChat = {
       this.container.classList.add('active');
       if (this.isMinimized) this.toggleMinimize(false);
       this.wake();
+      this.scrollToBottom();
     });
 
     this.inputEl.addEventListener('blur', () => {
@@ -505,8 +501,21 @@ export const GameChat = {
         this.landscapeBackdropEl.classList.remove('visible');
         this.landscapeBackdropEl.classList.add('hidden');
       }
-      const toggleBtn = this.container.querySelector('#gc-btn-toggle');
-      if (toggleBtn) toggleBtn.innerHTML = '&#9650;';
+    }
+
+    // Ensure chat stays scrolled to the bottom when opening transitions end
+    this.container.addEventListener('transitionend', (e) => {
+      if ((e.propertyName === 'height' || e.propertyName === 'transform') && !this.isMinimized) {
+        this.scrollToBottom();
+      }
+    });
+
+    if (typeof window !== 'undefined' && window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        if (!this.isMinimized && (this.isOpen || this.isLandscapeOpen || this.isPinned)) {
+          this.scrollToBottom();
+        }
+      });
     }
 
     this.setupDragAndResize();
@@ -826,11 +835,13 @@ export const GameChat = {
           time: data.time,
         });
       } else if (data.kind === 'channel') {
+        const isSelf = !!(data.from && G.char?.name && data.from.toLowerCase() === G.char.name.toLowerCase());
         this.addMessage({
           tab: 'lobby',
           channel: 'lobby',
           from: data.from,
           text: data.text,
+          isSelf,
           time: data.time,
         });
       } else if (data.kind === 'system') {
@@ -892,7 +903,9 @@ export const GameChat = {
       text: msg.text || '',
       html: msg.html || null,
       color: msg.color || null,
-      isSelf: !!msg.isSelf,
+      isSelf: msg.isSelf !== undefined
+        ? !!msg.isSelf
+        : (!!msg.from && !!G.char?.name && msg.from.toLowerCase() === G.char.name.toLowerCase()),
       time: msg.time || Date.now(),
     };
 
@@ -949,7 +962,8 @@ export const GameChat = {
     } else if (entry.tab === 'lobby') {
       html += `<span class="gc-tag tag-lobby">Lobby</span> `;
       if (entry.from) {
-        html += `<span class="gc-sender sender-lobby" data-name="${escapeHtml(entry.from)}">&lt;${escapeHtml(entry.from)}&gt;:</span> `;
+        const senderClass = entry.isSelf ? 'sender-self' : 'sender-lobby';
+        html += `<span class="gc-sender ${senderClass}" data-name="${escapeHtml(entry.from)}">&lt;${escapeHtml(entry.from)}&gt;:</span> `;
       }
       html += `<span class="gc-text">${escapeHtml(entry.text)}</span>`;
     } else {
@@ -982,10 +996,23 @@ export const GameChat = {
     }
   },
 
-  scrollToBottom() {
+  scrollToBottom(smooth = false) {
     if (!this.bodyEl) return;
-    this.bodyEl.scrollTo({ top: this.bodyEl.scrollHeight, behavior: 'smooth' });
-    if (this.scrollBottomBtn) this.scrollBottomBtn.classList.add('hidden');
+    const doScroll = () => {
+      if (!this.bodyEl) return;
+      if (smooth) {
+        this.bodyEl.scrollTo({ top: this.bodyEl.scrollHeight, behavior: 'smooth' });
+      } else {
+        this.bodyEl.scrollTop = this.bodyEl.scrollHeight;
+      }
+      if (this.scrollBottomBtn) this.scrollBottomBtn.classList.add('hidden');
+    };
+
+    doScroll();
+    requestAnimationFrame(doScroll);
+    setTimeout(doScroll, 50);
+    setTimeout(doScroll, 150);
+    setTimeout(doScroll, 300);
   },
 
   setTab(tab) {
@@ -997,6 +1024,37 @@ export const GameChat = {
     // Clear unread
     this.unread[tab] = 0;
     this.updateBadge(tab);
+
+    // Channel & input synchronization
+    if (this.inputEl) {
+      if (tab === 'lobby') {
+        this.updateChannelUI('lobby');
+        if (!this.inputEl.value.startsWith('/l ')) {
+          const stripped = this.inputEl.value.replace(/^\/(?:l|all|global|p|party)\s*/, '');
+          this.inputEl.value = '/l ' + stripped;
+        }
+      } else if (tab === 'party') {
+        this.updateChannelUI('party');
+        if (this.inputEl.value.startsWith('/l ')) {
+          this.inputEl.value = this.inputEl.value.slice(3);
+        }
+      } else if (tab === 'whisper') {
+        if (this.whisperTarget || this.lastWhisperFrom) {
+          this.updateChannelUI('whisper', this.whisperTarget || this.lastWhisperFrom);
+        }
+        if (this.inputEl.value.startsWith('/l ')) {
+          this.inputEl.value = this.inputEl.value.slice(3);
+        }
+      } else {
+        // all or system
+        if (this.inputEl.value === '/l ') {
+          this.inputEl.value = '';
+        }
+        if (this.activeChannel === 'lobby') {
+          this.updateChannelUI('party');
+        }
+      }
+    }
 
     // Re-render matching messages
     if (this.messagesEl) {
@@ -1067,8 +1125,6 @@ export const GameChat = {
     if (this.isDesktop()) return; // desktop uses the pushpin instead of minimizing
     this.isMinimized = force != null ? force : !this.isMinimized;
     this.container.classList.toggle('minimized', this.isMinimized);
-    const toggleBtn = this.container.querySelector('#gc-btn-toggle');
-    if (toggleBtn) toggleBtn.innerHTML = this.isMinimized ? '&#9650;' : '&#9660;';
     const isPortrait = this.isPortraitMobile();
     if (this.landscapeBackdropEl && isPortrait) {
       this.landscapeBackdropEl.classList.toggle('visible', !this.isMinimized);
@@ -1098,8 +1154,6 @@ export const GameChat = {
       this.updatePinUI();
     } else if (btn) {
       btn.classList.remove('gc-pin-btn', 'pinned');
-      btn.title = 'Minimize/Expand';
-      btn.innerHTML = this.isMinimized ? '&#9650;' : '&#9660;';
     }
   },
 
@@ -1128,9 +1182,13 @@ export const GameChat = {
       clearTimeout(this.fadeTimer);
       this.fadeTimer = null;
     }
+    const wasFaded = this.container.classList.contains('gc-faded') || this.container.classList.contains('gc-fading');
     this.container.classList.remove('gc-fading', 'gc-faded');
     if (this.isDesktop() && !this.container.classList.contains('hidden')) {
       document.body.classList.add('gc-chat-visible');
+    }
+    if (wasFaded) {
+      this.scrollToBottom();
     }
   },
 
@@ -1171,6 +1229,17 @@ export const GameChat = {
     idx = (idx + 1) % channels.length;
     this.activeChannel = channels[idx];
     this.updateChannelUI(this.activeChannel, this.lastWhisperFrom);
+    if (this.inputEl) {
+      if (this.activeChannel === 'lobby') {
+        if (!this.inputEl.value.startsWith('/l ')) {
+          this.inputEl.value = '/l ' + this.inputEl.value.replace(/^\/(?:p|party)\s*/, '');
+        }
+      } else if (this.activeChannel === 'party') {
+        if (this.inputEl.value.startsWith('/l ')) {
+          this.inputEl.value = this.inputEl.value.slice(3);
+        }
+      }
+    }
   },
 
   updateChannelUI(ch, target = null) {
@@ -1196,8 +1265,13 @@ export const GameChat = {
     this.container.classList.add('active');
     this.isOpen = true;
     this.wake();
+    this.scrollToBottom();
     if (this.inputEl) {
-      if (prefix) this.inputEl.value = prefix;
+      if (prefix) {
+        this.inputEl.value = prefix;
+      } else if (this.activeTab === 'lobby' && !this.inputEl.value.startsWith('/l ')) {
+        this.inputEl.value = '/l ' + this.inputEl.value;
+      }
       this.inputEl.focus();
     }
   },
@@ -1241,6 +1315,11 @@ export const GameChat = {
 
     let text = raw;
 
+    // If on Lobby tab or channel and no slash command was specified, auto-prepend /l so it goes to lobby
+    if ((this.activeTab === 'lobby' || this.activeChannel === 'lobby') && !text.startsWith('/')) {
+      text = '/l ' + text;
+    }
+
     // Command handling
     if (text.startsWith('/w ') || text.startsWith('/whisper ')) {
       const parts = text.split(' ');
@@ -1277,21 +1356,26 @@ export const GameChat = {
     } else if (text.startsWith('/f ') || text.startsWith('/friend ') || text === '/f' || text === '/friend') {
       net.sendChat(text);
     } else if (text === '/clear') {
-      this.clearHistory();
+      this.addMessage({
+        tab: 'system',
+        text: 'Chat clearing is disabled.',
+        color: '#ffd34a',
+      });
     } else if (text === '/players' || text === '/who') {
       net.sendChat('/players');
     } else if (text === '/help') {
       this.addMessage({
         tab: 'system',
-        text: 'Commands: /w <name> <msg> (Whisper), /r <msg> (Reply), /f <add|remove|list> (Friends), /p <msg> (Party), /l <msg> (Lobby), /players (Online), /clear',
+        text: 'Commands: /w <name> <msg> (Whisper), /r <msg> (Reply), /f <add|remove|list> (Friends), /p <msg> (Party), /l <msg> (Lobby), /players (Online)',
         color: '#ffd34a',
       });
     } else {
       // Contextual send according to active channel
       if (this.activeChannel === 'whisper' && this.whisperTarget) {
         net.sendChat(`/w ${this.whisperTarget} ${text}`);
-      } else if (this.activeChannel === 'lobby') {
-        net.sendChat(text);
+      } else if (this.activeChannel === 'lobby' || this.activeTab === 'lobby') {
+        const lMsg = text.startsWith('/l ') ? text : `/l ${text}`;
+        net.sendChat(lMsg);
       } else {
         this.sendPartyMessage(text);
       }

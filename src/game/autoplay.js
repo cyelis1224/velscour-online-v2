@@ -22,7 +22,7 @@ import { marksFree, autoSpend } from './marks.js';
 import { drawBiome } from '../data/biomes.js';
 import { augHits } from '../data/rings.js';
 import { canLearn } from '../ui/skills.js';
-import { CLASS_TALENTS, canLearnTalent, learnTalent, talentPointsSpent } from '../data/talents.js';
+import { CLASS_TALENTS, canLearnTalent, learnTalent, talentPointsSpent, skillMorphFor, applySkillMorph } from '../data/talents.js';
 import { equipFromBag, socketGem, dropFromBag, changed } from '../ui/inventory.js';
 import { GLYPHWORDS, glyphOf } from '../data/relics.js';
 import { Vendor, fuseAll } from '../ui/vendor.js';
@@ -124,7 +124,10 @@ function engageRange(sk, t, bold = 0) {
   const r = reachOf(sk);
   return Math.max(Math.min(r * 0.8, 2.6), Math.min(r * (0.8 - 0.4 * bold), 8 - 2.5 * bold));
 }
-const cdOf = (p, sk) => cooldown(sk) * (1 - p.st.cdr / 100);
+const cdOf = (p, sk) => {
+  const morph = p ? skillMorphFor(p, sk) : null;
+  return cooldown(sk) * (1 - p.st.cdr / 100) * (1 + (morph ? morph.cdPct || 0 : 0) / 100);
+};
 const avg = (d) => (d[0] + d[1]) / 2;
 const critMul = (p) => 1 + (p.st.critChance / 100) * (p.st.critDmg / 100);
 const summonMax = (sk) => sk.m.max || sk.m.n || 1;
@@ -183,8 +186,10 @@ function focusMul(classId, sk) {
 
 /** Damage per second one skill adds when used as often as its cast time, cooldown and mana allow. */
 function skillDps(p, sk, L, crowd = CROWD) {
-  const per = avg(p.skillDamage(sk, L)) * hitsPerCast(sk, crowd, L) * critMul(p);
-  const period = Math.max(castTime(p, sk), cdOf(p, sk), 0.05);
+  const morph = skillMorphFor(p, sk);
+  const effSk = morph ? applySkillMorph(sk, morph) : sk;
+  const per = avg(p.skillDamage(sk, L)) * hitsPerCast(effSk, crowd, L) * critMul(p);
+  const period = Math.max(castTime(p, effSk), cdOf(p, sk), 0.05);
   const cost = manaCost(sk, L), rage = rageCost(sk);
   const supply = p.st.manaRegen + p.maxMana / 40;
   const sustain = cost ? Math.min(1, supply / (cost / period)) :
@@ -221,19 +226,22 @@ export function buildPower(p, crowd = CROWD, only = null, focus = false) {
   }
   const ref = Math.max(base, 1);
   for (const sk of learned) {
-    const L = effLevel(p, sk), m = sk.m;
+    const morph = skillMorphFor(p, sk);
+    const effSk = morph ? applySkillMorph(sk, morph) : sk;
+    const L = effLevel(p, sk), m = effSk.m;
     if (sk.kind === 'corpse') parts.push({ sk, v: skillDps(p, sk, L, crowd).dps * 0.35, role: 'cd' });
     else if (sk.kind === 'summon') {
       const def = SUMMONS[m.sum] || { dmg: 1, atk: { cd: 1 } };
-      const n = m.sum === 'revive' ? (m.n || 1) * 0.5 : summonMax(sk);
-      const up = m.dur ? Math.min(1, m.dur / Math.max(m.dur, cooldown(sk) * (1 - p.st.cdr / 100), 1)) : 1;
-      const one = avg(p.skillDamage(sk, L)) * (def.dmg || 1) * (1 + (p.st.summonPct || 0) / 100) / ((def.atk && def.atk.cd) || 1);
+      const n = m.sum === 'revive' ? (m.n || 1) * 0.5 : summonMax(effSk);
+      const up = m.dur ? Math.min(1, m.dur / Math.max(m.dur, cdOf(p, sk), 1)) : 1;
+      const sumMul = (1 + (p.st.summonPct || 0) / 100) * (1 + (morph ? morph.summonDmgPct || 0 : 0) / 100);
+      const one = avg(p.skillDamage(sk, L)) * (def.dmg || 1) * sumMul / ((def.atk && def.atk.cd) || 1);
       // under a pet focus every extra minion counts on its own too
-      const pets = focus && PET_CLASSES.has(c.classId) ? ref * 0.12 * petsOf(sk) * up : 0;
+      const pets = focus && PET_CLASSES.has(c.classId) ? ref * 0.12 * petsOf(effSk) * up : 0;
       parts.push({ sk, v: (one * n * up * 0.55 + ref * 0.05) * fm(sk) + pets, role: 'summon' });
     } else if (sk.kind === 'buff') {
-      const amt = buffAmount(sk, L) / 100, dur = skillDuration(sk, L);
-      const up = Math.min(1, dur / Math.max(dur, cooldown(sk) * (1 - p.st.cdr / 100)));
+      const amt = buffAmount(sk, L) / 100, dur = skillDuration(effSk, L);
+      const up = Math.min(1, dur / Math.max(dur, cdOf(p, sk)));
       let v = 0;
       for (const b of m.buff || ['dmg']) v += (b === 'dmg' || b === 'as') ? amt : b === 'crit' ? amt * 0.15 : amt * 0.25;
       if (m.pulse) v += avg(p.skillDamage(sk, L)) * crowd / ref;

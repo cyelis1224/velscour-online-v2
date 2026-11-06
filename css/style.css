@@ -107,7 +107,7 @@ button {
   font-weight: 700;
   letter-spacing: 1px;
   color: var(--gold-bright);
-  background: linear-gradient(#3a1414, #1c0f08);
+  background: linear-gradient(#3a2414, #1c0f08);
   border: 2px solid var(--gold-dim);
   border-radius: 4px;
   padding: 8px 18px;
@@ -120,7 +120,7 @@ button {
 .btn:hover {
   border-color: var(--gold);
   color: #fff;
-  background: linear-gradient(#5a1818, #24120a);
+  background: linear-gradient(#5a3418, #24120a);
 }
 
 .btn:active {
@@ -1130,6 +1130,7 @@ body.touch .class-gauge #smite-text {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1253,7 +1254,7 @@ body.touch .rv-btns {
   cursor: pointer;
   border: 2px solid #4a3420;
   border-radius: 8px;
-  background: radial-gradient(ellipse at 50% 22%, color-mix(in srgb, var(--pc) 30%, transparent), #120606 70%);
+  background: radial-gradient(ellipse at 50% 22%, color-mix(in srgb, var(--pc) 30%, transparent), #120a06 70%);
   color: var(--text);
   font: 400 12px var(--font-body);
   transition: transform .12s, border-color .12s;
@@ -1755,7 +1756,8 @@ body.touch #sealed-btn i {
 #boss-name {
   font: 900 18px var(--font-head);
   color: #ff6a3a;
-  text-shadow: 0 0 2px #000, 0 1px 2px #000, 0 0 6px #000, 0 0 10px #a00;   /* (dark outline: the title stays legible over the snow) */
+  text-shadow: 0 0 2px #000, 0 1px 2px #000, 0 0 6px #000, 0 0 10px #a00;
+  /* (dark outline: the title stays legible over the snow) */
   letter-spacing: 2px;
 }
 
@@ -1863,8 +1865,18 @@ body.touch #sealed-btn i {
 }
 
 /* the level-up banner holds the top of the screen */
-body.at-sea #levelup { top: 31%; } /* the Pirate Seas: the top band is the scenario's banners and its meter */
-#center-msg.top { top: 64px; font-size: clamp(16px, 2.4vw, 26px); letter-spacing: 2px; } /* a fight's running banners, under the boss bar */
+body.at-sea #levelup {
+  top: 31%;
+}
+
+/* the Pirate Seas: the top band is the scenario's banners and its meter */
+#center-msg.top {
+  top: 64px;
+  font-size: clamp(16px, 2.4vw, 26px);
+  letter-spacing: 2px;
+}
+
+/* a fight's running banners, under the boss bar */
 #center-msg small {
   display: block;
   font-size: .45em;
@@ -3654,8 +3666,44 @@ body.touch .reliquary-panel .codex-cell {
   user-select: none;
 }
 
-#tooltip.touch-open {
+#tooltip.touch-open,
+#tooltip.interactive {
   pointer-events: auto;
+}
+
+.tt-skill-tag {
+  display: inline-block;
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #2a1a0e;
+  border: 1px solid var(--line);
+  margin-right: 4px;
+  color: var(--text-dim);
+}
+
+.tt-skill-up {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.tt-skill-pts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.tt-skill-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tt-skill-btns .btn {
+  flex: 1 1 auto;
 }
 
 #tooltip:not(.touch-open) .tt-actions {
@@ -3721,9 +3769,26 @@ body.touch .reliquary-panel .codex-cell {
 }
 
 /* skills */
+.tree-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 12px 6px 28px;
+  border: 1px solid #3a2a18;
+  border-radius: 0 4px 4px 4px;
+  background: rgba(10, 6, 4, .45);
+}
+
+.tree-hint {
+  font-size: 11.5px;
+  text-align: center;
+  margin-top: 6px;
+  padding-right: 16px;
+}
+
 .tree {
   display: grid;
-  grid-template-columns: repeat(4, 64px);
+  grid-template-columns: repeat(3, 64px);
   gap: 16px 22px;
   padding: 10px 14px;
   position: relative;
@@ -3839,17 +3904,17 @@ body.touch .reliquary-panel .codex-cell {
   background: rgba(14, 9, 6, 0.72);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 8px 10px 12px;
+  padding: 6px 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .talent-branch-head {
   text-align: center;
   font-family: var(--font-head);
   font-size: 15px;
-  padding-bottom: 6px;
+  padding-bottom: 5px;
   border-bottom: 2px solid var(--gold-dim);
 }
 
@@ -3859,7 +3924,7 @@ body.touch .reliquary-panel .codex-cell {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 74px;
+  min-height: 68px;
   padding-left: 28px;
 }
 
@@ -3885,7 +3950,7 @@ body.touch .reliquary-panel .codex-cell {
 
 .talent-node {
   width: 68px;
-  height: 76px;
+  height: 70px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3895,8 +3960,8 @@ body.touch .reliquary-panel .codex-cell {
 }
 
 .talent-node canvas {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
 }
 
@@ -4248,7 +4313,7 @@ body.touch .reliquary-panel .codex-cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, rgba(42, 16, 16, 0.95) 0%, rgba(20, 14, 10, 0.95) 100%);
+  background: linear-gradient(180deg, rgba(42, 28, 16, 0.95) 0%, rgba(20, 14, 10, 0.95) 100%);
   border: 1px solid #ffd34a;
   border-radius: 4px;
   color: #ffd860;
@@ -4434,6 +4499,14 @@ body.touch .reliquary-panel .codex-cell {
   flex: none;
 }
 
+.class-doll-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
 .class-text {
   flex: 1 1 300px;
 }
@@ -4562,7 +4635,7 @@ body.touch .reliquary-panel .codex-cell {
 
 .name-input {
   font: 700 16px var(--font-head);
-  background: #120606;
+  background: #120a06;
   border: 2px solid var(--gold-dim);
   color: var(--gold-bright);
   padding: 8px 10px;
@@ -4716,7 +4789,7 @@ body.touch .reliquary-panel .codex-cell {
   padding: 9px 12px;
   border: 2px solid var(--gold-dim);
   border-radius: 4px;
-  background: #120606;
+  background: #120a06;
   color: var(--gold-bright);
   font: 700 15px var(--font-head);
 }
@@ -5189,15 +5262,15 @@ body.touch .credits-event {
   filter: drop-shadow(0 0 8px rgba(255, 120, 40, 0.55));
 }
 
-.loading-sigil-core {
+.loading-eye {
   position: absolute;
-  width: clamp(34px, 7vmin, 44px);
-  height: clamp(34px, 7vmin, 44px);
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #fff5c0 0%, #ff9830 40%, #a82408 75%, #300a04 100%);
-  border: 1.5px solid #ffc040;
-  box-shadow: 0 0 20px rgba(255, 120, 30, 0.8), inset 0 0 12px rgba(255, 200, 60, 0.75);
-  animation: pulseCore 2.4s ease-in-out infinite;
+  width: clamp(56px, 12vmin, 72px);
+  height: clamp(38px, 8vmin, 48px);
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 0 10px rgba(226, 80, 42, 0.7));
+  pointer-events: none;
+  z-index: 2;
 }
 
 .loading-header {
@@ -6176,8 +6249,8 @@ body.touch .sh-text {
 }
 
 body.touch .tree {
-  grid-template-columns: repeat(4, 50px);
-  gap: 12px 14px;
+  grid-template-columns: repeat(3, 54px);
+  gap: 12px 16px;
 }
 
 body.touch .snode {

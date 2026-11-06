@@ -50,10 +50,12 @@ async function run() {
 
       const chat = document.getElementById('game-chat');
       const toggle = document.getElementById('gc-btn-toggle');
+      const clearBtn = document.getElementById('gc-btn-clear');
       return {
         exists: !!chat,
         isMinimized: chat?.classList.contains('minimized'),
-        toggleText: toggle?.textContent?.trim(),
+        toggleVisible: toggle ? window.getComputedStyle(toggle).display !== 'none' : false,
+        clearExists: !!clearBtn,
         chatHeight: chat?.getBoundingClientRect().height,
       };
     });
@@ -62,44 +64,58 @@ async function run() {
     if (!initCheck.exists) throw new Error('GameChat element does not exist!');
     if (!initCheck.isMinimized) throw new Error('GameChat did NOT start out minimized in portrait view!');
     if (initCheck.chatHeight > 45) throw new Error(`GameChat height should be ~34px, but got ${initCheck.chatHeight}`);
-    if (initCheck.toggleText !== '▲') throw new Error(`GameChat toggle icon should be ▲, but got ${initCheck.toggleText}`);
+    if (initCheck.toggleVisible) throw new Error('GameChat triangle/toggle button should be hidden on portrait touch!');
+    if (initCheck.clearExists) throw new Error('GameChat trashcan/clear button should be removed!');
 
     // Screenshot 1: Portrait chat minimized
     await page.screenshot({ path: path.join(outDir, 'chat_starts_minimized.png') });
 
-    // 2. Expand chat
+    // 2. Expand chat by clicking channel tab
     await page.evaluate(() => {
-      document.getElementById('gc-btn-toggle')?.click();
+      const tab = document.querySelector('.gc-tab[data-tab="all"]');
+      if (tab) tab.click();
     });
     await page.waitForTimeout(350);
 
     const expandedCheck = await page.evaluate(() => {
       const chat = document.getElementById('game-chat');
-      const toggle = document.getElementById('gc-btn-toggle');
       return {
         isMinimized: chat?.classList.contains('minimized'),
-        toggleText: toggle?.textContent?.trim(),
         chatHeight: chat?.getBoundingClientRect().height,
       };
     });
 
     console.log('2. Expanded chat check:', expandedCheck);
-    if (expandedCheck.isMinimized) throw new Error('GameChat failed to expand!');
+    if (expandedCheck.isMinimized) throw new Error('GameChat failed to expand upon clicking channel tab!');
     if (expandedCheck.chatHeight < 250) throw new Error(`Expanded chat height too small: ${expandedCheck.chatHeight}`);
-    if (expandedCheck.toggleText !== '▼') throw new Error(`GameChat toggle icon should be ▼, but got ${expandedCheck.toggleText}`);
 
     // Screenshot 2: Portrait chat expanded
     await page.screenshot({ path: path.join(outDir, 'chat_expanded.png') });
+
+    // 2b. Test clicking active channel tab collapses chat
+    await page.evaluate(() => {
+      const tab = document.querySelector('.gc-tab[data-tab="all"]');
+      if (tab) tab.click();
+    });
+    await page.waitForTimeout(350);
+
+    const collapsedCheck = await page.evaluate(() => {
+      const chat = document.getElementById('game-chat');
+      return {
+        isMinimized: chat?.classList.contains('minimized'),
+        chatHeight: chat?.getBoundingClientRect().height,
+      };
+    });
+    console.log('2b. Collapsed by active channel tab check:', collapsedCheck);
+    if (!collapsedCheck.isMinimized) throw new Error('GameChat failed to collapse when clicking active channel tab!');
 
     // 3. Test GameChat.show() re-call (e.g. zone change / room load)
     const reShowCheck = await page.evaluate(async () => {
       const { GameChat } = await import('/src/ui/chat.js');
       GameChat.show();
       const chat = document.getElementById('game-chat');
-      const toggle = document.getElementById('gc-btn-toggle');
       return {
         isMinimized: chat?.classList.contains('minimized'),
-        toggleText: toggle?.textContent?.trim(),
         chatHeight: chat?.getBoundingClientRect().height,
       };
     });
@@ -132,11 +148,9 @@ async function run() {
       const { GameChat } = await import('/src/ui/chat.js');
       GameChat.updateMode();
       const chat = document.getElementById('game-chat');
-      const toggle = document.getElementById('gc-btn-toggle');
       return {
         isPortraitMobile: GameChat.isPortraitMobile(),
         isMinimized: chat?.classList.contains('minimized'),
-        toggleText: toggle?.textContent?.trim(),
         chatHeight: chat?.getBoundingClientRect().height,
       };
     });

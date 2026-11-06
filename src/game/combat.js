@@ -18,6 +18,8 @@ import { armorDiv, depthLevel, shownDmg, dmgScale } from '../data/depth.js';
 import { relicProc } from './relicprocs.js';
 import { commissionKill } from './commissions.js';
 import { riftKill } from './rifts.js';
+import { SKILLS } from '../data/skills.js';
+import { skillMorphFor } from '../data/talents.js';
 
 const PLAYER_RES = { fire: 'fire', cold: 'cold', light: 'light', poison: 'poison', acid: 'poison' };
 const LEECH_K = 2; // life/mana leech: a whole monster's life taken returns LEECH_K x leech% of the hero's own
@@ -185,7 +187,7 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
   } else if (byHero && o.sk) tgt.lastSk = o.sk;
   if (tgt.curses.thorns && tgt.curses.thorns.t > 0 && tgt.isPlayer === false && src && src.team === 'player') { /* handled when monster attacks */ }
 
-  if (tgt.hp <= 0) kill(tgt, src, { el, overkill: -tgt.hp / tgt.maxHp, crit, aoe: o.aoe, sig: o.sig });
+  if (tgt.hp <= 0) kill(tgt, src, { el, overkill: -tgt.hp / tgt.maxHp, crit, aoe: o.aoe, sig: o.sig, proc: o.proc });
   return dmg;
 }
 
@@ -313,15 +315,25 @@ export function kill(tgt, src, info = {}) {
         aoe(world, p, tgt.x, tgt.y, 1.6, tgt.maxHp * 0.35, 'blood', { dot: true, crit: false });
       }
       if (leg.vamp) p.heal(p.maxHp * 0.02, true);
-      const T = p.st.talents || {};
-      if ((T.witch_plague_burst || T.nec_plague_key) && tgt.status && tgt.status.poison && tgt.status.poison.t > 0) {
-        const pbRank = T.witch_plague_burst || 2;
-        explosionFx(tgt.x, tgt.y, 1.35, 'poison', 'void', { sound: false });
-        aoe(world, p, tgt.x, tgt.y, 1.65, tgt.maxHp * (0.12 * pbRank), 'poison', { dot: true, crit: false, poison: true });
+      if (tgt.lastSk && SKILLS[tgt.lastSk]) {
+        const km = skillMorphFor(p, SKILLS[tgt.lastSk]);
+        if (km && km.resetOnKill && p.cooldowns && p.cooldowns[tgt.lastSk] > 0) {
+          p.cooldowns[tgt.lastSk] = 0;
+          floatText(p.x, p.y, 62, 'Reset!', '#ffd860', 11);
+        }
       }
-      if (T.wiz_solar_key && tgt.status && tgt.status.burn && tgt.status.burn.t > 0) {
-        explosionFx(tgt.x, tgt.y, 1.35, 'fire', 'explosion', { sound: false });
-        aoe(world, p, tgt.x, tgt.y, 1.6, tgt.maxHp * 0.22, 'fire', { dot: true, crit: false, burn: true });
+      if (p.st && p.st.talentOnKill && p.st.talentOnKill.length && !info.proc) {
+        for (const ok of p.st.talentOnKill) {
+          const stKey = ok.status === 'slow' ? 'chill' : ok.status;
+          const hasSt = tgt.status && ((tgt.status[ok.status] && tgt.status[ok.status].t > 0) || (tgt.status[stKey] && tgt.status[stKey].t > 0));
+          if (hasSt) {
+            explosionFx(tgt.x, tgt.y, 1.35, ok.el, ok.el === 'poison' || ok.el === 'shadow' ? 'void' : 'explosion', { sound: false });
+            aoe(world, p, tgt.x, tgt.y, 1.65, tgt.maxHp * (ok.pctMaxHp || 0.2), ok.el, {
+              dot: true, crit: false, proc: true,
+              burn: ok.el === 'fire', poison: ok.el === 'poison', bleed: ok.el === 'blood', slow: ok.el === 'cold',
+            });
+          }
+        }
       }
       if (p.st.procs && p.st.procs.length && !info.proc) relicProc(p, 'kill', tgt, 0);
       if (p.chart && tgt.team === 'enemy') astroOnKill(p, tgt); // the fallen may become a star on the Astronomer's chart

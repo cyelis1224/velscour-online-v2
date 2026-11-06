@@ -120,10 +120,10 @@ async function runTest() {
     // Save screenshot of collapsed portrait view
     await page.screenshot({ path: path.join(outDir, 'portrait_collapsed.png') });
 
-    // Open/expand chat
+    // Open/expand chat via channel tab
     await page.evaluate(() => {
-      const toggle = document.getElementById('gc-btn-toggle');
-      if (toggle) toggle.click();
+      const tab = document.querySelector('.gc-tab[data-tab="all"]');
+      if (tab) tab.click();
     });
 
     await page.waitForTimeout(500);

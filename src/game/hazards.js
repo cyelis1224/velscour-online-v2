@@ -7,7 +7,7 @@ import { spawn, burst, addEffect, Ring, Bolt, Beam, Slash, Telegraph, elem, glow
 import { emitWhirlCyclone, captureWhirlGibs, drawWhirlCyclone } from '../gfx/barbarianwhirl.js';
 import { drawShape, trail, explosionFx, hitSpark } from '../gfx/shapes.js';
 import { bardProjInit, bardProjUpdate, bardProjHit, bardProjDraw, bardOrbitDraw, bardRainDraw, bardBeamDraw } from './bard.js';
-import { drawLancerOrbitShield, drawThrownShield } from '../gfx/lancershields.js';
+import { drawLancerOrbitShield, drawLancerThrownShield, drawThrownShield } from '../gfx/lancershields.js';
 import { drawCosmicBeam } from '../gfx/cosmos.js';
 import { drawFlyingRang, drawRang3D, rangSkin, groundHeading } from '../gfx/boomerang3d.js';
 import { screenAngle } from '../gfx/vfx.js';
@@ -254,6 +254,7 @@ export class Projectile {
     }
     if (this.note) return bardProjDraw(ctx, this, px, py);
     if ((this.fx === 'rang' || this.fx === 'chakram') && drawFlyingRang(ctx, this)) return; // the 3D boomerang
+    if (this.fx === 'tshield' && drawLancerThrownShield(ctx, this)) return; // the Lancer's spinning 3D shield
     if (this.fx === 'pshield' && drawThrownShield(ctx, this)) return; // the Paladin's thrown 3D shield
     const a = screenAngle(Math.atan2(this.vy, this.vx));
     drawShape(ctx, this.fx === 'pshield' ? 'disc' : this.fx, px, py, a, this.size, this.E, this.t); // a disc while the shield model loads

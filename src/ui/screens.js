@@ -9,8 +9,8 @@ import { UI, $ } from './ui.js';
 import { listSaves, heroesByClass, deleteClassSaves, classSaves, writeSave, savesReadable, unreadableSaves } from '../game/save.js';
 import { backupHeroes, listBackups } from '../game/herobackup.js';
 import { heroCanvas, excitable, preloadPortraits } from './heroanim.js';
-import { savedGearPreview, heroPortrait, heroLook } from '../core/gearart.js';
-import { heldPortraitArgs } from '../gfx/heldart.js';
+import { savedGearPreview, heroPortrait, heroLook, loadGearArt, characterPaperdollPortrait } from '../core/gearart.js';
+import { heldPortraitArgs, loadHeld } from '../gfx/heldart.js';
 import { attachTitleFx } from './titlefx.js';
 import { creditsScreen } from './credits.js';
 import { RARITY, shownEquip, SLOTS, SLOT_NAMES } from '../data/items.js';
@@ -254,6 +254,52 @@ const cloudErr = (e) => {
 
 const plaque = (name) => `<div class="plaque"><span>${escapeHtml(name)}</span></div>`;
 
+/**
+ * Renders an interactive equipment paperdoll for `char` with 11 equipment slots
+ * and a center portrait showing their current equipped armor, helmet, and held weapons.
+ */
+export function renderPaperdoll(char, container = null) {
+  const doll = container || el('div', 'paperdoll');
+  doll.innerHTML = '';
+
+  const portrait = el('div', 'portrait');
+  const img = new Image();
+  const eq = shownEquip(char);
+  const look = heroLook(char.classId, eq?.body, eq?.head);
+  const held = heldPortraitArgs(look, char.classId, eq);
+  const initial = heroPortrait(char.classId, eq?.body, eq?.head, 130, 260, ...held) || classSprite(char.classId, 260);
+  if (initial) img.src = initial.toDataURL();
+
+  portrait.appendChild(img);
+  portrait.style.gridColumn = '3';
+  portrait.style.gridRow = '3 / span 2';
+  doll.appendChild(portrait);
+
+  const charKey = char.id || (char.classId + '_' + (char.name || ''));
+  doll.dataset.charKey = charKey;
+  characterPaperdollPortrait(char, 130, 260).then(cv => {
+    if (!cv || !doll.isConnected || doll.dataset.charKey !== String(charKey)) return;
+    img.src = cv.toDataURL();
+  });
+
+  for (const sKey of SLOTS) {
+    const it = char.equip ? char.equip[sKey] : null;
+    const slotEl = el('div', 'eslot ' + rarityClass(it));
+    const [cx, cy] = DOLL[sKey];
+    slotEl.style.gridColumn = cx;
+    slotEl.style.gridRow = cy;
+    if (it) {
+      slotEl.appendChild(itemCell(it));
+      UI.tip(slotEl, () => itemTooltip(it));
+    } else {
+      slotEl.appendChild(el('span', 'lbl', SLOT_NAMES[sKey] || sKey));
+    }
+    doll.appendChild(slotEl);
+  }
+
+  return doll;
+}
+
 /** Hero select: one hero per class. A class with a hero plays it; an empty class names and starts a new one.
  * Delete arms delete mode: the next class picked with a hero is deleted (after a confirm), freeing that class. */
 export function classSelect(sel = 'paladin', back = titleScreen) {
@@ -269,8 +315,9 @@ export function classSelect(sel = 'paladin', back = titleScreen) {
   const bigBox = el('div', 'class-big');
   const big = heroCanvas(sel, 'hero-cv');
   bigBox.appendChild(big.canvas);
+  const dollBox = el('div', 'class-doll-box');
   const text = el('div', 'class-text');
-  info.append(bigBox, text);
+  info.append(bigBox, dollBox, text);
   const cards = {};
   const showSavedGear = (id, anim) => {
     const h = heroes[id];
@@ -288,17 +335,24 @@ export function classSelect(sel = 'paladin', back = titleScreen) {
   const delBtn = el('button', 'btn red', 'Delete');
   const renderInfo = () => {
     const C = CLASSES[sel], h = heroes[sel];
-    big.setId(sel);
-    showSavedGear(sel, big);
-    const slots = { weapon: 'Weapon', offhand: 'Offhand', body: 'Armor', head: 'Helm', hands: 'Gloves', legs: 'Legs', feet: 'Boots', ring1: 'Ring I', ring2: 'Ring II', ring3: 'Ring III', ring4: 'Ring IV' };
-    const gear = h && h.equip ? Object.entries(slots).filter(([slot]) => h.equip[slot])
-      .map(([slot, label]) => '<span><b>' + label + ':</b> ' + escapeHtml(h.equip[slot].name || h.equip[slot].base || 'Equipped') + '</span>').join('') : '';
+    if (h) {
+      bigBox.style.display = 'none';
+      dollBox.style.display = '';
+      dollBox.innerHTML = '';
+      const doll = renderPaperdoll(h);
+      doll.classList.add('online-char-paperdoll');
+      dollBox.appendChild(doll);
+    } else {
+      dollBox.style.display = 'none';
+      dollBox.innerHTML = '';
+      bigBox.style.display = '';
+      big.setId(sel);
+    }
     const hName = (h?.name || '').trim();
     const hHasCls = hName.toLowerCase().includes(C.name.toLowerCase());
     const hClsTag = hHasCls ? '' : ` ${C.name}`;
     text.innerHTML = (h ? `<h2>${escapeHtml(hName || C.name)}</h2><p><b style="color:#ffd34a">Level ${h.level}${hClsTag}</b> · Depth ${h.depth} · Deepest ${h.deepest || 0} · ${fmtInt(h.gold)} gold</p>` : `<h2>${C.name}</h2>`) +
-      `<p>${escapeHtml(C.desc)}</p><p class="dim">Skill trees: <b style="color:#e9dcc4">${C.trees.join(' · ')}</b><br>Primary attribute: <b style="color:#ffd34a">${ATTRS[C.primary].name}</b> · Life ${C.life} · Mana ${C.mana}</p>` +
-      (gear ? '<div class="class-gear-summary" aria-label="Saved equipped gear">' + gear + '</div>' : '');
+      `<p>${escapeHtml(C.desc)}</p><p class="dim">Skill trees: <b style="color:#e9dcc4">${C.trees.join(' · ')}</b><br>Primary attribute: <b style="color:#ffd34a">${ATTRS[C.primary].name}</b> · Life ${C.life} · Mana ${C.mana}</p>`;
     for (const id in cards) cards[id].classList.toggle('sel', id === sel);
     name.style.display = h ? 'none' : '';
     go.innerHTML = h ? 'Play' : 'Begin';
@@ -742,43 +796,7 @@ export function onlineCharSelectScreen(selectedCharId = null, back = titleScreen
     equipSection.appendChild(titleRow);
 
     const doll = el('div', 'paperdoll online-char-paperdoll');
-
-    // Paperdoll center portrait
-    const portrait = el('div', 'portrait');
-    const img = new Image();
-    const eq = shownEquip(selChar);
-    const look = heroLook(selChar.classId, eq?.body, eq?.head);
-    const held = heldPortraitArgs(look, selChar.classId, eq);
-    const pCv = heroPortrait(selChar.classId, eq?.body, eq?.head, 130, 260, ...held) || classSprite(selChar.classId, 260);
-    if (pCv) {
-      img.src = pCv.toDataURL();
-    }
-    portrait.appendChild(img);
-    portrait.style.gridColumn = '3';
-    portrait.style.gridRow = '3 / span 2';
-    doll.appendChild(portrait);
-
-    savedGearPreview(selChar.classId, eq?.body, eq?.head, eq?.weapon, eq?.offhand).then(art => {
-      if (!art || !s.isConnected || selId !== selChar.id) return;
-      const updated = heroPortrait(selChar.classId, eq?.body, eq?.head, 130, 260, ...held);
-      if (updated) img.src = updated.toDataURL();
-    });
-
-    // 11 Equipment Slots
-    for (const sKey of SLOTS) {
-      const it = selChar.equip ? selChar.equip[sKey] : null;
-      const slotEl = el('div', 'eslot ' + rarityClass(it));
-      const [cx, cy] = DOLL[sKey];
-      slotEl.style.gridColumn = cx;
-      slotEl.style.gridRow = cy;
-      if (it) {
-        slotEl.appendChild(itemCell(it));
-        UI.tip(slotEl, () => itemTooltip(it));
-      } else {
-        slotEl.appendChild(el('span', 'lbl', SLOT_NAMES[sKey] || sKey));
-      }
-      doll.appendChild(slotEl);
-    }
+    renderPaperdoll(selChar, doll);
     equipSection.appendChild(doll);
     detailPanel.appendChild(equipSection);
   };

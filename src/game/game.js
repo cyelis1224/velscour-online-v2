@@ -8,6 +8,7 @@ import { rand, pick, randi, escapeHtml, dist, dist2, RNG, makeCanvas, fmtInt, sw
 import { biomeTileSet, loadBiomeArt, mixedTileSet, keepTileSets } from '../core/assets.js';
 import { loadArtFor, enemyImage, markArtCaches, trimArtCaches } from '../core/enemyart.js';
 import { loadClassArt } from '../core/classart.js';
+import { preloadSkillSheets } from '../ui/icons.js';
 import { loadGearArt } from '../core/gearart.js';
 import { loadHeld } from '../gfx/heldart.js';
 import { preloadBarFx } from '../gfx/artfx.js';
@@ -996,7 +997,7 @@ export const game = {
       text: 'Preparing hero equipment…',
       progress: 30
     });
-    const [meta] = await Promise.all([loadClassArt(classId), loadGearArt(classId), loadHeld(classId, char)]);
+    const [meta] = await Promise.all([loadClassArt(classId), loadGearArt(classId), loadHeld(classId, char), preloadSkillSheets(classId)]);
     LoadingScreen.setProgress(100, 'Hero ready');
     await LoadingScreen.hide();
     setClassItems(classId, meta);
@@ -1011,6 +1012,7 @@ export const game = {
     }
     c.marks = JSON.parse(JSON.stringify(endgame().marks));
     G.char = c;
+    preloadSkillSheets(c.classId);
     setRingContext(c.classId, c.skills);
     const p = new Player(c);
     G.player = p;

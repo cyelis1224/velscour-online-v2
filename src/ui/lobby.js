@@ -12,12 +12,20 @@ import { net } from '../net/network.js';
 import { saveOnlineCharacter } from '../net/online.js';
 import { toggleFriends } from './friends.js';
 import { endgame } from '../game/endgame.js';
+import { attachLobbyLogoFire, attachLobbyBackground } from './titlefx.js';
+import { hide as hideScreen } from './screens.js';
 
 let lobbyEl = null;
 let activeLobbyListeners = null;
 
 function detachLobbyListeners() {
   if (activeLobbyListeners) {
+    if (activeLobbyListeners.detachBackground) {
+      activeLobbyListeners.detachBackground();
+    }
+    if (activeLobbyListeners.detachFire) {
+      activeLobbyListeners.detachFire();
+    }
     if (activeLobbyListeners.saveInterval) {
       clearInterval(activeLobbyListeners.saveInterval);
     }
@@ -39,6 +47,7 @@ function detachLobbyListeners() {
 
 export function openLobby(char, onBack) {
   detachLobbyListeners();
+  hideScreen();
   if (lobbyEl) { lobbyEl.remove(); lobbyEl = null; }
   G.mode = 'lobby';
 
@@ -49,22 +58,35 @@ export function openLobby(char, onBack) {
   s.id = 'd2-lobby';
   lobbyEl = s;
 
+  // Attach dark title-style background with eyes and floating embers
+  const detachBackground = attachLobbyBackground(s);
+
   // ---------------------------------------------------------------- Top Header
   const header = el('div', 'd2-header');
   header.innerHTML = `
-    <div class="d2-logo-wrap">
-      <img class="d2-logo-img" src="assets/ui/logo.webp" alt="VELSCOUR ONLINE">
+    <div class="d2-header-left">
+      <div class="d2-channel-title" id="d2-channel-display">USEast-1</div>
+      <div class="d2-channel-sub" id="d2-channel-sub"><span style="color:#ffd860;font-weight:700">&#8635; CONNECTING...</span></div>
     </div>
     <div class="d2-title-center">
-      <div class="d2-channel-title" id="d2-channel-display">VELSCOUR ONLINE (En-1)</div>
-      <div class="d2-channel-sub" id="d2-channel-sub">Connecting...</div>
+      <div class="d2-center-logo-wrap">
+        <canvas class="d2-logo-fire" aria-hidden="true"></canvas>
+        <img class="d2-logo-img" src="assets/ui/logo.webp" alt="VELSCOUR">
+      </div>
     </div>
     <div class="d2-header-right">
-      <button class="d2-btn-classic" id="d2-header-friends">FRIENDS</button>
       <button class="d2-btn-classic d2-btn-quit" id="d2-header-quit">QUIT</button>
+      <button class="d2-btn-classic" id="d2-header-friends">FRIENDS</button>
     </div>
   `;
   s.appendChild(header);
+
+  const centerLogoWrap = header.querySelector('.d2-center-logo-wrap');
+  const centerLogoImg = header.querySelector('.d2-logo-img');
+  let detachFire = null;
+  if (centerLogoWrap && centerLogoImg) {
+    detachFire = attachLobbyLogoFire(centerLogoWrap, centerLogoImg);
+  }
 
   // ---------------------------------------------------------------- Main Split Body
   const body = el('div', 'd2-body');
@@ -149,7 +171,7 @@ export function openLobby(char, onBack) {
   doJoinBtn.style.padding = '8px 24px';
   doJoinBtn.style.fontSize = '14px';
   doJoinBtn.style.color = '#fff';
-  doJoinBtn.style.background = 'linear-gradient(180deg, #581e1eff, #2a150b)';
+  doJoinBtn.style.background = 'linear-gradient(180deg, #581e1eff, #2a0b0bff)';
   joinActions.append(cancelJoinBtn, doJoinBtn);
 
   joinView.append(joinInputs, gamesSplit, joinActions);
@@ -195,7 +217,7 @@ export function openLobby(char, onBack) {
   const doCreateBtn = el('button', 'd2-btn-classic', 'CREATE GAME');
   doCreateBtn.style.padding = '8px 24px';
   doCreateBtn.style.fontSize = '14px';
-  doCreateBtn.style.color = '#ffd860';
+  doCreateBtn.style.color = '#ffffffff';
   doCreateBtn.style.background = 'linear-gradient(180deg, #581e1eff, #2a0b0bff)';
   createActions.append(cancelCreateBtn, doCreateBtn);
   createView.appendChild(createActions);
@@ -293,12 +315,25 @@ export function openLobby(char, onBack) {
     } else if (msg.kind === 'emote') {
       row.textContent = msg.text;
     } else if (msg.from) {
-      row.innerHTML = `<span class="d2-sender-clickable" data-name="${escapeHtml(msg.from)}">&lt;${escapeHtml(msg.from)}&gt;</span> ${escapeHtml(msg.text)}`;
+      const isMe = char?.name && msg.from.toLowerCase() === char.name.toLowerCase();
+      const meClass = isMe ? ' is-me' : '';
+      row.innerHTML = `<span class="d2-sender-clickable${meClass}" data-name="${escapeHtml(msg.from)}">&lt;${escapeHtml(msg.from)}&gt;</span> ${escapeHtml(msg.text)}`;
     } else {
       row.textContent = msg.text;
     }
 
     chatLog.appendChild(row);
+  }
+
+  function scrollLobbyToBottom() {
+    if (!chatLog) return;
+    const doScroll = () => {
+      if (chatLog) chatLog.scrollTop = chatLog.scrollHeight;
+    };
+    doScroll();
+    requestAnimationFrame(doScroll);
+    setTimeout(doScroll, 50);
+    setTimeout(doScroll, 150);
   }
 
   function renderLobbyChat() {
@@ -313,7 +348,7 @@ export function openLobby(char, onBack) {
     for (const msg of filtered) {
       renderChatMsgRow(msg);
     }
-    chatLog.scrollTop = chatLog.scrollHeight;
+    scrollLobbyToBottom();
   }
 
   function addChatMsg(msg) {
@@ -390,6 +425,9 @@ export function openLobby(char, onBack) {
       }
     }
   };
+  chatInput.addEventListener('focus', () => {
+    scrollLobbyToBottom();
+  });
   sendBtn.onclick = submitChat;
 
   actWhisper.onclick = () => {
@@ -578,14 +616,13 @@ export function openLobby(char, onBack) {
   function updateConnectionBadge() {
     const sub = $('#d2-channel-sub');
     if (!sub) return;
-    const hostLabel = (net && net.targetHost) || 'mmo.dagyr.me:8124';
     if (net.connected) {
-      sub.innerHTML = `<span style="color:#48e868;font-weight:700">&#9679; ONLINE</span> &middot; Multiplayer Realm &middot; <span style="color:#a8977c">Host: ${hostLabel}</span>`;
+      sub.innerHTML = `<span style="color:#48e868;font-weight:700">&#9679; ONLINE</span>`;
     } else if (net.shouldReconnect) {
       const attemptStr = net.reconnectAttempts > 0 ? ` (Attempt ${net.reconnectAttempts})` : '';
-      sub.innerHTML = `<span style="color:#ffd860;font-weight:700">&#8635; RECONNECTING${attemptStr}...</span> &middot; Re-establishing link to <span style="color:#ffd860">${hostLabel}</span>`;
+      sub.innerHTML = `<span style="color:#ffd860;font-weight:700">&#8635; RECONNECTING${attemptStr}...</span>`;
     } else {
-      sub.innerHTML = `<span style="color:#ffb040;font-weight:700">&#9675; OFFLINE (Simulated)</span> &middot; Connecting to <span style="color:#ffd860">${hostLabel}</span>`;
+      sub.innerHTML = `<span style="color:#ffb040;font-weight:700">&#9675; OFFLINE (Simulated)</span>`;
     }
   }
 
@@ -599,7 +636,7 @@ export function openLobby(char, onBack) {
     renderPedestal(data.players || []);
     renderRoomList(data.rooms || []);
     const disp = $('#d2-channel-display');
-    if (disp) disp.textContent = `VELSCOUR ONLINE (${data.channel || 'USEast-1'})`;
+    if (disp) disp.textContent = data.channel || 'USEast-1';
     updateConnectionBadge();
   };
 
@@ -644,7 +681,7 @@ export function openLobby(char, onBack) {
     }
   }, 60000);
 
-  activeLobbyListeners = { saveInterval, onChat, onLobbyUpdate, onRoomError, onRoomJoined, onConnected, onDisconnected, onReconnecting, onSessionKicked };
+  activeLobbyListeners = { detachBackground, detachFire, saveInterval, onChat, onLobbyUpdate, onRoomError, onRoomJoined, onConnected, onDisconnected, onReconnecting, onSessionKicked };
   net.on('chat', onChat);
   net.on('lobby_update', onLobbyUpdate);
   net.on('room_error', onRoomError);
@@ -658,4 +695,6 @@ export function openLobby(char, onBack) {
   updateConnectionBadge();
   renderPedestal(net.channelPlayers);
   renderRoomList(net.rooms);
+  renderLobbyChat();
+  scrollLobbyToBottom();
 }
