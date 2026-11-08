@@ -2029,29 +2029,64 @@ wss.on('connection', (ws) => {
         clientData.disconnected = false;
         clientData.kicked = false;
 
-        // Check if reconnecting to an existing room still in its grace period
+        // Check if reconnecting to an existing room still in its grace period, or restore room after server reboot
         let reconnectedRoom = null;
-        if (msg.reconnectRoom && rooms.has(msg.reconnectRoom)) {
-          const room = rooms.get(msg.reconnectRoom);
-          if (room) {
-            if (room.cleanupTimer) {
-              clearTimeout(room.cleanupTimer);
-              room.cleanupTimer = null;
+        if (msg.reconnectRoom) {
+          if (rooms.has(msg.reconnectRoom)) {
+            const room = rooms.get(msg.reconnectRoom);
+            if (room) {
+              if (room.cleanupTimer) {
+                clearTimeout(room.cleanupTimer);
+                room.cleanupTimer = null;
+              }
+              clientData.room = room.name;
+              const existingIdx = room.players.findIndex(p => p.id === clientData.id || p.name === clientData.name);
+              if (existingIdx >= 0) {
+                room.players[existingIdx] = clientData;
+              } else {
+                room.players.push(clientData);
+              }
+              if (room.hostId === clientData.id || room.hostName === clientData.name || room.players.length === 1) {
+                room.hostId = clientData.id;
+                room.hostName = clientData.name;
+              }
+              reconnectedRoom = room;
             }
-            clientData.room = room.name;
-            const existingIdx = room.players.findIndex(p => p.id === clientData.id || p.name === clientData.name);
-            if (existingIdx >= 0) {
-              room.players[existingIdx] = clientData;
-            } else {
-              room.players.push(clientData);
+          } else if (msg.reconnectRoomData && msg.reconnectRoomData.name === msg.reconnectRoom) {
+            const rd = msg.reconnectRoomData;
+            const seed = parseInt(rd.seed, 10) || parseInt(rd.townSeed, 10) || (Math.floor(Math.random() * 1e9) + 1);
+            const depth = Math.min(500, Math.max(1, parseInt(rd.depth, 10) || 1));
+            const restoredRoom = {
+              name: String(rd.name).slice(0, 24),
+              password: String(rd.password || '').trim(),
+              maxPlayers: Math.max(2, Math.min(4, parseInt(rd.maxPlayers, 10) || 4)),
+              depth,
+              biome: rd.biome || 'town',
+              seed,
+              townSeed: parseInt(rd.townSeed, 10) || seed,
+              dungeonSeed: rd.dungeonSeed ? parseInt(rd.dungeonSeed, 10) : ((((seed * 31 + depth * 7919) ^ 0x41c64e6d) >>> 0) || 1234567),
+              mixId: rd.mixId || null,
+              heresies: Array.isArray(rd.heresies) ? rd.heresies : [],
+              startTime: Date.now(),
+              hostId: rd.hostId || clientData.id,
+              hostName: rd.hostName || clientData.name,
+              players: [clientData],
+              groundLoot: new Map(),
+              killedMonsters: new Map(),
+              unsealedDepths: new Set(Array.isArray(rd.unsealedDepths) ? rd.unsealedDepths : []),
+            };
+            if (Array.isArray(rd.killed) && depth > 0) {
+              const kSet = new Set(rd.killed);
+              restoredRoom.killedMonsters.set(depth, kSet);
             }
-            if (room.hostId === clientData.id || room.hostName === clientData.name || room.players.length === 1) {
-              room.hostId = clientData.id;
-              room.hostName = clientData.name;
-            }
-            reconnectedRoom = room;
+            rooms.set(restoredRoom.name, restoredRoom);
+            clientData.room = restoredRoom.name;
+            reconnectedRoom = restoredRoom;
+            console.log(`[Velscour Online] Room "${restoredRoom.name}" restored after server restart by player ${clientData.name} (${clientData.id})`);
+            broadcastLobbyUpdate();
           }
-        } else {
+        }
+        if (!reconnectedRoom) {
           clientData.room = null;
         }
 
@@ -2076,6 +2111,9 @@ wss.on('connection', (ws) => {
               depth: reconnectedRoom.depth,
               biome: reconnectedRoom.biome,
               hostId: reconnectedRoom.hostId,
+              mixId: reconnectedRoom.mixId || null,
+              heresies: reconnectedRoom.heresies || [],
+              killed: Array.from(reconnectedRoom.killedMonsters?.get(reconnectedRoom.depth) || []),
               unsealedDepths: Array.from(reconnectedRoom.unsealedDepths || []),
               players: reconnectedRoom.players.map(p => ({
                 id: p.id,
@@ -2293,6 +2331,9 @@ wss.on('connection', (ws) => {
             biome: roomData.biome,
             hostId: roomData.hostId,
             maxPlayers: roomData.maxPlayers,
+            mixId: roomData.mixId || null,
+            heresies: roomData.heresies || [],
+            killed: Array.from(roomData.killedMonsters?.get(roomData.depth) || []),
             unsealedDepths: Array.from(roomData.unsealedDepths || []),
             players: roomData.players.map(p => ({
               id: p.id,
@@ -2374,6 +2415,9 @@ wss.on('connection', (ws) => {
             biome: room.biome,
             hostId: room.hostId,
             maxPlayers: room.maxPlayers,
+            mixId: room.mixId || null,
+            heresies: room.heresies || [],
+            killed: Array.from(room.killedMonsters?.get(room.depth) || []),
             unsealedDepths: Array.from(room.unsealedDepths || []),
             players: room.players.map(p => ({
               id: p.id,
@@ -2613,6 +2657,8 @@ wss.on('connection', (ws) => {
         break;
       }
 
+const isValidKilledMonsterId = (id) => (typeof id === 'string' && id.length > 0) || (typeof id === 'number' && id > 0 && id < 2000);
+
       case 'game_monster_hit': {
         if (!clientData.room) break;
         msg.sourceId = clientData.id;
@@ -2622,8 +2668,8 @@ wss.on('connection', (ws) => {
           const d = msg.depth || room.depth || 1;
           let set = room.killedMonsters.get(d);
           if (!set) { set = new Set(); room.killedMonsters.set(d, set); }
-          if (msg.netId) set.add(msg.netId);
-          if (msg.monsterIdx != null) set.add(msg.monsterIdx);
+          if (typeof msg.netId === 'string' && msg.netId.length > 0) set.add(msg.netId);
+          if (isValidKilledMonsterId(msg.monsterIdx)) set.add(msg.monsterIdx);
           if (msg.isBoss || msg.rank === 'boss' || (msg.netId && (String(msg.netId).startsWith('boss_') || String(msg.netId).startsWith('raid_')))) {
             if (!room.unsealedDepths) room.unsealedDepths = new Set();
             room.unsealedDepths.add(d);
@@ -2663,12 +2709,38 @@ wss.on('connection', (ws) => {
       case 'game_monsters_state': {
         if (!clientData.room) break;
         const room = rooms.get(clientData.room);
-        if (room && Array.isArray(msg.killed)) {
+        const d = msg.depth || (room ? room.depth : 1);
+        let set = null;
+        if (room) {
           if (!room.killedMonsters) room.killedMonsters = new Map();
-          const d = msg.depth || room.depth || 1;
-          let set = room.killedMonsters.get(d);
+          set = room.killedMonsters.get(d);
           if (!set) { set = new Set(); room.killedMonsters.set(d, set); }
-          for (const kid of msg.killed) set.add(kid);
+          if (Array.isArray(msg.killed)) {
+            for (const kid of msg.killed) {
+              if (isValidKilledMonsterId(kid)) set.add(kid);
+            }
+          }
+        }
+        let staleFiltered = false;
+        if (room && set && Array.isArray(msg.monsters)) {
+          msg.monsters = msg.monsters.filter(s => {
+            if (!s) return false;
+            const killed = (s.id && set.has(s.id)) || (s.idx != null && set.has(s.idx));
+            if (killed) {
+              staleFiltered = true;
+              return false;
+            }
+            return true;
+          });
+          if (staleFiltered) {
+            ws.send(JSON.stringify({
+              type: 'dungeon_killed_sync',
+              depth: d,
+              killed: Array.from(set),
+              unsealed: room.unsealedDepths ? room.unsealedDepths.has(d) : false,
+              unsealedDepths: Array.from(room.unsealedDepths || []),
+            }));
+          }
         }
         broadcastToRoom(clientData.room, msg, ws);
         break;
@@ -2809,7 +2881,7 @@ wss.on('connection', (ws) => {
           if (msg.biome) room.biome = msg.biome;
           if (msg.seed && room.dungeonSeed !== msg.seed) {
             room.dungeonSeed = msg.seed;
-            room.killedMonsters?.clear();
+            room.killedMonsters?.delete(room.depth);
           }
           if (msg.mixId !== undefined) room.mixId = msg.mixId || null;
           if (Array.isArray(msg.heresies)) room.heresies = msg.heresies;
@@ -2838,6 +2910,9 @@ wss.on('connection', (ws) => {
           if (typeof msg.depth === 'number' && msg.depth > 0) {
             room.depth = Math.min(500, msg.depth);
           }
+          if (room.biome && room.biome !== 'town') {
+            room.dungeonBiome = room.biome;
+          }
           room.biome = 'town';
           broadcastToRoom(clientData.room, {
             type: 'room_depth_sync',
@@ -2846,6 +2921,7 @@ wss.on('connection', (ws) => {
             seed: room.dungeonSeed,
             mixId: room.mixId,
             heresies: room.heresies || [],
+            killed: Array.from(room.killedMonsters?.get(room.depth) || []),
             unsealed: room.unsealedDepths ? room.unsealedDepths.has(room.depth) : false,
             unsealedDepths: Array.from(room.unsealedDepths || []),
             sourcePlayerId: clientData.id,

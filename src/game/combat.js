@@ -23,6 +23,7 @@ import { skillMorphFor } from '../data/talents.js';
 
 const PLAYER_RES = { fire: 'fire', cold: 'cold', light: 'light', poison: 'poison', acid: 'poison' };
 const LEECH_K = 2; // life/mana leech: a whole monster's life taken returns LEECH_K x leech% of the hero's own
+const isSharedMonsterIdx = (idx) => typeof idx === 'number' && idx > 0 && idx < 2000;
 /** Heal `who` for leeching `frac` of a hit of dmg on tgt: by the share of tgt's life it took, in `who`'s own life. */
 export function leechHeal(who, tgt, dmg, frac) {
   if (who && who.heal && tgt && frac > 0) who.heal(Math.min(1, dmg / Math.max(1, tgt.maxHp)) * LEECH_K * who.maxHp * frac, true);
@@ -42,6 +43,7 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
   if (!tgt || tgt.dead || tgt.invuln > 0 || amount <= 0) return 0;
   if (tgt.targetable === false && !o.force) return 0;
   if (tgt.clutter) {
+    if (tgt.prop && (tgt.prop.tree || tgt.prop.spr?.tree)) return 0;
     tgt.hp = 0;
     kill(tgt, src, { ...o, crit: false, overkill: 0 });
     return 1;
@@ -120,8 +122,19 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
   // a damage number on about one in three; the damage itself is untouched
   const showFx = !o.lightFx || chance(0.06), showNum = !o.lightFx || crit || chance(0.35);
   if (src?.isRemotePlayer) {
+    if (!o.fromNetwork) {
+      if (!o.silent && el && (!o.lightFx || chance(0.06))) hitSpark(tgt.x, tgt.y, 28, el);
+      return 0;
+    }
+    tgt.hp = Math.max(0, tgt.hp - dmg);
+    tgt.flash = 0.12;
+    if (tgt.team === 'enemy') tgt.regenSuppress = 6.0;
+    tgt.hpShow = 3;
+    if (!tgt.isPlayer) tgt.awake = true;
+    if (!tgt.isPlayer && !src.dead && src.team !== tgt.team) tgt.aggro = src;
     if (!o.silent && el && (!o.lightFx || chance(0.06))) hitSpark(tgt.x, tgt.y, 28, el);
-    return;
+    if (tgt.hp <= 0) kill(tgt, src, { el, crit, fromNetwork: true });
+    return dmg;
   }
   const tLvl = tgt.level || depthLevel((world && world.depth) || 1); // what the hero sees is shownDmg (data/depth.js), not raw power
   if (byHero) Meter.add(shownDmg(Math.min(dmg, Math.max(0, tgt.hp)), tLvl));
@@ -130,7 +143,9 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
   tgt.hp -= dmg;
   if (G.room && byHero && !o.fromNetwork && !src?.isRemotePlayer && net.connected) {
     const isBoss = tgt.rank === 'boss' || tgt.rank === 'raid' || tgt === G.world?.boss;
-    net.sendMonsterHit(tgt.idx || 0, dmg, crit, el, tgt.x, tgt.y, tgt.netId, tgt.hp <= 0, G.world?.kind, G.world?.depth || 0, isBoss, tgt.rank);
+    const sharedIdx = isSharedMonsterIdx(tgt.idx) ? tgt.idx : null;
+    if (tgt.hp <= 0) tgt._sentKillNet = true;
+    net.sendMonsterHit(sharedIdx, dmg, crit, el, tgt.x, tgt.y, tgt.netId, tgt.hp <= 0, G.world?.kind, G.world?.depth || 0, isBoss, tgt.rank);
   }
   if (tgt.isPlayer && !o.dot && src && src !== tgt && tgt.st.procs && tgt.st.procs.length) relicProc(tgt, 'hurt', src, dmg);
   tgt.flash = 0.12;
@@ -250,13 +265,19 @@ export function kill(tgt, src, info = {}) {
   if (tgt.isPlayer) { tgt.hp = 0; tgt.die(src); return; }
   tgt.dead = true;
   tgt.hp = 0;
-  const world = tgt.world;
-  if (tgt.team === 'enemy') {
-    const kId = tgt.netId || tgt.idx;
+  const world = tgt.world || G.world;
+  let alreadyRewarded = !!tgt._rewardedKill;
+  if (tgt.team === 'enemy' && !tgt.clutter) {
+    const sharedIdx = isSharedMonsterIdx(tgt.idx) ? tgt.idx : null;
+    const kId = tgt.netId || sharedIdx;
     if (kId != null) {
       if (world) {
         if (!world.killedMonsterIds) world.killedMonsterIds = new Set();
         world.killedMonsterIds.add(kId);
+        if (sharedIdx != null) world.killedMonsterIds.add(sharedIdx);
+        if (!world.rewardedMonsterIds) world.rewardedMonsterIds = new Set();
+        if (world.rewardedMonsterIds.has(kId)) alreadyRewarded = true;
+        else world.rewardedMonsterIds.add(kId);
       }
       if (G.room) {
         if (!G.room.killedMonsters) G.room.killedMonsters = new Map();
@@ -264,9 +285,16 @@ export function kill(tgt, src, info = {}) {
         let set = G.room.killedMonsters.get(d);
         if (!set) { set = new Set(); G.room.killedMonsters.set(d, set); }
         set.add(kId);
+        if (sharedIdx != null) set.add(sharedIdx);
       }
     }
+    if (G.room && net.connected && !tgt._sentKillNet && !info.fromNetwork && !src?.isRemotePlayer) {
+      tgt._sentKillNet = true;
+      const isBoss = tgt.rank === 'boss' || tgt.rank === 'raid' || tgt === world?.boss;
+      net.sendMonsterHit(sharedIdx, 0, false, info.el || 'phys', tgt.x, tgt.y, tgt.netId, true, world?.kind || G.world?.kind, world?.depth || G.room.depth || 0, isBoss, tgt.rank);
+    }
   }
+  tgt._rewardedKill = true;
   const owner = src && src.owner ? src.owner : src;
   const byPlayer = owner && (owner.isPlayer || owner.team === 'player');
   if (tgt.clutter) {
@@ -303,7 +331,7 @@ export function kill(tgt, src, info = {}) {
     if (world.player && Math.hypot(world.player.x - tgt.x, world.player.y - tgt.y) < 1.8) hit(tgt, world.player, tgt.dmg * 1.5, 'fire', {});
   }
   if (tgt.split && tgt.scale > 0.6 && tgt.spawnChild && (!G.room || G.game?.isDungeonAuthority(world?.depth))) { tgt.spawnChild(); tgt.spawnChild(); }
-  if (byPlayer && world) {
+  if (byPlayer && world && !alreadyRewarded) {
     world.kills++;
     const p = G.player;
     if (p) {

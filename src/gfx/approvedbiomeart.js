@@ -188,14 +188,14 @@ export function approvedOverworldTree(name) {
       img: image, sx: index % WILD_SUPPLEMENTAL.cols * WILD_SUPPLEMENTAL.w,
       sy: Math.floor(index / WILD_SUPPLEMENTAL.cols) * WILD_SUPPLEMENTAL.h,
       w: WILD_SUPPLEMENTAL.w, h: WILD_SUPPLEMENTAL.h, ox: -64, oy: -123, name, fp: .4,
-      block: true, isometric: true, pixelScale: 1.25
+      block: true, tree: true, isometric: true, pixelScale: 1.25
     };
   }
   const image = sheets.get('variants'), column = WILD_TREE_COLUMNS[name];
   if (!image || column === undefined) return null;
   return {
     img: image, sx: column * VARIANT.w, sy: VARIANT.h * 2, w: VARIANT.w, h: VARIANT.h,
-    ox: -40, oy: -76, name, fp: .4, block: true, isometric: true, pixelScale: 2
+    ox: -40, oy: -76, name, fp: .4, block: true, tree: true, isometric: true, pixelScale: 2
   };
 }
 

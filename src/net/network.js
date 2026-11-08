@@ -59,6 +59,29 @@ export function gearSignature(gear) {
   return `${part(gear.head)}|${part(gear.body)}|${part(gear.weapon)}|${part(gear.offhand)}`;
 }
 
+export function getActiveRoomReconnectSnapshot() {
+  const r = G.room || null;
+  if (!r || !r.name || G.mode !== 'game') return null;
+  const depth = r.depth || (G.world?.kind === 'dungeon' ? G.world.depth : 1);
+  const killedSet = r.killedMonsters?.get(depth) || G.world?.killedMonsterIds || null;
+  return {
+    name: r.name,
+    password: r.password || '',
+    seed: r.seed || r.townSeed || 1,
+    townSeed: r.townSeed || r.seed || 1,
+    dungeonSeed: r.dungeonSeed || null,
+    depth,
+    biome: r.biome || (G.world?.kind === 'dungeon' ? G.world.biome?.id : 'town'),
+    hostId: r.hostId || null,
+    hostName: r.hostName || null,
+    mixId: r.mixId || null,
+    heresies: Array.isArray(r.heresies) ? r.heresies : [],
+    unsealedDepths: Array.from(r.unsealedDepths || []),
+    killed: killedSet ? Array.from(killedSet) : [],
+    maxPlayers: r.maxPlayers || 4,
+  };
+}
+
 class NetworkManager {
   constructor() {
     this.ws = null;
@@ -212,6 +235,7 @@ class NetworkManager {
       this.reconnectAttempts = 0;
       this.startHeartbeat();
       const activeRoom = this.activeRoomName || (this.currentRoom ? this.currentRoom.name : null) || (G.room ? G.room.name : null);
+      const reconnectRoomData = getActiveRoomReconnectSnapshot();
       const onlineAcc = typeof getOnlineAccount === 'function' ? getOnlineAccount() : null;
       this.send({
         type: 'enter_lobby',
@@ -223,6 +247,7 @@ class NetworkManager {
         title: this.charData.level >= 50 ? 'Matriarch' : this.charData.level >= 20 ? 'Slayer' : 'Hero',
         reconnectId: this.myId,
         reconnectRoom: activeRoom || null,
+        reconnectRoomData: reconnectRoomData || null,
         clientVersion: getClientVersion(),
         gear: serializeShownGear(this.charData),
         banner: this.charData?.banner || null,

@@ -199,6 +199,15 @@ function finish() {
       else[tx, ty] = [G.player.x, G.player.y];
     }
 
+    const isExploration = !!dungeonWorld?.unboundExploration;
+    const uFloor = dungeonWorld?.unboundExploration?.floor;
+    const portalLabel = isExploration
+      ? `Portal — Unbound Floor ${uFloor}`
+      : (dungeonWorld?.unbound ? 'Portal — Velscour Unbound' : `Portal — Depth ${depth || 1}`);
+    const logLabel = isExploration
+      ? `Unbound Floor ${uFloor}`
+      : (dungeonWorld?.unbound ? 'Velscour Unbound' : `Depth ${depth || 1}`);
+
     const townPortal = {
       x: tx,
       y: ty,
@@ -206,7 +215,7 @@ function finish() {
       active: true,
       color: '#7fd8ff',
       reach: 1.6,
-      label: `Portal — Depth ${depth || 1}`,
+      label: portalLabel,
       hearth: true,
       use: () => returnFromHearth()
     };
@@ -227,7 +236,7 @@ function finish() {
 
     addEffect(new Ring(tx, ty, 0.2, 2.5, 0.5, '#7fd8ff', 5));
     sparkle(tx, ty, 25, '#bfeaff', 20, 0.6);
-    UI.log(`A portal to <b>Depth ${depth || 1}</b> remains open in town.`, '#9fe4ff');
+    UI.log(`A portal to <b>${logLabel}</b> remains open in town.`, '#9fe4ff');
   }
 }
 
@@ -245,6 +254,9 @@ function returnFromHearth() {
     if (dungeonWorld.creatures && p) {
       dungeonWorld.creatures = dungeonWorld.creatures.filter(c => c !== p && !(c.summon && c.owner === p));
     }
+    if (G.game.reconcileDungeonWorld) {
+      G.game.reconcileDungeonWorld(dungeonWorld);
+    }
     G.game.setWorld(dungeonWorld, [dungeonX, dungeonY], G.world);
     if (dungeonWorld.tileset) keepTileSets(dungeonWorld.tileset);
 
@@ -252,13 +264,18 @@ function returnFromHearth() {
     sparkle(dungeonX, dungeonY, 30, '#bfeaff', 26, 0.8);
     camera.shake(3);
 
-    const title = dungeonWorld.unbound ? 'Velscour Unbound' : `Depth ${dungeonWorld.depth}`;
+    const title = dungeonWorld.unbound
+      ? 'Velscour Unbound'
+      : (dungeonWorld.unboundExploration
+        ? `Unbound Floor ${dungeonWorld.unboundExploration.floor}`
+        : `Depth ${dungeonWorld.depth}`);
     const sub = dungeonWorld.biome ? dungeonWorld.biome.name : 'Dungeon';
     HUD.setArea(title, sub);
     playMusic('wilds', { delay: 2 });
     if (dungeonWorld.biome) setAmbience(dungeonWorld.biome.id);
 
     if (G.room && net.connected) {
+      net.requestDungeonState(dungeonWorld.depth);
       const biome = dungeonWorld.biome;
       net.sendRoomDepthUpdate(
         dungeonWorld.depth,
