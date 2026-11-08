@@ -2318,7 +2318,7 @@ export const game = {
       if (!exit.active) {
         exit.active = true;
         exit.color = '#40a0ff';
-        exit.label = (world.unbound || world.depth >= FINAL_DEPTH || isVelscour || biome.id === 'throne') ? 'Exit — to town' : 'Exit — continue';
+        exit.label = (world.unbound || world.depth >= FINAL_DEPTH || world.boss?.isVelscour || biome.id === 'throne') ? 'Exit — to town' : 'Exit — continue';
       }
     }
     world.roster = [...new Set(gen.spawns.filter((s) => s.arch && !['raid', 'boss'].includes(s.rank)).map((s) => s.arch))];
