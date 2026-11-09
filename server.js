@@ -204,6 +204,10 @@ function getAuthAccount(req, parsedUrl, body = null) {
   return { account: acc, token };
 }
 
+function isValidKilledMonsterId(id) {
+  return (typeof id === 'string' && id.length > 0) || (typeof id === 'number' && id > 0 && id < 2000);
+}
+
 function validateEmail(email) {
   const str = String(email || '').trim();
   if (!str || str.length > 120) return { valid: false, error: 'Please enter a valid email address.' };
@@ -2230,7 +2234,15 @@ wss.on('connection', (ws) => {
           break;
         }
 
-        const pool = ['catacombs', 'castle_keep', 'frozen', 'ice_temple', 'molten', 'fungal', 'sunken', 'blood', 'ashen', 'void', 'gilded', 'plague', 'crystal', 'desert', 'shadow', 'forge', 'abyss', 'thorn', 'storm', 'obsidian', 'flesh', 'serpent', 'shattered', 'library', 'sewers', 'necropolis', 'cathedral', 'amber', 'desert_temple', 'hell', 'astral_plane', 'heavenly'];
+        const ACT_BIOMES = {
+          1: ['catacombs', 'dark_forest', 'castle', 'castle_keep', 'overworld', 'necropolis', 'plague', 'sewers', 'library', 'sunken'],
+          2: ['sea_of_sand', 'desert_temple', 'desert', 'gilded', 'amber', 'serpentine_tower'],
+          3: ['mountainside', 'snowy_summit', 'ice_temple', 'frozen', 'crystal'],
+          4: ['heavenly', 'astral_plane', 'skyship', 'storm', 'shattered', 'cathedral'],
+          5: ['molten', 'hell', 'forge', 'abyss', 'obsidian', 'blood', 'flesh', 'void'],
+        };
+        const actNum = depth >= 401 ? 5 : depth >= 301 ? 4 : depth >= 201 ? 3 : depth >= 101 ? 2 : 1;
+        const pool = ACT_BIOMES[actNum] || ACT_BIOMES[1];
         const defaultBiome = pool[Math.abs(((seed * 31 + depth * 7919) ^ 0x5bd1e995) | 0) % pool.length];
         const initialBiome = msg.biome || 'town';
         const initialDungeonSeed = (((seed * 31 + depth * 7919) ^ 0x41c64e6d) >>> 0) || 1234567;
@@ -2241,6 +2253,7 @@ wss.on('connection', (ws) => {
           maxPlayers,
           depth,
           biome: initialBiome,
+          dungeonBiome: defaultBiome,
           seed,
           townSeed: seed,
           dungeonSeed: initialDungeonSeed,
@@ -2265,6 +2278,7 @@ wss.on('connection', (ws) => {
             dungeonSeed: roomData.dungeonSeed || null,
             depth: roomData.depth,
             biome: roomData.biome,
+            dungeonBiome: roomData.dungeonBiome || defaultBiome,
             hostId: roomData.hostId,
             maxPlayers: roomData.maxPlayers,
             mixId: roomData.mixId || null,
@@ -2349,6 +2363,7 @@ wss.on('connection', (ws) => {
             dungeonSeed: room.dungeonSeed || null,
             depth: room.depth,
             biome: room.biome,
+            dungeonBiome: room.dungeonBiome || null,
             hostId: room.hostId,
             maxPlayers: room.maxPlayers,
             mixId: room.mixId || null,
@@ -2592,8 +2607,6 @@ wss.on('connection', (ws) => {
         broadcastToRoom(clientData.room, msg, ws);
         break;
       }
-
-const isValidKilledMonsterId = (id) => (typeof id === 'string' && id.length > 0) || (typeof id === 'number' && id > 0 && id < 2000);
 
       case 'game_monster_hit': {
         if (!clientData.room) break;

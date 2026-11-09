@@ -15,7 +15,7 @@ import { preloadBarFx } from '../gfx/artfx.js';
 import { SKILLS } from '../data/skills.js';
 import { setClassItems, setRingContext, SEAL_GAP, shownEquip } from '../data/items.js';
 import { BREACH_BIOME, BREACH_WALLS } from '../data/biomes.js';
-import { BIOMES, BETA_BIOMES, BIOME_BY_ID, TOWN_BIOME, drawBiome, biomeChoices, takeBiome, mixPartner, recordBiomeVisit } from '../data/biomes.js';
+import { BIOMES, BETA_BIOMES, BIOME_BY_ID, TOWN_BIOME, ACT_BIOMES, drawBiome, biomeChoices, takeBiome, mixPartner, recordBiomeVisit } from '../data/biomes.js';
 import { CLASSES } from '../data/classes.js';
 import { generateDungeon, isRaidDepth } from '../world/dungeon.js';
 import { FINAL_DEPTH, depthLevel, blockStart, isSuperbossDepth, superbossForDepth, getActForDepth, ACTS } from '../data/depth.js';
@@ -1102,6 +1102,9 @@ export const game = {
     if (room.dungeonSeed) {
       G.room.dungeonSeed = room.dungeonSeed;
     }
+    if (room.dungeonBiome) {
+      G.room.dungeonBiome = room.dungeonBiome;
+    }
 
     if (c?.classId) {
       loadGearArt(c.classId, true).catch(() => { });
@@ -1563,19 +1566,27 @@ export const game = {
 
   getSharedRoomBiome(room, depth, fallbackBiomeId = null) {
     if (depth === FINAL_DEPTH) return BIOME_BY_ID.throne;
-    if (room && room.biome && room.biome !== 'town' && BIOME_BY_ID[room.biome]) {
+    if (room && room.biome && room.biome !== 'town' && BIOME_BY_ID[room.biome] && (!room.depth || room.depth === depth)) {
       return BIOME_BY_ID[room.biome];
     }
-    if (fallbackBiomeId && BIOME_BY_ID[fallbackBiomeId]) {
-      return BIOME_BY_ID[fallbackBiomeId];
+    if (room && room.dungeonBiome && room.dungeonBiome !== 'town' && BIOME_BY_ID[room.dungeonBiome] && (!room.depth || room.depth === depth)) {
+      return BIOME_BY_ID[room.dungeonBiome];
     }
     if (room) {
-      const pool = BIOMES.filter((b) => !b.overworld && !b.beta && b.id !== 'throne');
+      const act = depth ? getActForDepth(depth) : null;
+      const actBiomes = act ? (ACT_BIOMES[act.act] || []) : null;
+      const actPool = (actBiomes && actBiomes.length)
+        ? actBiomes.map((id) => BIOME_BY_ID[id]).filter((b) => b && !b.beta && b.id !== 'throne')
+        : [];
+      const pool = actPool.length ? actPool : BIOMES.filter((b) => !b.overworld && !b.beta && b.id !== 'throne');
       const s = room.seed || room.townSeed || 1;
       const idx = Math.abs(((s * 31 + depth * 7919) ^ 0x5bd1e995) | 0);
       return pool[idx % pool.length] || BIOME_BY_ID.catacombs;
     }
-    return BIOME_BY_ID[fallbackBiomeId] || BIOME_BY_ID.catacombs;
+    if (fallbackBiomeId && BIOME_BY_ID[fallbackBiomeId]) {
+      return BIOME_BY_ID[fallbackBiomeId];
+    }
+    return BIOME_BY_ID.catacombs;
   },
 
   getSharedRoomDungeonSeed(room, depth) {
@@ -1610,6 +1621,7 @@ export const game = {
     c.depth = targetDepth;
     if (regionNeeds(BIOME_BY_ID[c.nextBiome], c.level)) c.nextBiome = drawBiome(c, c.depth); // a region above his level (game/regions.js)
     const currentBiome = this.getSharedRoomBiome(G.room, current, c.nextBiome);
+    if (G.room) c.nextBiome = currentBiome.id;
 
     let mode = initialTab === 'unbound' && endgameUnlocked(c) ? 'unbound' : 'campaign';
     const canUnbound = endgameUnlocked(c);
@@ -2156,6 +2168,7 @@ export const game = {
     if (G.room) G.room.depth = depth;
     if (depth !== FINAL_DEPTH && (!c.nextBiome || c.nextBiome === 'throne' || regionNeeds(BIOME_BY_ID[c.nextBiome], c.level))) c.nextBiome = drawBiome(c, depth);
     const biome = this.getSharedRoomBiome(G.room, depth, c.nextBiome);
+    if (G.room) c.nextBiome = biome.id;
     let dungeonSeed = G.room ? this.getSharedRoomDungeonSeed(G.room, depth) : (Math.floor(Math.random() * 1e9) + 1);
     if (G.room) {
       const isNew = (!G.room.dungeonSeed || G.room.depth !== depth || G.room.biome !== biome.id);
