@@ -2,7 +2,7 @@
 import { UI } from './ui.js';
 import { sfx } from '../core/audio.js';
 
-export const CURRENT_BUILD_VERSION = '0.2.4';
+export const CURRENT_BUILD_VERSION = '0.2.5';
 
 const STORAGE_VERSION_KEY = 'Velscour_installed_version';
 const STORAGE_MANIFEST_HASH_KEY = 'Velscour_installed_manifest_hash';

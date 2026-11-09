@@ -9,6 +9,7 @@ import { net } from '../net/network.js';
 import { UI } from './ui.js';
 import { HUD } from './hud.js';
 import { TouchUI } from './touch.js';
+import { censorText } from '../net/profanity.js';
 
 export const GameChat = {
   container: null,
@@ -549,8 +550,6 @@ export const GameChat = {
     let initialTop = 0;
 
     const onHeaderPointerDown = (e) => {
-      // Desktop chat is docked in the pickup log's spot: no dragging
-      if (this.isDesktop()) return;
       // Don't drag on mobile touch devices
       if (this.isTouchDevice() || this.isPortraitMobile()) return;
       // Don't drag if clicked on button, tab, badge, input, etc.
@@ -559,7 +558,7 @@ export const GameChat = {
 
       e.preventDefault();
       isDragging = true;
-      this.container.classList.add('is-dragging');
+      this.container.classList.add('is-dragging', 'gc-custom-pos');
 
       const rect = this.container.getBoundingClientRect();
       initialLeft = rect.left;
@@ -608,6 +607,10 @@ export const GameChat = {
     };
 
     this.headerEl.addEventListener('pointerdown', onHeaderPointerDown);
+    this.headerEl.addEventListener('dblclick', (e) => {
+      if (e.target.closest('button, input, select, a, .gc-badge')) return;
+      this.resetLayout();
+    });
 
     // 2. Resizing: Grab bottom right corner
     let isResizing = false;
@@ -617,14 +620,13 @@ export const GameChat = {
     let initialHeight = 0;
 
     const onResizePointerDown = (e) => {
-      if (this.isDesktop()) return;
       if (this.isTouchDevice() || this.isPortraitMobile()) return;
       if (e.button !== undefined && e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
 
       isResizing = true;
-      this.container.classList.add('is-resizing');
+      this.container.classList.add('is-resizing', 'gc-custom-pos');
 
       const rect = this.container.getBoundingClientRect();
       initialLeft = rect.left;
@@ -783,9 +785,16 @@ export const GameChat = {
     } catch (e) { }
   },
 
+  resetLayout() {
+    if (!this.container) return;
+    try { localStorage.removeItem('Velscour_chat_layout'); } catch (e) { }
+    for (const k of ['left', 'top', 'right', 'bottom', 'width', 'height']) this.container.style[k] = '';
+    this.container.classList.remove('gc-custom-pos', 'is-dragging', 'is-resizing');
+    if (this.isDesktop()) this.applyDesktopMode();
+  },
+
   restoreLayout() {
     if (!this.container) return;
-    if (this.isDesktop()) return; // docked in the pickup log's spot
     if (G.touch || document.body.classList.contains('touch')) return;
     try {
       const raw = localStorage.getItem('Velscour_chat_layout');
@@ -800,6 +809,7 @@ export const GameChat = {
         this.container.style.height = `${h}px`;
       }
       if (layout.hasCustomPos && layout.left != null && layout.top != null) {
+        this.container.classList.add('gc-custom-pos');
         const rect = this.container.getBoundingClientRect();
         const left = Math.max(0, Math.min(window.innerWidth - rect.width, layout.left));
         const top = Math.max(0, Math.min(window.innerHeight - rect.height, layout.top));
@@ -900,7 +910,7 @@ export const GameChat = {
       channel: msg.channel || msg.tab || 'system',
       from: msg.from || null,
       to: msg.to || null,
-      text: msg.text || '',
+      text: typeof msg.text === 'string' ? censorText(msg.text) : (msg.text || ''),
       html: msg.html || null,
       color: msg.color || null,
       isSelf: msg.isSelf !== undefined
@@ -1146,7 +1156,7 @@ export const GameChat = {
       // Clear any layout from the old free-floating chat so it stays docked
       this.isMinimized = false;
       this.container.classList.remove('minimized');
-      for (const k of ['left', 'top', 'right', 'bottom', 'width', 'height']) this.container.style[k] = '';
+      this.restoreLayout();
       if (btn) {
         btn.classList.add('gc-pin-btn');
         btn.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M16 3l5 5-2 1-3 3 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 3-3z"/></svg>`;

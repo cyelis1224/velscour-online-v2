@@ -883,8 +883,15 @@ function attachNetListeners() {
       if (typeof data.depth === 'number' && data.depth > 0) {
         const d = clamp(data.depth, 1, FINAL_DEPTH);
         G.room.depth = d;
-        if (G.char && (G.world?.kind === 'town' || G.char.depth < d)) {
-          G.char.depth = d;
+        if (G.char) {
+          if (d > 1) {
+            G.char.cleared[d - 1] = true;
+            G.char.deepest = Math.max(G.char.deepest || 0, d - 1);
+          }
+          if (G.world?.kind === 'town' || G.char.depth < d) {
+            G.char.depth = d;
+          }
+          game.autosave();
         }
       }
       if (data.biome && data.biome !== 'town') {
@@ -925,8 +932,12 @@ function attachNetListeners() {
       game.pick = null;
       game.portalChoice(G.world);
     }
-    if (G.world?.kind === 'town' && data.depth) {
-      UI.log(`Portal in town updated to Depth ${data.depth}!`, '#ffd860');
+    if (G.world?.kind === 'town') {
+      if (document.querySelector('.floor-pick-dialog')) {
+        UI.closeAllDialogs();
+        game.confirmDungeon();
+      }
+      if (data.depth) UI.log(`Portal in town updated to Depth ${data.depth}!`, '#ffd860');
     }
   });
 
@@ -938,7 +949,20 @@ function attachNetListeners() {
 
   net.on('game_dungeon_transition', (data) => {
     if (G.room && data) {
-      if (typeof data.depth === 'number') G.room.depth = data.depth;
+      if (typeof data.depth === 'number' && data.depth > 0) {
+        const d = clamp(data.depth, 1, FINAL_DEPTH);
+        G.room.depth = d;
+        if (G.char) {
+          if (d > 1) {
+            G.char.cleared[d - 1] = true;
+            G.char.deepest = Math.max(G.char.deepest || 0, d - 1);
+          }
+          if (G.world?.kind === 'town' || G.char.depth < d) {
+            G.char.depth = d;
+          }
+          game.autosave();
+        }
+      }
       if (data.biome) G.room.biome = data.biome;
       if (data.seed) G.room.dungeonSeed = data.seed;
       if (data.mixId) G.room.mixId = data.mixId;
@@ -1400,6 +1424,15 @@ export const game = {
   enterTown(fromNetwork = false) {
     const old = G.world;
     const c = G.char;
+    if (c) {
+      const highest = Math.min(FINAL_DEPTH, Math.max(c.depth || 1, this.maxPortalFloor(c)));
+      c.depth = Math.max(c.depth || 1, highest);
+      if (highest > 1) {
+        c.cleared[highest - 1] = true;
+        c.deepest = Math.max(c.deepest || 0, highest - 1);
+      }
+      this.autosave();
+    }
     const tileset = biomeTileSet(TOWN_BIOME);
     keepTileSets(null); // the last dungeon's recoloured set: rebuilt behind the loading screen if we go back
     if (!townTiles) townTiles = makeTownTiles();
@@ -1441,7 +1474,8 @@ export const game = {
     world.portals = [{
       x: t.portal.x, y: t.portal.y, active: true, color: '#ff5020', reach: 2.2,
       get label() {
-        const d = clamp((G.room && G.room.depth != null) ? G.room.depth : (G.char?.depth || 1), 1, FINAL_DEPTH);
+        const highest = Math.min(FINAL_DEPTH, Math.max(G.char?.depth || 1, G.game?.maxPortalFloor?.(G.char) || 1));
+        const d = clamp((G.room && G.room.depth != null) ? G.room.depth : highest, 1, FINAL_DEPTH);
         return `Portal — Depth ${d}`;
       },
       use: () => this.confirmDungeon(),
@@ -1570,9 +1604,11 @@ export const game = {
    */
   confirmDungeon(initialTab = 'campaign') {
     const c = G.char;
+    const maxFloor = Math.min(FINAL_DEPTH, Math.max(c.depth || 1, this.maxPortalFloor(c)));
+    const targetDepth = (G.room && G.room.depth != null) ? clamp(G.room.depth, 1, FINAL_DEPTH) : maxFloor;
+    const current = targetDepth;
+    c.depth = targetDepth;
     if (regionNeeds(BIOME_BY_ID[c.nextBiome], c.level)) c.nextBiome = drawBiome(c, c.depth); // a region above his level (game/regions.js)
-    const current = clamp((G.room && G.room.depth != null) ? G.room.depth : (c.depth || 1), 1, FINAL_DEPTH);
-    const maxFloor = Math.min(FINAL_DEPTH, Math.max(current, this.maxPortalFloor(c)));
     const currentBiome = this.getSharedRoomBiome(G.room, current, c.nextBiome);
 
     let mode = initialTab === 'unbound' && endgameUnlocked(c) ? 'unbound' : 'campaign';
@@ -2020,7 +2056,7 @@ export const game = {
     const c = G.char, old = G.world, biome = BIOME_BY_ID[id];
     if (!c || !old || !biome || this._continuing) return;
     this._continuing = true;
-    const p = G.player, depth = old.depth, carry = p ? old.loot.filter((l) => Math.hypot(l.x - p.x, l.y - p.y) < 14) : [];
+    const p = G.player, depth = old.depth, carry = p && Array.isArray(old.loot) ? old.loot.filter((l) => Math.hypot(l.x - p.x, l.y - p.y) < 14) : [];
     c.nextBiome = id;
     if (id === 'snowy_summit' && c.summitRuns) delete c.summitRuns[depth];   // a fresh range above a fresh summit
     if (G.room && G.room.biome !== id) {
@@ -2112,6 +2148,11 @@ export const game = {
     const c = G.char;
     const depth = clamp((G.room && G.room.depth != null) ? G.room.depth : (c.depth || 1), 1, FINAL_DEPTH);
     c.depth = depth;
+    if (depth > 1) {
+      c.cleared[depth - 1] = true;
+      c.deepest = Math.max(c.deepest || 0, depth - 1);
+    }
+    this.autosave();
     if (G.room) G.room.depth = depth;
     if (depth !== FINAL_DEPTH && (!c.nextBiome || c.nextBiome === 'throne' || regionNeeds(BIOME_BY_ID[c.nextBiome], c.level))) c.nextBiome = drawBiome(c, depth);
     const biome = this.getSharedRoomBiome(G.room, depth, c.nextBiome);
@@ -2517,7 +2558,12 @@ export const game = {
           sfx('portal');
           if (G.world && G.world.depth) {
             G.char.depth = G.world.depth;
+            if (G.world.depth > 1) {
+              G.char.cleared[G.world.depth - 1] = true;
+              G.char.deepest = Math.max(G.char.deepest || 0, G.world.depth - 1);
+            }
             if (G.room) G.room.depth = G.world.depth;
+            this.autosave();
           }
           this.enterTown();
         }
@@ -2660,15 +2706,25 @@ export const game = {
       return;
     }
     const c = G.char, next = Math.min(FINAL_DEPTH, world.depth + 1);
+    if (c) {
+      c.cleared[world.depth] = true;
+      c.deepest = Math.max(c.deepest || 0, world.depth);
+      c.depth = next;
+      this.brokeThrough(world.depth);
+      this.autosave();
+    }
 
     // When one player makes a selection at the exit portal, make it the default choice so other players enter the same map
     if (G.room && G.room.depth === next && G.room.biome && G.room.dungeonSeed) {
       const chosenBiome = BIOME_BY_ID[G.room.biome] || BIOME_BY_ID.catacombs;
       const go = (town) => {
         this.pick = null;
+        c.cleared[world.depth] = true;
+        c.deepest = Math.max(c.deepest || 0, world.depth);
         c.depth = next;
         c.nextBiome = chosenBiome.id;
         takeBiome(c, chosenBiome.id);
+        this.autosave();
         if (Auto.on) Auto.transitT = 3;
         if (town) {
           if (opts.auto) UI.log('Auto-play heads back to town to trade.', '#8fe0ff');
@@ -2709,7 +2765,10 @@ export const game = {
     const go = (town) => {
       this.pick = null;
       const cd = cards[sel];
+      c.cleared[world.depth] = true;
+      c.deepest = Math.max(c.deepest || 0, world.depth);
       c.depth = next; c.nextBiome = cd.id; takeBiome(c, cd.id);
+      this.autosave();
       let dungeonSeed = Math.floor(Math.random() * 1e9) + 1;
       const mix = mixPartner(cd.biome, () => new RNG(dungeonSeed ^ 0x3d17a892).next());
       const mixId = mix ? mix.id : null;
@@ -3553,8 +3612,8 @@ export const game = {
         else G.gameChat.show();
       }
     }
-    if (G.hurtFlash > 0) G.hurtFlash = Math.max(0, G.hurtFlash - dt * 1.5);
-    if (G.flash > 0) G.flash = Math.max(0, G.flash - dt * 2);
+    if (G.hurtFlash > 0) G.hurtFlash = Math.max(0, G.hurtFlash - dt * 2.5);
+    if (G.flash > 0) G.flash = Math.max(0, G.flash - dt * 3.5);
     HUD.update(dt);
     if (G.touch) TouchUI.update();
     // hovering things -> cursor

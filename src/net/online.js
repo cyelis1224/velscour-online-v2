@@ -3,6 +3,7 @@ import { getServerBaseUrl } from '../ui/updater.js';
 import { newCharData, migrate } from '../game/save.js';
 import { endgame } from '../game/endgame.js';
 import { adoptOnlineReliquary, setReliquaryOnlineHooks, resetReliquaryCache } from '../game/reliquary.js';
+import { isProfaneName } from './profanity.js';
 
 const SESSION_KEY = 'dagyr_online_session_v1';
 
@@ -193,6 +194,9 @@ export async function checkOnlineCharName(name) {
   if (trimmed.length > 18) {
     return { available: false, name: trimmed, error: 'Character name must be 18 characters or fewer.' };
   }
+  if (isProfaneName(trimmed)) {
+    return { available: false, name: trimmed, error: 'Character name contains inappropriate or prohibited language.' };
+  }
   const data = await apiRequest(`/api/online/check-name?name=${encodeURIComponent(trimmed)}`, {
     method: 'GET',
   });
@@ -205,6 +209,9 @@ export async function checkOnlineCharName(name) {
 
 export async function createOnlineCharacter(classId, name) {
   const trimmedName = String(name || '').trim();
+  if (isProfaneName(trimmedName)) {
+    throw new Error('Character name contains inappropriate or prohibited language.');
+  }
   const baseChar = newCharData(classId, trimmedName);
   baseChar.isOnline = true;
   if (currentAccount && currentAccount.id) {

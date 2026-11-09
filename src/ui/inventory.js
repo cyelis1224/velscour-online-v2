@@ -18,12 +18,14 @@ import { tabRow, sheetButtons, useSheet, unloadTab } from './sheets.js';
 import { openBannerCustomizer } from './bannercustomizer.js';
 import { openSeal } from './sealed.js';
 import { glyphOf } from '../data/relics.js';
-import { noteFind } from '../game/reliquary.js';
+import { noteFind, openTabs } from '../game/reliquary.js';
 import { marksTotal, marksFree, capXp } from '../game/marks.js';
 import { bagRows, nextRowCost, buyBagRow, BAG_MAX_ROWS, gemBagRows, nextGemBagRowCost, canBuyGemBagRow, buyGemBagRow, GEM_BAG_MAX_ROWS } from '../data/bag.js';
 import { heresyRankOf } from '../game/heresies.js';
 import { endgameUnlocked } from '../game/endgame.js';
 import { sparkle, floatText } from '../gfx/vfx.js';
+import { Stash } from './stash.js';
+import { Reliquary } from './reliquary.js';
 
 export const DOLL = { head: [2, 1], weapon: [1, 2], body: [2, 2], offhand: [3, 2], hands: [1, 3], legs: [2, 3], feet: [2, 4], ring1: [4, 1], ring2: [4, 2], ring3: [4, 3], ring4: [4, 4] };
 
@@ -673,8 +675,8 @@ function vanityRow() {
 function removeGemsAction(c, it) {
   if (!it || it.type !== 'gear' || !it.gems || !it.gems.length) return null;
   const cost = unsocketCost(it);
-  const gemList = c.gemBag || c.bag;
-  const needed = new Set(it.gems.filter((g) => !gemList.some((b) => b && b.type === 'gem' && b.gem === g.gem && b.tier === g.tier)).map((g) => `${g.gem}:${g.tier}`)).size;
+  const gemList = c.gemBag || c.bag || [];
+  const needed = new Set((it.gems || []).filter((g) => !gemList.some((b) => b && b.type === 'gem' && b.gem === g.gem && b.tier === g.tier)).map((g) => `${g.gem}:${g.tier}`)).size;
   const free = gemList.filter((b) => !b).length;
   if (c.gold < cost || free < needed) return null;
   return {
@@ -952,6 +954,29 @@ export function renderInventory(body) {
   sortBtn.onclick = () => { sortBag(); sfx('ui'); };
   actions.appendChild(sortBtn);
 
+  if (Stash.active) {
+    const stashAllBtn = el('button', 'btn small', 'Stash All');
+    stashAllBtn.title = 'Move all unlocked items from backpack into storage chest';
+    stashAllBtn.onclick = () => { sfx('ui'); Stash.stashAll('bag'); };
+    actions.appendChild(stashAllBtn);
+  }
+
+  if (Reliquary.active && Reliquary.tab < openTabs()) {
+    const vaultName = ['I', 'II', 'III', 'IV', 'V', 'VI'][Reliquary.tab] || (Reliquary.tab + 1);
+    const stashAllBtn = el('button', 'btn small', 'Stash All');
+    stashAllBtn.title = `Move all unlocked items from backpack into Vault ${vaultName}`;
+    stashAllBtn.onclick = () => { sfx('ui'); Reliquary.stashAll('bag'); };
+    actions.appendChild(stashAllBtn);
+  }
+
+  if (G.ui.vendor && G.ui.vendor.active) {
+    const sellAll = el('button', 'btn small', 'Sell all');
+    sellAll.title = 'Sell every piece of gear in your bag (gems and sealed treasures are kept). Asks once.';
+    sellAll.disabled = !c.bag.some((b) => b && b.type === 'gear' && !b.sealed);
+    sellAll.onclick = () => { sfx('ui'); G.ui.vendor.sellAll(); };
+    actions.appendChild(sellAll);
+  }
+
   const statsBtn = el('button', 'btn small', `Stats${c.statPoints > 0 ? ` [${c.statPoints}]` : ''}`);
   statsBtn.title = 'Open Character & Stats (C) to view equipment and attributes';
   statsBtn.onclick = () => {
@@ -981,6 +1006,30 @@ export function renderInventory(body) {
   sortGemsBtn.title = 'Sort gems and runes by tier and grade';
   sortGemsBtn.onclick = () => { sortGemBag(); sfx('ui'); };
   gemActions.appendChild(sortGemsBtn);
+
+  if (Stash.active) {
+    const stashGemsBtn = el('button', 'btn small', 'Stash Gems');
+    stashGemsBtn.title = 'Move all unlocked gems from Gem Bag into storage chest';
+    stashGemsBtn.onclick = () => { sfx('ui'); Stash.stashAll('gemBag'); };
+    gemActions.appendChild(stashGemsBtn);
+  }
+
+  if (Reliquary.active && Reliquary.tab < openTabs()) {
+    const vaultName = ['I', 'II', 'III', 'IV', 'V', 'VI'][Reliquary.tab] || (Reliquary.tab + 1);
+    const stashGemsBtn = el('button', 'btn small', 'Stash Gems');
+    stashGemsBtn.title = `Move all unlocked gems from Gem Bag into Vault ${vaultName}`;
+    stashGemsBtn.onclick = () => { sfx('ui'); Reliquary.stashAll('gemBag'); };
+    gemActions.appendChild(stashGemsBtn);
+  }
+
+  if (G.ui.vendor && G.ui.vendor.active) {
+    const sellGemsBtn = el('button', 'btn small', 'Sell gems');
+    sellGemsBtn.title = 'Sell all unlocked gems in your Gem Bag. Asks once.';
+    sellGemsBtn.disabled = !c.gemBag || !c.gemBag.some((b) => b && b.type === 'gem' && !b.locked);
+    sellGemsBtn.onclick = () => { sfx('ui'); G.ui.vendor.sellAllGems(); };
+    gemActions.appendChild(sellGemsBtn);
+  }
+
   gemTitleRow.appendChild(gemActions);
   mid.appendChild(gemTitleRow);
 
@@ -1013,13 +1062,6 @@ export function renderInventory(body) {
   const potionsSpan = el('span', 'dim');
   potionsSpan.innerHTML = `· Potions: <span style="color:#ff6060">${c.potions.hp}</span> / <span style="color:#6a8aff">${c.potions.mp}</span> / <span style="color:#c060ff">${c.potions.rejuv}</span> / <span style="color:#ffa020">${c.potions.fury}</span>`;
   info.appendChild(potionsSpan);
-  if (G.ui.vendor && G.ui.vendor.active) {
-    const sellAll = el('button', 'btn small', 'Sell all');
-    sellAll.title = 'Sell every piece of gear in your bag (gems and sealed treasures are kept). Asks once.';
-    sellAll.disabled = !c.bag.some((b) => b && b.type === 'gear' && !b.sealed);
-    sellAll.onclick = () => { sfx('ui'); G.ui.vendor.sellAll(); };
-    info.appendChild(sellAll);
-  }
   mid.appendChild(info);
   wrap.appendChild(mid);
   body.appendChild(wrap);
@@ -1077,7 +1119,9 @@ function gemBagRowButton(c) {
 
 export function sortBag() {
   const c = G.char;
-  const items = c.bag.filter(Boolean);
+  if (!c) return;
+  if (!Array.isArray(c.bag)) c.bag = Array(60).fill(null);
+  const items = (c.bag || []).filter(Boolean);
   const rank = (it) => (it.type === 'gear' ? 0 : it.type === 'sheet' ? 1 : 2);
   items.sort((a, b) => rank(a) - rank(b) || (b.rarity || 0) - (a.rarity || 0) || (a.slot || '').localeCompare(b.slot || '') || (b.ilvl || 0) - (a.ilvl || 0));
   const bagLen = Math.max(60, c.bag.length);

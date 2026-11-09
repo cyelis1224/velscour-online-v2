@@ -6,6 +6,7 @@ import { itemLook, gearSrc } from '../core/gearart.js';
 import { heldLook } from '../gfx/heldart.js';
 import { sfx } from '../core/audio.js';
 import { getOnlineAccount } from './online.js';
+import { censorText } from './profanity.js';
 
 export function serializeGearItem(item, slot, classId = null) {
   if (!item) return null;
@@ -102,6 +103,7 @@ class NetworkManager {
     this.reconnectTimer = null;
     this.lastPingTime = 0;
     this.lastPongTime = 0;
+    this.ping = null;
     this.friends = [];
 
     if (typeof BroadcastChannel !== 'undefined') {
@@ -263,6 +265,11 @@ class NetworkManager {
       try { data = JSON.parse(event.data); } catch (e) { return; }
       if (data.type === 'pong') {
         this.lastPongTime = Date.now();
+        if (this.lastPingTime > 0) {
+          const rtt = Math.max(1, this.lastPongTime - this.lastPingTime);
+          this.ping = this.ping != null ? Math.round(this.ping * 0.6 + rtt * 0.4) : rtt;
+          this.emit('ping', this.ping);
+        }
         return;
       }
       this.handleServerMessage(data);
@@ -298,7 +305,7 @@ class NetworkManager {
         this.lastPingTime = Date.now();
         this.send({ type: 'ping' });
       }
-    }, 12000);
+    }, 3000);
   }
 
   scheduleReconnect() {
@@ -801,17 +808,18 @@ class NetworkManager {
     if (this.connected) {
       this.send({ type: 'chat', text });
     } else {
+      const cleanText = censorText(text);
       // Local echo in simulated mode
       this.emit('chat', {
         type: 'chat',
         from: this.charData?.name || 'Hero',
-        text: text,
+        text: cleanText,
         color: '#e9dcc4',
       });
       if (this.broadcastChannel) {
         this.broadcastChannel.postMessage({
           fromId: this.myId,
-          msg: { type: 'chat', from: this.charData?.name || 'Hero', text, color: '#e9dcc4' },
+          msg: { type: 'chat', from: this.charData?.name || 'Hero', text: cleanText, color: '#e9dcc4' },
         });
       }
     }

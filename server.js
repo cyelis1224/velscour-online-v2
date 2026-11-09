@@ -6,6 +6,12 @@ const zlib = require('zlib');
 const crypto = require('crypto');
 const { WebSocketServer, WebSocket } = require('ws');
 const { buildUpdateManifest } = require('./tools/manifest');
+const {
+  isProfane,
+  censorText,
+  isProfaneName,
+  validateCharName,
+} = require('./src/net/profanity.cjs');
 
 const PORT = parseInt(process.env.PORT, 10) || 8124;
 const ROOT = __dirname;
@@ -204,20 +210,6 @@ function validateEmail(email) {
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   if (!re.test(str)) return { valid: false, error: 'Please enter a valid email address.' };
   return { valid: true, email: str, emailLower: str.toLowerCase() };
-}
-
-function validateCharName(rawName) {
-  const name = String(rawName || '').trim().replace(/\s+/g, ' ');
-  if (name.length < 2) {
-    return { valid: false, name, error: 'Character name must be at least 2 characters.' };
-  }
-  if (name.length > 18) {
-    return { valid: false, name, error: 'Character name must be 18 characters or fewer.' };
-  }
-  if (!/^[A-Za-z0-9][A-Za-z0-9 _'-]*$/.test(name)) {
-    return { valid: false, name, error: 'Name may only contain letters, numbers, spaces, hyphens, or apostrophes.' };
-  }
-  return { valid: true, name, nameLower: name.toLowerCase(), error: null };
 }
 
 function isCharNameAvailable(rawName, excludeCharId = null) {
@@ -1058,81 +1050,20 @@ const server = http.createServer((req, res) => {
       serverTime: Date.now(),
       buildTime: latestBuild,
       changelog: [
-        "8 New Playable Classes: Play as the Monk, Dragoon, Totem Master, Death Knight, Arcane Sorcerer (Astronomer), Slime Lord, Boomerang Knight, and Dragon Knight — expanding the roster to 17 unique classes!",
-        "17 Bespoke Class Ultimates: Unique kill-charged power moves for all 17 classes with dynamic primary attribute scaling, multi-phase isometric animations, and procedural vector icons.",
-        "Multiplayer Ultimate Skill Synchronization: Party members now see remote player Ultimate casts in real time, complete with synchronized ground sigils, celestial VFX, screen shake, and combat log announcements.",
-        "New Regions & Biomes: Explore 10 Castle Overworld variants, Sea of Sand Dune variants with 3D Pyramids, Alpine / Mountainside snow drifts, and Snowy Summit with deterministic party synchronization.",
-        "Boss Arena Mid-Fight Join: Players arriving at sealed boss gates can now accept an entrance prompt to warp directly into active boss encounters with VFX and party notifications.",
-        "Title Screen & Boss Polish: Restored retro pixelated parallax blinking eyes to the title screen and fixed Demon Lord Velscour boss spawn art resolution.",
-        "Travelling Merchant in Town: Added Malakor the Ash-Wanderer just off the town square. Trade unspent Infernal Marks for Sealed Chests (Mystery Casket, Armament Coffer, Armor Vault, and Abyssal Reliquary with guaranteed Legendary/Mythic loot) that unseal via the HUD or backpack.",
-        "Mountainside Biome Overworld Overhaul: Complete integration of high-altitude rugged terrain, snow drifts, mountain goats, peak temples, avalanche hazards, and mobile performance optimizations.",
-        "The Pirate Seas Naval Expansion: 12 unique naval scenarios (Flight Deck, Ninth Bell, The Lightless, Wrecker's Reef, Harpoon Weather, Lashed Together, Fire Below, Across the Plank, Three Chains, Red Tide, Sea Coming Over, Dawnwake) with 3D ship models and tactical naval battles on Bellmourn's waters.",
-        "Diablo-Style Cast Lock & Auto-Cast Summons: Responsive casting lock preventing interruption during ability sequences and automated cast logic for persistent pet and minion management.",
-        "Infernal Marks Storage Expansions: Account-wide row expansions for Backpack, Gem Bag, Stash, Jewel Box, and Reliquary unlockable using free Infernal Marks.",
-        "Fullscreen Loading Screen & Spawn Polish: Dedicated loading transition with game tip carousel, progress bar, and graceful player/camera spawn stabilization.",
-        "Minimizable Portrait & Desktop Chat Dock: Compact dockable chat overlay with unread activity badges, customizable channels, and responsive viewport layout.",
-        "Bespoke Class Ultimates Animations: Multi-phase visual animations for all 9 class ultimates (Paladin Divine Smite, Barbarian Cataclysm, Lancer Gungnir's Fall, Ranger Storm of Shafts, Gunner Siege Artillery, Bard Grand Crescendo, Wizard Supernova, Necromancer Grave Eruption, Carrion Witch Feast of Crows) featuring rotating ground sigils, celestial spears, subterranean magma fissures, falling arrow storms, artillery shells, musical staff spirals, cosmic singularities, and bone pikes",
-        "Class Ultimates Major Update: Unique kill-charged 1-shot Ultimate power move for all 9 classes scaled off primary attributes with custom vector icons, distinct VFX, and SFX",
-        "Universal Gothic Fantasy Scrollbars: slim, stylistic scrollbars matching dark parchment and bronze aesthetics across the lobby, inventory, shops, stash, character screens, and chat",
-        "Lancer Orbiting Shield Visual Clarity: eliminated particle clutter and blinding additive fire bloom across all 7 Bulwark orbiting shield abilities (Tower Shield, Storm Bulwark, Burning Aegis, Frost Rampart, Holy Citadel, Shield Storm, Bastion of Ten), ring augments, and stances so shields, monsters, and combat remain crystal clear",
-        "Weapon & Off-hand Archetype Stat Requirements: Strength required for blunt weapons, spears, swords, axes, and shields; Dexterity required for bows, crossbows, pistols, instruments, and quivers; Intellect required for staves, wands, scythes, orbs, and tomes",
-        "Bard Music Sheet Equipping: one-click 'Lock & Equip' from inventory, sheet editor, or drag-and-drop straight into Tab slots with 'Unlock to Edit' support",
-        "Acoustic Plucked Lute Audio: redesigned Bard instrument sampler and procedural notes with warm acoustic string body resonance, plectrum attack transient, and harmonic damping",
-        "In-Game Differential Android OTA Updater: checks per-file SHA-256 hashes and downloads only modified/new game files directly in-game without downloading or reinstalling the full APK",
-        "Level Cap 3000 & Uncapped Infernal Marks: hero progression extended to level 3000 across Endless Torment depths up to D6600, with uncapped Infernal Marks (Vitality life multiplier, Precision crit chance & crit damage, Fortune extra drops, Haste rift time)",
-        "Skill Macros (R E Y U O & Touch M1-M5): 5 customizable skill macro slots per hero with 'Keep up' automatic buff recast when enemies are nearby and full online party synchronization",
-        "Thorns Scaling & Weapon Base Display: endgame thorns scale with hero fortitude and attacker level; normalized weapon damage numbers and added Weapon Base to the Character Sheet",
-        "Compact Big-Number Notation & Gold Scaling: added Qa through Dc and scientific notation suffixes along with high-depth logarithmic gold scaling",
-        "Velscour Unbound & Sealed Treasure Updates: Unbound prioritizes uncollected Heirlooms + 3 Abyssal items + 20 Infernal Marks; ring augments display calculated hit damage; sealed items blocked from socketing/upgrading/enchanting until unsealed",
-        "Mobile portrait mode redesign with upward-expanding bottom-docked chat, flank special action buttons, repositioned ATK button, enlarged 108px minimap, and Android fullSensor dynamic rotation",
-        "Organized Settings dialog into 5 clean category tabs (General, Audio, Graphics, HUD & UI, Auto-Play) with instant responsive navigation across desktop and mobile",
-        "Multiplayer Bard Music Synchronization: live melodic note playback, rhythm audio, cadences, staff notation, and custom sheet titles replicated to all party members",
-        "Vanity Appearance Slots: wear any armor or helmet look while retaining full combat stats, set bonuses, and sockets with 'Hide Helmet' support",
-        "Death Knight Flying Sword Outlines: flying greatsword inherits hero's pale-gold rim outline and see-through wall/spell occlusion shaders",
-        "Lobby & Paperdoll Vanity + Held Gear: character pedestal previews in the online lobby and hero selection screens now display vanity outfits and held weapons and off-hands",
-        "Bard Music Sheets: paste tablature or note names, lock sheets, and load them into 5 Tab slots under paper doll to play songs during combat",
-        "Death Knight 3D Flying Greatsword: equipped two-handed blade flies beside hero and rests on back with 50 unique greatsword designs",
-        "Fixed castle drawbridges across all maps so lowered bridges rest flush against the stone pier without floating",
-        "Hero damage scale: combat and sheet numbers scaled to hero life for clear, readable figures without altering underlying damage mechanics",
-        "Auto-play AI evasion: intelligently steps out of Great Sand Wyrm charge paths and ground quakes",
-        "Major expansion: Held 3D weapons & off-hands for all classes with 50 unique designs per weapon and elemental particle glows",
-        "10 Castle Overworld variants with custom layouts, stones, moats, and story dialogue",
-        "10 Sea of Sand Dune variants and massive 3D pyramids with deep burial chamber raid encounters",
-        "Integrated VELSCOUR DEFENSE tower defense card campaign behind the town Riftgate",
-        "Synchronized multiplayer world generation for Castle and Dune variants to ensure 100% party determinism",
-        "Host-authoritative wave triggers and spawn timers preventing multiplayer encounter desynchronization",
-        "Mobile pathfinding and typed array mask optimizations for smooth 60 FPS performance",
-        "3D bone gibs and gore physics overhaul",
-        "Vendored Three.js and custom canvas filter fallback for Safari/iOS compatibility",
-        "Fixed multiplayer dungeon progression: exit portal now reliably unseals for all party members when the floor champion/guardian is slain, including remote and late-joining players",
-        "Fine-tuned UI styling: experience bar placement, Velscour contact skull positioning, and inventory alignment",
-        "Restored missing inventory stats grid, attribute allocation rows, and item rarity styles",
-        "Fixed HP and MP numerical text display on life and mana orbs in compact mobile views (portrait & landscape)",
-        "Fixed sealed item opening panel styling, responsiveness, and reel animations on mobile & touch displays",
-        "Fine-tuned mobile touch controls and UI pointer-events layering",
-        "Disabled pausing in online multiplayer across all menus, modals, and hit-stops to eliminate client and server desync",
-        "Real-time simulation catch-up and background tab heartbeat to preserve synchronization during window unfocus",
-        "Netcode smoothness optimization: TCP_NODELAY, dead-reckoning extrapolation, and 60 FPS monster interpolation",
-        "Equipment delta compression reducing continuous player state bandwidth by 85%",
-        "Full visual replication for remote player skills, animations, hazards, and Barbarian Leap 3D arc",
-        "Persistent killed monsters across late-joining party members entering active dungeon depths",
-        "Room capacity capped to 4 players for optimal party performance",
-        "Full multiplayer synchronization for champion monsters, affixes, auras, and stats",
-        "Synchronized boss awakening across all peers and shared boss HUD health bar",
-        "Multiplayer ambush waves targeting any active party member with matching champion spawns",
-        "Resolved town ghost characters and duplication bug on room leave and rejoin",
-        "Deterministic raid boss generation and modifiers across all peers on raid depths",
-        "Shared multiplayer Heresies: portal activator sets party Heresies and biomes for deterministic enemy synchronization",
-        "Resolved multiplayer monster authority symmetry and split-monster replication",
-        "Enforced version synchronization for Online Multiplayer mode with direct one-click update prompts",
-        "Lobby auto-reconnect on foreground resume, WebSocket keepalive heartbeat, and 90-second host room grace period",
-        "Endgame expansion: Heresies of the Hollow, Abyssal Rifts, Velscour Unbound, and Infernal Marks",
-        "Global Abyssal Rift leaderboard and honour board integration",
-        "Interactive mobile pinch-to-zoom gesture support with smooth camera zoom scaling",
-        "NPC-style walking bounce animation with organic squash, stretch, stride sway, and idle breathing",
-        "Dedicated round buttons for Smite and Madness with procedural canvas artwork and circular SVG charge rings",
-        "Streamlined bottom-left special ability action cluster positioned cleanly beside the HP orb",
-        "Anti-cache automatic updater delivery for Android APK and desktop platforms"
+        "1-Click 'Stash All' for Storage Chest & Reliquary: Quickly deposit all unlocked backpack gear and gems into your personal storage chest or active Reliquary vault tab with single-click action buttons.",
+        "Reliquary Vault Sorting & Header Actions: Added 'Sort by type', 'Sort by rarity', and 'Stash All' header controls to every unlocked Reliquary vault tab.",
+        "Shop & Vendor UI Overhaul: Relocated 'Sell all' (gear) and 'Sell gems' buttons up to the section header action rows beside the Sort buttons for quick, ergonomic inventory selling.",
+        "Desktop Resizable & Draggable Chat: The interactable chat window can now be freely dragged across the screen and resized horizontally and vertically with persistent positioning.",
+        "Live Ping & Latency Monitor: Added a real-time multiplayer network latency indicator (ping in ms) to the HUD.",
+        "Chat & Character Name Filter: Full multi-stage profanity filtering for public chat communication and hero name creation.",
+        "Multiplayer Town Portal Floor Sync: Fixed town portal so descending through dungeon depths reliably tracks and updates to the party's highest reached floor.",
+        "Macro Buff & Proximity Safety: Fixed 'Keep Up' macros randomly triggering after blinking or teleporting in multiplayer by enforcing enemy range and combat readiness.",
+        "Town Auto-Play Safety: Auto-play is safely paused while in town after returning from dungeons until a new portal destination is explicitly selected.",
+        "Castle & Blackfen Hold Map Polish: Fixed drawbridge moat textures disappearing when gates open and eliminated residual wall top textures on opened doorways.",
+        "Caverns Waterfall Boss Soft-Lock Fix: Fixed boss spawning trigger in the Caverns so teleporting or blinking over the waterfall reliably awakens the boss.",
+        "Loot Filter Crash Fix: Fixed 'Cannot read properties of undefined (reading filter)' error during custom loot filtering.",
+        "Cutscene Combat Freeze: Minions, pets, summons, and class signatures freeze during cinematics and will no longer auto-target environmental clutter.",
+        "Dungeon Lighting Prioritization: Prioritized active dungeon torch sconces to eliminate lighting starvation in deep labyrinthine levels."
       ],
       downloads: {
         android: {
@@ -1565,6 +1496,7 @@ function handleWhisper(ws, clientData, text) {
     ws.send(JSON.stringify({ type: 'chat', kind: 'system', text: 'Usage: /w <playername> <message>', color: '#ff6060', time: Date.now() }));
     return;
   }
+  const cleanWhisper = censorText(whisperText);
   let foundWs = null;
   let foundData = null;
   for (const [otherWs, otherData] of clients) {
@@ -1583,7 +1515,7 @@ function handleWhisper(ws, clientData, text) {
       from: clientData.name,
       fromId: clientData.id,
       to: foundData.name,
-      text: whisperText,
+      text: cleanWhisper,
       color: '#d870ff',
       time: Date.now(),
     };
@@ -1593,7 +1525,7 @@ function handleWhisper(ws, clientData, text) {
       from: clientData.name,
       fromId: clientData.id,
       to: foundData.name,
-      text: whisperText,
+      text: cleanWhisper,
       color: '#d870ff',
       time: Date.now(),
     };
@@ -2200,7 +2132,7 @@ wss.on('connection', (ws) => {
         }
 
         if (text.startsWith('/me ')) {
-          const action = text.slice(4).trim();
+          const action = censorText(text.slice(4).trim());
           broadcastToChannel(clientData.channel || DEFAULT_CHANNEL, {
             type: 'chat',
             kind: 'emote',
@@ -2213,7 +2145,7 @@ wss.on('connection', (ws) => {
 
         if (text.startsWith('/p ') || text.startsWith('/party ')) {
           if (clientData.room) {
-            const pText = text.replace(/^\/(?:p|party)\s+/, '').trim();
+            const pText = censorText(text.replace(/^\/(?:p|party)\s+/, '').trim());
             broadcastToRoom(clientData.room, {
               type: 'game_party_chat',
               fromId: clientData.id,
@@ -2240,7 +2172,7 @@ wss.on('connection', (ws) => {
           from: clientData.name,
           classId: clientData.classId,
           level: clientData.level,
-          text: text,
+          text: censorText(text),
           color: '#e9dcc4',
           time: Date.now(),
         });
@@ -2282,6 +2214,10 @@ wss.on('connection', (ws) => {
 
       case 'create_room': {
         const rawName = String(msg.name || '').trim();
+        if (rawName && isProfaneName(rawName)) {
+          ws.send(JSON.stringify({ type: 'room_error', message: 'Game name contains inappropriate or prohibited language.' }));
+          break;
+        }
         const roomName = (rawName || `${clientData.name}'s Game`).slice(0, 24);
         const password = String(msg.password || '').trim();
         const maxPlayers = Math.max(2, Math.min(4, parseInt(msg.maxPlayers, 10) || 4));
@@ -2852,7 +2788,7 @@ const isValidKilledMonsterId = (id) => (typeof id === 'string' && id.length > 0)
               from: clientData.name,
               classId: clientData.classId,
               level: clientData.level,
-              text: lMsg,
+              text: censorText(lMsg),
               color: '#e9dcc4',
               time: Date.now(),
             });
@@ -2861,7 +2797,8 @@ const isValidKilledMonsterId = (id) => (typeof id === 'string' && id.length > 0)
         }
 
         if (!clientData.room) break;
-        const partyText = text.startsWith('/p ') ? text.slice(3).trim() : (text.startsWith('/party ') ? text.slice(7).trim() : text);
+        const partyRaw = text.startsWith('/p ') ? text.slice(3).trim() : (text.startsWith('/party ') ? text.slice(7).trim() : text);
+        const partyText = censorText(partyRaw);
         broadcastToRoom(clientData.room, {
           type: 'game_party_chat',
           fromId: clientData.id,

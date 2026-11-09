@@ -75,8 +75,7 @@ export function attachTitleFx(screen, logoEl, els = {}) {
       light(true);
     }
   }
-  function begin() {   // called inside the tap: start logo fade and music immediately
-    if (phase !== 'gate') return;
+  function startIntroSequence() {
     phase = 'intro';
     priming = false;
     screen.classList.remove('title-gated');
@@ -88,6 +87,18 @@ export function attachTitleFx(screen, logoEl, els = {}) {
     playMusic('title', { delay: 0, at: startT, force: true });
     if (skipAfterCredits) light(true);
   }
+  function begin() {   // called inside the tap: start logo fade and music immediately
+    if (phase !== 'gate') return;
+    if (els.onAwaken && !window.VELSCOUR_TEST_MENU) {
+      phase = 'warning';
+      screen.classList.remove('title-gated');
+      els.onAwaken(() => {
+        startIntroSequence();
+      });
+      return;
+    }
+    startIntroSequence();
+  }
   function light(instant) {   // the hit: the logo bursts into flame and the menu appears
     if (phase === 'lit') return;
     phase = 'lit'; burstAt = performance.now();
@@ -97,7 +108,7 @@ export function attachTitleFx(screen, logoEl, els = {}) {
     if (ready) burst();
   }
   function skip() {
-    if (phase === 'lit') return;
+    if (phase === 'lit' || phase === 'warning') return;
     if (phase === 'gate') {
       begin();
       return;
@@ -114,6 +125,7 @@ export function attachTitleFx(screen, logoEl, els = {}) {
   // iOS only lets audio start from a touch's *end* (pointerup), never its pointerdown, so a touch opens the gate on
   // release; a mouse button or key opens it on press. Every input also re-tries the unlock.
   const onInput = (e) => {
+    if (phase === 'warning') return;
     if (e.type !== 'keydown' && (e.pointerType === 'mouse') !== (e.type === 'pointerdown')) return;
     initAudio();
     if (phase === 'gate') begin(); else skip();

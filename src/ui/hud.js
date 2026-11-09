@@ -13,6 +13,7 @@ import { drawMinimap } from '../game/render.js';
 import { assign, SLOT_LABELS } from './skills.js';
 import { elem } from '../gfx/vfx.js';
 import { updateAutomapPartyRoster } from './partyroster.js';
+import { net } from '../net/network.js';
 import { pickTaunt } from '../data/taunts.js';
 
 const TAUNT_KEY = 'Velscour_taunts_v1'; // Velscour's level-up deck: the last mood and the lines already shown
@@ -759,6 +760,20 @@ export const HUD = {
     set('hsv', fmtDmg(Meter.avg()), (v) => { $('#hs-avg').textContent = v; });
     set('hsk', fmtInt(c.kills || 0), (v) => { $('#hs-kills').textContent = v; });
     set('hsx', fmtInt(c.deaths || 0), (v) => { $('#hs-deaths').textContent = v; });
+    const pingRow = $('#hs-ping-row'), pingEl = $('#hs-ping');
+    if (pingRow && pingEl) {
+      if (net && net.connected) {
+        pingRow.classList.remove('hidden');
+        const p = net.ping;
+        const txt = p != null ? `${p} ms` : '…';
+        set('hsp', txt, (v) => {
+          pingEl.textContent = v;
+          pingEl.style.color = p == null ? '#aaa' : p < 80 ? '#40ff80' : p < 160 ? '#ffd040' : '#ff5544';
+        });
+      } else {
+        pingRow.classList.add('hidden');
+      }
+    }
     // a bar per second for the last 30 s, with the average as a gold line
     const cv = $('#hs-spark'), g = cv.getContext('2d'), W = cv.width, H = cv.height;
     const secs = Meter.perSecond(30), avg = Meter.avg(), top = Math.max(1, avg * 1.6, ...secs);

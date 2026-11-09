@@ -4,6 +4,43 @@ All notable changes to Velscour Online are documented in this file.
 
 ---
 
+## [0.2.5] - 2026-11-08
+
+### Added
+- **1-Click 'Stash All' for Storage Chest & Reliquary**:
+  - Added "Stash All" (backpack items) and "Stash Gems" (Gem Bag) to both the Town Storage Chest and Reliquary.
+  - Added Reliquary Vault header controls: "Stash All", "Sort by type", and "Sort by rarity".
+- **Shop & Vendor UI Polish**:
+  - Relocated "Sell all" (gear) and "Sell gems" buttons to the top action header of Backpack and Gem Bag respectively next to the Sort buttons.
+  - Added bulk gem selling confirmation with stack totals and gold payout.
+- **Desktop Draggable & Resizable Chat Window**:
+  - Interactable desktop chat can now be dragged anywhere on screen and resized horizontally and vertically with persistent layout saving.
+- **HUD Live Network Latency (Ping)**:
+  - Added real-time ping monitor to the multiplayer HUD.
+- **Chat & Character Name Profanity Filter**:
+  - Comprehensive multi-stage profanity filtering for public multiplayer chat and character creation.
+
+### Fixed & Improved
+- **Multiplayer Town Portal Floor Progression**:
+  - Resolved floor tracking desync so transitioning between dungeon depths reliably updates town portals to reflect the highest cleared depth.
+- **Macro Buff Proximity & Combat Gating**:
+  - Fixed "Keep Up" macro buffs erroneously triggering after blinking or teleporting in multiplayer by strictly enforcing monster proximity.
+- **Town Auto-Play Navigation Safety**:
+  - Auto-play no longer runs ahead in town before a portal destination is selected.
+- **Castle & Blackfen Hold Visuals**:
+  - Fixed castle moat bridge texture disappearing when gates open.
+  - Fixed doorway opening leaving behind wall top textures.
+- **Caverns Waterfall Boss Soft-Lock**:
+  - Fixed boss spawning trigger in Caverns so blinking or teleporting across the waterfall awakens the boss properly.
+- **Loot Filter Resilience**:
+  - Fixed `Cannot read properties of undefined (reading 'filter')` crash on custom loot filtering.
+- **Cutscenes & Combat Clutter**:
+  - Minions, pets, summons, and Death Knight flying swords freeze during cinematics and no longer target environmental clutter.
+- **Dungeon Lighting**:
+  - Prioritized active dungeon torches to prevent light source starvation.
+
+---
+
 ## [0.2.4] - 2026-11-04
 
 ### Added

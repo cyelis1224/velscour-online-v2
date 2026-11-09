@@ -74,28 +74,36 @@
    No drag/resize/minimize — a pushpin keeps it open; otherwise it fades.
    -------------------------------------------------------------------------- */
 body:not(.touch) .game-chat.gc-desktop {
-  left: 12px !important;
-  top: auto !important;
-  right: auto !important;
-  bottom: calc(var(--hud-w) * var(--hud-k) + 10px) !important;
-  width: min(420px, 60vw) !important;
-  height: 220px !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  max-height: var(--log-room, 220px) !important;
+  left: 12px;
+  top: auto;
+  right: auto;
+  bottom: calc(var(--hud-w) * var(--hud-k) + 10px);
+  width: min(420px, 60vw);
+  height: 220px;
+  min-width: 280px;
+  min-height: 120px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 40px);
   opacity: 1;
   visibility: visible;
   transition: opacity 0.35s ease, visibility 0s linear 0s, background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
-body:not(.touch) .game-chat.gc-desktop .gc-drag-handle,
-body:not(.touch) .game-chat.gc-desktop .gc-resize-handle {
-  display: none !important;
+body:not(.touch) .game-chat.gc-desktop.gc-custom-pos {
+  bottom: auto;
 }
 
-body:not(.touch) .game-chat.gc-desktop .gc-header,
-body:not(.touch) .game-chat.gc-desktop .gc-header:active {
-  cursor: default;
+body:not(.touch) .game-chat.gc-desktop .gc-drag-handle,
+body:not(.touch) .game-chat.gc-desktop .gc-resize-handle {
+  display: flex;
+}
+
+body:not(.touch) .game-chat.gc-desktop .gc-header {
+  cursor: grab;
+}
+
+body:not(.touch) .game-chat.gc-desktop.is-dragging .gc-header {
+  cursor: grabbing;
 }
 
 /* Closed, not hovered: translucent for 5 s */
