@@ -1060,6 +1060,8 @@ const server = http.createServer((req, res) => {
         "Desktop Resizable & Draggable Chat: The interactable chat window can now be freely dragged across the screen and resized horizontally and vertically with persistent positioning.",
         "Live Ping & Latency Monitor: Added a real-time multiplayer network latency indicator (ping in ms) to the HUD.",
         "Chat & Character Name Filter: Full multi-stage profanity filtering for public chat communication and hero name creation.",
+        "Multiplayer Floor Preservation & Re-entry: When descending or returning to a depth occupied by party members or held by an active Hearthstone town portal, players seamlessly rejoin the existing floor instance rather than rolling a new seed.",
+        "Floor Champion & Boss Clear Rewards: Regular floor champions now award 1 Infernal Mark upon clearing each depth, while milestone Bosses appearing every 5 depths continue to award bonus Skill Points.",
         "Multiplayer Town Portal Floor Sync: Fixed town portal so descending through dungeon depths reliably tracks and updates to the party's highest reached floor.",
         "Macro Buff & Proximity Safety: Fixed 'Keep Up' macros randomly triggering after blinking or teleporting in multiplayer by enforcing enemy range and combat readiness.",
         "Town Auto-Play Safety: Auto-play is safely paused while in town after returning from dungeons until a new portal destination is explicitly selected.",
@@ -1269,6 +1271,13 @@ function broadcastToChannel(channel, msg, excludeWs = null) {
       ws.send(json);
     }
   }
+}
+
+function isFloorOccupiedOrReserved(room, depth) {
+  if (!room || !depth) return false;
+  const hasPlayer = room.players && room.players.some(p => !p.disconnected && p.worldKind === 'dungeon' && p.depth === depth);
+  const hasHearth = room.hearthPortals && room.hearthPortals.has(depth);
+  return !!(hasPlayer || hasHearth);
 }
 
 function broadcastToRoom(roomName, msg, excludeWs = null) {
@@ -2265,7 +2274,18 @@ wss.on('connection', (ws) => {
           groundLoot: new Map(),
           killedMonsters: new Map(),
           unsealedDepths: new Set(),
+          floors: new Map(),
+          hearthPortals: new Map(),
         };
+        if (roomData.depth > 0 && initialDungeonSeed) {
+          roomData.floors.set(roomData.depth, {
+            depth: roomData.depth,
+            biome: roomData.dungeonBiome || defaultBiome,
+            seed: initialDungeonSeed,
+            mixId: roomData.mixId || null,
+            heresies: roomData.heresies || []
+          });
+        }
         rooms.set(roomName, roomData);
         clientData.room = roomName;
 
@@ -2283,6 +2303,8 @@ wss.on('connection', (ws) => {
             maxPlayers: roomData.maxPlayers,
             mixId: roomData.mixId || null,
             heresies: roomData.heresies || [],
+            floors: Array.from(roomData.floors.values()),
+            hearthPortals: Array.from(roomData.hearthPortals.values()),
             killed: Array.from(roomData.killedMonsters?.get(roomData.depth) || []),
             unsealedDepths: Array.from(roomData.unsealedDepths || []),
             players: roomData.players.map(p => ({
@@ -2368,6 +2390,8 @@ wss.on('connection', (ws) => {
             maxPlayers: room.maxPlayers,
             mixId: room.mixId || null,
             heresies: room.heresies || [],
+            floors: room.floors ? Array.from(room.floors.values()) : [],
+            hearthPortals: room.hearthPortals ? Array.from(room.hearthPortals.values()) : [],
             killed: Array.from(room.killedMonsters?.get(room.depth) || []),
             unsealedDepths: Array.from(room.unsealedDepths || []),
             players: room.players.map(p => ({
@@ -2405,6 +2429,13 @@ wss.on('connection', (ws) => {
             playerName: clientData.name,
           });
 
+          if (room.hearthPortals) {
+            for (const [dep, hp] of room.hearthPortals.entries()) {
+              if (hp.playerId === clientData.id) {
+                room.hearthPortals.delete(dep);
+              }
+            }
+          }
           if (room.players.length === 0) {
             if (room.cleanupTimer) clearTimeout(room.cleanupTimer);
             rooms.delete(roomName);
@@ -2550,6 +2581,8 @@ wss.on('connection', (ws) => {
       case 'game_player_state': {
         if (msg.gear) clientData.gear = msg.gear;
         if (msg.banner !== undefined) clientData.banner = msg.banner;
+        if (msg.worldKind !== undefined) clientData.worldKind = msg.worldKind;
+        if (typeof msg.depth === 'number') clientData.depth = msg.depth;
         if (typeof msg.level === 'number' && msg.level !== clientData.level) {
           clientData.level = msg.level;
           broadcastLobbyUpdate(); // a level-up mid-game shows in the lobby's player and room lists right away
@@ -2701,6 +2734,7 @@ wss.on('connection', (ws) => {
         if (!room) break;
         const d = msg.depth || room.depth || 1;
         const set = room.killedMonsters ? room.killedMonsters.get(d) : null;
+        const floor = room.floors ? room.floors.get(d) : null;
         ws.send(JSON.stringify({
           type: 'dungeon_killed_sync',
           depth: d,
@@ -2708,6 +2742,19 @@ wss.on('connection', (ws) => {
           unsealed: room.unsealedDepths ? room.unsealedDepths.has(d) : false,
           unsealedDepths: Array.from(room.unsealedDepths || []),
         }));
+        if (floor) {
+          ws.send(JSON.stringify({
+            type: 'dungeon_state_response',
+            depth: d,
+            biome: floor.biome,
+            seed: floor.seed,
+            mixId: floor.mixId,
+            heresies: floor.heresies || [],
+            killed: set ? Array.from(set) : [],
+            unsealed: room.unsealedDepths ? room.unsealedDepths.has(d) : false,
+            unsealedDepths: Array.from(room.unsealedDepths || []),
+          }));
+        }
         break;
       }
 
@@ -2822,19 +2869,93 @@ wss.on('connection', (ws) => {
         break;
       }
 
+      case 'game_hearth_portal': {
+        if (!clientData.room) break;
+        const room = rooms.get(clientData.room);
+        if (!room) break;
+        if (!room.hearthPortals) room.hearthPortals = new Map();
+        if (!room.floors) room.floors = new Map();
+        const d = typeof msg.depth === 'number' ? msg.depth : (room.depth || 1);
+        if (msg.active) {
+          room.hearthPortals.set(d, {
+            playerId: clientData.id,
+            playerName: clientData.name,
+            depth: d,
+            x: msg.x,
+            y: msg.y,
+            biome: msg.biome || room.biome,
+            seed: msg.seed || room.dungeonSeed,
+          });
+          if (d > 0 && !room.floors.has(d) && (msg.biome || room.biome)) {
+            room.floors.set(d, {
+              depth: d,
+              biome: msg.biome || room.biome,
+              seed: msg.seed || room.dungeonSeed,
+              mixId: room.mixId || null,
+              heresies: room.heresies || [],
+            });
+          }
+        } else {
+          if (msg.depth != null) {
+            const existing = room.hearthPortals.get(msg.depth);
+            if (!existing || existing.playerId === clientData.id) {
+              room.hearthPortals.delete(msg.depth);
+            }
+          } else {
+            for (const [dep, hp] of room.hearthPortals.entries()) {
+              if (hp.playerId === clientData.id) {
+                room.hearthPortals.delete(dep);
+              }
+            }
+          }
+        }
+        broadcastToRoom(clientData.room, {
+          type: 'game_hearth_portal',
+          playerId: clientData.id,
+          playerName: clientData.name,
+          ...msg,
+        }, ws);
+        break;
+      }
+
       case 'room_depth_update':
       case 'game_dungeon_transition': {
         if (!clientData.room) break;
         const room = rooms.get(clientData.room);
         if (room && (room.hostId === clientData.id || room.players.some(p => p.id === clientData.id))) {
-          if (typeof msg.depth === 'number' && msg.depth > 0) room.depth = Math.min(500, msg.depth);
-          if (msg.biome) room.biome = msg.biome;
-          if (msg.seed && room.dungeonSeed !== msg.seed) {
-            room.dungeonSeed = msg.seed;
-            room.killedMonsters?.delete(room.depth);
+          const targetDepth = (typeof msg.depth === 'number' && msg.depth > 0) ? Math.min(500, msg.depth) : (room.depth || 1);
+          if (!room.floors) room.floors = new Map();
+          if (!room.hearthPortals) room.hearthPortals = new Map();
+
+          const isOccupied = isFloorOccupiedOrReserved(room, targetDepth);
+          let floor = room.floors.get(targetDepth);
+
+          if (isOccupied && floor) {
+            // Active peer or hearthstone town portal holds this floor: preserve exact floor!
+          } else {
+            // Empty floor without active peers/hearth: generate new floor instance
+            floor = {
+              depth: targetDepth,
+              biome: msg.biome || room.biome || 'crypt',
+              seed: msg.seed || room.dungeonSeed || (Math.floor(Math.random() * 1e9) + 1),
+              mixId: msg.mixId || null,
+              heresies: Array.isArray(msg.heresies) ? msg.heresies : [],
+            };
+            room.floors.set(targetDepth, floor);
+            if (room.killedMonsters && room.dungeonSeed !== floor.seed) {
+              room.killedMonsters.delete(targetDepth);
+            }
           }
-          if (msg.mixId !== undefined) room.mixId = msg.mixId || null;
-          if (Array.isArray(msg.heresies)) room.heresies = msg.heresies;
+
+          room.depth = targetDepth;
+          room.biome = floor.biome;
+          room.dungeonSeed = floor.seed;
+          room.mixId = floor.mixId;
+          room.heresies = floor.heresies;
+
+          clientData.worldKind = 'dungeon';
+          clientData.depth = targetDepth;
+
           broadcastToRoom(clientData.room, {
             type: 'room_depth_sync',
             depth: room.depth,
@@ -2857,6 +2978,8 @@ wss.on('connection', (ws) => {
         if (!clientData.room) break;
         const room = rooms.get(clientData.room);
         if (room && (room.hostId === clientData.id || room.players.some(p => p.id === clientData.id))) {
+          clientData.worldKind = 'town';
+          clientData.depth = 0;
           if (typeof msg.depth === 'number' && msg.depth > 0) {
             room.depth = Math.min(500, msg.depth);
           }
@@ -2904,6 +3027,13 @@ wss.on('connection', (ws) => {
               const idx = r.players.findIndex(pl => pl.id === clientData.id);
               if (idx >= 0 && r.players[idx].disconnected) {
                 const removed = r.players.splice(idx, 1)[0];
+                if (r.hearthPortals) {
+                  for (const [dep, hp] of r.hearthPortals.entries()) {
+                    if (hp.playerId === removed.id) {
+                      r.hearthPortals.delete(dep);
+                    }
+                  }
+                }
                 broadcastToRoom(r.name, {
                   type: 'player_left_room',
                   playerId: removed.id,

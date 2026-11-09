@@ -658,6 +658,14 @@ class NetworkManager {
         }
         this.emit('game_town_transition', msg);
         break;
+
+      case 'game_hearth_portal':
+        this.emit('game_hearth_portal', msg);
+        break;
+
+      case 'dungeon_state_response':
+        this.emit('dungeon_state_response', msg);
+        break;
     }
   }
 
@@ -1111,6 +1119,14 @@ class NetworkManager {
     this.send({
       type: 'game_town_transition',
       depth: typeof depth === 'number' ? Math.min(500, Math.max(1, depth)) : depth,
+    });
+  }
+
+  sendHearthPortal(data) {
+    if (!this.currentRoom) return;
+    this.send({
+      type: 'game_hearth_portal',
+      ...data,
     });
   }
 

@@ -15,7 +15,7 @@ import { preloadBarFx } from '../gfx/artfx.js';
 import { SKILLS } from '../data/skills.js';
 import { setClassItems, setRingContext, SEAL_GAP, shownEquip } from '../data/items.js';
 import { BREACH_BIOME, BREACH_WALLS } from '../data/biomes.js';
-import { BIOMES, BETA_BIOMES, BIOME_BY_ID, TOWN_BIOME, ACT_BIOMES, drawBiome, biomeChoices, takeBiome, mixPartner, recordBiomeVisit } from '../data/biomes.js';
+import { BIOMES, BETA_BIOMES, BIOME_BY_ID, TOWN_BIOME, ACT2_TOWN_BIOME, ACT_BIOMES, drawBiome, biomeChoices, takeBiome, mixPartner, recordBiomeVisit } from '../data/biomes.js';
 import { CLASSES } from '../data/classes.js';
 import { generateDungeon, isRaidDepth } from '../world/dungeon.js';
 import { FINAL_DEPTH, depthLevel, blockStart, isSuperbossDepth, superbossForDepth, getActForDepth, ACTS } from '../data/depth.js';
@@ -24,8 +24,9 @@ import { setupHappenings, announceHappenings, happeningsTick, townHappening, tow
 import { greedOf, greedPacks, greedWorld, greedCleared, greedDeath } from './greed.js';
 import { spectateTick } from './spectate.js';
 import { toggleSmite, getUltimate, executeUltimate } from './smite.js';
-import { hearthTick, useHearth, hearthPortalActive, closeHearthPortals } from './hearth.js';
+import { hearthTick, useHearth, hearthPortalActive, closeHearthPortals, getActiveHearth, returnFromHearth } from './hearth.js';
 import { generateTown, makeTownTiles, rollTownWeather } from '../world/town.js';
+import { generateAct2Town, makeAct2TownTiles, ACT2_TOWN_NAME } from '../world/act2town.js';
 import { generateOverworld } from '../world/overworld.js';
 import { createOverworldScenario } from './overworld.js';
 import { addWanderers } from './wanderers.js';
@@ -148,6 +149,7 @@ const VELSCOUR_TAUNT_ENDS = [
 const VELSCOUR_TAUNTS = VELSCOUR_TAUNT_STARTS.flatMap((start) => VELSCOUR_TAUNT_ENDS.map((end) => `${start}? ${end}`));
 
 let townCache = null, townTiles = null;
+let act2TownCache = null, act2TownTiles = null;
 let saveT = 0;
 let automapCanvas = null;
 
@@ -440,7 +442,9 @@ function attachNetListeners() {
 
     const remoteKind = state.worldKind || 'town';
     const myKind = G.world?.kind || 'town';
-    const sameWorld = (remoteKind === myKind) && (myKind !== 'dungeon' || state.depth === G.world.depth);
+    const remoteTownId = state.townId || 'act1';
+    const myTownId = G.world?.townId || 'act1';
+    const sameWorld = (remoteKind === myKind) && (myKind !== 'dungeon' || state.depth === G.world.depth) && (myKind !== 'town' || remoteTownId === myTownId);
     if (sameWorld) {
       if (rp.world !== G.world || !G.world.creatures.includes(rp)) {
         rp.x = typeof state.x === 'number' ? state.x : rp.x;
@@ -599,7 +603,9 @@ function attachNetListeners() {
             c.cleared[G.world.depth] = true;
             c.deepest = Math.max(c.deepest || 0, G.world.depth);
             game.brokeThrough(G.world.depth);
-            if (first) { c.skillPoints++; UI.log('Bonus skill point for clearing a new depth!', '#ffd860'); }
+            if (first) {
+              game.awardFloorClear(G.world.depth);
+            }
             game.autosave();
           }
           addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#40a0ff', 5));
@@ -903,6 +909,16 @@ function attachNetListeners() {
       if (data.seed) G.room.dungeonSeed = data.seed;
       if (data.mixId !== undefined) G.room.mixId = data.mixId;
       if (Array.isArray(data.heresies)) G.room.heresies = data.heresies;
+      if (!G.room.floors) G.room.floors = new Map();
+      if (data.depth > 0 && data.seed && data.biome && data.biome !== 'town') {
+        G.room.floors.set(data.depth, {
+          depth: data.depth,
+          biome: data.biome,
+          seed: data.seed,
+          mixId: data.mixId || null,
+          heresies: data.heresies || [],
+        });
+      }
       if (Array.isArray(data.killed) && data.depth > 0) {
         for (const kId of data.killed) {
           recordKilledMonster(data.depth, kId, typeof kId === 'number' ? kId : null, G.world);
@@ -945,6 +961,46 @@ function attachNetListeners() {
   net.on('game_town_transition', (data) => {
     if (G.room && data && typeof data.depth === 'number') {
       G.room.depth = data.depth;
+    }
+  });
+
+  net.on('game_hearth_portal', (data) => {
+    if (G.room) {
+      if (!G.room.hearthPortals) G.room.hearthPortals = new Map();
+      if (data.active) {
+        G.room.hearthPortals.set(data.depth, data);
+        if (data.depth > 0 && data.seed && data.biome) {
+          if (!G.room.floors) G.room.floors = new Map();
+          G.room.floors.set(data.depth, {
+            depth: data.depth,
+            biome: data.biome,
+            seed: data.seed,
+            mixId: null,
+            heresies: [],
+          });
+        }
+      } else {
+        G.room.hearthPortals.delete(data.depth);
+      }
+    }
+  });
+
+  net.on('dungeon_state_response', (data) => {
+    if (G.room && data && data.depth > 0) {
+      if (!G.room.floors) G.room.floors = new Map();
+      if (data.seed && data.biome) {
+        G.room.floors.set(data.depth, {
+          depth: data.depth,
+          biome: data.biome,
+          seed: data.seed,
+          mixId: data.mixId || null,
+          heresies: data.heresies || [],
+        });
+      }
+      if (G.world?.kind === 'dungeon' && G.world.depth === data.depth) {
+        if (data.biome && G.room.biome !== data.biome) G.room.biome = data.biome;
+        if (data.seed && G.room.dungeonSeed !== data.seed) G.room.dungeonSeed = data.seed;
+      }
     }
   });
 
@@ -1086,6 +1142,29 @@ export const game = {
     }
     if (room.mixId !== undefined) G.room.mixId = room.mixId;
     if (Array.isArray(room.heresies)) G.room.heresies = room.heresies;
+
+    G.room.floors = new Map();
+    if (Array.isArray(room.floors)) {
+      for (const fl of room.floors) {
+        if (fl && fl.depth > 0) G.room.floors.set(fl.depth, fl);
+      }
+    }
+    if (room.depth > 0 && room.dungeonSeed && room.biome && room.biome !== 'town') {
+      G.room.floors.set(room.depth, {
+        depth: room.depth,
+        biome: room.biome,
+        seed: room.dungeonSeed,
+        mixId: room.mixId || null,
+        heresies: room.heresies || [],
+      });
+    }
+
+    G.room.hearthPortals = new Map();
+    if (Array.isArray(room.hearthPortals)) {
+      for (const hp of room.hearthPortals) {
+        if (hp && hp.depth > 0) G.room.hearthPortals.set(hp.depth, hp);
+      }
+    }
 
     G.remotePlayers = new Map();
     attachNetListeners();
@@ -1419,6 +1498,7 @@ export const game = {
         mana: Math.round(p.mana),
         maxMana: Math.round(p.maxMana),
         worldKind: world?.kind || 'town',
+        townId: world?.townId || 'act1',
         depth: (world?.kind === 'dungeon' ? world.depth : 0) || 0,
         loading: false,
       });
@@ -1491,6 +1571,21 @@ export const game = {
     const rg = t.riftgate || (t.riftgate = riftgateSpot(t));
     if (rg) world.portals.push({ x: rg.x, y: rg.y, active: true, color: '#3a6cff', reach: 1.7, riftgate: true, label: 'The Riftgate: VELSCOUR DEFENSE', use: () => this.confirmRiftgate() });
     if (t.rift) world.portals.push({ x: t.rift.x, y: t.rift.y, rift: true, color: '#20e0ff', reach: 1.7, get active() { return endgameUnlocked(); }, set active(v) { }, get label() { return endgameUnlocked() ? `Abyssal Rift — Tier ${riftOpen()}` : 'Abyssal Rift (sealed)'; }, use: () => this.confirmRift() });
+    // Waypoint Portal to Sunscorch Oasis (Act II Town) once visited or reached Act 2
+    if (c?.visitedAct2Town || c?.depth >= 101) {
+      world.portals.push({
+        x: t.center.x + 3.8,
+        y: t.center.y - 3.8,
+        active: true,
+        color: '#f3c778',
+        reach: 2.0,
+        label: 'Waypoint — Sunscorch Oasis (Act II)',
+        use: () => {
+          sfx('portal');
+          this.enterAct2Town();
+        },
+      });
+    }
     // the hero steps out of the portal, a little way down its road toward the square
     const P = t.portal, C = t.center, l = Math.hypot(C.x - P.x, C.y - P.y) || 1;
     let arrive = [P.x + ((C.x - P.x) / l) * 3.2, P.y + ((C.y - P.y) / l) * 3.2];
@@ -1516,6 +1611,160 @@ export const game = {
     townHappening(world); // a festival, a blessing, a gift (game/happenings.js)
     p.hp = p.maxHp; p.mana = p.maxMana;
     this.autosave();
+  },
+
+  async enterAct2Town(fromCheat = false) {
+    const old = G.world;
+    const c = G.char;
+    if (c) {
+      c.visitedAct2Town = true;
+      c.lastTown = 'act2';
+      const highest = Math.min(FINAL_DEPTH, Math.max(c.depth || 1, this.maxPortalFloor(c)));
+      c.depth = Math.max(c.depth || 1, highest);
+      if (highest > 1) {
+        c.cleared[highest - 1] = true;
+        c.deepest = Math.max(c.deepest || 0, highest - 1);
+      }
+      this.autosave();
+    }
+    await loadSeaOfSandPack();
+    const tileset = biomeTileSet(ACT2_TOWN_BIOME);
+    keepTileSets(null);
+    if (!act2TownTiles) act2TownTiles = makeAct2TownTiles();
+
+    if (fromCheat || !c?.act2TownSeed) {
+      if (c) c.act2TownSeed = Math.floor(Math.random() * 1e9) + 1;
+    }
+    if (G.room) {
+      const townSeed = G.room.act2TownSeed || (fromCheat ? c?.act2TownSeed : G.room.townSeed) || G.room.seed;
+      if (townSeed) {
+        G.room.act2TownSeed = townSeed;
+        if (c) c.act2TownSeed = townSeed;
+      }
+    }
+    const seed = c?.act2TownSeed || 1337;
+    if (!act2TownCache || act2TownCache.seed !== seed) {
+      act2TownCache = generateAct2Town(tileset, seed);
+    }
+    const t = act2TownCache;
+    t.map.seen.fill(0);
+    const world = new World('town', {
+      map: t.map,
+      tileset,
+      biome: ACT2_TOWN_BIOME,
+      depth: 0,
+      townTiles: act2TownTiles,
+      townId: 'act2_town',
+      buildings: t.buildings || [],
+      props: t.props,
+      wallHangings: t.wallHangings || [],
+    });
+    world.raining = false;
+    world.ambientFx = { type: 'sand', color: '#f3c778' };
+    world.npcs = t.npcs.map((n) => ({
+      vendor: n.vendor,
+      x: n.x,
+      y: n.y,
+      reach: 1.8,
+      flip: n.flip,
+      use: () => Vendor.open(n.vendor.id),
+    }));
+
+    // Storage Chest, Reliquary, Jewel Box
+    let [x, y] = [t.start[0] + 1.5, t.start[1] - 0.5];
+    if (!t.map.walkable(x, y)) [x, y] = t.map.randomNear(t.start[0], t.start[1], 2.5);
+    world.npcs.push({ stash: true, name: 'Storage Chest', x, y, reach: 1.6, flip: false, use: () => Stash.open() });
+
+    let [rx, ry] = [t.start[0] - 1.5, t.start[1] - 0.5];
+    if (!t.map.walkable(rx, ry) || Math.hypot(rx - x, ry - y) < 1.5) [rx, ry] = t.map.randomNear(t.start[0] - 1, t.start[1], 2.5);
+    world.npcs.push({ stash: true, reliquary: true, name: 'The Reliquary', x: rx, y: ry, reach: 1.6, flip: false, use: () => G.ui.reliquary.open() });
+
+    let [jx, jy] = [t.start[0], t.start[1] - 1.6];
+    if (!t.map.walkable(jx, jy) || Math.hypot(jx - x, jy - y) < 1.2 || Math.hypot(jx - rx, jy - ry) < 1.2) [jx, jy] = t.map.randomNear(t.start[0], t.start[1] - 1, 2.5);
+    world.npcs.push({ stash: true, jewelBox: true, name: 'Jewel Box', x: jx, y: jy, reach: 1.6, flip: false, use: () => JewelBox.open() });
+
+    if (t.altar) {
+      world.npcs.push({ altar: true, name: 'Altar of Heresy', x: t.altar.x, y: t.altar.y, reach: 1.7, flip: false, use: () => Heresies.open() });
+    }
+
+    // Portals
+    world.portals = [
+      {
+        x: t.portal.x,
+        y: t.portal.y,
+        active: true,
+        color: '#ff6020',
+        reach: 2.2,
+        get label() {
+          const highest = Math.min(FINAL_DEPTH, Math.max(G.char?.depth || 1, G.game?.maxPortalFloor?.(G.char) || 1));
+          const d = clamp((G.room && G.room.depth != null) ? G.room.depth : highest, 1, FINAL_DEPTH);
+          return `Portal — Depth ${d}`;
+        },
+        use: () => this.confirmDungeon(),
+      },
+    ];
+
+    // Waypoint Portal to Herrington Hollow (Act 1 Town)
+    if (t.act1Portal) {
+      world.portals.push({
+        x: t.act1Portal.x,
+        y: t.act1Portal.y,
+        active: true,
+        color: '#38bdf8',
+        reach: 2.2,
+        label: 'Waypoint — Return to Herrington Hollow (Act I)',
+        use: () => {
+          if (c) c.lastTown = 'act1';
+          sfx('portal');
+          this.enterTown();
+        },
+      });
+    }
+
+    // The Eternal Breach Portal
+    if (t.breach) {
+      world.portals.push({
+        x: t.breach.x,
+        y: t.breach.y,
+        active: true,
+        breach: true,
+        color: '#a040ff',
+        reach: 2.2,
+        label: 'THE ETERNAL BREACH',
+        use: () => this.confirmBreach(),
+      });
+    }
+
+    // Abyssal Rift Gate
+    if (t.rift) {
+      world.portals.push({
+        x: t.rift.x,
+        y: t.rift.y,
+        rift: true,
+        color: '#20e0ff',
+        reach: 1.7,
+        get active() { return endgameUnlocked(); },
+        get label() { return endgameUnlocked() ? `Abyssal Rift — Tier ${riftOpen()}` : 'Abyssal Rift (sealed)'; },
+        use: () => this.confirmRift(),
+      });
+    }
+
+    const arrive = t.start || [t.center.x, t.center.y];
+    this.setWorld(world, arrive, old);
+    void warmLevelArt(world);
+    HUD.setArea('Sunscorch Oasis', 'Act II Town — Desert Haven');
+    playMusic('town');
+    setAmbience('sea_of_sand');
+    Vendor.restock();
+    const p = G.player;
+    if (p) this.spawnPlayer(world, arrive);
+    p.hp = p.maxHp;
+    p.mana = p.maxMana;
+    this.autosave();
+    if (net.connected && G.room) {
+      net.sendTownTransition(world.depth || 0);
+    }
+    UI.log('You step into <b style="color:#f3c778">Sunscorch Oasis</b>, haven of the Scorched Wastes!', '#ffe080');
   },
 
   confirmRiftgate() {
@@ -1567,6 +1816,10 @@ export const game = {
 
   getSharedRoomBiome(room, depth, fallbackBiomeId = null) {
     if (depth === FINAL_DEPTH) return BIOME_BY_ID.throne;
+    if (room?.floors?.has(depth)) {
+      const fl = room.floors.get(depth);
+      if (fl?.biome && BIOME_BY_ID[fl.biome]) return BIOME_BY_ID[fl.biome];
+    }
     if (room && room.biome && room.biome !== 'town' && BIOME_BY_ID[room.biome] && (!room.depth || room.depth === depth)) {
       return BIOME_BY_ID[room.biome];
     }
@@ -1591,6 +1844,10 @@ export const game = {
   },
 
   getSharedRoomDungeonSeed(room, depth) {
+    if (room?.floors?.has(depth)) {
+      const fl = room.floors.get(depth);
+      if (fl?.seed) return fl.seed;
+    }
     if (room && room.dungeonSeed && room.depth === depth) {
       return room.dungeonSeed;
     }
@@ -1647,11 +1904,28 @@ export const game = {
         tail = '<br><b style="color:#ff6030">A BOSS ROOM lies at the end of this depth.</b>';
       }
 
+      const peerNames = [];
+      if (G.remotePlayers) {
+        for (const rp of G.remotePlayers.values()) {
+          if (rp.worldKind === 'dungeon' && rp.depth === d) {
+            peerNames.push(rp.name || 'Party Member');
+          }
+        }
+      }
+      const activeH = getActiveHearth();
+      const myHearthHere = activeH && activeH.depth === d;
+      let peerTail = '';
+      if (peerNames.length > 0) {
+        peerTail = `<br><span style="color:#7fd8ff">● <b>${escapeHtml(peerNames.join(', '))}</b> ${peerNames.length > 1 ? 'are' : 'is'} exploring this floor. You will join their active expedition!</span>`;
+      } else if (myHearthHere) {
+        peerTail = '<br><span style="color:#7fd8ff">● Your <b>Hearthstone portal</b> is active here. You will return to where you left off.</span>';
+      }
+
       const actHeader = `<div style="color:#ffd880;font-size:12px;font-weight:bold;margin-bottom:4px;letter-spacing:0.5px;">ACT ${act.act}: ${act.name.toUpperCase()}</div>`;
       if (d === current) {
-        return `${actHeader}<p>The portal hums. Beyond lies <b style="color:#ffb070">${escapeHtml(currentBiome.name)}</b>.</p><p class="dim">${this.biomeBlurb(currentBiome)}${tail}</p>`;
+        return `${actHeader}<p>The portal hums. Beyond lies <b style="color:#ffb070">${escapeHtml(currentBiome.name)}</b>.</p><p class="dim">${this.biomeBlurb(currentBiome)}${tail}${peerTail}</p>`;
       }
-      return `${actHeader}<p>The portal's glow shifts. A fresh path will be drawn into <b style="color:#ffb070">Depth ${d}</b>.</p><p class="dim">Monsters, loot and the biome are rolled for this depth when you step through.${tail}</p>`;
+      return `${actHeader}<p>The portal's glow shifts. A fresh path will be drawn into <b style="color:#ffb070">Depth ${d}</b>.</p><p class="dim">Monsters, loot and the biome are rolled for this depth when you step through.${tail}${peerTail}</p>`;
     };
 
     const describeUnbound = (f) => {
@@ -1878,16 +2152,44 @@ export const game = {
     const c = G.char;
     const current = (G.room && G.room.depth != null) ? G.room.depth : (c.depth || 1);
     depth = clamp(depth | 0, 1, Math.min(FINAL_DEPTH, this.maxPortalFloor(c)));
-    if (depth !== current) {
+
+    const peerOnFloor = G.remotePlayers && Array.from(G.remotePlayers.values()).find(rp => rp.worldKind === 'dungeon' && rp.depth === depth);
+    const activeH = getActiveHearth();
+    const myHearth = activeH && activeH.depth === depth;
+    const roomHearth = G.room?.hearthPortals?.has ? G.room.hearthPortals.has(depth) : false;
+    const existingFloor = G.room?.floors?.get ? G.room.floors.get(depth) : null;
+    const preserve = (peerOnFloor || myHearth || roomHearth) && existingFloor;
+
+    if (depth !== current || !preserve) {
       c.depth = depth;
-      // a different floor than the one the portal was set to: draw it a fresh biome and forget the old omen
-      delete c.nextOmen;
-      c.nextBiome = depth === FINAL_DEPTH ? 'throne' : drawBiome(c, depth);
-      if (G.room) {
-        G.room.depth = depth;
-        G.room.biome = null;
-        G.room.dungeonSeed = null;
-        G.room.mixId = null;
+      if (preserve) {
+        c.nextBiome = existingFloor.biome;
+        if (G.room) {
+          G.room.depth = depth;
+          G.room.biome = existingFloor.biome;
+          G.room.dungeonSeed = existingFloor.seed;
+          G.room.mixId = existingFloor.mixId || null;
+          G.room.heresies = existingFloor.heresies || [];
+        }
+      } else {
+        // a different floor than the one the portal was set to: draw it a fresh biome and forget the old omen
+        delete c.nextOmen;
+        c.nextBiome = depth === FINAL_DEPTH ? 'throne' : drawBiome(c, depth);
+        if (G.room) {
+          G.room.depth = depth;
+          G.room.biome = null;
+          G.room.dungeonSeed = null;
+          G.room.mixId = null;
+          G.room.floors?.delete(depth);
+        }
+      }
+    } else {
+      c.depth = depth;
+      if (existingFloor && G.room) {
+        G.room.biome = existingFloor.biome;
+        G.room.dungeonSeed = existingFloor.seed;
+        G.room.mixId = existingFloor.mixId || null;
+        G.room.heresies = existingFloor.heresies || [];
       }
     }
     this.enterDungeon();
@@ -1949,6 +2251,9 @@ export const game = {
             close();
             G.sandVariant = 1 + Math.floor(Math.random() * DUNE_VARIANTS.length);   // one of the dune variants, not the flat maze
             this.teleportToBiome(BIOME_BY_ID.sea_of_sand).finally(() => { G.sandVariant = undefined; });
+          } else if (['actiitown', 'act2town', 'act2_town', 'act 2 town', 'act ii town', 'deserttown', 'desert_town'].includes(message.trim().toLowerCase())) {
+            close();
+            this.enterAct2Town(true);
           }
         } },
       ],
@@ -1959,7 +2264,8 @@ export const game = {
   },
 
   openVelscourTeleport() {
-    const options = [...BETA_BIOMES, ...BIOMES].map((biome) => { const need = regionNeeds(biome, G.char?.level); return `<option value="${escapeHtml(biome.id)}"${need ? ' disabled' : ''}>${escapeHtml(biome.name)}${biome.overworld ? ' · Overworld' : ''}${biome.beta ? ' (Beta)' : ''}${need ? ` · Reach level ${need}` : ''}</option>`; }).join('')
+    const options = `<option value="act2_town">Sunscorch Oasis (Act II Town)</option>`
+      + [...BETA_BIOMES, ...BIOMES].map((biome) => { const need = regionNeeds(biome, G.char?.level); return `<option value="${escapeHtml(biome.id)}"${need ? ' disabled' : ''}>${escapeHtml(biome.name)}${biome.overworld ? ' · Overworld' : ''}${biome.beta ? ' (Beta)' : ''}${need ? ` · Reach level ${need}` : ''}</option>`; }).join('')
       + Object.values(REGIONS).flatMap((r) => { const b = BIOME_BY_ID[r.id], need = regionNeeds(b, G.char?.level); return (r.variants || []).map((v) => `<option value="${escapeHtml(r.id)}:${escapeHtml(v.id)}"${need ? ' disabled' : ''}>${escapeHtml(b.name)}: ${escapeHtml(v.name)}${need ? ` · Reach level ${need}` : ''}</option>`); }).join('')
       + SKY_ALL.map((v) => `<option value="skyship:${v.id}">${escapeHtml(BIOME_BY_ID.skyship.name)}: ${escapeHtml(v.name)} (${escapeHtml(v.weather)})</option>`).join('')
       + SEA_VARIANTS.map((v) => `<option value="pirate_seas:${v.id}">${escapeHtml(BIOME_BY_ID.pirate_seas.name)}: ${escapeHtml(v.name)} (${escapeHtml(v.weatherName)})</option>`).join('');
@@ -1971,6 +2277,7 @@ export const game = {
         { label: 'Cancel' },
         { label: 'Teleport', cls: 'red', fn: () => {
           let id = dialog.box.querySelector('#velscour-biome').value;
+          if (id === 'act2_town') { this.enterAct2Town(true); return; }
           if (id.startsWith('skyship:')) { G.char.skyVariant = id.slice(8); id = 'skyship'; }
           if (id.startsWith('pirate_seas:')) { G.char.seaVariant = id.slice(12); id = 'pirate_seas'; }
           if (REGIONS[id.split(':')[0]] && id.includes(':')) { (G.regionWant ||= {})[id.split(':')[0]] = id.split(':')[1]; id = id.split(':')[0]; } // a region's variant
@@ -2166,24 +2473,53 @@ export const game = {
       c.deepest = Math.max(c.deepest || 0, depth - 1);
     }
     this.autosave();
+
+    const activeH = getActiveHearth();
+    if (!fromNetwork && activeH && activeH.depth === depth && activeH.dungeonWorld) {
+      this._enteringDungeon = false;
+      returnFromHearth();
+      return;
+    }
+
     if (G.room) G.room.depth = depth;
     if (depth !== FINAL_DEPTH && (!c.nextBiome || c.nextBiome === 'throne' || regionNeeds(BIOME_BY_ID[c.nextBiome], c.level))) c.nextBiome = drawBiome(c, depth);
     const biome = this.getSharedRoomBiome(G.room, depth, c.nextBiome);
     if (G.room) c.nextBiome = biome.id;
     let dungeonSeed = G.room ? this.getSharedRoomDungeonSeed(G.room, depth) : (Math.floor(Math.random() * 1e9) + 1);
     if (G.room) {
-      const isNew = (!G.room.dungeonSeed || G.room.depth !== depth || G.room.biome !== biome.id);
-      G.room.dungeonSeed = dungeonSeed;
-      G.room.depth = depth;
-      G.room.biome = biome.id;
-      // If room heresies haven't been established for this depth, adopt the portal activator's heresies
-      if (!G.room.heresies || isNew) {
-        G.room.heresies = heresiesOf(c);
+      let floor = G.room.floors?.get ? G.room.floors.get(depth) : null;
+      const peerOnFloor = G.remotePlayers && Array.from(G.remotePlayers.values()).find(rp => rp.worldKind === 'dungeon' && rp.depth === depth);
+      const hasHearth = (activeH && activeH.depth === depth) || (G.room.hearthPortals?.has ? G.room.hearthPortals.has(depth) : false);
+      const preserveFloor = (peerOnFloor || hasHearth) && floor;
+
+      if (preserveFloor) {
+        dungeonSeed = floor.seed;
+        G.room.dungeonSeed = dungeonSeed;
+        G.room.biome = floor.biome;
+        G.room.mixId = floor.mixId;
+        G.room.heresies = floor.heresies || heresiesOf(c);
+      } else {
+        const isNew = (!G.room.dungeonSeed || G.room.depth !== depth || G.room.biome !== biome.id);
+        G.room.dungeonSeed = dungeonSeed;
+        G.room.depth = depth;
+        G.room.biome = biome.id;
+        // If room heresies haven't been established for this depth, adopt the portal activator's heresies
+        if (!G.room.heresies || isNew) {
+          G.room.heresies = heresiesOf(c);
+        }
+        const mix = G.room.mixId ? BIOME_BY_ID[G.room.mixId] : (dungeonSeed ? mixPartner(biome, () => new RNG(dungeonSeed ^ 0x3d17a892).next()) : null);
+        G.room.mixId = mix ? mix.id : null;
+        if (!G.room.floors) G.room.floors = new Map();
+        G.room.floors.set(depth, {
+          depth,
+          biome: biome.id,
+          seed: dungeonSeed,
+          mixId: G.room.mixId,
+          heresies: G.room.heresies,
+        });
       }
-      const mix = G.room.mixId ? BIOME_BY_ID[G.room.mixId] : (dungeonSeed ? mixPartner(biome, () => new RNG(dungeonSeed ^ 0x3d17a892).next()) : null);
-      G.room.mixId = mix ? mix.id : null;
       if (net.connected && !fromNetwork) {
-        net.sendRoomDepthUpdate(depth, biome.id, dungeonSeed, G.room.mixId, G.room.heresies);
+        net.sendRoomDepthUpdate(depth, G.room.biome, dungeonSeed, G.room.mixId, G.room.heresies);
       }
     }
     const mix = G.room ? (G.room.mixId ? BIOME_BY_ID[G.room.mixId] : (dungeonSeed ? mixPartner(biome, () => new RNG(dungeonSeed ^ 0x3d17a892).next()) : null)) : mixPartner(biome);
@@ -2415,7 +2751,7 @@ export const game = {
         c.cleared[depth] = true;
         c.deepest = Math.max(c.deepest || 0, depth);
         this.brokeThrough(depth);
-        if (first) { c.skillPoints++; UI.log('Bonus skill point for winning the Sky Battle!', '#ffd860'); }
+        if (first) this.awardFloorClear(depth, 'winning the Sky Battle');
         sfx('gate'); UI.refresh(); this.autosave();
       });
       c.lastSkyVariant = world.sky.v.id; delete c.skyVariant;
@@ -2428,7 +2764,8 @@ export const game = {
         c.deepest = Math.max(c.deepest || 0, depth);
         this.brokeThrough(depth);
         const bell = world.seaRun.bell ? ` Brother Tolland has rung <b style="color:#ffe0a0">${world.seaRun.bell} bell${world.seaRun.bell > 1 ? 's' : ''}</b> on the Shattered Coast.` : '';
-        if (first || bell) UI.log(`${first ? 'Bonus skill point for holding the Dawnwake!' : 'The Dawnwake is held.'}${bell}`, '#ffd860');
+        if (first) this.awardFloorClear(depth, 'holding the Dawnwake');
+        else if (bell) UI.log(`The Dawnwake is held.${bell}`, '#ffd860');
         sfx('gate'); UI.refresh(); this.autosave();
       });
       c.lastSeaVariant = world.seaRun.variant.id; delete c.seaVariant; G.seaNext = undefined;
@@ -2440,7 +2777,7 @@ export const game = {
         c.cleared[depth] = true;
         c.deepest = Math.max(c.deepest || 0, depth);
         this.brokeThrough(depth);
-        if (first) { c.skillPoints++; UI.log(reg.winText || 'Bonus skill point for clearing a new depth!', '#ffd860'); }
+        if (first) this.awardFloorClear(depth, reg.winText ? null : `clearing Depth ${depth}`);
         addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#40a0ff', 5));
         sfx('gate'); UI.refresh(); this.autosave();
       }) || world.overworldScenario;
@@ -2451,7 +2788,7 @@ export const game = {
       c.cleared[depth] = true;
       c.deepest = Math.max(c.deepest || 0, depth);
       this.brokeThrough(depth);
-      if (first) { c.skillPoints++; UI.log(`Bonus skill point for winning ${gen.variant.pyramid.name}!`, '#ffd860'); }
+      if (first) this.awardFloorClear(depth, `winning ${gen.variant?.pyramid?.name || 'the Pyramid'}`);
       addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#40a0ff', 5));
       sfx('gate'); UI.refresh(); this.autosave();
     });
@@ -2462,7 +2799,7 @@ export const game = {
       c.cleared[depth] = true;
       c.deepest = Math.max(c.deepest || 0, depth);
       this.brokeThrough(depth);
-      if (first) { c.skillPoints++; UI.log('Bonus skill point for completing the Sea of Sand route!', '#ffd860'); }
+      if (first) this.awardFloorClear(depth, 'completing the Sea of Sand route');
       addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#40a0ff', 5));
       sfx('gate'); UI.refresh(); this.autosave();
     });
@@ -2473,7 +2810,7 @@ export const game = {
       c.cleared[depth] = true;
       c.deepest = Math.max(c.deepest || 0, depth);
       greedCleared(world, c);
-      if (first) { c.skillPoints++; UI.log('Bonus skill point for stilling the Heart of the Forest!', '#ffd860'); }
+      if (first) this.awardFloorClear(depth, 'stilling the Heart of the Forest');
       addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#40a0ff', 5));
       sfx('gate'); UI.refresh(); this.autosave();
     });
@@ -2484,7 +2821,7 @@ export const game = {
       c.cleared[depth] = true;
       c.deepest = Math.max(c.deepest || 0, depth);
       this.brokeThrough(depth);
-      if (first) { c.skillPoints++; UI.log('Bonus skill point for taking the tower!', '#ffd860'); }
+      if (first) this.awardFloorClear(depth, 'taking the tower');
       addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#40a0ff', 5));
       sfx('gate'); UI.refresh(); this.autosave();
     });
@@ -2495,7 +2832,7 @@ export const game = {
       c.cleared[depth] = true;
       c.deepest = Math.max(c.deepest || 0, depth);
       this.brokeThrough(depth);
-      if (first) { c.skillPoints++; UI.log('Bonus skill point for taking the top of the falls!', '#ffd860'); }
+      if (first) this.awardFloorClear(depth, 'taking the top of the falls');
       addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#40a0ff', 5));
       sfx('gate'); UI.refresh(); this.autosave();
     });
@@ -2506,7 +2843,7 @@ export const game = {
       c.cleared[depth] = true;
       c.deepest = Math.max(c.deepest || 0, depth);
       this.brokeThrough(depth);
-      if (first) { c.skillPoints++; UI.log('Bonus skill point for completing the overworld scenario!', '#ffd860'); }
+      if (first) this.awardFloorClear(depth, 'completing the overworld scenario');
       addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#40a0ff', 5));
       sfx('gate'); UI.refresh(); this.autosave();
     });
@@ -2585,6 +2922,18 @@ export const game = {
     });
   },
 
+  awardFloorClear(depth, customContext = '') {
+    const c = G.char;
+    if (!c) return;
+    const isBoss = (depth % 5 === 0) || depth === FINAL_DEPTH;
+    if (isBoss) {
+      c.skillPoints++;
+      UI.log(customContext ? `Bonus skill point for ${customContext}!` : `Bonus skill point for defeating the Depth ${depth} Boss!`, '#ffd860');
+    } else {
+      grantMarks(1, `for clearing Depth ${depth}`);
+    }
+  },
+
   unsealDungeonExit(world, bossName = null, isVelscour = false, isRaid = false) {
     if (!world || world.kind !== 'dungeon' || world.biome?.overworld) return;
     const exit = world.portals?.find(p => p.type === 'exit');
@@ -2605,12 +2954,15 @@ export const game = {
         c.cleared[world.depth] = true;
         c.deepest = Math.max(c.deepest || 0, world.depth);
         this.brokeThrough(world.depth);
-        UI.centerMsg(bossName ? `${bossName} DEFEATED` : isRaid ? 'BOSS DEFEATED' : 'GUARDIAN SLAIN', first ? '+1 bonus skill point · the exit is open' : 'The exit is open', 3.5);
+        const isEvery5Boss = (world.depth % 5 === 0) || isRaid || isVelscour || world.depth === FINAL_DEPTH;
         if (first) {
-          c.skillPoints++;
-          UI.log('Bonus skill point for clearing a new depth!', '#ffd860');
+          this.awardFloorClear(world.depth);
           recordDepth(world, world.depth);
         }
+        const rewardText = first
+          ? (isEvery5Boss ? '+1 bonus skill point · the exit is open' : '+1 Infernal Mark · the exit is open')
+          : 'The exit is open';
+        UI.centerMsg(bossName ? `${bossName} DEFEATED` : isRaid ? 'BOSS DEFEATED' : 'GUARDIAN SLAIN', rewardText, 3.5);
       }
       this.autosave();
     }
@@ -3566,6 +3918,7 @@ export const game = {
             maxMana: Math.round(p.maxMana),
             summons: mySummons,
             worldKind: w?.kind || 'town',
+            townId: w?.townId || 'act1',
             depth: (w?.kind === 'dungeon' ? w.depth : 0) || 0,
             loading: !!(G.loading || this.isLoading || (p && p.spawned === false)),
           });

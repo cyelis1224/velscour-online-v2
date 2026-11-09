@@ -24,6 +24,7 @@ const inDungeon = () => !!G.world && G.world.kind === 'dungeon' && !!G.player &&
 export const hearthReady = () => !!G.char && hearthOf() >= 1 && inDungeon();
 export const hearthChanneling = () => !!channel;
 export const hearthPortalActive = () => !!activeHearth;
+export const getActiveHearth = () => activeHearth;
 /** Seconds left until the stone is ready again. */
 export const hearthSecondsLeft = (c = G.char) => Math.max(0, Math.ceil((1 - hearthOf(c)) * HEARTH_FILL));
 
@@ -47,7 +48,7 @@ export function cancelHearth(reason = 'moved') {
 /** Close active Hearthstone portals in dungeon and town. */
 export function closeHearthPortals() {
   if (!activeHearth) return;
-  const { dungeonWorld, dungeonPortal, townPortal, townWorld } = activeHearth;
+  const { dungeonWorld, dungeonPortal, townPortal, townWorld, depth } = activeHearth;
   if (dungeonWorld?.portals && dungeonPortal) {
     const idx = dungeonWorld.portals.indexOf(dungeonPortal);
     if (idx >= 0) dungeonWorld.portals.splice(idx, 1);
@@ -59,6 +60,12 @@ export function closeHearthPortals() {
   if (townWorld?.portals && townPortal && townWorld !== G.world) {
     const idx = townWorld.portals.indexOf(townPortal);
     if (idx >= 0) townWorld.portals.splice(idx, 1);
+  }
+  if (net?.connected) {
+    net.sendHearthPortal({
+      depth,
+      active: false
+    });
   }
   activeHearth = null;
 }
@@ -236,8 +243,21 @@ function finish() {
       dungeonPortal,
       townPortal,
       townWorld: G.world,
-      depth
+      depth,
+      seed: G.room?.dungeonSeed,
+      biome: dungeonWorld?.biome?.id || G.room?.biome
     };
+
+    if (net?.connected) {
+      net.sendHearthPortal({
+        depth,
+        x: dungeonX,
+        y: dungeonY,
+        biome: activeHearth.biome,
+        seed: activeHearth.seed,
+        active: true
+      });
+    }
 
     addEffect(new Ring(tx, ty, 0.2, 2.5, 0.5, '#7fd8ff', 5));
     sparkle(tx, ty, 25, '#bfeaff', 20, 0.6);
@@ -245,7 +265,7 @@ function finish() {
   }
 }
 
-function returnFromHearth() {
+export function returnFromHearth() {
   if (!activeHearth) return;
   const { dungeonWorld, dungeonX, dungeonY, depth } = activeHearth;
 
