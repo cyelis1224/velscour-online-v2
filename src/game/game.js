@@ -928,9 +928,10 @@ function attachNetListeners() {
     }
     // If local player had the exit portal choice dialog open on previous floor, refresh it with the selected choice!
     if (G.world?.kind === 'dungeon' && G.world.depth < FINAL_DEPTH && data.depth === G.world.depth + 1 && document.querySelector('.portal-choice')) {
+      const wasAuto = !!(game.pick && game.pick.t != null) || (typeof Auto !== 'undefined' && Auto.on);
       UI.closeAllDialogs();
       game.pick = null;
-      game.portalChoice(G.world);
+      game.portalChoice(G.world, { auto: wasAuto });
     }
     if (G.world?.kind === 'town') {
       if (document.querySelector('.floor-pick-dialog')) {
@@ -2747,9 +2748,9 @@ export const game = {
           this.enterDungeon();
         }
       };
-      UI.dialog({
+      const d = UI.dialog({
         title: `Depth ${world.depth} Cleared`,
-        html: `<p>A party member has chosen the way forward to Depth ${next}: <b style="color:#ffb070">${escapeHtml(chosenBiome.name)}</b>.</p><p class="dim">Descend to join the party or return to town.</p>`,
+        html: `<p>A party member has chosen the way forward to Depth ${next}: <b style="color:#ffb070">${escapeHtml(chosenBiome.name)}</b>.</p><p class="dim">Descend to join the party or return to town.</p><p class="pc-auto"></p>`,
         closable: false,
         cls: 'portal-choice',
         buttons: [
@@ -2757,6 +2758,16 @@ export const game = {
           { label: `Descend to Depth ${next}`, cls: 'red', fn: () => go(false) },
         ],
       });
+      this.pick = {
+        t: opts.auto ? 2.0 : PICK_WAIT,
+        el: d.box.querySelector('.pc-auto'),
+        last: '',
+        choose: () => {
+          d.close();
+          go(opts.auto ? opts.town : Auto.needTown());
+        },
+        name: () => chosenBiome.name,
+      };
       return;
     }
 
