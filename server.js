@@ -2609,6 +2609,8 @@ wss.on('connection', (ws) => {
         if (msg.gear) clientData.gear = msg.gear;
         if (msg.banner !== undefined) clientData.banner = msg.banner;
         if (msg.worldKind !== undefined) clientData.worldKind = msg.worldKind;
+        if (msg.townId !== undefined) clientData.townId = msg.townId;
+        if (msg.unbound !== undefined) clientData.unbound = !!msg.unbound;
         if (msg.duelId !== undefined) clientData.duelId = msg.duelId;
         if (typeof msg.depth === 'number') clientData.depth = msg.depth;
         if (typeof msg.level === 'number' && msg.level !== clientData.level) {

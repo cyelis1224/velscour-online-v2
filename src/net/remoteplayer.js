@@ -396,6 +396,7 @@ export class RemotePlayer extends Creature {
   }
 
   onCastUltimate(classId, ultId, tx, ty) {
+    if (!this.world || this.world !== G.world || !G.world?.creatures?.includes(this)) return;
     const now = performance.now();
     if (this._lastUltCast && now - this._lastUltCast < 500) return;
     this._lastUltCast = now;
@@ -408,6 +409,7 @@ export class RemotePlayer extends Creature {
   }
 
   onCastSkill(skillId, tx, ty, targetId = null, level = 1, extra = null) {
+    if (!this.world || this.world !== G.world || !G.world?.creatures?.includes(this)) return;
     const sk = SKILLS[skillId];
     if (tx !== undefined && ty !== undefined) {
       this.aim = [tx, ty];
@@ -545,9 +547,13 @@ export class RemotePlayer extends Creature {
 
   destroySummons() {
     if (!this.summons) return;
-    const w = G.world;
+    const w = this.world || G.world;
     for (const rs of this.summons.values()) {
       rs.dead = true;
+      if (rs.world && rs.world.creatures) {
+        const idx = rs.world.creatures.indexOf(rs);
+        if (idx !== -1) rs.world.creatures.splice(idx, 1);
+      }
       if (w && w.creatures) {
         const idx = w.creatures.indexOf(rs);
         if (idx !== -1) w.creatures.splice(idx, 1);

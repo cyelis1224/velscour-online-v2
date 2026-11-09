@@ -978,6 +978,7 @@ class NetworkManager {
 
   sendSkillCast(skillId, x, y, targetId = null, level = 1, extra = null) {
     if (!this.currentRoom) return;
+    const w = G.world;
     const payload = {
       type: 'game_skill_cast',
       skillId,
@@ -985,6 +986,11 @@ class NetworkManager {
       y,
       targetId,
       level,
+      worldKind: w?.kind || 'town',
+      depth: (w?.kind === 'dungeon' ? w.depth : 0) || 0,
+      townId: w?.townId || 'act1',
+      unbound: !!w?.unbound,
+      duelId: w?.duelId || null,
     };
     if (extra) payload.extra = extra;
     this.send(payload);
@@ -992,6 +998,7 @@ class NetworkManager {
 
   sendUltimateCast(classId, ultId, x, y) {
     if (!this.currentRoom) return;
+    const w = G.world;
     this.send({
       type: 'game_skill_cast',
       skillId: 'ultimate_' + ultId,
@@ -1001,6 +1008,11 @@ class NetworkManager {
       playerName: G.char?.name || 'Hero',
       x,
       y,
+      worldKind: w?.kind || 'town',
+      depth: (w?.kind === 'dungeon' ? w.depth : 0) || 0,
+      townId: w?.townId || 'act1',
+      unbound: !!w?.unbound,
+      duelId: w?.duelId || null,
     });
   }
 

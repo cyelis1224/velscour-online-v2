@@ -273,6 +273,39 @@ export function purgeKilledMonstersFromWorld(world) {
 }
 
 let netListenersAttached = false;
+
+export function isSameWorld(remoteStateOrRp, targetWorld = G.world) {
+  if (!targetWorld || !remoteStateOrRp) return false;
+  const state = remoteStateOrRp._lastState || remoteStateOrRp;
+  const remoteKind = state.worldKind || (state.world ? state.world.kind : null);
+  if (!remoteKind) return false;
+
+  const targetKind = targetWorld.kind || 'town';
+  if (remoteKind !== targetKind) return false;
+
+  if (targetKind === 'dungeon') {
+    const remoteDepth = typeof state.depth === 'number' ? state.depth : 0;
+    const targetDepth = typeof targetWorld.depth === 'number' ? targetWorld.depth : 0;
+    if (remoteDepth !== targetDepth) return false;
+    const remoteUnbound = !!state.unbound;
+    const targetUnbound = !!targetWorld.unbound;
+    if (remoteUnbound !== targetUnbound) return false;
+    return true;
+  }
+
+  if (targetKind === 'town') {
+    const remoteTown = state.townId || 'act1';
+    const targetTown = targetWorld.townId || 'act1';
+    return remoteTown === targetTown;
+  }
+
+  if (targetKind === 'arena') {
+    return state.duelId === targetWorld.duelId;
+  }
+
+  return true;
+}
+
 function attachNetListeners() {
   if (netListenersAttached) return;
   netListenersAttached = true;
@@ -305,20 +338,23 @@ function attachNetListeners() {
         }
       }
       const rp = new RemotePlayer(p);
-      let sx = G.player.x + 1, sy = G.player.y + 1;
-      if (G.world.kind === 'town' && townCache?.portal) {
-        const P = townCache.portal, C = townCache.center, l = Math.hypot(C.x - P.x, C.y - P.y) || 1;
-        sx = P.x + ((C.x - P.x) / l) * 3.2;
-        sy = P.y + ((C.y - P.y) / l) * 3.2;
-      } else if (G.world.portals?.[0]) {
-        sx = G.world.portals[0].x;
-        sy = G.world.portals[0].y;
-      }
-      rp.x = sx; rp.y = sy;
-      rp.targetX = sx; rp.targetY = sy;
-      G.world.add(rp);
       if (!G.remotePlayers) G.remotePlayers = new Map();
       G.remotePlayers.set(p.id, rp);
+      if (isSameWorld(p, G.world)) {
+        let sx = G.player.x + 1, sy = G.player.y + 1;
+        if (G.world.kind === 'town' && townCache?.portal) {
+          const P = townCache.portal, C = townCache.center, l = Math.hypot(C.x - P.x, C.y - P.y) || 1;
+          sx = P.x + ((C.x - P.x) / l) * 3.2;
+          sy = P.y + ((C.y - P.y) / l) * 3.2;
+        } else if (G.world.portals?.[0]) {
+          sx = G.world.portals[0].x;
+          sy = G.world.portals[0].y;
+        }
+        rp.x = sx; rp.y = sy;
+        rp.targetX = sx; rp.targetY = sy;
+        rp.world = G.world;
+        G.world.add(rp);
+      }
       UI.log(`<b style="color:#7ab8ff">${escapeHtml(p.name)}</b> (Lv ${p.level} ${CLASSES[p.classId]?.name || ''}) joined the room.`, '#ffd860');
       sfx('portal');
       game._lastSentGearKey = null; // (module function: `this` is undefined here)
@@ -438,6 +474,9 @@ function attachNetListeners() {
     rp._lastState = state;
     rp.worldKind = state.worldKind;
     rp.depth = state.depth;
+    rp.townId = state.townId;
+    rp.unbound = !!state.unbound;
+    rp.duelId = state.duelId;
     // the room roster (party list, room previews) was only written on join: keep its level current too
     if (typeof state.level === 'number') {
       for (const roster of [G.room?.players, net.currentRoom?.players]) {
@@ -446,17 +485,14 @@ function attachNetListeners() {
       }
     }
 
-    const remoteKind = state.worldKind || 'town';
-    const myKind = G.world?.kind || 'town';
-    const remoteTownId = state.townId || 'act1';
-    const myTownId = G.world?.townId || 'act1';
-    const sameWorld = (remoteKind === myKind) && (myKind !== 'dungeon' || state.depth === G.world.depth) && (myKind !== 'town' || remoteTownId === myTownId) && (myKind !== 'arena' || state.duelId === G.world.duelId);
+    const sameWorld = isSameWorld(state, G.world);
     if (sameWorld) {
       if (rp.world !== G.world || !G.world.creatures.includes(rp)) {
         rp.x = typeof state.x === 'number' ? state.x : rp.x;
         rp.y = typeof state.y === 'number' ? state.y : rp.y;
         rp.targetX = rp.x;
         rp.targetY = rp.y;
+        rp.world = G.world;
         G.world.add(rp);
       }
       rp.updateFromNetwork(state);
@@ -481,6 +517,7 @@ function attachNetListeners() {
     } else {
       if (rp.world === G.world || G.world.creatures.includes(rp)) {
         G.world.remove(rp);
+        rp.world = null;
         rp.destroySummons();
         rp.destroySig();
       }
@@ -512,12 +549,17 @@ function attachNetListeners() {
   const handleRemoteUltimate = (data) => {
     if (!G.world || data.playerId === net.myId) return;
     const rp = G.remotePlayers?.get(data.playerId);
+    const same = (data.worldKind ? isSameWorld(data, G.world) : false) || (rp && isSameWorld(rp, G.world));
+    if (!same) return;
+
     const cls = data.classId || rp?.classId || 'paladin';
     const ultId = data.ultId || getUltimate(cls)?.id;
     const x = typeof data.x === 'number' ? data.x : (rp ? rp.x : G.player?.x || 0);
     const y = typeof data.y === 'number' ? data.y : (rp ? rp.y : G.player?.y || 0);
     if (rp) {
-      rp.onCastUltimate(cls, ultId, x, y);
+      if (rp.world === G.world && G.world.creatures.includes(rp)) {
+        rp.onCastUltimate(cls, ultId, x, y);
+      }
     } else {
       const ult = getUltimate(cls);
       executeUltimate(ult, x, y, G.world, null, { classId: cls, name: data.playerName || 'Teammate' }, true);
@@ -531,15 +573,18 @@ function attachNetListeners() {
       return;
     }
     const rp = G.remotePlayers?.get(data.playerId) || (G.remotePlayers && Array.from(G.remotePlayers.values()).find(p => String(p.id) === String(data.playerId)));
-    if (rp) {
-      if (rp.world !== G.world || !G.world.creatures.includes(rp)) {
-        rp.world = G.world;
-        rp.dead = false;
-        if (!G.world.creatures.includes(rp)) G.world.add(rp);
-      }
-      rp.dead = false;
-      rp.onCastSkill(data.skillId, data.x, data.y, data.targetId, data.level, data.extra);
+    if (!rp) return;
+
+    const same = (data.worldKind ? isSameWorld(data, G.world) : false) || isSameWorld(rp, G.world);
+    if (!same) return;
+
+    if (rp.world !== G.world || !G.world.creatures.includes(rp)) {
+      if (!isSameWorld(rp, G.world)) return;
+      rp.world = G.world;
+      G.world.add(rp);
     }
+    rp.dead = false;
+    rp.onCastSkill(data.skillId, data.x, data.y, data.targetId, data.level, data.extra);
   });
 
   net.on('game_ultimate_cast', (data) => {
@@ -1212,16 +1257,19 @@ export const game = {
       net.sendBardTabs(c.tabs, c.tabAt);
     }
 
-    // Spawn other players already in the room
+    // Register other players already in the room
     if (room.players && G.world) {
       for (const p of room.players) {
         if (p.id !== net.myId && !G.remotePlayers.has(p.id)) {
           const rp = new RemotePlayer(p);
-          const [sx, sy] = G.world.map ? (G.world.map.randomNear(G.player.x, G.player.y, 2) || [G.player.x + 1, G.player.y + 1]) : [G.player.x + 1, G.player.y + 1];
-          rp.x = sx; rp.y = sy;
-          rp.targetX = sx; rp.targetY = sy;
-          G.world.add(rp);
           G.remotePlayers.set(p.id, rp);
+          if (isSameWorld(p, G.world)) {
+            const [sx, sy] = G.world.map ? (G.world.map.randomNear(G.player.x, G.player.y, 2) || [G.player.x + 1, G.player.y + 1]) : [G.player.x + 1, G.player.y + 1];
+            rp.x = sx; rp.y = sy;
+            rp.targetX = sx; rp.targetY = sy;
+            rp.world = G.world;
+            G.world.add(rp);
+          }
         }
       }
     }
@@ -1427,8 +1475,7 @@ export const game = {
         if (rp.destroySummons) rp.destroySummons();
         if (rp.destroySig) rp.destroySig();
         const rpState = rp._lastState;
-        const remoteKind = rpState?.worldKind || 'town';
-        const sameWorld = (!rpState && world.kind === 'town') || (rpState && remoteKind === world.kind && (world.kind !== 'dungeon' || rpState.depth === world.depth));
+        const sameWorld = isSameWorld(rpState || rp, world);
         if (sameWorld) {
           const px = p ? p.x : start[0];
           const py = p ? p.y : start[1];
@@ -1439,6 +1486,10 @@ export const game = {
           world.add(rp);
         } else {
           rp.world = null;
+          if (world.creatures) {
+            const idx = world.creatures.indexOf(rp);
+            if (idx !== -1) world.creatures.splice(idx, 1);
+          }
         }
       }
     }
@@ -1512,6 +1563,8 @@ export const game = {
         worldKind: world?.kind || 'town',
         townId: world?.townId || 'act1',
         depth: (world?.kind === 'dungeon' ? world.depth : 0) || 0,
+        unbound: !!world?.unbound,
+        duelId: world?.duelId || null,
         loading: false,
       });
     }
@@ -3962,6 +4015,7 @@ export const game = {
             townId: w?.townId || 'act1',
             duelId: w?.duelId || null,
             depth: (w?.kind === 'dungeon' ? w.depth : 0) || 0,
+            unbound: !!w?.unbound,
             loading: !!(G.loading || this.isLoading || (p && p.spawned === false)),
           });
         }
