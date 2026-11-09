@@ -20,6 +20,7 @@ import { commissionKill } from './commissions.js';
 import { riftKill } from './rifts.js';
 import { SKILLS } from '../data/skills.js';
 import { skillMorphFor } from '../data/talents.js';
+import { DuelManager, isDuelTarget } from './duel.js';
 
 const PLAYER_RES = { fire: 'fire', cold: 'cold', light: 'light', poison: 'poison', acid: 'poison' };
 const LEECH_K = 2; // life/mana leech: a whole monster's life taken returns LEECH_K x leech% of the hero's own
@@ -141,8 +142,58 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
   if (byHero) Meter.add(shownDmg(Math.min(dmg, Math.max(0, tgt.hp)), tLvl));
   if (byHero && src && src.isPlayer && !o.dot) G.lastHit = tgt; // the HUD's target window
   if (byHero && src && src.isPlayer && o.sk && !o.dot && showFx) classHitFx(src, tgt, o.sk, el); // the class's own splash (gfx/classfx.js)
+  if (tgt.isPlayer && (DuelManager.isDueling() || G.world?.kind === 'arena') && tgt.hp - dmg <= 1) {
+    tgt.hp = 1;
+    DuelManager.onDefeated();
+    return dmg;
+  }
+  if (tgt.isRemotePlayer && (tgt.isDuelOpponent || isDuelTarget(tgt))) {
+    tgt.hp = Math.max(1, tgt.hp - dmg);
+    if (!o.fromNetwork && net.connected) {
+      net.send({
+        type: 'duel_hit',
+        duelId: DuelManager.activeDuel?.duelId,
+        targetId: tgt.id,
+        dmg,
+        el,
+      });
+    }
+    floatText(tgt.x, tgt.y, 40, `-${Math.round(dmg)}`, '#ffd34a', 14);
+    sfx('hurt');
+    return dmg;
+  }
   tgt.hp -= dmg;
-  if (G.room && byHero && !o.fromNetwork && !src?.isRemotePlayer && net.connected) {
+  if (tgt.isRemoteSummon && isDuelTarget(tgt)) {
+    const oppId = tgt.owner?.id || DuelManager.activeDuel?.opponentId;
+    const isFatal = tgt.hp <= 0;
+    if (!o.fromNetwork && net.connected) {
+      net.send({
+        type: 'duel_summon_hit',
+        duelId: DuelManager.activeDuel?.duelId,
+        ownerId: oppId,
+        summonId: tgt.summonId,
+        summonKey: tgt.summonKey,
+        x: Math.round(tgt.x * 10) / 10,
+        y: Math.round(tgt.y * 10) / 10,
+        dmg,
+        el,
+        killed: isFatal,
+      });
+    }
+    if (isFatal) {
+      tgt.dead = true;
+      tgt.hp = 0;
+      burst(tgt.x, tgt.y, 14, '#ff6060', 8, 1.2);
+      if (tgt.owner?.killedSummonIds) tgt.owner.killedSummonIds.add(tgt.summonId);
+      if (tgt.owner?.summons) tgt.owner.summons.delete(tgt.summonId);
+      const w = tgt.world || G.world;
+      if (w && w.creatures) {
+        const idx = w.creatures.indexOf(tgt);
+        if (idx !== -1) w.creatures.splice(idx, 1);
+      }
+    }
+  }
+  if (G.room && byHero && !o.fromNetwork && !src?.isRemotePlayer && net.connected && !tgt.isRemotePlayer && !tgt.isRemoteSummon) {
     const isBoss = tgt.rank === 'boss' || tgt.rank === 'raid' || tgt === G.world?.boss;
     const sharedIdx = isSharedMonsterIdx(tgt.idx) ? tgt.idx : null;
     if (tgt.hp <= 0) tgt._sentKillNet = true;
@@ -311,6 +362,29 @@ export function kill(tgt, src, info = {}) {
   if (tgt.onDeath) tgt.onDeath(src);
   if (tgt.summon) {
     burst(tgt.x, tgt.y, 20, tgt.el || 'arcane', 10, 2);
+    if (tgt.isRemoteSummon) {
+      const oppId = tgt.owner?.id || DuelManager.activeDuel?.opponentId;
+      if (!info.fromNetwork && net.connected) {
+        net.send({
+          type: 'duel_summon_hit',
+          duelId: DuelManager.activeDuel?.duelId,
+          ownerId: oppId,
+          summonId: tgt.summonId,
+          summonKey: tgt.summonKey,
+          x: Math.round(tgt.x * 10) / 10,
+          y: Math.round(tgt.y * 10) / 10,
+          dmg: 999999,
+          el: info.el || 'phys',
+          killed: true,
+        });
+      }
+      if (tgt.owner?.killedSummonIds) tgt.owner.killedSummonIds.add(tgt.summonId);
+      if (tgt.owner?.summons) tgt.owner.summons.delete(tgt.summonId);
+      if (world && world.creatures) {
+        const idx = world.creatures.indexOf(tgt);
+        if (idx !== -1) world.creatures.splice(idx, 1);
+      }
+    }
     const fell = world && petCorpse(tgt); // its dead pose stays down a moment
     if (fell) world.fallen.push(fell);
     return;

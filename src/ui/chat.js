@@ -10,6 +10,7 @@ import { UI } from './ui.js';
 import { HUD } from './hud.js';
 import { TouchUI } from './touch.js';
 import { censorText } from '../net/profanity.js';
+import { MuteManager } from '../net/mutemanager.js';
 
 export const GameChat = {
   container: null,
@@ -826,6 +827,7 @@ export const GameChat = {
     net.on('chat', (data) => {
       if (!data) return;
       if (data.kind === 'whisper') {
+        if (MuteManager.isMuted(data.from)) return;
         this.lastWhisperFrom = data.from;
         this.addMessage({
           tab: 'whisper',
@@ -845,6 +847,7 @@ export const GameChat = {
           time: data.time,
         });
       } else if (data.kind === 'channel') {
+        if (MuteManager.isMuted(data.from)) return;
         const isSelf = !!(data.from && G.char?.name && data.from.toLowerCase() === G.char.name.toLowerCase());
         this.addMessage({
           tab: 'lobby',
@@ -879,6 +882,7 @@ export const GameChat = {
       if ((data.fromId && data.fromId === net.myId) || (data.from && data.from === G.char?.name)) {
         return; // Prevent duplicate self echo
       }
+      if (MuteManager.isMuted(data.from)) return;
       const rp = G.remotePlayers?.get(data.fromId) || Array.from(G.remotePlayers?.values() || []).find(p => p.name === data.from);
       if (rp) rp.showChat(data.text);
       sfx('whisper');
@@ -1365,6 +1369,33 @@ export const GameChat = {
       }
     } else if (text.startsWith('/f ') || text.startsWith('/friend ') || text === '/f' || text === '/friend') {
       net.sendChat(text);
+    } else if (text.startsWith('/mute ') || text.startsWith('/ignore ')) {
+      const target = text.replace(/^\/(?:mute|ignore)\s+/, '').trim();
+      if (!target) {
+        this.addMessage({ tab: 'system', text: 'Usage: /mute <playername>', color: '#ff6060' });
+      } else {
+        MuteManager.mute(target);
+        this.addMessage({ tab: 'system', text: `Muted ${target}. You will no longer see their messages or chat bubbles.`, color: '#8fe0ff' });
+      }
+    } else if (text.startsWith('/unmute ') || text.startsWith('/unignore ')) {
+      const target = text.replace(/^\/(?:unmute|unignore)\s+/, '').trim();
+      if (!target) {
+        this.addMessage({ tab: 'system', text: 'Usage: /unmute <playername>', color: '#ff6060' });
+      } else {
+        const removed = MuteManager.unmute(target);
+        if (removed) {
+          this.addMessage({ tab: 'system', text: `Unmuted ${target}.`, color: '#8fe0ff' });
+        } else {
+          this.addMessage({ tab: 'system', text: `${target} was not muted.`, color: '#ffd34a' });
+        }
+      }
+    } else if (text === '/mutelist' || text === '/muted') {
+      const list = MuteManager.getList();
+      if (list.length === 0) {
+        this.addMessage({ tab: 'system', text: 'No players are currently muted.', color: '#ffd34a' });
+      } else {
+        this.addMessage({ tab: 'system', text: `Muted players (${list.length}): ${list.join(', ')}`, color: '#8fe0ff' });
+      }
     } else if (text === '/clear') {
       this.addMessage({
         tab: 'system',
@@ -1376,7 +1407,7 @@ export const GameChat = {
     } else if (text === '/help') {
       this.addMessage({
         tab: 'system',
-        text: 'Commands: /w <name> <msg> (Whisper), /r <msg> (Reply), /f <add|remove|list> (Friends), /p <msg> (Party), /l <msg> (Lobby), /players (Online)',
+        text: 'Commands: /w <name> <msg> (Whisper), /r <msg> (Reply), /f <add|remove|list> (Friends), /p <msg> (Party), /l <msg> (Lobby), /mute <name>, /unmute <name>, /mutelist, /players (Online)',
         color: '#ffd34a',
       });
     } else {

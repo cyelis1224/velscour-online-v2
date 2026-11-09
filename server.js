@@ -1261,6 +1261,32 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 let clientIdSeq = 1;
 const clients = new Map(); // ws -> clientData
 const rooms = new Map();   // roomName -> roomData
+const activeTradeSessions = new Map(); // tradeId -> session
+const activeDuelSessions = new Map();  // duelId -> session
+
+function cleanupClientSessions(clientId, reason = 'Partner disconnected.') {
+  for (const [tradeId, session] of activeTradeSessions.entries()) {
+    if (session.p1.id === clientId || session.p2.id === clientId) {
+      const partnerWs = session.p1.id === clientId ? session.p2.ws : session.p1.ws;
+      if (partnerWs && partnerWs.readyState === WebSocket.OPEN) {
+        partnerWs.send(JSON.stringify({ type: 'trade_cancel', tradeId, reason }));
+      }
+      activeTradeSessions.delete(tradeId);
+    }
+  }
+  for (const [duelId, session] of activeDuelSessions.entries()) {
+    if (session.p1.id === clientId || session.p2.id === clientId) {
+      if (session.room) {
+        broadcastToRoom(session.room, {
+          type: 'duel_cancel',
+          duelId,
+          reason,
+        });
+      }
+      activeDuelSessions.delete(duelId);
+    }
+  }
+}
 const DEFAULT_CHANNEL = 'USEast-1';
 const ROOM_GRACE_PERIOD_MS = 90000; // 90s grace period before tearing down an empty room on unexpected disconnect
 
@@ -2413,6 +2439,7 @@ wss.on('connection', (ws) => {
 
       case 'leave_room': {
         if (!clientData.room) break;
+        cleanupClientSessions(clientData.id, 'Partner left the room.');
         const roomName = clientData.room;
         const room = rooms.get(roomName);
         clientData.room = null;
@@ -2582,6 +2609,7 @@ wss.on('connection', (ws) => {
         if (msg.gear) clientData.gear = msg.gear;
         if (msg.banner !== undefined) clientData.banner = msg.banner;
         if (msg.worldKind !== undefined) clientData.worldKind = msg.worldKind;
+        if (msg.duelId !== undefined) clientData.duelId = msg.duelId;
         if (typeof msg.depth === 'number') clientData.depth = msg.depth;
         if (typeof msg.level === 'number' && msg.level !== clientData.level) {
           clientData.level = msg.level;
@@ -3004,10 +3032,283 @@ wss.on('connection', (ws) => {
         }
         break;
       }
+
+      // ---------------------------------------------------- Trade System
+      case 'trade_request': {
+        if (!clientData.room) break;
+        let targetWs = null;
+        let targetClient = null;
+        for (const [otherWs, c] of clients) {
+          if (c.id === msg.targetId && c.room === clientData.room && otherWs.readyState === WebSocket.OPEN) {
+            targetWs = otherWs;
+            targetClient = c;
+            break;
+          }
+        }
+        if (!targetWs || !targetClient) {
+          ws.send(JSON.stringify({ type: 'trade_cancel', reason: 'Player not found or offline.' }));
+          break;
+        }
+        targetWs.send(JSON.stringify({
+          type: 'trade_prompt',
+          fromId: clientData.id,
+          fromName: clientData.name,
+        }));
+        break;
+      }
+
+      case 'trade_respond': {
+        if (!clientData.room) break;
+        let fromWs = null;
+        let fromClient = null;
+        for (const [otherWs, c] of clients) {
+          if (c.id === msg.fromId && c.room === clientData.room && otherWs.readyState === WebSocket.OPEN) {
+            fromWs = otherWs;
+            fromClient = c;
+            break;
+          }
+        }
+        if (!fromWs || !fromClient) {
+          ws.send(JSON.stringify({ type: 'trade_cancel', reason: 'Player is no longer available.' }));
+          break;
+        }
+        if (!msg.accept) {
+          fromWs.send(JSON.stringify({ type: 'trade_cancel', reason: `${clientData.name} declined the trade request.` }));
+          break;
+        }
+        const tradeId = 'trade_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        const session = {
+          tradeId,
+          room: clientData.room,
+          p1: { id: fromClient.id, name: fromClient.name, ws: fromWs, offer: { items: [], gold: 0 }, locked: false },
+          p2: { id: clientData.id, name: clientData.name, ws, offer: { items: [], gold: 0 }, locked: false },
+        };
+        activeTradeSessions.set(tradeId, session);
+
+        fromWs.send(JSON.stringify({
+          type: 'trade_start',
+          tradeId,
+          partner: { id: clientData.id, name: clientData.name, classId: clientData.classId, level: clientData.level },
+        }));
+        ws.send(JSON.stringify({
+          type: 'trade_start',
+          tradeId,
+          partner: { id: fromClient.id, name: fromClient.name, classId: fromClient.classId, level: fromClient.level },
+        }));
+        break;
+      }
+
+      case 'trade_update': {
+        const session = activeTradeSessions.get(msg.tradeId);
+        if (!session) break;
+        const isP1 = session.p1.id === clientData.id;
+        const me = isP1 ? session.p1 : session.p2;
+        const other = isP1 ? session.p2 : session.p1;
+
+        me.offer = {
+          items: Array.isArray(msg.offer?.items) ? msg.offer.items : [],
+          gold: Math.max(0, Number(msg.offer?.gold) || 0),
+        };
+        session.p1.locked = false;
+        session.p2.locked = false;
+
+        if (other.ws && other.ws.readyState === WebSocket.OPEN) {
+          other.ws.send(JSON.stringify({
+            type: 'trade_update',
+            tradeId: session.tradeId,
+            offer: me.offer,
+          }));
+        }
+        break;
+      }
+
+      case 'trade_lock': {
+        const session = activeTradeSessions.get(msg.tradeId);
+        if (!session) break;
+        const isP1 = session.p1.id === clientData.id;
+        const me = isP1 ? session.p1 : session.p2;
+        const other = isP1 ? session.p2 : session.p1;
+
+        me.locked = !!msg.locked;
+
+        if (other.ws && other.ws.readyState === WebSocket.OPEN) {
+          other.ws.send(JSON.stringify({
+            type: 'trade_lock',
+            tradeId: session.tradeId,
+            locked: me.locked,
+          }));
+        }
+
+        // Both locked -> Complete atomic trade!
+        if (session.p1.locked && session.p2.locked) {
+          const p1Sent = session.p1.offer.items.filter(Boolean);
+          const p2Sent = session.p2.offer.items.filter(Boolean);
+          const p1Indices = p1Sent.map(it => it.bagIndex).filter(idx => idx != null);
+          const p2Indices = p2Sent.map(it => it.bagIndex).filter(idx => idx != null);
+          const p1Gold = session.p1.offer.gold || 0;
+          const p2Gold = session.p2.offer.gold || 0;
+
+          if (session.p1.ws && session.p1.ws.readyState === WebSocket.OPEN) {
+            session.p1.ws.send(JSON.stringify({
+              type: 'trade_complete',
+              tradeId: session.tradeId,
+              receivedItems: p2Sent,
+              receivedGold: p2Gold,
+              sentBagIndices: p1Indices,
+              goldSent: p1Gold,
+              goldReceived: p2Gold,
+            }));
+          }
+          if (session.p2.ws && session.p2.ws.readyState === WebSocket.OPEN) {
+            session.p2.ws.send(JSON.stringify({
+              type: 'trade_complete',
+              tradeId: session.tradeId,
+              receivedItems: p1Sent,
+              receivedGold: p1Gold,
+              sentBagIndices: p2Indices,
+              goldSent: p2Gold,
+              goldReceived: p1Gold,
+            }));
+          }
+          activeTradeSessions.delete(session.tradeId);
+        }
+        break;
+      }
+
+      case 'trade_cancel': {
+        const session = activeTradeSessions.get(msg.tradeId);
+        if (session) {
+          const other = session.p1.id === clientData.id ? session.p2 : session.p1;
+          if (other.ws && other.ws.readyState === WebSocket.OPEN) {
+            other.ws.send(JSON.stringify({
+              type: 'trade_cancel',
+              tradeId: session.tradeId,
+              reason: msg.reason || 'Trade was cancelled by the other player.',
+            }));
+          }
+          activeTradeSessions.delete(session.tradeId);
+        }
+        break;
+      }
+
+      // ---------------------------------------------------- Duel System
+      case 'duel_request': {
+        if (!clientData.room) break;
+        let targetWs = null;
+        let targetClient = null;
+        for (const [otherWs, c] of clients) {
+          if (c.id === msg.targetId && c.room === clientData.room && otherWs.readyState === WebSocket.OPEN) {
+            targetWs = otherWs;
+            targetClient = c;
+            break;
+          }
+        }
+        if (!targetWs || !targetClient) {
+          ws.send(JSON.stringify({ type: 'duel_cancel', reason: 'Player not found or offline.' }));
+          break;
+        }
+        targetWs.send(JSON.stringify({
+          type: 'duel_prompt',
+          fromId: clientData.id,
+          fromName: clientData.name,
+        }));
+        break;
+      }
+
+      case 'duel_respond': {
+        if (!clientData.room) break;
+        let fromWs = null;
+        let fromClient = null;
+        for (const [otherWs, c] of clients) {
+          if (c.id === msg.fromId && c.room === clientData.room && otherWs.readyState === WebSocket.OPEN) {
+            fromWs = otherWs;
+            fromClient = c;
+            break;
+          }
+        }
+        if (!fromWs || !fromClient) {
+          ws.send(JSON.stringify({ type: 'duel_cancel', reason: 'Player is no longer available.' }));
+          break;
+        }
+        if (!msg.accept) {
+          fromWs.send(JSON.stringify({ type: 'duel_cancel', reason: `${clientData.name} declined the duel challenge.` }));
+          break;
+        }
+        const duelId = 'duel_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        const ringX = clientData.x || fromClient.x || 20;
+        const ringY = clientData.y || fromClient.y || 20;
+        const session = {
+          duelId,
+          room: clientData.room,
+          p1: { id: fromClient.id, name: fromClient.name, classId: fromClient.classId },
+          p2: { id: clientData.id, name: clientData.name, classId: clientData.classId },
+          ringX,
+          ringY,
+          radius: 22,
+        };
+        activeDuelSessions.set(duelId, session);
+
+        broadcastToRoom(clientData.room, {
+          type: 'duel_start',
+          duelId,
+          p1: session.p1,
+          p2: session.p2,
+          ringX,
+          ringY,
+          radius: 22,
+        });
+        break;
+      }
+
+      case 'duel_hit':
+      case 'duel_summon_hit': {
+        if (!clientData.room) break;
+        msg.sourceId = clientData.id;
+        broadcastToRoom(clientData.room, msg);
+        break;
+      }
+
+      case 'duel_defeat': {
+        const session = activeDuelSessions.get(msg.duelId);
+        if (session) {
+          const winner = session.p1.id === msg.defeatedId ? session.p2 : session.p1;
+          const loser = session.p1.id === msg.defeatedId ? session.p1 : session.p2;
+          broadcastToRoom(session.room, {
+            type: 'duel_end',
+            duelId: session.duelId,
+            winnerId: winner.id,
+            winnerName: winner.name,
+            loserId: loser.id,
+            loserName: loser.name,
+          });
+          activeDuelSessions.delete(session.duelId);
+        }
+        break;
+      }
+
+      case 'duel_forfeit': {
+        const session = activeDuelSessions.get(msg.duelId);
+        if (session) {
+          const loser = session.p1.id === clientData.id ? session.p1 : session.p2;
+          const winner = session.p1.id === clientData.id ? session.p2 : session.p1;
+          broadcastToRoom(session.room, {
+            type: 'duel_end',
+            duelId: session.duelId,
+            winnerId: winner.id,
+            winnerName: winner.name,
+            loserId: loser.id,
+            loserName: loser.name,
+            reason: 'forfeit',
+          });
+          activeDuelSessions.delete(session.duelId);
+        }
+        break;
+      }
     }
   });
 
   ws.on('close', () => {
+    cleanupClientSessions(clientData.id);
     if (clientData.kicked) {
       clients.delete(ws);
       return;

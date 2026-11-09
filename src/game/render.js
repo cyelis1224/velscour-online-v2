@@ -28,6 +28,7 @@ import { drawCine } from './cinema.js';
 import { obelisk } from './happenings.js';
 import { endgameUnlocked } from './endgame.js';
 import { heresyRankOf } from './heresies.js';
+import { DuelManager } from './duel.js';
 import { addLight } from '../gfx/vfx.js';
 import { drawTerrain, drawColumn, occludersFor, occludersOfRect, occluderObj, clipAdd, hiddenBehind, standKey, hopZ, drawSky, terrainShade, HS } from '../gfx/terrain.js';
 import { hopArc } from './alpine.js';
@@ -776,6 +777,7 @@ export function renderWorld(ctx, world) {
     else top.push(h);
   }
   drawEffects(ctx, 'ground');
+  DuelManager.drawGround(ctx);
 
   // depth sorted pass
   const p = world.player;

@@ -16,6 +16,7 @@ import { toughness, danger, densityXp, riftHold, dmgScale } from '../data/depth.
 import { attachSlime, slimeUpdate, courtDef } from './slimecourt.js';
 import { ART_BY_ID, REVIVED, greaterSwap, rollLooks, uniqueSwap } from '../data/bestiary.js';
 import { skillMorphFor } from '../data/talents.js';
+import { isDuelTarget } from './duel.js';
 
 const LEASH = 10; // minions fight what's within this many tiles of the hero
 const CHASE = 1.3, CHASE_MAX = 4.6; // monsters' pursuit pace: x1.3, up to 4.6 tiles/s (the hero runs 4.2) unless faster already
@@ -258,7 +259,7 @@ export class Monster extends Creature {
    */
   pickFoe() {
     const w = this.world, o = this.owner, map = w.map;
-    const f = this.foe, live = (e) => e && !e.dead && e.team !== this.team && e.targetable !== false && !e.clutter;
+    const f = this.foe, live = (e) => e && !e.dead && (e.team !== this.team || isDuelTarget(e)) && e.targetable !== false && !e.clutter;
     if (dist(this.x, this.y, o.x, o.y) > LEASH + 6) return (this.foe = null); // strayed too far: go back first
     if (live(f) && w.time < this.foeT && dist(o.x, o.y, f.x, f.y) < LEASH + 4) return f;
     this.foeT = w.time + rand(0.35, 0.55);
@@ -801,7 +802,9 @@ export class Monster extends Creature {
       const stats = { [stat]: amt };
       if (A.as) stats.as = A.as;
       if (A.regen) stats.regen = A.regen * 10;
-      p.addBuff({ id: 'aura_' + this.skillId, name: this.name, el: this.el || 'holy', stats, t: 1.5, max: 1.5, hidden: false, aura: true });
+      if (typeof p.addBuff === 'function') {
+        p.addBuff({ id: 'aura_' + this.skillId, name: this.name, el: this.el || 'holy', stats, t: 1.5, max: 1.5, hidden: false, aura: true });
+      }
     }
     for (const c of this.world.alliesOf(this.team, this.x, this.y, r)) if (c.summon) c.partyBuff = { stats: { [stat]: amt, ...(A.as ? { as: A.as } : null) }, t: 1.5 };
   }

@@ -21,6 +21,7 @@ import { angleTo } from '../core/util.js';
 import { bardScore, bardCompose, bardUpdate, bardRetune, ensureInstrumentsLoaded } from '../game/bard.js';
 import { getBannerSkin, getBannerRoll } from '../gfx/bannergen.js';
 import { getUltimate, executeUltimate } from '../game/smite.js';
+import { MuteManager } from './mutemanager.js';
 
 export class RemotePlayer extends Creature {
   constructor(info) {
@@ -229,6 +230,7 @@ export class RemotePlayer extends Creature {
   }
 
   showChat(text) {
+    if (MuteManager.isMuted(this.name)) return;
     this.chatBubble = text;
     this.chatTimer = 4.5;
     this.chatAge = 0;
@@ -296,6 +298,14 @@ export class RemotePlayer extends Creature {
         } else {
           this.z = this.targetZ;
         }
+      }
+    }
+
+    if (this.buffs && this.buffs.length) {
+      for (let i = this.buffs.length - 1; i >= 0; i--) {
+        const b = this.buffs[i];
+        b.t -= dt;
+        if (b.t <= 0) this.buffs.splice(i, 1);
       }
     }
 
@@ -457,12 +467,14 @@ export class RemotePlayer extends Creature {
 
   syncSummons(summonsList) {
     if (!this.summons) this.summons = new Map();
+    if (!this.killedSummonIds) this.killedSummonIds = new Set();
     const activeIds = new Set();
     const w = G.world;
     if (!w) return;
 
     for (const s of summonsList) {
       if (!s || !s.id) continue;
+      if (this.killedSummonIds.has(s.id)) continue;
       activeIds.add(s.id);
       let rs = this.summons.get(s.id);
       if (!rs) {
@@ -470,7 +482,7 @@ export class RemotePlayer extends Creature {
         w.add(rs);
         this.summons.set(s.id, rs);
         burst(rs.x, rs.y, 12, '#60d0ff', 6, 1.5);
-      } else {
+      } else if (!rs.dead) {
         rs.updateFromNetwork(s);
       }
     }
@@ -484,6 +496,12 @@ export class RemotePlayer extends Creature {
           if (idx !== -1) w.creatures.splice(idx, 1);
         }
         this.summons.delete(id);
+      }
+    }
+
+    for (const id of this.killedSummonIds) {
+      if (!summonsList.some((s) => s && s.id === id)) {
+        this.killedSummonIds.delete(id);
       }
     }
   }

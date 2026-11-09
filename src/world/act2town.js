@@ -350,6 +350,8 @@ function rollAct2Town(tileset, seed, isLastTry) {
 
   // Dress the Sandstone Cliff Canyon Perimeter
   const cliffs = seaOfSandFrames('cliff');
+  const sandstone = cliffs.find((f) => f.material === 'sunbaked_sandstone')?.material;
+  const ruinBrick = cliffs.find((f) => f.material === 'ruin_brick')?.material;
   const cliffByMask = new Map();
   for (const f of cliffs) {
     if (f.connection_mask != null) {
@@ -368,7 +370,10 @@ function rollAct2Town(tileset, seed, isLastTry) {
         }
         const variants = cliffByMask.get(mask) || cliffByMask.get(0);
         if (variants && variants.length) {
-          const f = rng.pick(variants);
+          const nearRuin = Math.hypot(x + 0.5 - portal.x, y + 0.5 - portal.y) < 10;
+          const targetMat = nearRuin && ruinBrick ? ruinBrick : sandstone;
+          const family = variants.filter((v) => v.material === targetMat);
+          const f = rng.pick(family.length ? family : variants);
           const spr = seaOfSandCliff(f.name);
           if (spr) {
             props.push({

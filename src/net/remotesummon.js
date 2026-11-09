@@ -103,7 +103,14 @@ export class RemoteSummon extends Creature {
     if (typeof info.animT === 'number') this.animT = info.animT;
     if (typeof info.attackAnimT === 'number') this.attackAnimT = info.attackAnimT;
     if (typeof info.lunge === 'number') this.lunge = info.lunge;
-    if (typeof info.hp === 'number') this.hp = info.hp;
+    if (this.dead) return;
+    if (typeof info.hp === 'number') {
+      if (this.owner?.isDuelOpponent) {
+        this.hp = Math.min(this.hp !== undefined ? this.hp : info.hp, info.hp);
+      } else {
+        this.hp = info.hp;
+      }
+    }
     if (typeof info.maxHp === 'number') this.maxHp = info.maxHp;
     if (typeof info.scale === 'number') this.scale = info.scale;
     if (info.aura !== undefined) this.aura = info.aura;

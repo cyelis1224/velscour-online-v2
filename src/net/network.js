@@ -666,6 +666,26 @@ class NetworkManager {
       case 'dungeon_state_response':
         this.emit('dungeon_state_response', msg);
         break;
+
+      // Trade events
+      case 'trade_prompt':
+      case 'trade_start':
+      case 'trade_update':
+      case 'trade_lock':
+      case 'trade_complete':
+      case 'trade_cancel':
+        this.emit(msg.type, msg);
+        break;
+
+      // Duel events
+      case 'duel_prompt':
+      case 'duel_start':
+      case 'duel_hit':
+      case 'duel_summon_hit':
+      case 'duel_end':
+      case 'duel_cancel':
+        this.emit(msg.type, msg);
+        break;
     }
   }
 

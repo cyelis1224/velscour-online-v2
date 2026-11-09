@@ -27,6 +27,7 @@ import { toggleSmite, getUltimate, executeUltimate } from './smite.js';
 import { hearthTick, useHearth, hearthPortalActive, closeHearthPortals, getActiveHearth, returnFromHearth } from './hearth.js';
 import { generateTown, makeTownTiles, rollTownWeather } from '../world/town.js';
 import { generateAct2Town, makeAct2TownTiles, ACT2_TOWN_NAME } from '../world/act2town.js';
+import { createArenaWorld } from '../world/arena.js';
 import { generateOverworld } from '../world/overworld.js';
 import { createOverworldScenario } from './overworld.js';
 import { addWanderers } from './wanderers.js';
@@ -83,6 +84,8 @@ import { grantDeathGift, DEATH_PHRASE } from './deathgift.js';
 import { clearVfx, floatText, sparkle, addEffect, Ring, Bolt, Column } from '../gfx/vfx.js';
 import { Meter } from './dpsmeter.js';
 import { UI } from '../ui/ui.js';
+import { initTrade } from '../ui/trade.js';
+import { initDuel, DuelManager } from './duel.js';
 import { HUD } from '../ui/hud.js';
 import { TouchUI } from '../ui/touch.js';
 import { Vendor } from '../ui/vendor.js';
@@ -274,6 +277,9 @@ function attachNetListeners() {
   if (netListenersAttached) return;
   netListenersAttached = true;
 
+  initTrade();
+  initDuel();
+
   net.on('player_joined_room', (p) => {
     if (G.world && p.id !== net.myId) {
       // Clean up any existing remote player with the same ID or name before adding the new one
@@ -444,7 +450,7 @@ function attachNetListeners() {
     const myKind = G.world?.kind || 'town';
     const remoteTownId = state.townId || 'act1';
     const myTownId = G.world?.townId || 'act1';
-    const sameWorld = (remoteKind === myKind) && (myKind !== 'dungeon' || state.depth === G.world.depth) && (myKind !== 'town' || remoteTownId === myTownId);
+    const sameWorld = (remoteKind === myKind) && (myKind !== 'dungeon' || state.depth === G.world.depth) && (myKind !== 'town' || remoteTownId === myTownId) && (myKind !== 'arena' || state.duelId === G.world.duelId);
     if (sameWorld) {
       if (rp.world !== G.world || !G.world.creatures.includes(rp)) {
         rp.x = typeof state.x === 'number' ? state.x : rp.x;
@@ -524,8 +530,14 @@ function attachNetListeners() {
       handleRemoteUltimate(data);
       return;
     }
-    const rp = G.remotePlayers?.get(data.playerId);
-    if (rp && rp.world === G.world && G.world.creatures.includes(rp)) {
+    const rp = G.remotePlayers?.get(data.playerId) || (G.remotePlayers && Array.from(G.remotePlayers.values()).find(p => String(p.id) === String(data.playerId)));
+    if (rp) {
+      if (rp.world !== G.world || !G.world.creatures.includes(rp)) {
+        rp.world = G.world;
+        rp.dead = false;
+        if (!G.world.creatures.includes(rp)) G.world.add(rp);
+      }
+      rp.dead = false;
       rp.onCastSkill(data.skillId, data.x, data.y, data.targetId, data.level, data.extra);
     }
   });
@@ -1599,7 +1611,10 @@ export const game = {
       const fromPortal = Math.hypot(tx + 0.5 - P.x, ty + 0.5 - P.y);
       if (v > 0 && v < 126 && d < bd && fromPortal >= 2 && fromPortal <= 4.6) { bd = d; best = [tx + 0.5, ty + 0.5]; }
     }
-    if (best) arrive = best;
+    if (this._townReturnPos) {
+      arrive = this._townReturnPos;
+      this._townReturnPos = null;
+    } else if (best) arrive = best;
     else if (!m.walkable(...arrive)) arrive = m.randomNear(arrive[0], arrive[1], 1.5) || t.start;
     this.setWorld(world, arrive, old);
     void warmLevelArt(world); // the hero's summons; trims the last level's monster sprites
@@ -1611,6 +1626,29 @@ export const game = {
     townHappening(world); // a festival, a blessing, a gift (game/happenings.js)
     p.hp = p.maxHp; p.mana = p.maxMana;
     this.autosave();
+  },
+
+  enterArena(duelData, mySpawn) {
+    const old = G.world;
+    if (old && old.kind === 'town' && G.player) {
+      this._townReturnPos = [G.player.x, G.player.y];
+    }
+    const world = createArenaWorld(duelData);
+    const spawn = mySpawn || world.p1Spawn;
+    this.setWorld(world, spawn, old);
+    world.kind = 'arena';
+    world.duelId = duelData?.duelId || null;
+    HUD.setArea('The Grand Arena', 'Coliseum of Heresy — Sparring Grounds');
+    playMusic('boss');
+    setAmbience('cave');
+    const p = G.player;
+    if (p) {
+      p.hp = p.maxHp;
+      p.mana = p.maxMana;
+      p.castLock = 3.5;
+      p.moveVec = [0, 0];
+      p.moveTarget = null;
+    }
   },
 
   async enterAct2Town(fromCheat = false) {
@@ -3819,7 +3857,10 @@ export const game = {
       if (!G.room || this.isDungeonAuthority(w?.depth)) {
         ambushTick(w, dt);
       }
-      if (w.kind === 'town') townTick(w, dt); else if (!w.sky && !w.seaRun) happeningsTick(w, dt);
+      if (w.kind === 'town') {
+        townTick(w, dt);
+      } else if (!w.sky && !w.seaRun) happeningsTick(w, dt);
+      DuelManager.update(dt);
       if (w.rift) riftTick(w, dt); // the Abyssal Rift's clock (game/rifts.js)
       if (w.heresy) heresyTick(w, dt); // the Heresies as monsters appear, the Legion's hellgates (game/heresies.js; the Breach has no happenings tick)
       madnessTick(dt);
@@ -3919,6 +3960,7 @@ export const game = {
             summons: mySummons,
             worldKind: w?.kind || 'town',
             townId: w?.townId || 'act1',
+            duelId: w?.duelId || null,
             depth: (w?.kind === 'dungeon' ? w.depth : 0) || 0,
             loading: !!(G.loading || this.isLoading || (p && p.spawned === false)),
           });

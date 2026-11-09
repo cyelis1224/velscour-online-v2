@@ -8,6 +8,7 @@ import { rand, dist2, TAU, chance } from '../core/util.js';
 import { sfx } from '../core/audio.js';
 import { spawn, updateVfx, addLight, sparkle, smoke, lights } from '../gfx/vfx.js';
 import { bodyR } from '../world/map.js';
+import { isDuelTarget } from './duel.js';
 
 const CELL = 2;
 
@@ -174,7 +175,7 @@ export class World {
     }
     return out;
   }
-  hostiles(team, x, y, r) { return this.query(x, y, r, (c) => c.team !== team && c.targetable !== false); }
+  hostiles(team, x, y, r) { return this.query(x, y, r, (c) => (c.team !== team || isDuelTarget(c)) && c.targetable !== false); }
   nearestHostile(team, x, y, r, needLos = false, allowClutter = false) {
     let best = null, bd = Infinity;
     let bestX = Infinity, bestY = Infinity;
@@ -182,7 +183,7 @@ export class World {
     const y0 = Math.floor((y - r) / CELL), y1 = Math.floor((y + r) / CELL);
     const visit = (cell, cx, cy) => {
       for (const c of cell) {
-        if (c.dead || c.team === team || c.targetable === false || (!allowClutter && c.clutter)) continue;
+        if (c.dead || (c.team === team && !isDuelTarget(c)) || c.targetable === false || (!allowClutter && c.clutter)) continue;
         const d = dist2(x, y, c.x, c.y), rr = r + c.r;
         // Preserve query's row/column tie order even when scanning occupied cells.
         if (d > rr * rr || d > bd || (d === bd && (cy > bestY || (cy === bestY && cx >= bestX)))) continue;

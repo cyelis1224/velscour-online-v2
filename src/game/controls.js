@@ -6,6 +6,8 @@ import { dist, angleTo, escapeHtml } from '../core/util.js';
 import { SKILLS, skillRange, needsTarget } from '../data/skills.js';
 import { SLOT_KEYS, RMB } from '../data/bar.js';
 import { Macros } from './macros.js';
+import { remotePlayerAt, openPlayerContextMenu } from '../ui/playercontextmenu.js';
+import { isDuelTarget } from './duel.js';
 
 function creatureAt(sx, sy) {
   const w = G.world;
@@ -15,7 +17,7 @@ function creatureAt(sx, sy) {
     const b = c.sbox;
     const pad = 6;
     if (sx >= b[0] - pad && sx <= b[2] + pad && sy >= b[1] - pad && sy <= b[3] + pad) {
-      const d = Math.abs((b[0] + b[2]) / 2 - sx) + Math.abs(b[3] - sy) * 0.5 + (c.team === 'enemy' ? 0 : 50);
+      const d = Math.abs((b[0] + b[2]) / 2 - sx) + Math.abs(b[3] - sy) * 0.5 + ((c.team === 'enemy' || isDuelTarget(c)) ? 0 : 50);
       if (d < bd) { bd = d; best = c; }
     }
   }
@@ -67,10 +69,10 @@ export const controls = {
     const p = G.player;
     if (!p || p.dead || G.ui.modal || !sk) return false;
     let tx, ty, target = null;
-    if (at) { [tx, ty] = at; target = G.hover && G.hover.team === 'enemy' ? G.hover : null; }
+    if (at) { [tx, ty] = at; target = G.hover && (G.hover.team === 'enemy' || isDuelTarget(G.hover)) ? G.hover : null; }
     else if (input.lastPointerType === 'mouse' && !G.touch) {
       [tx, ty] = camera.screenToTile(input.mouse.x, input.mouse.y);
-      target = G.hover && G.hover.team !== 'player' ? G.hover : null;
+      target = G.hover && (G.hover.team !== 'player' || isDuelTarget(G.hover)) ? G.hover : null;
     } else {
       // touch: auto-aim at the nearest visible enemy
       const range = Math.min(12, skillRange(sk) + 3);
@@ -95,7 +97,7 @@ export const controls = {
     const mouse = input.mouse;
     const useMouse = input.lastPointerType === 'mouse';
     G.hover = useMouse && mouse.inside ? creatureAt(mouse.x, mouse.y) : null;
-    if (G.hover && G.hover.team === 'player') G.hover = null;
+    if (G.hover && G.hover.team === 'player' && !isDuelTarget(G.hover)) G.hover = null;
     if (p.dead || blocked) {
       p.moveVec = [0, 0];
       p.moveTarget = null;
@@ -141,24 +143,36 @@ export const controls = {
         const it = interactableAt(tx, ty, mouse.x, mouse.y);
         const shift = input.down('ShiftLeft') || input.down('ShiftRight');
         if (loot) { p.lootTarget = loot; p.interact = null; p.attackTarget = null; p.setMoveTarget(loot.x, loot.y); this.mode = 'loot'; }
-        else if (G.hover && G.hover.team === 'enemy') { this.mode = 'attack'; this.attack(G.hover, tx, ty); }
+        else if (G.hover && (G.hover.team === 'enemy' || isDuelTarget(G.hover))) { this.mode = 'attack'; this.attack(G.hover, tx, ty); }
         else if (it && !shift) { this.mode = 'interact'; p.attackTarget = null; p.interact = it; }
         else if (shift) { this.mode = 'attack'; this.useSlot(0, [tx, ty]); }
         else { this.mode = 'move'; p.attackTarget = null; p.interact = null; p.setMoveTarget(tx, ty); }
       } else if (mouse.left) {
         this.holdLeft += dt;
         if (this.mode === 'move' && this.holdLeft > 0.12) {
-          if (G.hover && G.hover.team === 'enemy' && this.holdLeft > 0.4) { this.mode = 'attack'; }
+          if (G.hover && (G.hover.team === 'enemy' || isDuelTarget(G.hover)) && this.holdLeft > 0.4) { this.mode = 'attack'; }
           else if (!p.moveTarget || dist(p.moveTarget[0], p.moveTarget[1], tx, ty) > 0.6) p.setMoveTarget(tx, ty);
         } else if (this.mode === 'attack' && p.castLock <= 0 && !p.attackTarget) {
-          if (G.hover && G.hover.team === 'enemy') this.attack(G.hover, tx, ty);
+          if (G.hover && (G.hover.team === 'enemy' || isDuelTarget(G.hover))) this.attack(G.hover, tx, ty);
           else if (input.down('ShiftLeft') || input.down('ShiftRight')) this.useSlot(0, [tx, ty]);
           else this.useSlot(0, [tx, ty]);
         }
       }
       if (mouse.rightPressed || (mouse.right && p.castLock <= 0)) {
-        const id = G.char.bar[RMB];
-        if (id) { p.moveTarget = null; this.useSlotAt(RMB, tx, ty); }
+        if (G.world?.kind === 'town') {
+          const rp = remotePlayerAt(mouse.x, mouse.y);
+          if (rp && !rp.isDuelOpponent) {
+            mouse.rightPressed = false;
+            mouse.right = false;
+            openPlayerContextMenu(rp, mouse.x, mouse.y);
+          } else {
+            const id = G.char.bar[RMB];
+            if (id) { p.moveTarget = null; this.useSlotAt(RMB, tx, ty); }
+          }
+        } else {
+          const id = G.char.bar[RMB];
+          if (id) { p.moveTarget = null; this.useSlotAt(RMB, tx, ty); }
+        }
       }
     }
 
@@ -185,11 +199,23 @@ export const controls = {
     if (wt) {
       const [tx, ty] = camera.screenToTile(wt.x, wt.y);
       if (wt.pressed) {
+        if (w.kind === 'town') {
+          const rp = remotePlayerAt(wt.x, wt.y);
+          if (rp && !rp.isDuelOpponent) {
+            openPlayerContextMenu(rp, wt.x, wt.y);
+            this.tmode = 'none';
+            p.moveTarget = null;
+            p.attackTarget = null;
+            input.worldTouch = null;
+            input.endFrame();
+            return;
+          }
+        }
         const target = creatureAt(wt.x, wt.y) || w.nearestHostile('player', tx, ty, 1.2);
         const loot = lootAt(wt.x, wt.y);
         const it = interactableAt(tx, ty, wt.x, wt.y);
         if (loot) { p.lootTarget = loot; p.setMoveTarget(loot.x, loot.y); this.tmode = 'move'; }
-        else if (target && target.team === 'enemy') { this.tmode = 'attack'; this.attack(target, tx, ty); }
+        else if (target && (target.team === 'enemy' || target.isDuelOpponent)) { this.tmode = 'attack'; this.attack(target, tx, ty); }
         else if (it) { p.interact = it; this.tmode = 'none'; }
         else { p.attackTarget = null; p.interact = null; p.setMoveTarget(tx, ty); this.tmode = 'move'; }
       } else if (this.tmode === 'move') {
@@ -206,7 +232,7 @@ export const controls = {
     const id = G.char.bar[i];
     const sk = id && SKILLS[id];
     if (!sk) return;
-    const target = G.hover && G.hover.team === 'enemy' ? G.hover : null;
+    const target = G.hover && (G.hover.team === 'enemy' || isDuelTarget(G.hover)) ? G.hover : null;
     if (sk.kind === 'melee' && target) G.player.tryUseSkill(sk, target.x, target.y, target);
     else G.player.tryUseSkill(sk, tx, ty, null);
   },

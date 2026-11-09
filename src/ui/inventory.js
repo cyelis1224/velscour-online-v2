@@ -26,6 +26,7 @@ import { endgameUnlocked } from '../game/endgame.js';
 import { sparkle, floatText } from '../gfx/vfx.js';
 import { Stash } from './stash.js';
 import { Reliquary } from './reliquary.js';
+import { TradeManager } from './trade.js';
 
 export const DOLL = { head: [2, 1], weapon: [1, 2], body: [2, 2], offhand: [3, 2], hands: [1, 3], legs: [2, 3], feet: [2, 4], ring1: [4, 1], ring2: [4, 2], ring3: [4, 3], ring4: [4, 4] };
 
@@ -456,7 +457,7 @@ function bagTip(idx) {
       compare: it.slot ? c.equip[slotFor(c.equip, it)] : null,
       price: G.ui.vendor && G.ui.vendor.active ? Math.max(1, Math.floor(itemValue(it) / 4)) : 0,
       priceLabel: 'Sells for',
-      hint: G.ui.vendor && G.ui.vendor.active ? 'Right-click or double-tap to sell' : G.ui.jewelBox && G.ui.jewelBox.active ? (it.type === 'gem' ? 'Right-click or double-tap to store in Jewel Box' : '') : G.ui.stash && G.ui.stash.active ? 'Right-click or double-tap to store' : it.sealed ? 'Right-click or double-tap to break seal' : it.type === 'gear' ? 'Right-click or double-tap to equip' : it.type === 'gem' ? 'Drag onto gear to socket' : '',
+      hint: TradeManager.isTrading() ? 'Right-click or double-tap to offer in Trade' : G.ui.vendor && G.ui.vendor.active ? 'Right-click or double-tap to sell' : G.ui.jewelBox && G.ui.jewelBox.active ? (it.type === 'gem' ? 'Right-click or double-tap to store in Jewel Box' : '') : G.ui.stash && G.ui.stash.active ? 'Right-click or double-tap to store' : it.sealed ? 'Right-click or double-tap to break seal' : it.type === 'gear' ? 'Right-click or double-tap to equip' : it.type === 'gem' ? 'Drag onto gear to socket' : '',
       actions: acts,
     }),
     actions: acts,
@@ -551,6 +552,10 @@ function quickUse(idx, where = 'bag') {
   const c = G.char, container = where === 'gemBag' && c.gemBag ? c.gemBag : c.bag;
   const it = container[idx];
   if (!it) return;
+  if (TradeManager.isTrading() && where === 'bag') {
+    TradeManager.addItemToOffer(idx);
+    return;
+  }
   if (it.sealed && !(G.ui.stash && G.ui.stash.active)) { openSeal(idx); return; }
   if (G.ui.vendor && G.ui.vendor.active) { G.ui.vendor.sell({ where, idx }); return; }
   if (G.ui.jewelBox && G.ui.jewelBox.active) {

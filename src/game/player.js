@@ -35,6 +35,8 @@ import { noteFind, codexMf } from './reliquary.js';
 import { markBonuses, gainMarkXp } from './marks.js';
 import { heresyHero, heresyAllows } from './heresies.js';
 import { endgame, saveEndgame } from './endgame.js';
+import { closePlayerContextMenu } from '../ui/playercontextmenu.js';
+import { DuelManager } from './duel.js';
 
 // XP for the next level. The (L/30)^1.5 term paces a hero who clears every depth to stay ~10-50 levels above its
 // monsters and reach ~270 by Velscour (depth 500, monster level 258); without it a full-clearing hero hit level 300
@@ -486,7 +488,7 @@ export class Player extends Creature {
 
   /** Settings > Auto-cast summons: re-raise any summon on the skill bar the moment one of its pets is missing. */
   autoSummon(dt) {
-    if (G.settings.autoSummon === false || G.autoplayOn || G.cine || !this.world || this.world.kind === 'town' || this.dead) return;
+    if (G.settings.autoSummon === false || G.autoplayOn || G.cine || !this.world || this.world.kind === 'town' || this.world.kind === 'arena' || DuelManager.activeDuel || this.dead) return;
     if ((this.autoSumT = (this.autoSumT || 0) - dt) > 0) return;
     this.autoSumT = 0.2;
     if (this.channel) return;
@@ -820,6 +822,7 @@ export class Player extends Creature {
   }
 
   setMoveTarget(x, y) {
+    closePlayerContextMenu();
     this.moveTarget = [x, y];
     this.path = null;
     this.pathFor = null;
