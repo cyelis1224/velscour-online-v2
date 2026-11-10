@@ -12,7 +12,7 @@ const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-mo
 const AURA = { death_knight: '#7ab8ff' }; // where the art's colour differs from the class colour
 
 function portrait(id) {
-  if (!imgs[id]) { imgs[id] = new Image(); imgs[id].src = `assets/sprites/select/nocturne/${id}.webp`; }
+  if (!imgs[id]) { imgs[id] = new Image(); imgs[id].src = `assets/sprites/select/nocturne/${id}.webp?v=nocturne-9`; }
   return imgs[id];
 }
 /** Start fetching all portraits (the class grid needs them at once). */

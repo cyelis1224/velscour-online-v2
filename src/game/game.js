@@ -839,7 +839,7 @@ function attachNetListeners() {
         if (!G.room.unsealedDepths) G.room.unsealedDepths = new Set();
         G.room.unsealedDepths.add(G.world.depth);
       }
-      game.unsealDungeonExit(G.world, G.world.boss.name);
+      game.unsealDungeonExit(G.world, G.world.boss?.name);
     }
 
     for (const s of data.monsters || []) {
@@ -2809,7 +2809,6 @@ export const game = {
     greedWorld(world, c); // the Greed lever and its Hoard multiply the omen's loot dials
     heresyWorld(world, c); // the Heresies' rank pays on top (none in Unbound)
     tickBlessing(c);
-    world._generatingDungeon = false;
     world.onBossAwake = (m) => {
       UI.centerMsg(m.name, m.isVelscour ? 'The Demon Lord rises' : m.raid ? `${m.title}${m.raid.mods.length ? ' · ' + m.raid.modText() : ''}` : 'Guardian of the Exit', 3);
       sfx('boss');
@@ -2938,6 +2937,7 @@ export const game = {
       addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#40a0ff', 5));
       sfx('gate'); UI.refresh(); this.autosave();
     });
+    world._generatingDungeon = false;
     this.setWorld(world, gen.start, old);
     announceHappenings(world);
     if (biome.id === 'castle') { addCastleStory(world, gen); world.ambientFx = gen.variant?.look?.ambient || null; c.lastCastle = gen.variant?.id; }
@@ -3462,6 +3462,7 @@ export const game = {
       addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#c050ff', 5));
       sfx('gate'); UI.refresh(); this.autosave();
     });
+    world._generatingDungeon = false;
     this.setWorld(world, gen.start, old);
     world.night = true;
     HUD.setArea('The Eternal Breach', `Floor ${floor} · as deadly as Depth ${depth}${worldRank(world) ? ` · Heresy ${worldRank(world)}` : ''}`);   // (the floor in the name ran under a phone's boss bar)
@@ -3604,6 +3605,7 @@ export const game = {
     c.rifts.runs = (c.rifts.runs || 0) + 1;
     world.onBossAwake = (m) => { UI.centerMsg(m.name, `${m.title}${m.raid && m.raid.mods.length ? ' · ' + m.raid.modText() : ''}`, 3); sfx('boss'); };
     world.onBossKilled = () => { }; // riftWin handles it
+    world._generatingDungeon = false;
     this.setWorld(world, gen.start, old);
     world.darkK = Math.max(world.darkK || 0, 0.25);
     HUD.setArea('Abyssal Rift', `Tier ${tier} · ${biome.name} · as deadly as Depth ${depth}`);
