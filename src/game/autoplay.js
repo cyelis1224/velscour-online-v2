@@ -431,7 +431,13 @@ export const Auto = {
     this.errors = 0;
     this.reset();
     const p = G.player;
-    if (!v && p) { p.moveVec = [0, 0]; p.lootTarget = null; p.whirlAuto = false; }
+    if (!v) {
+      if (this.destPick) {
+        if (this.destPick.el && this.destPick.el.isConnected) this.destPick.d.close();
+        this.destPick = null;
+      }
+      if (p) { p.moveVec = [0, 0]; p.lootTarget = null; p.whirlAuto = false; }
+    }
     if (v && G.ui) G.ui.log(`<b>Auto-play on.</b> ${G.touch ? 'Use the controls to take over for a moment; tap Auto to stop.' : 'Move or click to take over for a moment; P or the Auto button stops it.'} ${gearOn() ? 'It manages your gear (Settings to turn that off).' : 'Your gear is left alone.'}`, '#8fe0ff');
     else if (G.ui) G.ui.log('Auto-play off.', '#8fe0ff');
     this.setStatus(v ? 'Thinking…' : '');
@@ -468,7 +474,11 @@ export const Auto = {
     });
     // the cards choose too; with no choice in DEST_WAIT seconds auto-play keeps the portal it took last
     d.box.querySelectorAll('.pc-card').forEach((b) => b.addEventListener('click', () => { sfx('ui'); d.close(); this.setDest(b.dataset.d); }));
-    this.destPick = { t: DEST_WAIT, d, el: d.box.querySelector('.pc-auto'), last: '' };
+    const destName = this.dest === 'breach' ? 'Eternal Breach' : this.dest === 'rift' ? 'Abyssal Rift' : this.dest === 'unbound' ? 'Unbound Exploration' : 'Standard Campaign';
+    const autoEl = d.box.querySelector('.pc-auto');
+    const initialTxt = `Auto-play takes the ${destName} in ${DEST_WAIT}… tap one to choose.`;
+    if (autoEl) autoEl.innerHTML = initialTxt;
+    this.destPick = { t: DEST_WAIT, d, el: autoEl, last: initialTxt };
   },
   /** The destination menu's countdown (runs while the dialog pauses the world; game.update). */
   tickDest(dt) {
@@ -572,9 +582,9 @@ export const Auto = {
     if (!p || !w || !c) return;
     if (w !== this.world) { const keep = this.ignore; this.reset(); this.ignore = keep; this.world = w; }
     p.whirlAuto = this.overrideT <= 0;
+    if (this.destPick) { this.setStatus('Choosing destination…'); p.moveVec = [0, 0]; return; }
     if (this.handleScreens(dt)) return;
     if (p.dead) { this.setStatus('Fallen…'); return; }
-    if (this.destPick) { this.setStatus('Choosing destination…'); p.moveVec = [0, 0]; return; }
     if (this.transitT > 0) { this.transitT -= dt; this.setStatus('Travelling…'); return; }
     if (this.overrideT > 0) { p.whirlAuto = false; this.overrideT -= dt; this.setStatus('Manual control'); return; }
     if (this.listen(dt)) return;
@@ -600,6 +610,8 @@ export const Auto = {
 
   /** Click through the death, victory, portal choice, and dungeon object dialogs. */
   handleScreens(dt) {
+    if (this.destPick) return true;
+
     const pcDialog = document.querySelector('.portal-choice');
     if (pcDialog) {
       this.portalChoiceT = (this.portalChoiceT || 0) + dt;
@@ -631,7 +643,7 @@ export const Auto = {
     }
 
     // Interactive dialogs: monoliths, wave altars, gamble, shrines
-    const dlg = document.querySelector('#screens .dialog-box:not(.portal-choice)');
+    const dlg = document.querySelector('#screens .dialog-box:not(.portal-choice):not(.auto-dest):not(.settings-dialog):not(.backups-dialog)');
     if (dlg) {
       this.dialogT = (this.dialogT || 0) + dt;
       const title = dlg.querySelector('h2')?.textContent || 'Altar';
