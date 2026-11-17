@@ -1,6 +1,5 @@
 // Game flow: characters, town, dungeon depths, death, victory.
 import { G } from '../state.js';
-import { riftgateSpot } from '../gfx/riftgate.js';
 import { input } from '../core/input.js';
 import { camera } from '../core/view.js';
 import { sfx, playMusic, stopMusic, setAmbience, stopAmbience, footsteps } from '../core/audio.js';
@@ -155,6 +154,15 @@ let townCache = null, townTiles = null;
 let act2TownCache = null, act2TownTiles = null;
 let saveT = 0;
 let automapCanvas = null;
+
+// Give the loading overlay a couple of paint opportunities before expensive synchronous setup begins.
+function yieldForLoadingPaint() {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function' && typeof document !== 'undefined' && !document.hidden) {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    } else setTimeout(resolve, 0);
+  });
+}
 
 // Build the level's monster sprites (palette swap, hit flash, corpse shade) behind the loading screen: each swap reads
 // pixels back from the GPU, and doing that on a monster's first hit or death stalled the frame (worst on phones).
@@ -1632,9 +1640,6 @@ export const game = {
     // THE ETERNAL BREACH's purple portal (game.confirmBreach, docs/ETERNAL_BREACH.md)
     if (t.breach) world.portals.push({ x: t.breach.x, y: t.breach.y, active: true, breach: true, color: '#a040ff', reach: 2.2, label: 'THE ETERNAL BREACH', use: () => this.confirmBreach() });
     // the Abyssal Rift gate (game.confirmRift): lit once the Endgame is open
-    // the Riftgate to VELSCOUR DEFENSE (defense/: its own page and save), across the square from the dungeon portal
-    const rg = t.riftgate || (t.riftgate = riftgateSpot(t));
-    if (rg) world.portals.push({ x: rg.x, y: rg.y, active: true, color: '#3a6cff', reach: 1.7, riftgate: true, label: 'The Riftgate: VELSCOUR DEFENSE', use: () => this.confirmRiftgate() });
     if (t.rift) world.portals.push({ x: t.rift.x, y: t.rift.y, rift: true, color: '#20e0ff', reach: 1.7, get active() { return endgameUnlocked(); }, set active(v) { }, get label() { return endgameUnlocked() ? `Abyssal Rift — Tier ${riftOpen()}` : 'Abyssal Rift (sealed)'; }, use: () => this.confirmRift() });
     // Waypoint Portal to Sunscorch Oasis (Act II Town) once visited or reached Act 2
     if (c?.visitedAct2Town || c?.depth >= 101) {
@@ -1856,14 +1861,6 @@ export const game = {
       net.sendTownTransition(world.depth || 0);
     }
     UI.log('You step into <b style="color:#f3c778">Sunscorch Oasis</b>, haven of the Scorched Wastes!', '#ffe080');
-  },
-
-  confirmRiftgate() {
-    UI.dialog({
-      title: 'The Riftgate',
-      html: `<p>A blue-black wound in the air, far older and stranger than the dungeon portal. Beyond it Velscour's horde marches on the Bastion, and sixteen heroes wait for a Commander.</p><p class="dim">VELSCOUR DEFENSE is a separate game with its own cards and save; your hero here is not touched. A way back waits on the other side.</p>`,
-      buttons: [{ label: 'Not yet' }, { label: 'Step through', cls: 'red', fn: () => { this.autosave(); location.href = 'defense/index.html'; } }],
-    });
   },
 
   getPlayersAwayFromPortal(portal) {
@@ -2627,20 +2624,26 @@ export const game = {
         if (G.room && net.connected) {
           net.requestDungeonState(depth);
         }
-        LoadingScreen.setProgress(25, `Mapping ${biome.name}…`);
+        LoadingScreen.setProgress(25, `Loading ${biome.name} assets…`);
+        await yieldForLoadingPaint();
         await this.loadLevelArt(biome, mix);
       } catch (e) { console.warn(e); }
       try {
         if (G.room && net.connected) {
           net.requestDungeonState(depth);
         }
+        LoadingScreen.setProgress(40, `Mapping ${biome.name}…`);
+        await yieldForLoadingPaint();
         LoadingScreen.setProgress(50, 'Forging labyrinth…');
+        await yieldForLoadingPaint();
         this.buildDungeon(depth, biome, mix);
         // the level's monster art (set 2 sheets load per level); a failed sheet falls back to pixel sprites
         const w = G.world;
-        LoadingScreen.setProgress(75, 'Summoning inhabitants…');
+        LoadingScreen.setProgress(75, 'Loading inhabitants…');
+        await yieldForLoadingPaint();
         await loadArtFor([...w.creatures.map((m) => m.art), ...(w.looks ? w.looks.ids() : [])], true).catch((e) => console.warn(e));
         LoadingScreen.setProgress(90, 'Preparing the veil…');
+        await yieldForLoadingPaint();
         await warmLevelArt(w);
         releaseLevelArt(biome);
         LoadingScreen.setProgress(100, 'Arriving…');

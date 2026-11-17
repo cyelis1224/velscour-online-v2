@@ -12,7 +12,6 @@ const RUNTIME_ITEMS = [
   'css',
   'src',
   'vendor',
-  'defense',
 ];
 
 const EXCLUDED_ASSET_DIRS = new Set([

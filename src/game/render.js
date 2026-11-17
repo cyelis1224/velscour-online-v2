@@ -32,7 +32,6 @@ import { DuelManager } from './duel.js';
 import { addLight } from '../gfx/vfx.js';
 import { drawTerrain, drawColumn, occludersFor, occludersOfRect, occluderObj, clipAdd, hiddenBehind, standKey, hopZ, drawSky, terrainShade, HS } from '../gfx/terrain.js';
 import { hopArc } from './alpine.js';
-import { drawRiftgate } from '../gfx/riftgate.js';
 
 let lightCanvas = null, glowCanvas = null, vignette = null, vigKey = '';
 const transitionSprites = new Map();
@@ -396,7 +395,6 @@ function drawScenarioGlyph(ctx, p) {
 function drawPortal(ctx, p) {
   if (p.skygate) return drawSkyGate(ctx, p);
   if (p.seagate) return; // the Pirate Seas: the Dawnwake's bell-tower door is the portal, in three.js (gfx/seabattle3d.js)
-  if (p.riftgate) return drawRiftgate(ctx, p);
   if (p.type === 'objective' && G.cine && G.world && G.world.seaRun) return; // the Pirate Seas: no gameplay marks in a cut scene
   if (p.type === 'shrine' || p.type === 'objective') return drawScenarioGlyph(ctx, p);
   const x = isoX(p.x, p.y), y = isoY(p.x, p.y);

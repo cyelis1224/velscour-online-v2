@@ -738,6 +738,7 @@ export function itemValue(item) {
   const base = 12 * Math.pow(1.06, goldLvl(item.ilvl)) * [1, 2.5, 6, 15, 40, 100, 250][item.rarity] * (item.relic ? { heir: 2.5, cov: 2 }[item.relic] : RELIC_HOOK.glyph && RELIC_HOOK.glyph(item) ? 60 : 1);
   return Math.round(base * (1 + item.affixes.length * 0.15) * (1 + item.sockets * 0.2) * (1 + (item.upg || 0) * 0.3));
 }
+export const itemSellValue = (item) => Math.max(1, Math.floor(itemValue(item) / 4));
 
 /** A gold pile at monster level `lvl`. Prices grow ~1.06x a level (items, upgrades, sockets, gambling), so past level ~85
  *  piles follow the same curve (1.5 x 1.06^level, a Normal item's price) instead of the old straight line, which left

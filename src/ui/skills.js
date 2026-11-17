@@ -80,7 +80,8 @@ export function respec() {
   c.gold -= cost;
   c.bar = c.bar.map((id) => (id && c.skills[id] > 0 ? id : null));
   if (!c.bar[0]) {
-    const def = (CLASS_SKILLS[c.classId] || []).find((s) => s.m.free && c.skills[s.id] > 0) || (CLASS_SKILLS[c.classId] || [])[0];
+    const clsSkills = CLASS_SKILLS[c.classId] || [];
+    const def = clsSkills.find((s) => s.m.free && c.skills[s.id] > 0) || clsSkills.find((s) => c.skills[s.id] > 0);
     if (def) c.bar[0] = def.id;
   }
   sfx('buff');
@@ -129,12 +130,15 @@ export function skillDetail(sk) {
   if (morph && morph.labels && morph.labels.length) {
     h += `<div style="margin:4px 0;font-size:12px;color:#ffb86c">Talent Morphs: <b>${morph.labels.map(escapeHtml).join(', ')}</b></div>`;
   }
-  const mc = manaCost(sk, showL), rc = rageCost(sk), cd = cooldown(sk);
+  const mc = manaCost(sk, showL), rc = rageCost(sk, showL), cd = cooldown(sk);
+  const costText = rc ? `${rc} Rage` : (mc ? `${Number.isInteger(mc) ? mc : mc.toFixed(1)} Mana` : (sk.classId === 'barbarian' && sk.kind === 'whirl' ? '10 to start · 10/s' : 'Free'));
   const effCd = cd ? Math.max(0.2, cd * (1 - p.st.cdr / 100) * (1 + (morph ? morph.cdPct || 0 : 0) / 100)) : 0;
-  h += `<div class="dim">${rc ? 'Rage' : 'Mana'}: <b style="color:${rc ? '#ff9933' : '#8fb4ff'}">${rc || mc || (sk.classId === 'barbarian' && sk.kind === 'whirl' ? '10 to start · 10/s' : 'Free')}</b>${effCd ? ` · Cooldown: <b>${effCd.toFixed(1)}s</b>` : ''}</div>`;
+  h += `<div class="dim">Cost: <b style="color:${rc ? '#ff9933' : '#8fb4ff'}">${costText}</b>${effCd ? ` · Cooldown: <b>${effCd.toFixed(1)}s</b>` : ''}</div>`;
   if (base < MAX_SKILL_LEVEL) {
     const nd = skillDmg(sk, Math.max(1, L + 1));
-    h += `<div class="dim" style="margin-top:4px;font-size:12px">Next level: ${nd[0]}–${nd[1]} damage, ${rageCost(sk) ? rageCost(sk) + ' Rage' : manaCost(sk, L + 1) + ' mana'}</div>`;
+    const nextMc = manaCost(sk, L + 1), nextRc = rageCost(sk, L + 1);
+    const nextCostText = nextRc ? `${nextRc} Rage` : `${Number.isInteger(nextMc) ? nextMc : nextMc.toFixed(1)} Mana`;
+    h += `<div class="dim" style="margin-top:4px;font-size:12px">Next level: ${nd[0]}–${nd[1]} damage, ${nextCostText}</div>`;
   }
   if (base) h += masteryHtml(effSk);
   h += `<div class="dim" style="font-size:12px;margin-top:2px">Synergy: +1.5% damage per point in other ${escapeHtml(CLASSES[sk.classId].trees[sk.tree])} skills (now x${p.synergy(sk).toFixed(2)})</div>`;
@@ -191,12 +195,15 @@ export function skillTooltip(sk) {
   if (morph && morph.labels && morph.labels.length) {
     h += `<div style="margin:4px 0;font-size:12px;color:#ffb86c">Talent Morphs: <b>${morph.labels.map(escapeHtml).join(', ')}</b></div>`;
   }
-  const mc = manaCost(sk, showL), rc = rageCost(sk), cd = cooldown(sk);
+  const mc = manaCost(sk, showL), rc = rageCost(sk, showL), cd = cooldown(sk);
+  const costText = rc ? `${rc} Rage` : (mc ? `${Number.isInteger(mc) ? mc : mc.toFixed(1)} Mana` : (sk.classId === 'barbarian' && sk.kind === 'whirl' ? '10 to start · 10/s' : 'Free'));
   const effCd = cd ? Math.max(0.2, cd * (1 - p.st.cdr / 100) * (1 + (morph ? morph.cdPct || 0 : 0) / 100)) : 0;
-  h += `<div class="dim" style="font-size:13px">${rc ? 'Rage' : 'Mana'}: <b style="color:${rc ? '#ff9933' : '#8fb4ff'}">${rc || mc || (sk.classId === 'barbarian' && sk.kind === 'whirl' ? '10 to start · 10/s' : 'Free')}</b>${effCd ? ` · Cooldown: <b>${effCd.toFixed(1)}s</b>` : ''}</div>`;
+  h += `<div class="dim" style="font-size:13px">Cost: <b style="color:${rc ? '#ff9933' : '#8fb4ff'}">${costText}</b>${effCd ? ` · Cooldown: <b>${effCd.toFixed(1)}s</b>` : ''}</div>`;
   if (base < MAX_SKILL_LEVEL) {
     const nd = skillDmg(sk, Math.max(1, L + 1));
-    h += `<div class="dim" style="margin-top:3px;font-size:12px">Next level: ${nd[0]}–${nd[1]} damage, ${rageCost(sk) ? rageCost(sk) + ' Rage' : manaCost(sk, L + 1) + ' mana'}</div>`;
+    const nextMc = manaCost(sk, L + 1), nextRc = rageCost(sk, L + 1);
+    const nextCostText = nextRc ? `${nextRc} Rage` : `${Number.isInteger(nextMc) ? nextMc : nextMc.toFixed(1)} Mana`;
+    h += `<div class="dim" style="margin-top:3px;font-size:12px">Next level: ${nd[0]}–${nd[1]} damage, ${nextCostText}</div>`;
   }
   if (base) {
     h += `<div style="margin-top:5px">${masteryHtml(effSk, true)}</div>`;

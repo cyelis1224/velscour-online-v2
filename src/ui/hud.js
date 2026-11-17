@@ -835,8 +835,9 @@ export const HUD = {
 
   /** The level-up banner: a dark vignette, the title and new level bleeding in from blur, then Velscour's two lines. */
   levelUp(level, sound) {
-    const box = $('#levelup'), num = $('#lu-num');
+    const box = $('#levelup'), num = $('#lu-num'), sub = $('#levelup .lu-sub');
     num.textContent = level;
+    if (sub) sub.innerHTML = level % 5 === 0 ? '+5 attribute points &middot; +1 skill point &middot; +1 talent point' : '+5 attribute points &middot; +1 skill point';
     const now = performance.now();
     if (this.lu && now < this.lu.end) { // more levels while it's up: punch the number again
       num.classList.remove('punch'); void num.offsetWidth; num.classList.add('punch');
@@ -872,10 +873,15 @@ export const HUD = {
     }
   },
 
-  setArea(name, sub) {
-    const an = $('#area-name'), as = $('#area-sub');
+  setArea(name, sub, affixes = []) {
+    const an = $('#area-name'), as = $('#area-sub'), af = $('#area-affixes');
     if (an) an.textContent = name;
     if (as) as.textContent = sub || '';
+    if (af) {
+      const names = Array.isArray(affixes) ? affixes.filter(Boolean) : [];
+      af.textContent = names.length ? `Affixes: ${names.join(' · ')}` : '';
+      af.classList.toggle('hidden', !names.length);
+    }
   },
   show(v) { $('#hud').classList.toggle('hidden', !v); if (v) { this.layoutMobile(); this.applyVisibilitySettings(); } },
 };
