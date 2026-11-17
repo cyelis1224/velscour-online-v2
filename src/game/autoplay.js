@@ -23,6 +23,7 @@ import { heresyAllows } from './heresies.js';
 import { marksFree, autoSpend } from './marks.js';
 import { drawBiome } from '../data/biomes.js';
 import { augHits } from '../data/rings.js';
+import { allocateAttrs } from './attrs.js';
 import { canLearn } from '../ui/skills.js';
 import { CLASS_TALENTS, canLearnTalent, learnTalent, talentPointsSpent, skillMorphFor, applySkillMorph } from '../data/talents.js';
 import { equipFromBag, socketGem, dropFromBag, changed } from '../ui/inventory.js';
@@ -643,15 +644,8 @@ export const Auto = {
 
   spendStats() {
     const p = G.player, c = G.char;
-    while (c.statPoints > 0) {
-      let best = 'vit', bs = -Infinity;
-      for (const k of ['str', 'dex', 'vit', 'int']) {
-        const s = simulate(p, () => { c.attrs[k]++; return () => { c.attrs[k]--; }; });
-        if (s > bs) { bs = s; best = k; }
-      }
-      c.attrs[best]++;
-      c.statPoints--;
-    }
+    if (!c || !p) return;
+    allocateAttrs(c);
     p.recompute();
   },
 

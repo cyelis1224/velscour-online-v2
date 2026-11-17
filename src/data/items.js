@@ -4,41 +4,51 @@ import { rollAugments, RING_NAMES, AUGMENTS, KIND_NAMES } from './rings.js';
 import { SKILLS } from './skills.js';
 import { SHEET_PRICE } from './tabs.js';
 import { CLASS_FOCUS } from './held.js';
-import { MAX_LEVEL } from './depth.js';
+import { MAX_LEVEL, weaponRef } from './depth.js';
 
-// lv: the rarity's power bonus in item levels. Every number on an item (base damage, armor, affix values, ring
-// powers, legendary powers) comes from its power level = item level + lv. Every rarity rolls the same CORE_LINES
-// stat lines; rarer items add perks on top: perk lines (magic/gold find, experience, speed, thorns...), sockets, a
-// legendary power. Measured in auto-play's hero score (tools/tests/rarity.js) a rarity is worth about Uncommon 2,
-// Rare 5, Epic 8, Legendary 11.5 and Mythic 15 item levels, so a level 25 Rare beats a level 10 Mythic and gear
-// keeps being replaced as the hero levels; the rarer tiers last a little longer each.
-// weight: drop odds (rollRarity), close to Diablo II's white / magic / rare / set / unique split; Mythic is rarer than
-// anything there. bonus: how much a boss/chest bonus multiplies the weight (1 + bonus * b). minIlvl/fullIlvl: like
-// D2's quality levels, a rarity can't drop below item level minIlvl and its odds ramp up to full by fullIlvl, so no
-// Epic before item level 30, Legendary before 45 or Mythic before 60 (rarityAt caps the guaranteed rewards the same
-// way).
+// The 20 qualities unlock by campaign depth. Their power rises continuously; the final fifteen share the
+// original Mythic drop budget, redistributed across whichever qualities are currently unlocked.
+export const RARITY_COMMON = 0, RARITY_UNCOMMON = 1, RARITY_RARE = 2, RARITY_EPIC = 3, RARITY_LEGENDARY = 4, RARITY_MYTHIC = 5;
 export const RARITY = [
-  { id: 0, name: 'Common', color: '#e8e8e8', weight: 32, lv: 0, perks: 0, sockets: 1, bonus: 0, minIlvl: 1, fullIlvl: 1 },
-  { id: 1, name: 'Uncommon', color: '#4fd65a', weight: 10, lv: 2, perks: 0, sockets: 2, bonus: 1, minIlvl: 1, fullIlvl: 1 },
-  { id: 2, name: 'Rare', color: '#4f8dff', weight: 6, lv: 4, perks: 1, sockets: 3, bonus: 1.6, minIlvl: 3, fullIlvl: 8 },
-  { id: 3, name: 'Epic', color: '#b45cff', weight: 1, lv: 6, perks: 1, sockets: 3, bonus: 2.2, minIlvl: 15, fullIlvl: 25 },
-  { id: 4, name: 'Legendary', color: '#ff9a2a', weight: 0.14, lv: 9, perks: 1, sockets: 4, bonus: 2.8, minIlvl: 30, fullIlvl: 45 },
-  { id: 5, name: 'Mythic', color: '#ff4058', weight: 0.012, lv: 12, perks: 2, sockets: 4, bonus: 3.4, minIlvl: 50, fullIlvl: 70 },
-  // Abyssal never rolls from a kill (weight 0): Abyssal Rift Guardians and Velscour Unbound make it (docs/ENDGAME.md)
-  { id: 6, name: 'Abyssal', color: '#20e0ff', weight: 0, lv: 16, perks: 3, sockets: 5, bonus: 0, minIlvl: 80, fullIlvl: 100 },
+  { id: 0, name: 'Tier 1', color: '#ff8040', weight: 32, lv: 0, perks: 0, sockets: 1, ringSockets: 0, bonus: 0, minIlvl: 1, fullIlvl: 1, minDepth: 1, value: 1 },
+  { id: 1, name: 'Tier 2', color: '#80c8ff', weight: 10, lv: 2, perks: 0, sockets: 2, ringSockets: 0, bonus: 1, minIlvl: 1, fullIlvl: 1, minDepth: 24, value: 2.5 },
+  { id: 2, name: 'Tier 3', color: '#fff080', weight: 6, lv: 4, perks: 1, sockets: 3, ringSockets: 1, bonus: 1.6, minIlvl: 3, fullIlvl: 8, minDepth: 48, value: 6 },
+  { id: 3, name: 'Tier 4', color: '#80e060', weight: 1, lv: 6, perks: 1, sockets: 3, ringSockets: 1, bonus: 2.2, minIlvl: 15, fullIlvl: 25, minDepth: 72, value: 15 },
+  { id: 4, name: 'Tier 5', color: '#c8c0b0', weight: 0.14, lv: 9, perks: 1, sockets: 4, ringSockets: 2, bonus: 2.8, minIlvl: 30, fullIlvl: 45, minDepth: 96, value: 40 },
+  { id: 5, name: 'Tier 6', color: '#e05040', weight: 0.012, lv: 12, perks: 2, sockets: 4, ringSockets: 2, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 120, value: 100, dropGroup: 'mythic' },
+  { id: 6, name: 'Tier 7', color: '#a08060', weight: 0.012, lv: 12.286, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 144, value: 106.764, dropGroup: 'mythic' },
+  { id: 7, name: 'Tier 8', color: '#ffb060', weight: 0.012, lv: 12.571, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 168, value: 113.985, dropGroup: 'mythic' },
+  { id: 8, name: 'Tier 9', color: '#c090ff', weight: 0.012, lv: 12.857, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 192, value: 121.695, dropGroup: 'mythic' },
+  { id: 9, name: 'Tier 10', color: '#f0f0f0', weight: 0.012, lv: 13.143, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 216, value: 129.926, dropGroup: 'mythic' },
+  { id: 10, name: 'Tier 11', color: '#ffc040', weight: 0.012, lv: 13.429, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 240, value: 138.714, dropGroup: 'mythic' },
+  { id: 11, name: 'Tier 12', color: '#fff4c0', weight: 0.012, lv: 13.714, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 264, value: 148.097, dropGroup: 'mythic' },
+  { id: 12, name: 'Tier 13', color: '#9060c0', weight: 0.012, lv: 14, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 288, value: 158.114, dropGroup: 'mythic' },
+  { id: 13, name: 'Tier 14', color: '#80a0ff', weight: 0.012, lv: 14.286, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 312, value: 168.808, dropGroup: 'mythic' },
+  { id: 14, name: 'Tier 15', color: '#c02030', weight: 0.012, lv: 14.571, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 336, value: 180.226, dropGroup: 'mythic' },
+  { id: 15, name: 'Tier 16', color: '#20e0ff', weight: 0.012, lv: 14.857, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 360, value: 192.417, dropGroup: 'mythic' },
+  { id: 16, name: 'Tier 17', color: '#ff6060', weight: 0.012, lv: 15.143, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 384, value: 205.432, dropGroup: 'mythic' },
+  { id: 17, name: 'Tier 18', color: '#e0c080', weight: 0.012, lv: 15.429, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 408, value: 219.327, dropGroup: 'mythic' },
+  { id: 18, name: 'Tier 19', color: '#ffe0f0', weight: 0.012, lv: 15.714, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 432, value: 234.162, dropGroup: 'mythic' },
+  { id: 19, name: 'Tier 20', color: '#ffd700', weight: 0.012, lv: 16, perks: 2, sockets: 5, ringSockets: 3, bonus: 3.4, minIlvl: 50, fullIlvl: 70, minDepth: 456, value: 250, dropGroup: 'mythic' }
 ];
-export const ABYSSAL = 6;
-/** How much of a rarity's drop odds item level ilvl has unlocked: 0 below its minIlvl, ramping to 1 at fullIlvl. */
+export const ABYSSAL = RARITY.length - 1;
+/** Highest quality available at a campaign depth. */
+export function qualityAtDepth(depth) {
+  let cap = 0;
+  for (const r of RARITY) { if (depth >= r.minDepth) cap = r.id; else break; }
+  return cap;
+}
+/** How much of a quality's drop odds item level ilvl has unlocked: 0 below minIlvl, ramping to 1 at fullIlvl. */
 export const rarityUnlock = (r, ilvl) => clamp((ilvl - RARITY[r].minIlvl + 1) / (RARITY[r].fullIlvl - RARITY[r].minIlvl + 1), 0, 1);
-/** The best rarity up to r that item level ilvl allows (guaranteed rewards: a level 3 "Legendary" gift is a Rare). */
+/** The best quality up to r that item level ilvl allows for an item-level-gated reward. */
 export function rarityAt(ilvl, r) {
   while (r > 0 && ilvl < RARITY[r].minIlvl) r--;
   return r;
 }
-/** Stat lines every item rolls (rarity adds perk lines on top), and each line's multiplier on its affix's range. */
+/** Stat lines every item rolls (quality adds perk lines on top), and each line's multiplier on its affix's range. */
 export const CORE_LINES = 2, LINE_MULT = 1.5, PERK_MULT = 0.7;
-for (const R of RARITY) R.affixes = [CORE_LINES + R.perks, CORE_LINES + R.perks]; // lines an item has (the enchanter adds one more)
-/** An item's power level: its item level plus its rarity's worth in levels. */
+for (const R of RARITY) R.affixes = [CORE_LINES + R.perks, CORE_LINES + R.perks];
+/** An item's power level: its item level plus its quality's worth in levels. */
 export const powerLevel = (ilvl, rarity) => ilvl + RARITY[rarity].lv;
 /** Display colour per rarity id (also used for icon and staff tints). */
 export const RARITY_COLORS = RARITY.map((r) => r.color);
@@ -561,22 +571,29 @@ function rollAffixes(item, count, perk = false) {
  * A drop's rarity. mf: magic find (%). bonus: a guardian's, chest's or event's better odds (0 = a plain kill).
  * ilvl: the item's level (rarities unlock with it; rarityUnlock).
  */
-export function rollRarity(mf = 0, bonus = 0, ilvl = 999) {
-  return weighted(RARITY.map((r) => [r.id, r.id === 0 ? r.weight / (1 + bonus) : r.weight * (1 + bonus * r.bonus) * mfMul(mf, r.id) * rarityUnlock(r.id, ilvl)]));
+export function rollRarity(mf = 0, bonus = 0, ilvl = 999, maxRarity = RARITY.length - 1) {
+  const cap = clamp(maxRarity | 0, 0, RARITY.length - 1);
+  const mythicCount = RARITY.filter((r) => r.id >= RARITY_MYTHIC && r.id <= cap && rarityUnlock(r.id, ilvl) > 0).length;
+  return weighted(RARITY.map((r) => {
+    if (r.id > cap) return [r.id, 0];
+    const weight = r.dropGroup === 'mythic' ? (mythicCount ? 0.012 / mythicCount : 0) : r.weight;
+    return [r.id, r.id === 0 ? weight / (1 + bonus) : weight * (1 + bonus * r.bonus) * mfMul(mf, r.id) * rarityUnlock(r.id, ilvl)];
+  }));
 }
-/** Magic find's multiplier on a rarity's weight (at 100% it raises the share of Epic and above ~1.6x). */
-export const mfMul = (mf, id) => 1 + Math.max(0, mf) / 100 * [0, 0.6, 0.8, 0.9, 0.9, 0.9, 0.9][id];
+/** Magic find's multiplier on quality weights (at 100% it raises the share of Epic and above ~1.6x). */
+export const mfMul = (mf, id) => 1 + Math.max(0, mf) / 100 * (id === 0 ? 0 : id === 1 ? 0.6 : id === 2 ? 0.8 : 0.9);
 
 const EPIC_A = ['Doom', 'Soul', 'Blood', 'Grim', 'Storm', 'Night', 'Wrath', 'Bone', 'Dread', 'Ember', 'Frost', 'Shadow', 'Hell', 'Star', 'Void', 'Rune', 'Gore', 'Plague', 'Dawn', 'Ash'];
 const EPIC_B = ['bringer', 'reaver', 'fang', 'song', 'ward', 'call', 'bane', 'shard', 'heart', 'grasp', 'veil', 'brand', 'mourn', 'fall', 'spire', 'maw', 'crest', 'thorn', 'whisper', 'edge'];
 
-/** Plain (Common) items take extra sockets, as Glyphword bases (data/relics.js): this many per slot. */
+/** Plain (Orange) items take extra sockets, as Glyphword bases (data/relics.js): this many per slot. */
 export const HOLLOW = { weapon: 6, body: 6, offhand: 4, head: 4, legs: 4, hands: 3, feet: 3, ring: 0 };
 
 export function rollItem(ilvl, opts = {}) {
   ilvl = Math.max(1, Math.round(ilvl));
   const slot = opts.slot || pick(['weapon', 'weapon', 'offhand', 'head', 'head', 'body', 'body', 'body', 'hands', 'legs', 'feet', 'ring', 'ring']);
-  const rarity = opts.rarity ?? rollRarity(opts.mf || 0, opts.bonus || 0, ilvl);
+  const rolledRarity = opts.rarity ?? rollRarity(opts.mf || 0, opts.bonus || 0, ilvl, opts.maxRarity ?? RARITY.length - 1);
+  const rarity = Math.min(rolledRarity, opts.maxRarity ?? RARITY.length - 1);
   const tier = tierOf(ilvl), pl = powerLevel(ilvl, rarity);
   const item = { uid: newUid(), type: 'gear', slot, rarity, ilvl, tier, upg: 0, affixes: [], gems: [], sockets: 0 };
   const art = opts.generic || slot === 'ring' ? null : classItem(slot, rarity, opts.base);
@@ -627,17 +644,17 @@ export function rollItem(ilvl, opts = {}) {
   const R = RARITY[rarity];
   rollAffixes(item, CORE_LINES);
   rollAffixes(item, R.perks, true);
-  item.maxSockets = slot === 'ring' ? [0, 0, 1, 1, 2, 2, 3][rarity] : rarity === 0 ? HOLLOW[slot] : R.sockets;
+  item.maxSockets = slot === 'ring' ? R.ringSockets : rarity === RARITY_COMMON ? HOLLOW[slot] : R.sockets;
   item.sockets = Math.min(item.maxSockets, chance(0.45) ? randi(0, Math.ceil(item.maxSockets / 2)) : 0);
-  if (rarity >= 4) item.legendary = pick(Object.keys(LEGENDARY));
-  if (rarity >= 3) item.title = pick(EPIC_A) + pick(EPIC_B);
+  if (rarity >= RARITY_LEGENDARY) item.legendary = pick(Object.keys(LEGENDARY));
+  if (rarity >= RARITY_EPIC) item.title = pick(EPIC_A) + pick(EPIC_B);
   if (art) Object.assign(item, { art: art.id, artCls: art.cls, uname: art.name });
   else if (slot === 'ring') item.rname = ringName(item);
-  else if (rarity >= 1) {
+  else if (rarity >= RARITY_UNCOMMON) {
     const pre = item.affixes.find((a) => !a.implicit && AFFIX_BY_STAT[a.s].pre);
     const suf = item.affixes.find((a) => !a.implicit && AFFIX_BY_STAT[a.s].suf);
     item.pre = pre ? AFFIX_BY_STAT[pre.s].pre : null;
-    item.suf = rarity >= 2 && suf ? AFFIX_BY_STAT[suf.s].suf : (suf && !pre ? AFFIX_BY_STAT[suf.s].suf : null);
+    item.suf = rarity >= RARITY_RARE && suf ? AFFIX_BY_STAT[suf.s].suf : (suf && !pre ? AFFIX_BY_STAT[suf.s].suf : null);
   }
   item.req = Math.min(ilvl, MAX_LEVEL); // a level N item needs a level N hero (never past the cap): each level up opens the next step of gear
   const reqStat = itemReqStat(item);
@@ -668,7 +685,7 @@ function ringName(item) {
  * most one every SEAL_GAP seconds of dungeon time (c.sealT, game.update): a 60-slot bag takes ~15 hours of auto-play
  * to fill with them. An Epic+ that drops sooner arrives open, like any other item.
  */
-export const SEAL_RARITY = 3;
+export const SEAL_RARITY = RARITY_EPIC;
 export const SEAL_GAP = 15 * 60;
 export const SEALED_COLOR = '#ffdf8a';
 
@@ -735,7 +752,7 @@ export function itemValue(item) {
   if (item.type === 'sheet') return SHEET_PRICE;
   if (item.type === 'banner_kit') return BANNER_KIT_PRICE;
   if (item.type === 'gem') return GEMS[item.gem].sigil ? Math.round(goldPile(depthLevelOf(item.tier * 24 + 12)) * 8) : Math.round((GEMS[item.gem].special ? 400 : 60) * Math.pow(2.6, item.tier));
-  const base = 12 * Math.pow(1.06, goldLvl(item.ilvl)) * [1, 2.5, 6, 15, 40, 100, 250][item.rarity] * (item.relic ? { heir: 2.5, cov: 2 }[item.relic] : RELIC_HOOK.glyph && RELIC_HOOK.glyph(item) ? 60 : 1);
+  const base = 12 * Math.pow(1.06, goldLvl(item.ilvl)) * RARITY[item.rarity].value * (item.relic ? { heir: 2.5, cov: 2 }[item.relic] : RELIC_HOOK.glyph && RELIC_HOOK.glyph(item) ? 60 : 1);
   return Math.round(base * (1 + item.affixes.length * 0.15) * (1 + item.sockets * 0.2) * (1 + (item.upg || 0) * 0.3));
 }
 export const itemSellValue = (item) => Math.max(1, Math.floor(itemValue(item) / 4));
@@ -808,7 +825,7 @@ export const POTION_INFO = {
   hp: 'Restores 45% Life over 2 seconds.',
   mp: 'Restores 50% Mana over 2 seconds.',
   rejuv: 'Instantly restores 35% Life and Mana.',
-  fury: '+30% Damage and Attack Speed for 15 seconds.',
+  fury: '+30% Attack and Cast Speed, +18% Movement Speed, and +15% Cooldown Reduction for 15 seconds.',
 };
 
 export const BANNER_KIT_PRICE = 75;

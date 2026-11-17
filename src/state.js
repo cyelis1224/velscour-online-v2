@@ -12,6 +12,7 @@ export const G = {
   char: null, // persistent character record (saved)
   mode: 'loading', // loading | title | game
   paused: false, // simulation paused (menus on desktop keep running in town)
+  critterTutorial: null, // the first gilded critter is held still until the player collects it
   time: 0,
   dt: 0,
   frame: 0,
@@ -39,8 +40,10 @@ export const G = {
     heldGear: true, // the hero holds his weapon and off-hand (src/gfx/heldart.js)
     heldFx: true, // their glows and particles, gem sparks and rarity sparkles on armor (with held gear on)
     autoSummon: true, // re-raise pets, totems and turrets on the skill bar the moment one is missing (Player.autoSummon)
+    autoEquip: true, // equip received gear when a matching equipment slot is empty
     dkBlade: 'sprite', // the Death Knight's flying sword: 'sprite' (his sword as a 2D object), 'model' (live three.js), 'runeblade'
     noSkipCine: false, // "Don't skip cutscenes": Sky Battle scenes already seen play at 1x, not 20x
+    skipCutscenes: false, // Automatically fast-forward scripted cutscenes and camera transitions
     fpsCap: 30, // frame rate cap: 0 none, 30 (phones run cooler over a long session)
     showHeroStats: true, // show/hide the #hero-stats div
     alwaysShowParty: false, // keep the party list up in online rooms (otherwise it shows with the automap: Tab/M)
@@ -48,6 +51,7 @@ export const G = {
     showTargetSprite: true, // choose if target-box shows the target sprite or not
     showChatBubbles: true, // player chat bubbles over heads (and offscreen edge pointers)
     chatInSideLog: true, // show player chat messages in left-hand notifications log
+    keybinds: {}, // player-configured keyboard actions; absent actions use the PC defaults
   },
 };
 

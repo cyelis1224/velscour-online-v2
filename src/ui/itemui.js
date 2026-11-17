@@ -3,7 +3,7 @@ import { G } from '../state.js';
 import { el, escapeHtml, fmtInt, fmtDmg } from '../core/util.js';
 import { shownWeapon, shownDmg, heroDmgLevel } from '../data/depth.js';
 import { SKILLS, effLevel } from '../data/skills.js';
-import { itemName, itemBaseLine, itemColor, itemStats, itemDmg, itemArmor, statLabel, RARITY, GEMS, gemStats, gemName, LEGENDARY, legendaryDesc, powerLevel, itemSellValue, SLOT_NAMES, POTION_INFO, MAX_GEM_TIER, augTarget, itemReqStat, charEffectiveStat, STAT_NAMES } from '../data/items.js';
+import { itemName, itemBaseLine, itemColor, itemStats, itemDmg, itemArmor, statLabel, RARITY, GEMS, gemStats, gemName, LEGENDARY, legendaryDesc, powerLevel, itemSellValue, SLOT_NAMES, POTION_INFO, MAX_GEM_TIER, augTarget, itemReqStat, charEffectiveStat, STAT_NAMES, slotFor, RING_SLOTS } from '../data/items.js';
 import { AUGMENTS } from '../data/rings.js';
 import { elem } from '../gfx/vfx.js';
 import { CLASSES } from '../data/classes.js';
@@ -49,13 +49,20 @@ export function itemCell(item) {
   }
   if (item.unid) d.appendChild(el('span', 'upg', '?'));
   if (item.sealed) d.classList.add('sealed');
+  if (item.type === 'gear' && !item.sealed) {
+    const tier = Math.max(1, Math.min(RARITY.length, Number(item.rarity) + 1 || 1));
+    const badge = el('span', 'quality-tier', 'T' + tier);
+    badge.title = `Tier ${tier}`;
+    badge.style.color = RARITY[tier - 1]?.color || '#fff';
+    d.appendChild(badge);
+  }
   if (item.locked) { const k = el('span', 'lockb', '🔒'); k.style.cssText = 'position:absolute;left:1px;top:0;font-size:10px;line-height:1;filter:drop-shadow(0 0 2px #000);pointer-events:none'; d.appendChild(k); }
   return d;
 }
 
 export function rarityClass(item) {
   if (!item) return '';
-  if (item.type === 'gem') return GEMS[item.gem].sigil ? 'rsig' : GEMS[item.gem].special ? 'r4' : 'r2';
+  if (item.type === 'gem') return GEMS[item.gem].sigil ? 'rsig' : ''; // Gems keep their own artwork; gear quality tiers do not tint their slots.
   if (item.type !== 'gear') return 'r0';
   if (item.sealed) return 'rs';
   if (item.relic) return 'r' + item.relic;
@@ -151,6 +158,30 @@ export function itemTooltip(item, opts = {}) {
     h += '</div>';
   }
   return h;
+}
+
+/** Build a hover tooltip with the matching currently equipped gear available as a Shift comparison. */
+export function itemGearTip(item, opts = {}) {
+  if (!item) return { html: '' };
+  const c = G.char;
+  const canCompare = item.type === 'gear' && !item.sealed && !item.unid;
+  const equippedSlot = canCompare && item.slot === 'ring' && c?.equip
+    ? RING_SLOTS.find((slot) => c.equip[slot])
+    : canCompare && item.slot && c?.equip
+      ? slotFor(c.equip, item, c.classId)
+      : null;
+  const equipped = equippedSlot ? c.equip[equippedSlot] : null;
+  const compare = opts.compare !== undefined ? opts.compare : equipped;
+  const tooltipOpts = { ...opts };
+  delete tooltipOpts.compare;
+  return {
+    html: itemTooltip(item, { ...tooltipOpts, compare }) + (compare && compare !== item && compare.type === 'gear'
+      ? '<div class="tt-compare-hint">Hold Shift to compare equipped gear</div>'
+      : ''),
+    compareHtml: compare && compare !== item && compare.type === 'gear'
+      ? `<div class="tt-compare-heading">Currently Equipped</div>${itemTooltip(compare)}`
+      : '',
+  };
 }
 
 function cmp(other, item, kind) {

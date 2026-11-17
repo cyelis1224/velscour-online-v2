@@ -1,6 +1,7 @@
 // The hero.
 import { G } from '../state.js';
 import { net } from '../net/network.js';
+import { emptyEquipSlot } from './autoequip.js';
 import { rand, chance, clamp, angleTo, dist, TAU, fmtInt } from '../core/util.js';
 import { sfx, levelUpFanfare } from '../core/audio.js';
 import { camera } from '../core/view.js';
@@ -440,8 +441,19 @@ export class Player extends Creature {
         return true;
       case 'item': {
         if (g.lootId) g.item._lootId = g.lootId;
-        const ok = addToBag(c, g.item);
-        if (!ok) {
+        const slot = G.settings.autoEquip !== false ? emptyEquipSlot(c, g.item) : null;
+        if (slot) {
+          noteFind(g.item);
+          c.equip[slot] = g.item;
+          this.recompute();
+          if (G.game) {
+            G.game._lastSentGearKey = null;
+            G.game.autosave();
+          }
+          if (net && G.char) {
+            net.sendGearUpdate(G.char);
+          }
+        } else if (!addToBag(c, g.item)) {
           if (!g.warned) {
             g.warned = true;
             const fullMsg = g.item.type === 'gem' ? 'Gem Bag full' : 'Inventory full';
@@ -452,7 +464,7 @@ export class Player extends Creature {
         }
         sfx('pickup');
         if (G.room && g.lootId) net.sendLootPickup(g.lootId);
-        if (G.ui) { G.ui.log(`Picked up <span style="color:${g.color}">${g.label}</span>`); G.ui.refresh(); }
+        if (G.ui) { G.ui.log(`${slot ? 'Equipped' : 'Picked up'} <span style="color:${g.color}">${g.label}</span>`); G.ui.refresh(); }
         return true;
       }
     }

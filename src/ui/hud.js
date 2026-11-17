@@ -7,7 +7,7 @@ import { A, potionIcon } from '../core/assets.js';
 import { UI, $, droppable } from './ui.js';
 import { skillIconURL, smiteIcon, ultimateIcon, madnessIcon, hearthIcon } from './icons.js';
 import { CLASSES } from '../data/classes.js';
-import { SKILLS, effLevel, manaCost, rageCost, cooldown, CLASS_SKILLS } from '../data/skills.js';
+import { SKILLS, effLevel, manaCost, rageCost, whirlwindRageCost, cooldown, CLASS_SKILLS } from '../data/skills.js';
 import { xpToNext } from '../game/player.js';
 import { drawMinimap } from '../game/render.js';
 import { assign, SLOT_LABELS } from './skills.js';
@@ -18,7 +18,7 @@ import { pickTaunt } from '../data/taunts.js';
 
 const TAUNT_KEY = 'Velscour_taunts_v1'; // Velscour's level-up deck: the last mood and the lines already shown
 import { Meter } from '../game/dpsmeter.js';
-import { heroDamage } from '../game/autoplay.js';
+import { heroDamage } from '../game/heroDamage.js';
 import { madnessReady, madnessOn, unleashMadness } from '../game/mayhem.js';
 import { smiteReady, smiteArmed, toggleSmite, getUltimate } from '../game/smite.js';
 import { hearthOf, hearthReady, hearthChanneling, hearthSecondsLeft, useHearth } from '../game/hearth.js';
@@ -637,8 +637,8 @@ export const HUD = {
           cdTxt = rem >= 1 ? Math.ceil(rem) + '' : '';
         }
         const L = effLevel(p, sk);
-        nm = L > 0 && (p.mana < manaCost(sk, L) || p.rage < rageCost(sk) ||
-          (sk.classId === 'barbarian' && sk.kind === 'whirl' && p.rage < 10));
+        nm = L > 0 && (p.mana < manaCost(sk, L) || p.rage < rageCost(sk, L) ||
+          (sk.classId === 'barbarian' && sk.kind === 'whirl' && p.rage < whirlwindRageCost(L)));
       }
       if (s.last.cd !== cdK) { s.last.cd = cdK; s.cd.style.height = cdK + '%'; }
       if (s.last.cdt !== cdTxt) { s.last.cdt = cdTxt; s.cdt.textContent = cdTxt; }

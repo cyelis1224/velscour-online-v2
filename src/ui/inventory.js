@@ -5,9 +5,10 @@ import { el, fmtInt, fmtDmg, escapeHtml } from '../core/util.js';
 import { shownWeapon, heroDmgLevel } from '../data/depth.js';
 import { sfx } from '../core/audio.js';
 import { UI, draggable, droppable } from './ui.js';
-import { itemCell, itemTooltip, rarityClass } from './itemui.js';
+import { itemCell, itemTooltip, itemGearTip, rarityClass } from './itemui.js';
 import { SLOTS, SLOT_NAMES, VANITY_SLOTS, shownEquip, itemName, itemColor, GEMS, gemName, itemValue, fitsSlot, slotFor, unsocketCost, makeGem, itemReqStat, charEffectiveStat, canEquipItem, STAT_NAMES, canWearVanity, itemBaseType, itemBaseDisplayName } from '../data/items.js';
 import { CLASSES, ATTRS } from '../data/classes.js';
+import { allocateAttrs } from '../game/attrs.js';
 import { xpToNext, CRIT_OVER } from '../game/player.js';
 import { addToBag } from '../game/player.js';
 import { GroundItem } from '../game/loot.js';
@@ -453,8 +454,7 @@ function bagTip(idx) {
   if (!it) return '';
   const acts = getBagActions(idx, 'bag');
   return {
-    html: itemTooltip(it, {
-      compare: it.slot ? c.equip[slotFor(c.equip, it)] : null,
+    ...itemGearTip(it, {
       price: G.ui.vendor && G.ui.vendor.active ? Math.max(1, Math.floor(itemValue(it) / 4)) : 0,
       priceLabel: 'Sells for',
       hint: TradeManager.isTrading() ? 'Right-click or double-tap to offer in Trade' : G.ui.vendor && G.ui.vendor.active ? 'Right-click or double-tap to sell' : G.ui.jewelBox && G.ui.jewelBox.active ? (it.type === 'gem' ? 'Right-click or double-tap to store in Jewel Box' : '') : G.ui.stash && G.ui.stash.active ? 'Right-click or double-tap to store' : it.sealed ? 'Right-click or double-tap to break seal' : it.type === 'gear' ? 'Right-click or double-tap to equip' : it.type === 'gem' ? 'Drag onto gear to socket' : '',
@@ -880,13 +880,7 @@ function attrRespecDialog() {
 }
 
 export function autoAllocate() {
-  const c = G.char, C = CLASSES[c.classId];
-  while (c.statPoints > 0) {
-    const r = Math.random();
-    const k = r < 0.55 ? C.primary : r < 0.85 ? 'vit' : C.primary === 'int' ? 'dex' : 'int';
-    c.attrs[k === 'vit' && C.primary === 'vit' ? 'str' : k]++;
-    c.statPoints--;
-  }
+  allocateAttrs(G.char);
   changed();
 }
 
