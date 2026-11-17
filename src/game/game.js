@@ -2901,7 +2901,8 @@ export const game = {
     world.dungeonAffixes = normalizeDungeonAffixIds(c.nextAffixes ?? c.dungeonAffixes);
     if (world.dungeonAffixes.includes('bloodmoon')) {
       world.redMoon = true;
-      world.ambient = '#300808';
+      world.ambientFog = '#300808';
+      world.darkK = Math.max(world.darkK || 0, DUNGEON_AFFIX_CONFIG.bloodmoon?.darkness ?? 0.3);
     }
     if (world.dungeonAffixes.includes('golden')) world.goldMul = (world.goldMul || 1) * DUNGEON_AFFIX_CONFIG.golden.goldMultiplier;
     if (world.dungeonAffixes.includes('treasure_hoard')) world.goldMul = (world.goldMul || 1) * 1.25;

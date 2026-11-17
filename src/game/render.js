@@ -1239,7 +1239,7 @@ function drawLighting(ctx, world) {
   lc.globalCompositeOperation = 'source-over';
   lc.globalAlpha = 1;
   lc.clearRect(0, 0, lw, lh);
-  const [fr, fg, fb] = hexToRgb(b.fog || '#000000');
+  const [fr, fg, fb] = hexToRgb(world.ambientFog || b.fog || '#000000');
   lc.fillStyle = `rgba(${fr},${fg},${fb},${Math.max(b.dark, (world.darkK || 0) * 0.94)})`;
   lc.fillRect(0, 0, lw, lh);
   lc.globalCompositeOperation = 'destination-out';

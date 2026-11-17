@@ -300,7 +300,7 @@ export class World {
     if (this.corpses.length > 70) this.corpses.splice(0, this.corpses.length - 70);
     for (let i = this.fallen.length - 1; i >= 0; i--) if ((this.fallen[i].t += dt) > 3) this.fallen.splice(i, 1);
     if (p) this.map.reveal(p.x, p.y, 11);
-    this.ambient(dt);
+    if (typeof this.ambient === 'function') this.ambient(dt);
     updateVfx(dt, this);
   }
 
