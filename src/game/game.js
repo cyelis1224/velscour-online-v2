@@ -14,7 +14,7 @@ import { preloadBarFx } from '../gfx/artfx.js';
 import { SKILLS } from '../data/skills.js';
 import { setClassItems, setRingContext, SEAL_GAP, shownEquip } from '../data/items.js';
 import { BREACH_BIOME, BREACH_WALLS } from '../data/biomes.js';
-import { BIOMES, BETA_BIOMES, BIOME_BY_ID, TOWN_BIOME, ACT2_TOWN_BIOME, ACT_BIOMES, drawBiome, biomeChoices, takeBiome, mixPartner, recordBiomeVisit } from '../data/biomes.js';
+import { BIOMES, BETA_BIOMES, BIOME_BY_ID, TOWN_BIOME, ACT2_TOWN_BIOME, drawBiome, biomeChoices, biomesForDepth, takeBiome, mixPartner, recordBiomeVisit } from '../data/biomes.js';
 import { CLASSES } from '../data/classes.js';
 import { generateDungeon, isRaidDepth } from '../world/dungeon.js';
 import { FINAL_DEPTH, depthLevel, blockStart, isSuperbossDepth, superbossForDepth, getActForDepth, ACTS } from '../data/depth.js';
@@ -1961,12 +1961,8 @@ export const game = {
       return BIOME_BY_ID[room.dungeonBiome];
     }
     if (room) {
-      const act = depth ? getActForDepth(depth) : null;
-      const actBiomes = act ? (ACT_BIOMES[act.act] || []) : null;
-      const actPool = (actBiomes && actBiomes.length)
-        ? actBiomes.map((id) => BIOME_BY_ID[id]).filter((b) => b && !b.beta && b.id !== 'throne')
-        : [];
-      const pool = actPool.length ? actPool : BIOMES.filter((b) => !b.overworld && !b.beta && b.id !== 'throne');
+      const eligible = biomesForDepth(depth).map((id) => BIOME_BY_ID[id]).filter((b) => b && !b.beta && b.id !== 'throne');
+      const pool = eligible.length ? eligible : BIOMES.filter((b) => !b.overworld && !b.beta && b.id !== 'throne');
       const s = room.seed || room.townSeed || 1;
       const idx = Math.abs(((s * 31 + depth * 7919) ^ 0x5bd1e995) | 0);
       return pool[idx % pool.length] || BIOME_BY_ID.catacombs;
@@ -3331,25 +3327,31 @@ export const game = {
 
     const ids = biomeChoices(c, next, 3);
     // a Town Commission waiting for a biome: its portal turns up among the three more often (game/commissions.js)
-    const want = wantedBiomes(c).filter((id) => BIOME_BY_ID[id] && !ids.includes(id) && id !== c.lastBiome);
+    const eligible = new Set(biomesForDepth(next));
+    const want = wantedBiomes(c).filter((id) => eligible.has(id) && BIOME_BY_ID[id] && !ids.includes(id) && id !== c.lastBiome);
     if (want.length && ids.length && next !== FINAL_DEPTH && Math.random() < 0.4) ids[ids.length - 1] = want[Math.floor(Math.random() * want.length)];
     const cards = ids.map((id) => {
       const biome = BIOME_BY_ID[id] || BIOME_BY_ID.catacombs;
       const comm = commState(c).open.find((e) => { const ch = LINE_BY_ID[e.id] && LINE_BY_ID[e.id].chapters[e.ch]; return ch && ch.biome === biome.id; });
-      return { id: biome.id, biome, omen: omenable(next, biome) ? rollOmen(next) || (heresiesOf(c).includes('omens') ? anyOmen() : null) : heresiesOf(c).includes('omens') && next > FINAL_DEPTH && !biome.overworld && !isRaidDepth(next) ? anyOmen() : undefined, comm: comm && LINE_BY_ID[comm.id].name }; // Black Omens: always one
+      return { id: biome.id, biome, affixes: rollDungeonAffixesForDepth(next, Math.random, c && c.affixStartDepth || 1, heresiesOf(c).includes('omens')), comm: comm && LINE_BY_ID[comm.id].name };
     });
     let sel = 0, chosen = false;
-    const tag = (cd) => (cd.biome.id === 'throne' ? '<b style="color:#ff4020">Demon Lord Velscour awaits</b>' : cd.biome.id === 'skyship' ? 'Sky battle' : cd.biome.sea ? 'Sea battle' : cd.biome.overworld ? 'Overworld trial' : isRaidDepth(next) ? '<b style="color:#ff6030">BOSS ROOM</b>' : 'Dungeon');
-    const omenLine = (cd) => (cd.omen === undefined ? '' : cd.omen ? `<span class="pc-omen" style="color:${OMENS[cd.omen].color}"><b>${OMENS[cd.omen].name}</b>${OMENS[cd.omen].text}</span>` : '<span class="pc-omen dim"><b>No omen</b>A quiet depth.</span>');
+    const tag = (cd) => (cd.biome.id === 'throne' ? (next === FINAL_DEPTH ? '<b style="color:#ff4020">Demon Lord Velscour awaits</b>' : 'Guardian') : cd.biome.id === 'skyship' ? 'Sky battle' : cd.biome.sea ? 'Sea battle' : cd.biome.id === 'dark_forest' ? 'Guardian · Optional labyrinths' : cd.biome.id === 'castle' ? 'Castle Guardian' : cd.biome.id === 'overworld' ? 'Forsaken Guardian' : cd.biome.overworld ? 'Overworld trial' : isRaidDepth(next) ? '<b style="color:#ff6030">BOSS ROOM</b>' : 'Dungeon');
+    const affixLine = (cd) => `<span class="pc-affixes"><b>Affixes</b>${cd.affixes.length ? cd.affixes.map((id) => {
+      const affix = DUNGEON_AFFIX_BY_ID[id];
+      return affix ? `<span title="${escapeHtml(affix.description)}"><b>${escapeHtml(affix.name)}</b><small class="pc-affix-description">${escapeHtml(String(affix.description || '').trim())}</small></span>` : '';
+    }).join('') : '<i>No affixes</i>'}</span>`;
     const html = `<p class="dim">${cards.length > 1 ? `Depth ${next} lies beyond ${['', 'one', 'two', 'three'][cards.length]} portals. Choose your way down.` : `The way down opens onto Depth ${next}.`}</p>
-      <div class="pc-row">${cards.map((cd, i) => `<button type="button" class="pc-card${i === sel ? ' sel' : ''}" data-i="${i}" style="--pc:${cd.biome.torch || '#ff8040'}"><i class="pc-swirl"></i><b class="pc-name">${escapeHtml(cd.biome.name)}</b><span class="pc-tag">${tag(cd)}</span>${cd.comm ? `<span class="pc-omen" style="color:#8fe0ff"><b>Commission</b>${escapeHtml(cd.comm)}</span>` : ''}${omenLine(cd)}</button>`).join('')}</div>
+      <div class="pc-row">${cards.map((cd, i) => `<button type="button" class="pc-card${i === sel ? ' sel' : ''}" data-i="${i}" style="--pc:${cd.biome.torch || '#ff8040'}"><i class="pc-swirl"></i><b class="pc-name">${escapeHtml(cd.biome.name)}</b><span class="pc-tag">${tag(cd)}</span>${cd.comm ? `<span class="pc-commission" style="color:#8fe0ff"><b>Commission</b>${escapeHtml(cd.comm)}</span>` : ''}${affixLine(cd)}</button>`).join('')}</div>
       <p class="pc-auto"></p>`;
     const go = (town) => {
       this.pick = null;
       const cd = cards[sel];
       c.cleared[world.depth] = true;
       c.deepest = Math.max(c.deepest || 0, world.depth);
-      c.depth = next; c.nextBiome = cd.id; takeBiome(c, cd.id);
+      c.depth = next; c.nextBiome = cd.id; takeBiome(c, cd.id, next);
+      c.dungeonAffixes = normalizeDungeonAffixIds(cd.affixes);
+      c.nextAffixes = [...c.dungeonAffixes];
       this.autosave();
       let dungeonSeed = Math.floor(Math.random() * 1e9) + 1;
       const mix = mixPartner(cd.biome, () => new RNG(dungeonSeed ^ 0x3d17a892).next());
@@ -3360,11 +3362,11 @@ export const game = {
         G.room.dungeonSeed = dungeonSeed;
         G.room.mixId = mixId;
         G.room.heresies = heresiesOf(c);
+        G.room.dungeonAffixes = c.dungeonAffixes;
         if (net.connected) {
           net.sendRoomDepthUpdate(next, cd.id, dungeonSeed, mixId, G.room.heresies);
         }
       }
-      if (cd.omen !== undefined) c.nextOmen = cd.omen || 'none'; else delete c.nextOmen;
       if (Auto.on) Auto.transitT = 3;
       if (town) {
         if (opts.auto) UI.log('Auto-play heads back to town to trade.', '#8fe0ff');
@@ -3384,8 +3386,8 @@ export const game = {
       btns.forEach((x) => x.classList.toggle('sel', x === b));
       if (this.pick) this.pick.t = Math.min(this.pick.t, 3); // auto-play goes where it was told, after a moment
     }));
-    // auto-play's own pick: a portal with an omen (more to see, and most of them pay), else any
-    const autoPick = () => { const k = cards.findIndex((cd) => cd.comm); if (k >= 0) return k; const o = cards.map((cd, i) => (cd.omen ? i : -1)).filter((i) => i >= 0); return o.length ? o[Math.floor(Math.random() * o.length)] : Math.floor(Math.random() * cards.length); };
+    // auto-play's own pick: a portal with a commission, else any
+    const autoPick = () => { const k = cards.findIndex((cd) => cd.comm); if (k >= 0) return k; return Math.floor(Math.random() * cards.length); };
     this.pick = {
       t: opts.auto ? 2.0 : PICK_WAIT, el: d.box.querySelector('.pc-auto'), last: '',
       choose: () => { d.close(); if (!chosen) sel = autoPick(); go(opts.auto ? opts.town : Auto.needTown()); },
