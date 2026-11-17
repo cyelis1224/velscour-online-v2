@@ -79,6 +79,9 @@ export function preloadLancerShield(variant) {
 }
 export function shieldModel(variant) { return preloadLancerShield(variant)?.model || null; }
 
+// Eagerly preload the round shield so remote Paladin/Lancer throws are ready on the first cast.
+if (typeof Image !== 'undefined' && typeof document !== 'undefined') preloadLancerShield('round');
+
 // ------------------------------------------------------------------ model building
 function cellPixels(c, f) {
   const {w, h, columns} = SHIELD_FRAME;
@@ -348,30 +351,30 @@ export function drawLancerThrownShield(ctx, pr) {
   return true;
 }
 
-/** The Paladin's Shield Throw: the round model thrown flat like a discus, level with the isometric ground (face up),
- *  spinning in its own plane (the emblem turns) with a slight wobble, its shadow on the ground beneath. pr is the Projectile. */
+/** The Paladin's Blessed Shield: the round model thrown like a banked discus, spinning in its own plane
+ *  (the emblem turns) with a slight wobble, its shadow on the ground beneath. pr is the Projectile. */
 export function drawThrownShield(ctx, pr) {
   const record = preloadLancerShield('round');
   if (!record?.ready) return false;
   const head = Math.atan2(pr.vx + pr.vy, pr.vx - pr.vy), ch = Math.cos(head), sh = Math.sin(head);
-  const b = 0.07 * Math.sin(pr.t * 7), cb = Math.cos(b), sb = Math.sin(b); // flat on the ground plane, a slight wobble
+  const b0 = 0.42 + 0.08 * Math.sin(pr.t * 7), b = ch > 0 ? -b0 : b0, cb = Math.cos(b), sb = Math.sin(b);
   const sp = -pr.t * 16, cs = Math.cos(sp), ss = Math.sin(sp);
   // flat (U right, V away from the camera so the art reads unmirrored: U x V = -N, as upright), spun about N,
   // banked about the flight line, turned to the heading
   const R = (x, y, z) => { const Y = y * cb - z * sb, Z = y * sb + z * cb; return [x * ch - Y * sh, x * sh + Y * ch, Z]; };
   const eU = R(cs, ss, 0), eV = R(ss, -cs, 0), eN = R(0, 0, 1);
-  const px = isoX(pr.x, pr.y), gy = isoY(pr.x, pr.y), s = 1.35 * (pr.size || 1), prev = ctx.globalAlpha; // the art is ~18 px across
+  const px = isoX(pr.x, pr.y), gy = isoY(pr.x, pr.y), s = 1.55 * (pr.size || 1), prev = ctx.globalAlpha; // the art is ~18 px across
   ctx.globalAlpha = prev * 0.28; ctx.fillStyle = '#000';
   ctx.beginPath(); ctx.ellipse(px, gy, 15 * s, 7 * s, 0, 0, Math.PI * 2); ctx.fill();
   if (pr.E) { // the holy light it carries
-    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = prev * 0.3;
-    const r = 20 * s; ctx.drawImage(glowSprite(pr.E.glow), px - r, gy - pr.z - r, r * 2, r * 2);
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = prev * 0.5;
+    const r = 24 * s; ctx.drawImage(glowSprite(pr.E.glow), px - r, gy - pr.z - r, r * 2, r * 2);
     ctx.globalCompositeOperation = 'source-over';
   }
   ctx.globalAlpha = prev;
   const smooth = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = false;
-  drawShieldOriented(ctx, record.model, px, gy - pr.z, eU, eV, eN, s, 3, 0.5); // half the Lancer slab: a thin disc
+  drawShieldOriented(ctx, record.model, px, gy - pr.z, eU, eV, eN, s, 3, 0.85);
   ctx.imageSmoothingEnabled = smooth;
   return true;
 }

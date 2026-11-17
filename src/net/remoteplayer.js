@@ -22,6 +22,7 @@ import { bardScore, bardCompose, bardUpdate, bardRetune, ensureInstrumentsLoaded
 import { getBannerSkin, getBannerRoll } from '../gfx/bannergen.js';
 import { getUltimate, executeUltimate } from '../game/smite.js';
 import { MuteManager } from './mutemanager.js';
+import { preloadLancerShield } from '../gfx/lancershields.js';
 
 export class RemotePlayer extends Creature {
   constructor(info) {
@@ -79,6 +80,10 @@ export class RemotePlayer extends Creature {
 
     if (info.bardTabs) {
       this.setBardTabs(info.bardTabs.tabs, info.bardTabs.tabAt);
+    }
+
+    if (this.classId === 'paladin' || this.classId === 'lancer') {
+      preloadLancerShield('round');
     }
 
     this.updateGear(this.gear || {});
@@ -208,6 +213,9 @@ export class RemotePlayer extends Creature {
       this.sig = null;
       this._img = null;
       this._gearKey = null;
+      if (this.classId === 'paladin' || this.classId === 'lancer') {
+        preloadLancerShield('round');
+      }
     }
 
     if (state.gear) {
@@ -425,6 +433,9 @@ export class RemotePlayer extends Creature {
     }
 
     this.lastEl = sk.el;
+    if (sk.fx === 'pshield' || sk.fx === 'tshield') {
+      preloadLancerShield('round');
+    }
 
     // Play skill art FX animation strip
     try {

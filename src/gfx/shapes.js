@@ -62,6 +62,19 @@ export function drawShape(ctx, fx, x, y, a, s, E, t, extra = {}) {
       ctx.fillRect(-7 * s, -8 * s, 14 * s, 7 * s); ctx.strokeRect(-7 * s, -8 * s, 14 * s, 7 * s);
       break;
     }
+    case 'pshield': { // the Paladin's thrown round holy shield fallback while 3D model loads
+      glow(ctx, 0, 0, 18 * s, E.glow, 0.8);
+      ctx.scale(1, 0.72);
+      ctx.rotate(spin);
+      ctx.fillStyle = '#e8b830'; ctx.strokeStyle = '#2b1a08'; ctx.lineWidth = 1.4 * s;
+      ctx.beginPath(); ctx.arc(0, 0, 10.5 * s, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#c49020';
+      ctx.beginPath(); ctx.arc(0, 0, 8 * s, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#fff8e0';
+      ctx.fillRect(-1.6 * s, -6.5 * s, 3.2 * s, 13 * s);
+      ctx.fillRect(-6.5 * s, -1.6 * s, 13 * s, 3.2 * s);
+      break;
+    }
     case 'tshield': { // the Lancer's tower shield: upright, steel-rimmed, its face lit by the skill's element
       const sw = 11 * s * (0.7 + 0.3 * Math.abs(Math.cos(a))), sh = 24 * s;
       glow(ctx, 0, 0, 10 * s, E.glow, 0.25 + 0.05 * Math.sin(t * 8));

@@ -158,7 +158,7 @@ const OUT = process.env.OUT_DIR || path.join(__dirname, 'out');
       console.log(`level ${H} (depth ${r.D}): points ${r.pts.join(', ')}\n  LMB/RMB ${r.bar.join(' / ')} | casts ${r.casts.join(', ')} | kills ${r.kills}`);
       if (H >= 14) { // among his attacks that cost mana (Smite is the free filler for an empty mana orb): hammers and shields
         const n = (re) => r.raw.filter(([k]) => re.test(k)).reduce((a, [, v]) => a + v, 0);
-        const st = n(/^Shield Throw$/), ham = n(/Hammer/), all = r.raw.filter(([k]) => r.atk.includes(k)).reduce((a, [, v]) => a + v, 0) || 1;
+        const st = n(/^(Blessed Shield|Shield Throw)$/), ham = n(/Hammer/), all = r.raw.filter(([k]) => r.atk.includes(k)).reduce((a, [, v]) => a + v, 0) || 1;
         console.log(`  hammers + Shield Throw ${Math.round((st + ham) / all * 100)}% of his mana attacks, Shield Throw ${Math.round(st / Math.max(1, st + ham) * 100)}% of those`);
         if ((st + ham) / all < 0.7) fails.push(`FAIL auto-play level ${H}: hammers + Shield Throw only ${Math.round((st + ham) / all * 100)}% of mana attacks`);
         if (st / Math.max(1, st + ham) < 0.2 || st / Math.max(1, st + ham) > 0.7) fails.push(`FAIL auto-play level ${H}: Shield Throw ${Math.round(st / Math.max(1, st + ham) * 100)}% of hammer + shield casts`);
@@ -173,7 +173,7 @@ const OUT = process.env.OUT_DIR || path.join(__dirname, 'out');
       const { BIOME_BY_ID } = await import('/src/data/biomes.js');
       const { makeMonster } = await import('/src/game/monster.js');
       const { Projectile } = await import('/src/game/hazards.js');
-      const sk = CLASS_SKILLS.paladin.find((x) => x.name === 'Shield Throw'), out = { lines: [], fails: [] };
+      const sk = CLASS_SKILLS.paladin.find((x) => x.name === 'Blessed Shield' || x.name === 'Shield Throw'), out = { lines: [], fails: [] };
       const c = G.char; c.level = Math.max(c.level, 20);
       const step = (n, f) => { for (let i = 0; i < n; i++) { G.dt = 1 / 30; G.time += G.dt; G.frame++; f && f(i); game.update(1 / 30); } };
       // every strike and blast of the player's thrown shields
@@ -319,10 +319,10 @@ const OUT = process.env.OUT_DIR || path.join(__dirname, 'out');
     }, { names, x, y });
     const at = async (name, times) => { let t0 = 0; for (const t of times) { await advance((t - t0) / 1000); t0 = t; await page.waitForTimeout(60); await shot(`paladin_${name}_${t}`); } await advance(1.5); };
     for (const [name, list, times] of [['wheel', ['Wheel of Hammers'], [300, 900]], ['storm', ['Hammerstorm', 'Blessed Hammer'], [250, 700]],
-    ['shield', ['Shield Throw'], [80, 200, 330, 480]], ['gods', ['Hammer of the Gods'], [100, 180]]]) {
+    ['shield', ['Blessed Shield'], [80, 200, 330, 480]], ['gods', ['Hammer of the Gods'], [100, 180]]]) {
       await cast(list); await at(name, times);
     }
-    await cast(['Shield Throw'], -3, -3); await at('shield_air', [280]); // up the screen, away from the pack: the model alone
+    await cast(['Blessed Shield'], -3, -3); await at('shield_air', [280]); // up the screen, away from the pack: the model alone
     await page.evaluate(async () => { const { G } = window.VELSCOUR; const { sigFire } = await import('/src/game/signature.js'); sigFire(G.player); });
     await at('judgement', [250, 520, 900]);
     await page.evaluate(() => { const { game } = window.VELSCOUR; game.update = game._update; });

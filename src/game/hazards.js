@@ -155,7 +155,7 @@ export class Projectile {
     // collisions
     const hits = w.hostiles(this.team, this.x, this.y, this.r * this.size);
     for (const c of hits) {
-      if (this.hitSet.has(c.id) || (c.fly && this.lowOnly)) continue;
+      if (c === this.src || this.hitSet.has(c.id) || (c.fly && this.lowOnly)) continue;
       this.onHit(c);
       if (this.dead) return false;
     }
@@ -174,7 +174,7 @@ export class Projectile {
     if (this.note) bardProjHit(this, c, d);
     if (this.heal && this.src && this.src.owner) leechHeal(this.src.owner, c, d, 0.2);
     if (this.ricochet) return this.ricochetFrom(c);
-    if (this.chain > 0) chainHit(w, this.src, c.x, c.y, w.hostiles(this.team, c.x, c.y, 5).find((x) => x !== c), this.chain - 1, d * 0.7, this.el, this.E.glow);
+    if (this.chain > 0) chainHit(w, this.src, c.x, c.y, w.hostiles(this.team, c.x, c.y, 5).find((x) => x !== c && x !== this.src), this.chain - 1, d * 0.7, this.el, this.E.glow);
     if (this.exp) explode(w, this.src, c.x, c.y, this.exp, this.dmg.map((v) => v * 0.6), this.el, { ...this.o, sound: true, exclude: new Set([c.id]) }, this.fx === 'rocket' || this.fx === 'bomb' ? 'explosion' : 'explosion');
     if (this.split && !this.child) {
       this.split = false;
@@ -187,7 +187,7 @@ export class Projectile {
     if (this.returning) return; // on its way home it cuts through everything
     // bounce to a fresh enemy first, then pierce (Chainlink's bounces and pierces stack)
     if (this.bounce > 0) {
-      const n = w.hostiles(this.team, c.x, c.y, 6).filter((x) => !this.hitSet.has(x.id))[0];
+      const n = w.hostiles(this.team, c.x, c.y, 6).filter((x) => x !== this.src && !this.hitSet.has(x.id))[0];
       if (n) {
         this.bounce--;
         const a = angleTo(this.x, this.y, n.x, n.y), sp = Math.hypot(this.vx, this.vy);
@@ -206,7 +206,7 @@ export class Projectile {
     const w = this.world;
     let best = null, bd = 1e9;
     for (const c of w.hostiles(this.team, x, y, 5)) {
-      if (this.hitSet.has(c.id) || c.targetable === false) continue;
+      if (c === this.src || this.hitSet.has(c.id) || c.targetable === false) continue;
       const d = dist(x, y, c.x, c.y);
       if (d < bd && w.map.los(x, y, c.x, c.y)) { bd = d; best = c; }
     }
@@ -257,7 +257,7 @@ export class Projectile {
     if (this.fx === 'tshield' && drawLancerThrownShield(ctx, this)) return; // the Lancer's spinning 3D shield
     if (this.fx === 'pshield' && drawThrownShield(ctx, this)) return; // the Paladin's thrown 3D shield
     const a = screenAngle(Math.atan2(this.vy, this.vx));
-    drawShape(ctx, this.fx === 'pshield' ? 'disc' : this.fx, px, py, a, this.size, this.E, this.t); // a disc while the shield model loads
+    drawShape(ctx, this.fx, px, py, a, this.size, this.E, this.t); // fallback shape while any 3D shield model loads
     if (this.fx === 'chain' && this.src) {
       const sx = isoX(this.src.x, this.src.y), sy = isoY(this.src.x, this.src.y) - 26;
       ctx.strokeStyle = '#8a8a9a'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 2]);

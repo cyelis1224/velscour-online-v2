@@ -11,7 +11,7 @@ export const SKILL_FX = {
     // Bulwark
     'Shield Bash': 'F06', 'Holy Shield': 'F12', 'Rally Banner': 'F09', 'Defiance': 'F01',
     'Charge': 'F14', 'Vengeance Aura': 'F29', 'Bulwark Slam': 'F13', 'Guardian Angel': 'F35',
-    'Righteous Fire Aura': 'F16', 'Shield Throw': 'F22', 'Holy Freeze Aura': 'F48', 'Avenging Charge': 'F49',
+    'Righteous Fire Aura': 'F16', 'Blessed Shield': 'F22', 'Shield Throw': 'F22', 'Holy Freeze Aura': 'F48', 'Avenging Charge': 'F49',
     'Aegis': 'F40', 'Conviction': 'F38', 'Martyrdom': 'F59', "Crusader's Leap": 'F03',
     'Divine Shield Nova': 'F58', 'Fanaticism': 'F24', 'Bastion': 'F33', "Champion's Call": 'F57',
     // Crusade
