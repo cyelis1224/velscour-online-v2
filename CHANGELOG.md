@@ -4,6 +4,56 @@ All notable changes to Velscour Online are documented in this file.
 
 ---
 
+## [0.2.6] - 2026-11-17
+
+### Added
+- **257 Active Dungeon Affixes & Floor Encounter Systems**:
+  - Implemented the complete 257 dungeon affix catalog with active mechanics across all campaign depths.
+  - Covers enemy stat modifiers (Fortified, Swift, Frenzied, Vampiric, Colossal, Elusive, Berserking), on-death elemental bursts (Volcanic Death, Toxic Remains, Static Discharge, Frostburst, Corpse Explosion), environmental hazards, spell fatigue, mana droughts/surges, healing suppression, and unstable healing.
+  - Replaced legacy omen selection with up to 5 real active dungeon affixes and dynamic biome selection (`biomesForDepth`) in the portal descent dialog.
+  - Entering a dungeon depth announces all active floor affixes to the player and party in real time.
+- **50 Interactive World Objects, Altars & Shrines**:
+  - Added 50 author-placed interactive shrine and world encounters:
+    - 10 Stat Blessings (Might, Fortitude, Swiftness, Sorcery, Fortune, Precision, Phoenix, Echoes, Colossus, Elements).
+    - 8 Cursed Altars (Blood, Greed, Torment, Shadows, Chaos, Damned, Decay, Corruption).
+    - 7 Recovery Fountains (Life, Mana, Rejuvenation, Purification, Renewal, Bloodspring, Unstable Fountain).
+    - 7 Gambling Relics & Idols (Statue of Fortune, Dice of Fate, Wheel of Destiny, Gambler, Trickster, Oracle's Mirror, Coin of the Ancients).
+    - 5 Blood & Transmutation Sacrifices.
+    - 7 Wave Altars & Charged Power Monoliths with escalating ambush waves, active defense pylon fields, and reward chests upon completion.
+- **6-Tier Specialized Treasure Chests**:
+  - Added 6 chest rarity tiers (Common, Uncommon, Rare, Epic, Legendary, Mythic) with custom light beams and scaling loot multipliers.
+  - Added specialized chest variants: Gilded chests guarantee large gold drops; Jeweled chests guarantee gems.
+- **20-Tier Gear & 6-Act Campaign Rebalance**:
+  - Expanded gear progression into 20 equipment tiers (10 core tiers + 10 ascendancy tiers) scaled smoothly for levels 1–100.
+  - Structured campaign depths into 6 Act progression bands with proper quality caps and themed biomes.
+  - Added live gear tooltip comparison differentials (+/- green/red stat changes) when inspecting weapons, armor, and jewelry against equipped items.
+- **Rejuvenation & Fury Resource Orbs**:
+  - Added Rejuvenation Orbs (`orb_rejuv`, restores 35% Max Life & Mana) and Fury Orbs (`orb_fury`, grants 15s haste, attack speed, and CDR blessing) to monster drops, clutter, and treasure chests.
+
+### Fixed & Improved
+- **Ground Orb Collection Lifecycle**:
+  - Fixed orb pickup vacuum magnet bug where unhandled orbs stacked onto the player and followed them indefinitely.
+  - Implemented `applyRejuvenation()` and `applyFury()` handlers on `Player` shared between potion consumption and orb pickup.
+  - Fixed Hunger of the Abyss Heresy to properly suppress all orb drop variants (`orb_*`).
+- **Auto-Play World Object & Orb Intelligence**:
+  - Auto-play now automatically navigates to and selects options for wave altars, monoliths, and shrine dialogs.
+  - Auto-play intelligently seeks out Rejuvenation and Fury orbs when injured or low on mana.
+- **Paladin Blessed Shield Multiplayer Rendering**:
+  - Fixed Paladin orbiting Blessed Shield visual effects so remote party members see orbiting shield animations in multiplayer.
+- **Friendly Duel Self-Hit Immunity**:
+  - Fixed duel combat registration to prevent self-inflicted damage.
+- **Monk Armor & Gear Art Overhaul**:
+  - Complete sprite overhaul for Monk armor across all rarity tiers (Common through Mythic) with updated isometric gear art and palettes.
+- **NPC Rendering Crash**:
+  - Resolved `ReferenceError: A is not defined` crash in `render.js`.
+- **Lobby Form Compliance**:
+  - Wrapped lobby room password inputs in `<form>` tags with autocomplete attributes for browser compliance.
+- **Architecture & Cleanup**:
+  - Removed legacy, unused `defense/` prototype directory, streamlining repository and eliminating dead code.
+  - Updated package name to `velscour-online-v2`.
+
+---
+
 ## [0.2.5] - 2026-11-08
 
 ### Added
