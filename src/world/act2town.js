@@ -578,6 +578,13 @@ function rollAct2Town(tileset, seed, isLastTry) {
     addProp('carved_standing_stone', altar.x - 1.5, altar.y - 0.5, { solid: true });
     addProp('bronze_brazier', altar.x + 1.5, altar.y - 0.5, { solid: true, light: 5.0 });
   }
+  // The sprite's bottom edge is the front tip of its ritual circle. The marked
+  // base point is about 0.64 map tiles back on both axes; block the tile under it.
+  const altarBlockX = Math.floor(altar.x - 0.64), altarBlockY = Math.floor(altar.y - 0.64);
+  if (inb(altarBlockX, altarBlockY)) {
+    map.block[I(altarBlockX, altarBlockY)] = 1;
+    mat[I(altarBlockX, altarBlockY)] = 32;
+  }
 
   // Abyssal Rift Gate (for endgame): on the breach approach road
   const rift = { x: breach.x + 4.5, y: breach.y + 0.5 };
@@ -641,9 +648,10 @@ function rollAct2Town(tileset, seed, isLastTry) {
   const portalOk = reach(portal.x, portal.y);
   const act1Ok = reach(act1Portal.x, act1Portal.y);
   const breachOk = reach(breach.x, breach.y);
+  const altarOk = reach(altar.x, altar.y);
   const npcsOk = npcs.every((n) => reach(n.x, n.y));
 
-  if (!isLastTry && (!portalOk || !act1Ok || !breachOk || !npcsOk)) {
+  if (!isLastTry && (!portalOk || !act1Ok || !breachOk || !altarOk || !npcsOk)) {
     return null; // Retry with next seed
   }
 
