@@ -3,7 +3,7 @@ import { G } from '../state.js';
 import { input } from '../core/input.js';
 import { camera } from '../core/view.js';
 import { sfx, playMusic, stopMusic, setAmbience, stopAmbience, footsteps } from '../core/audio.js';
-import { rand, pick, randi, escapeHtml, dist, dist2, RNG, makeCanvas, fmtInt, swapKey, hexToRgb, clamp, shuffle } from '../core/util.js';
+import { rand, pick, randi, escapeHtml, dist, dist2, RNG, makeCanvas, fmtInt, swapKey, hexToRgb, clamp, shuffle, chance } from '../core/util.js';
 import { biomeTileSet, loadBiomeArt, mixedTileSet, keepTileSets } from '../core/assets.js';
 import { loadArtFor, enemyImage, markArtCaches, trimArtCaches } from '../core/enemyart.js';
 import { loadClassArt } from '../core/classart.js';
@@ -57,6 +57,7 @@ import { generateDunes } from '../world/dunes.js';
 import { createDuneRun, useDunes } from './dunes.js';
 import { loadDunes3D, dunes3dReady } from '../gfx/dunes3d.js';
 import { DUNE_VARIANTS } from '../data/dunes.js';
+import { buildCustomScenarioWorld, fetchScenarioDoc, resolvePublishedScenarioForDepth, listSkullScenarios } from '../world/customscenario.js';
 import { loadCastlePack, releaseCastlePack } from '../gfx/castle.js';
 import { loadCastle3D, releaseCastle3D, loadBaked, castle3dState, warmBaked } from '../gfx/castle3dart.js';
 import { CASTLE_VARIANTS } from '../data/castles.js';
@@ -77,6 +78,7 @@ import { World } from './world.js';
 import { Player } from './player.js';
 import { makeMonster, makeElite, Monster } from './monster.js';
 import { clearRims } from './creature.js';
+import { Delayed, Area, Projectile } from './hazards.js';
 import { applyTrait, rollTrait, ambushTick, madnessTick, unleashMadness, enter } from './mayhem.js';
 import { hit, kill } from './combat.js';
 import { makeRaidBoss, RAID_BOSSES } from './raid.js';
@@ -979,6 +981,7 @@ function attachNetListeners() {
       }
       if (data.seed) G.room.dungeonSeed = data.seed;
       if (data.mixId !== undefined) G.room.mixId = data.mixId;
+      if (data.scenarioId !== undefined) G.room.scenarioId = data.scenarioId || null;
       if (Array.isArray(data.heresies)) G.room.heresies = data.heresies;
       if (!G.room.floors) G.room.floors = new Map();
       if (data.depth > 0 && data.seed && data.biome && data.biome !== 'town') {
@@ -987,6 +990,7 @@ function attachNetListeners() {
           biome: data.biome,
           seed: data.seed,
           mixId: data.mixId || null,
+          scenarioId: data.scenarioId || null,
           heresies: data.heresies || [],
         });
       }
@@ -1033,6 +1037,14 @@ function attachNetListeners() {
     if (G.room && data && typeof data.depth === 'number') {
       G.room.depth = data.depth;
     }
+  });
+
+  net.on('game_cine_trigger', (msg) => {
+    if (!msg || !msg.triggerId) return;
+    const w = G.world;
+    if (!w || !w.customDirector) return;
+    if (msg.depth > 0 && w.depth !== msg.depth) return;
+    w.customDirector.fireTriggerById(msg.triggerId, true, !!msg.allSeen);
   });
 
   net.on('game_hearth_portal', (data) => {
@@ -2384,6 +2396,10 @@ export const game = {
           } else if (['actiitown', 'act2town', 'act2_town', 'act 2 town', 'act ii town', 'deserttown', 'desert_town'].includes(message.trim().toLowerCase())) {
             close();
             this.enterAct2Town(true);
+          } else if (/^scen(?:ario)?\s+([a-z0-9_-]+)$/i.test(message.trim())) {
+            const scenId = message.trim().split(/\s+/)[1].toLowerCase();
+            close();
+            this.enterCustomScenario(scenId);
           }
         } },
       ],
@@ -2393,8 +2409,11 @@ export const game = {
     inputEl?.addEventListener('input', () => { countEl.textContent = `${inputEl.value.length} / 50`; });
   },
 
-  openVelscourTeleport() {
-    const options = `<option value="act2_town">Sunscorch Oasis (Act II Town)</option>`
+  async openVelscourTeleport() {
+    const skullScens = await listSkullScenarios().catch(() => []);
+    const scenOptions = skullScens.map((s) => `<option value="scen:${escapeHtml(s.id)}">📜 Authored: ${escapeHtml(s.name)} (${escapeHtml(s.biomeId)})</option>`).join('');
+    const options = scenOptions
+      + `<option value="act2_town">Sunscorch Oasis (Act II Town)</option>`
       + [...BETA_BIOMES, ...BIOMES].map((biome) => { const need = regionNeeds(biome, G.char?.level); return `<option value="${escapeHtml(biome.id)}"${need ? ' disabled' : ''}>${escapeHtml(biome.name)}${biome.overworld ? ' · Overworld' : ''}${biome.beta ? ' (Beta)' : ''}${need ? ` · Reach level ${need}` : ''}</option>`; }).join('')
       + Object.values(REGIONS).flatMap((r) => { const b = BIOME_BY_ID[r.id], need = regionNeeds(b, G.char?.level); return (r.variants || []).map((v) => `<option value="${escapeHtml(r.id)}:${escapeHtml(v.id)}"${need ? ' disabled' : ''}>${escapeHtml(b.name)}: ${escapeHtml(v.name)}${need ? ` · Reach level ${need}` : ''}</option>`); }).join('')
       + SKY_ALL.map((v) => `<option value="skyship:${v.id}">${escapeHtml(BIOME_BY_ID.skyship.name)}: ${escapeHtml(v.name)} (${escapeHtml(v.weather)})</option>`).join('')
@@ -2402,11 +2421,12 @@ export const game = {
     const dialog = UI.dialog({
       title: 'CHOOSE YOUR DOOM',
       cls: 'velscour-teleport-dialog',
-      html: `<p>Select a biome. Your current depth will be reforged with a fresh path.</p><label class="velscour-message-label" for="velscour-biome">Destination biome</label><select id="velscour-biome" class="velscour-biome-select">${options}</select>`,
+      html: `<p>Select a biome or authored scenario. Your current depth will be reforged with a fresh path.</p><label class="velscour-message-label" for="velscour-biome">Destination</label><select id="velscour-biome" class="velscour-biome-select">${options}</select>`,
       buttons: [
         { label: 'Cancel' },
         { label: 'Teleport', cls: 'red', fn: () => {
           let id = dialog.box.querySelector('#velscour-biome').value;
+          if (id.startsWith('scen:')) { this.enterCustomScenario(id.slice(5)); return; }
           if (id === 'act2_town') { this.enterAct2Town(true); return; }
           if (id.startsWith('skyship:')) { G.char.skyVariant = id.slice(8); id = 'skyship'; }
           if (id.startsWith('pirate_seas:')) { G.char.seaVariant = id.slice(12); id = 'pirate_seas'; }
@@ -2416,6 +2436,77 @@ export const game = {
         } },
       ],
     });
+  },
+
+  async enterCustomScenario(scenarioId, depthOverride = null, fromNetwork = false) {
+    const c = G.char;
+    if (!c || !scenarioId) return;
+    if (Auto.on) Auto.toggle(false);
+    const depth = clamp(depthOverride || (G.world?.kind === 'dungeon' ? G.world.depth : c.depth || 1), 1, FINAL_DEPTH);
+    c.depth = depth;
+    LoadingScreen.show({
+      title: 'AUTHORED SCENARIO',
+      subtitle: `Depth ${depth}`,
+      text: `Loading scenario "${scenarioId}"…`,
+      progress: 15,
+    });
+    sfx('portal');
+    try {
+      const doc = await fetchScenarioDoc(scenarioId);
+      const seed = (G.room && G.room.dungeonSeed) ? G.room.dungeonSeed : (Math.floor(Math.random() * 1e9) + 1);
+      if (G.room) {
+        G.room.depth = depth;
+        G.room.biome = doc.meta.biomeId;
+        G.room.dungeonSeed = seed;
+        G.room.scenarioId = doc.meta.id;
+        G.room.heresies = G.room.heresies || heresiesOf(c);
+        if (!G.room.floors) G.room.floors = new Map();
+        G.room.floors.set(depth, {
+          depth,
+          biome: doc.meta.biomeId,
+          seed,
+          mixId: doc.meta.mixBiomeId || null,
+          scenarioId: doc.meta.id,
+          heresies: G.room.heresies,
+        });
+        if (net.connected && !fromNetwork) {
+          net.sendRoomDepthUpdate(depth, doc.meta.biomeId, seed, doc.meta.mixBiomeId || null, G.room.heresies, doc.meta.id);
+        }
+      }
+      LoadingScreen.setProgress(50, `Forging ${doc.meta.name}…`);
+      const old = G.world;
+      const world = await buildCustomScenarioWorld(doc, {
+        depth,
+        seed,
+        onWin: () => {
+          const first = !c.cleared[depth];
+          c.cleared[depth] = true;
+          c.deepest = Math.max(c.deepest || 0, depth);
+          this.brokeThrough(depth);
+          if (first) this.awardFloorClear(depth, `clearing ${doc.meta.name}`);
+          if (G.room && net.connected) net.sendFloorUnsealed(depth);
+          this.autosave();
+        },
+        onExitUsed: (w, exit) => {
+          if (doc.entities?.exit?.continueToBiome) this.continueTo(doc.entities.exit.continueToBiome);
+          else this.portalChoice(w);
+        },
+      });
+      this.setWorld(world, doc.entities.start, old);
+      HUD.setArea(`Depth ${depth}`, `${doc.meta.name} · ${world.biome.name}`);
+      playMusic(doc.meta.audio?.music || 'wilds', { delay: 2 });
+      setAmbience(doc.meta.audio?.ambience || world.biome.id);
+      await warmLevelArt(world);
+      LoadingScreen.setProgress(100, 'Arriving…');
+    } catch (e) {
+      console.warn('[Scenario] Failed to enter custom scenario:', e);
+      UI.log(`Could not load scenario "${scenarioId}".`, '#ff8060');
+    } finally {
+      await LoadingScreen.hide();
+      this.spawnPlayer(G.world);
+      this._enteringDungeon = false;
+      this.autosave();
+    }
   },
 
   /** The skull's "final boss": Velscour's throne at the hero's depth, the hero set down inside his arena. */
@@ -2544,6 +2635,9 @@ export const game = {
   // the art a level of this biome needs before it can be generated (the portal and Velscour's level select share it)
   loadLevelArt(biome, mix = null) {
     if (regionOf(biome)) { rollRegionVariant(regionOf(biome)); return regionOf(biome).load(biome); } // a new region and its variant (game/regions.js)
+    if (biome.id === 'scorpion_king_pyramid') {
+      return loadDunes3D().catch((e) => { console.warn(e); return loadSeaOfSandPack(); });
+    }
     if (biome.id === 'sea_of_sand') { // the flat cliff maze (0) or one of the ten dune variants with their pyramids (src/data/dunes.js), never the one seen last
       if (G.room) {
         const s = G.room.dungeonSeed || G.room.seed || 1;
@@ -2615,7 +2709,13 @@ export const game = {
     if (depth !== FINAL_DEPTH && (!c.nextBiome || c.nextBiome === 'throne' || regionNeeds(BIOME_BY_ID[c.nextBiome], c.level))) c.nextBiome = drawBiome(c, depth);
     const biome = this.getSharedRoomBiome(G.room, depth, c.nextBiome);
     if (G.room) c.nextBiome = biome.id;
+    if (G.room && G.room.scenarioId && G.room.depth === depth) {
+      this._enteringDungeon = false;
+      this.enterCustomScenario(G.room.scenarioId, depth, fromNetwork);
+      return;
+    }
     let dungeonSeed = G.room ? this.getSharedRoomDungeonSeed(G.room, depth) : (Math.floor(Math.random() * 1e9) + 1);
+    const scenRollRng = new RNG((dungeonSeed ^ 0x5c3e1099) >>> 0);
     if (G.room) {
       let floor = G.room.floors?.get ? G.room.floors.get(depth) : null;
       const peerOnFloor = G.remotePlayers && Array.from(G.remotePlayers.values()).find(rp => rp.worldKind === 'dungeon' && rp.depth === depth);
@@ -2663,6 +2763,11 @@ export const game = {
     // fetch this biome's art first (about 1 MB); if that fails the default set stands in
     setTimeout(async () => {
       try {
+        const pubScen = await resolvePublishedScenarioForDepth(depth, biome.id, () => scenRollRng.next()).catch(() => null);
+        if (pubScen) {
+          await this.enterCustomScenario(pubScen.id, depth, fromNetwork);
+          return;
+        }
         if (G.room && net.connected) {
           net.requestDungeonState(depth);
         }
@@ -2724,6 +2829,7 @@ export const game = {
       : sea ? generateSeaship(depth, biome, seed, SEA_VARIANTS.find((q) => q.id === (G.seaNext || c.seaVariant))?.size)
       : biome.tower ? generateTower(depth, biome, seed, towerVar)
       : biome.cave ? generateCaverns(depth, biome, seed, caveVar)
+      : biome.id === 'scorpion_king_pyramid' && dunes3dReady() ? generateDunes(depth, biome, seed, 1)
       : biome.id === 'sea_of_sand' && sandVar > 0 && dunes3dReady() ? generateDunes(depth, biome, seed, sandVar - 1)
       : biome.overworld ? generateOverworld(depth, biome, seed, biome.id === 'castle' ? castleVar : null) : generateDungeon(depth, biome, tileset, seed);
     if (biome.id === 'sea_of_sand') { c.lastSand = gen.dunes ? 1 + DUNE_VARIANTS.indexOf(gen.variant) : 0; if (gen.dunes) c.seaOfSandRuns[depth] = { seed, dunes: c.lastSand }; }
@@ -4366,7 +4472,7 @@ export const game = {
     const pauseMenus = !G.room && G.settings.pauseMenus !== false && w.kind === 'dungeon' && ui.anyOpen();
     G.paused = !G.room && (ui.modal || pauseMenus);
     Cine.update(G.paused ? 0 : dt);
-    if (G.cine && !G.paused && !G.room) {   // a cut scene (game/cinema.js): no input, no auto-play, no monster thinks; the scene's actors move
+    if (G.cine && !G.paused && (!G.room || w.customDirector)) {   // a cut scene (game/cinema.js): no input, no auto-play, no monster thinks; the scene's actors move
       input.endFrame();
       cineTick(w, dt);
       // a scene this hero has seen plays at 20x (Cine.fast; Settings > "Don't skip cutscenes" keeps it at 1x)

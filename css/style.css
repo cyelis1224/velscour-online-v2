@@ -1328,7 +1328,7 @@ body.touch .rv-btns {
   color: #e2d1ae;
 }
 
-.pc-affixes > b {
+.pc-affixes>b {
   color: #ffd27a;
   font: 700 11px var(--font-head);
   letter-spacing: 1px;
@@ -1339,7 +1339,7 @@ body.touch .rv-btns {
   display: block;
 }
 
-.pc-affixes > span > b {
+.pc-affixes>span>b {
   color: #ffe0a0;
   font-weight: 700;
 }
@@ -1699,6 +1699,34 @@ body.touch #sealed-btn i {
   transform: scale(.94);
 }
 
+#quest-tracker-btn {
+  display: none;
+  place-items: center;
+  border: 1px solid #765b38;
+  border-radius: 5px;
+  background: linear-gradient(#29180f, #0c0705);
+  box-shadow: 0 2px 6px #000;
+  color: #a89068;
+  cursor: pointer;
+}
+
+#quest-tracker-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  filter: drop-shadow(0 1px 2px #000);
+}
+
+#quest-tracker-btn.on {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  box-shadow: 0 0 8px rgba(212, 168, 75, .35), 0 2px 6px #000;
+}
+
+#quest-tracker-btn:active {
+  transform: scale(.94);
+}
+
 /* the minimap fills the open middle of the ring art, which overhangs it by about a fifth on every side */
 #minimap-wrap {
   position: relative;
@@ -1710,9 +1738,9 @@ body.touch #sealed-btn i {
 
 #minimap {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  inset: -4%;
+  width: 108%;
+  height: 108%;
   border-radius: 50%;
   background: rgba(0, 0, 0, .6);
   cursor: pointer;
@@ -1878,7 +1906,8 @@ body.touch #sealed-btn i {
   pointer-events: none;
 }
 
-#sand-objective.hidden {
+#sand-objective.hidden,
+#sand-objective.tracker-collapsed {
   display: none;
 }
 
@@ -6031,8 +6060,8 @@ body.touch.portrait #hud-top-right {
   grid-template-rows: auto auto;
   grid-template-areas:
     "buttons minimap"
-    "dials   skull";
-  align-items: center;
+    "tracker dials";
+  align-items: start;
   justify-items: end;
   gap: 6px 8px;
   right: max(6px, env(safe-area-inset-right));
@@ -6068,7 +6097,7 @@ body.touch.portrait #minimap-wrap {
   grid-area: minimap;
   width: 108px;
   aspect-ratio: 303 / 285.5;
-  margin: 0;
+  margin: 12px 14px 10px 8px;
   pointer-events: none;
 }
 
@@ -6076,31 +6105,49 @@ body.touch.portrait #hud-dials {
   grid-area: dials;
   position: static;
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 4px;
   margin: 0;
   max-width: none;
   pointer-events: none;
 }
 
+body.touch.portrait #stance {
+  flex-direction: column;
+  right: -42px;
+  position: relative;
+}
+
+body.touch.portrait #quest-tracker-btn {
+  grid-area: tracker;
+  display: grid;
+  align-self: start;
+  justify-self: end;
+  width: 32px;
+  height: 34px;
+  padding: 3px;
+  pointer-events: auto;
+}
+
 body.touch.portrait #velscour-skull,
 body.touch.portrait #Velscour-skull {
-  grid-area: skull;
-  position: static;
-  width: 34px;
-  height: 38px;
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  z-index: 6;
+  width: 30px;
+  height: 34px;
   margin: 0;
   padding: 2px;
   pointer-events: auto;
-  justify-self: center;
 }
 
 body.touch.portrait #velscour-skull img,
 body.touch.portrait #Velscour-skull img {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
 }
 
 body.touch.portrait #boss-bar {
@@ -8840,25 +8887,39 @@ body.portrait .bag {
 }
 
 @keyframes seizurePromptPulse {
-  0%, 100% { opacity: 0.55; transform: scale(0.99); }
-  50% { opacity: 1; transform: scale(1.01); text-shadow: 0 0 12px rgba(240, 160, 64, 0.6); }
+
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.99);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.01);
+    text-shadow: 0 0 12px rgba(240, 160, 64, 0.6);
+  }
 }
 
 @media (max-width: 600px) {
   .seizure-warning-card {
     padding: 18px 16px;
   }
+
   .seizure-warning-title {
     font-size: 13px;
     letter-spacing: 1px;
   }
+
   .seizure-warning-subtitle {
     font-size: 11px;
   }
+
   .seizure-warning-body {
     font-size: 12px;
     line-height: 1.45;
   }
+
   .seizure-warning-prompt {
     font-size: 11.5px;
   }
@@ -8884,8 +8945,15 @@ body.portrait .bag {
 }
 
 @keyframes pcmFadeIn {
-  from { opacity: 0; transform: scale(0.96) translateY(-2px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .pcm-header {
@@ -8989,8 +9057,15 @@ body.portrait .bag {
 }
 
 @keyframes tpbSlideDown {
-  from { opacity: 0; transform: translate(-50%, -15px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, -15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .tpb-content {
@@ -9251,8 +9326,15 @@ body.portrait .bag {
 }
 
 @keyframes dpbSlideDown {
-  from { opacity: 0; transform: translate(-50%, -15px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, -15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .dpb-content {
@@ -9308,10 +9390,18 @@ body.portrait .bag {
 }
 
 @keyframes duelBannerPulse {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
-  60% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-  100% { opacity: 1; transform: translate(-50%, -50%) scale(1.0); }
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.0);
+  }
 }
-
-
-

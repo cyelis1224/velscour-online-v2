@@ -634,12 +634,17 @@ class NetworkManager {
         this.emit('game_floor_unsealed', msg);
         break;
 
+      case 'game_cine_trigger':
+        this.emit('game_cine_trigger', msg);
+        break;
+
       case 'room_depth_sync':
         if (this.currentRoom) {
           if (typeof msg.depth === 'number') this.currentRoom.depth = msg.depth;
           if (msg.biome) this.currentRoom.biome = msg.biome;
           if (msg.seed) this.currentRoom.dungeonSeed = msg.seed;
           if (msg.mixId !== undefined) this.currentRoom.mixId = msg.mixId;
+          if (msg.scenarioId !== undefined) this.currentRoom.scenarioId = msg.scenarioId;
           if (Array.isArray(msg.heresies)) this.currentRoom.heresies = msg.heresies;
         }
         this.emit('room_depth_sync', msg);
@@ -1122,7 +1127,7 @@ class NetworkManager {
     });
   }
 
-  sendRoomDepthUpdate(depth, biome, seed, mixId = null, heresies = null) {
+  sendRoomDepthUpdate(depth, biome, seed, mixId = null, heresies = null, scenarioId = null) {
     if (!this.currentRoom) return;
     this.send({
       type: 'room_depth_update',
@@ -1130,11 +1135,12 @@ class NetworkManager {
       biome,
       seed,
       mixId,
+      scenarioId: scenarioId || null,
       heresies: Array.isArray(heresies) ? heresies : undefined,
     });
   }
 
-  sendDungeonTransition(depth, biome, seed, mixId = null, heresies = null) {
+  sendDungeonTransition(depth, biome, seed, mixId = null, heresies = null, scenarioId = null) {
     if (!this.currentRoom) return;
     this.send({
       type: 'game_dungeon_transition',
@@ -1142,7 +1148,19 @@ class NetworkManager {
       biome,
       seed,
       mixId,
+      scenarioId: scenarioId || null,
       heresies: Array.isArray(heresies) ? heresies : undefined,
+    });
+  }
+
+  sendCineTrigger(depth, triggerId, cineId = null, seenBySender = false) {
+    if (!this.currentRoom || !triggerId) return;
+    this.send({
+      type: 'game_cine_trigger',
+      depth: typeof depth === 'number' ? Math.min(500, Math.max(0, depth)) : 0,
+      triggerId: String(triggerId),
+      cineId: cineId ? String(cineId) : null,
+      seenBySender: !!seenBySender,
     });
   }
 

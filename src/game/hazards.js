@@ -13,7 +13,7 @@ import { drawFlyingRang, drawRang3D, rangSkin, groundHeading } from '../gfx/boom
 import { screenAngle } from '../gfx/vfx.js';
 import { hit, aoe, chainHit, leechHeal } from './combat.js';
 
-const roll = (d) => rand(d[0], d[1]);
+const roll = (d) => (typeof d === 'number' ? d : Array.isArray(d) ? rand(d[0], d[1]) : 0);
 
 /** Instant explosion that damages hostiles of src.team. */
 export function explode(world, src, x, y, r, dmg, el, o = {}, fx = 'explosion') {
@@ -54,6 +54,7 @@ export class Projectile {
       speed: 9, range: 10, r: 0.3, fx: 'bolt', el: 'phys', z: 26, pierce: 0, bounce: 0, home: 0, split: false, ret: false,
       lob: false, exp: 0, chain: 0, spray: false, pull: false, size: 1, child: false, o: {}, t: 0, dead: false, ricochet: 0, blast: 0,
     }, o);
+    if (typeof this.dmg === 'number') this.dmg = [this.dmg, this.dmg];
     this.E = elem(this.el);
     this.hitSet = new Set();
     this.vx = Math.cos(this.ang) * this.speed;
@@ -270,6 +271,7 @@ export class Projectile {
 export class Delayed {
   constructor(o) {
     Object.assign(this, { delay: 1, t: 0, r: 1.5, fx: 'meteor', z: 0, ground: true }, o);
+    if (typeof this.dmg === 'number') this.dmg = [this.dmg, this.dmg];
     this.E = elem(this.el);
     this.team = this.src ? this.src.team : this.team;
     this.tele = this.team === 'enemy' || this.showRing !== false;
@@ -277,8 +279,11 @@ export class Delayed {
   update(dt) {
     this.t += dt;
     if (this.t >= this.delay) {
-      explode(this.world, this.src, this.x, this.y, this.r, this.dmg, this.el, this.o || {}, this.fx === 'meteor' ? 'meteor' : this.fx);
+      if (!Array.isArray(this.dmg) || this.dmg[0] > 0 || this.dmg[1] > 0) {
+        explode(this.world, this.src, this.x, this.y, this.r, this.dmg, this.el, this.o || {}, this.fx === 'meteor' ? 'meteor' : this.fx);
+      }
       if (this.fx === 'meteor' && this.o && this.o.burn) this.world.addHazard(new Area({ world: this.world, src: this.src, x: this.x, y: this.y, r: this.r * 0.7, dur: 3, tick: 0.5, dmg: this.dmg.map((v) => v * 0.15), el: this.el, fx: 'fire' }));
+      if (typeof this.onImpact === 'function') this.onImpact(this);
       return false;
     }
     if (this.fx === 'meteor' && chance(dt * 40)) {
@@ -308,6 +313,7 @@ export class Delayed {
 export class Area {
   constructor(o) {
     Object.assign(this, { r: 1.5, dur: 4, tick: 0.5, t: 0, tickT: 0, fx: 'fire', follow: null, mode: 'zone', vx: 0, vy: 0, o: {}, ground: true }, o);
+    if (typeof this.dmg === 'number') this.dmg = [this.dmg, this.dmg];
     this.E = elem(this.el);
     this.team = this.src ? this.src.team : this.team;
     this.hitSet = new Map();

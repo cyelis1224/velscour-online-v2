@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0706">
+  <title>VELSCOUR · Level &amp; Scenario Studio</title>
+  <!-- Base root allows 100% zero-fork reuse of src/core/assets.js, src/game/render.js, src/game/cinema.js & Three.js scenes -->
+  <base href="../../">
+  <link rel="icon" href="assets/ui/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Alegreya+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="tools/leveleditor/style.css">
+  <script type="importmap">{
+    "imports": {
+      "three": "./vendor/three/three.module.min.js",
+      "three/addons/": "./vendor/three/addons/"
+    }
+  }</script>
+</head>
+<body>
+  <!-- Hidden minimal DOM stubs expected by optional HUD/UI calls during live in-editor playtesting -->
+  <div id="engine-stubs" hidden aria-hidden="true">
+    <div id="hud"></div>
+    <div id="area-name"></div>
+    <div id="area-sub"></div>
+    <div id="area-affixes"></div>
+    <div id="loading" class="hidden"><div id="loading-text"></div></div>
+  </div>
+
+  <!-- ================================================================ TOP STUDIO BAR -->
+  <header id="studio-top">
+    <div class="brand">
+      <img src="assets/ui/icon.png" alt="" width="26" height="26">
+      <span><b>VELSCOUR</b> <i>Level Studio</i></span>
+    </div>
+
+    <div class="top-group file-actions">
+      <button id="btn-new" class="sbtn" title="Create Blank or Bake from Seed (Ctrl+N)">+ New / Bake</button>
+      <button id="btn-open" class="sbtn" title="Open Saved Scenario (Ctrl+O)">Open</button>
+      <button id="btn-save" class="sbtn gold" title="Save to assets/scenarios/ (Ctrl+S)">Save</button>
+      <button id="btn-export" class="sbtn quiet" title="Download .velscen.json">Export</button>
+      <label class="sbtn quiet file-lbl" title="Import .velscen.json from disk">Import<input id="file-import" type="file" accept=".json,application/json" hidden></label>
+    </div>
+
+    <div class="top-sep"></div>
+
+    <!-- Scenario Category -> Biome -> Variant Context Bar -->
+    <div class="top-group context-selectors">
+      <label class="ctx-field" title="Scenario Type / Architecture">
+        <span>Type</span>
+        <select id="sel-category"></select>
+      </label>
+      <label class="ctx-field" title="Primary Biome & Art Pack">
+        <span>Biome</span>
+        <select id="sel-biome"></select>
+      </label>
+      <label class="ctx-field" id="wrap-variant" title="Variant, Weather, or Sub-Mode">
+        <span>Variant</span>
+        <select id="sel-variant"></select>
+      </label>
+      <label class="ctx-field" id="wrap-mix" title="Optional Secondary Mix Biome (Indoor Dungeons)">
+        <span>Mix</span>
+        <select id="sel-mix"></select>
+      </label>
+    </div>
+
+    <div class="top-sep"></div>
+
+    <div class="top-group history-actions">
+      <button id="btn-undo" class="icon-sbtn" title="Undo (Ctrl+Z)" disabled>↶</button>
+      <button id="btn-redo" class="icon-sbtn" title="Redo (Ctrl+Y)" disabled>↷</button>
+      <button id="btn-validate" class="sbtn badge-btn" title="Open Validation & Reachability Diagnostics">✓ <span id="val-count">0</span></button>
+    </div>
+
+    <div class="top-spacer"></div>
+
+    <div class="top-group play-actions">
+      <button id="btn-preview-cine" class="sbtn cine-btn" title="Preview Selected Cutscene Live on Canvas">🎬 Preview Cine</button>
+      <button id="btn-playtest" class="sbtn play-btn" title="Spawn Hero & Playtest Live in Viewport (F5)">▶ Playtest (F5)</button>
+      <a class="sbtn quiet" href="tools/assetmanager/" title="Switch to Velscour Asset Manager">Asset Manager ↗</a>
+    </div>
+  </header>
+
+  <!-- ================================================================ MAIN WORKSPACE GRID -->
+  <div id="studio-workspace">
+
+    <!-- LEFT DOCK: Palette, Scene Outliner, Cast & Publish Settings -->
+    <aside id="left-dock" class="dock">
+      <div class="dock-tabs" role="tablist">
+        <button class="dtab active" data-ltab="palette" role="tab">🎨 Palette</button>
+        <button class="dtab" data-ltab="outliner" role="tab">🗂️ Outliner</button>
+        <button class="dtab" data-ltab="settings" role="tab">⚙️ Scenario</button>
+      </div>
+
+      <!-- TAB 1: PALETTE -->
+      <div class="ltab-pane" id="ltab-palette">
+        <div class="pal-search">
+          <input id="pal-q" type="search" placeholder="Search tiles, props, foes, ships…" autocomplete="off" spellcheck="false">
+          <label class="scope-chk" title="Filter palette to current biome's native pack & roster"><input id="pal-biome-only" type="checkbox" checked> Biome</label>
+        </div>
+        <div id="pal-cats" class="pal-cats"></div>
+        <div id="pal-subbar" class="pal-subbar"></div>
+        <div id="pal-grid" class="pal-grid"></div>
+      </div>
+
+      <!-- TAB 2: SCENE OUTLINER -->
+      <div class="ltab-pane" id="ltab-outliner" hidden>
+        <div class="pane-pad">
+          <div class="outliner-head">
+            <span>Scene Objects</span>
+            <button id="btn-frame-start" class="mini-btn" title="Center Camera on Player Start">⌖ Start</button>
+          </div>
+          <div id="outliner-list" class="outliner-list"></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: SCENARIO, LIGHTING, PUBLISH & SPECIAL MODE CONFIG -->
+      <div class="ltab-pane" id="ltab-settings" hidden>
+        <div class="pane-pad form-stack" id="scenario-settings-form"></div>
+      </div>
+    </aside>
+
+    <!-- CENTER STAGE: Tool Ribbon + Live Hybrid 2D/3D Viewport + Bottom Timeline Dock -->
+    <section id="center-column">
+
+      <!-- VIEWPORT TOOL RIBBON -->
+      <div id="tool-ribbon">
+        <div class="tool-group" id="primary-tools" role="toolbar" aria-label="Authoring Tools">
+          <button class="tbtn active" data-tool="select" title="Select, Move & Inspect Objects (V)">↖ Select</button>
+          <button class="tbtn" data-tool="brush" title="Paint Floor / Tile / Place Item (B)">🖌️ Brush</button>
+          <button class="tbtn" data-tool="erase" title="Carve Void / Erase Tile or Object (E)">⌫ Void</button>
+          <button class="tbtn" data-tool="rect" title="Rectangle Carve / Room Paint (R)">▭ Rect</button>
+          <button class="tbtn" data-tool="ellipse" title="Ellipse / Cavern Chamber Carve (O)">◯ Chamber</button>
+          <button class="tbtn" data-tool="fill" title="Flood Fill Contiguous Region (F)">🪣 Fill</button>
+          <button class="tbtn" data-tool="spline" title="Draw Road, Corridor, River or Minecart Rail (L)">〰️ Path</button>
+          <button class="tbtn" data-tool="roomstamp" title="Stamp Themed Room Layout & Furnishings (M)">🏛️ Room</button>
+          <button class="tbtn" data-tool="sculpt" title="2.5D & 3D Terrain Elevation / Water Sculpt (H)">⛰️ Sculpt 3D</button>
+          <button class="tbtn" data-tool="zone" title="Paint Spatial Trigger Zone (Z)">⚡ Zone</button>
+          <button class="tbtn" data-tool="mark" title="Place Cutscene Waypoint / Camera Mark (C)">📍 Mark</button>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Dynamic sub-options for active tool (brush radius, auto-wall, sculpt mode, etc.) -->
+        <div id="tool-options" class="tool-options"></div>
+
+        <div class="tool-spacer"></div>
+
+        <!-- Viewport Display & 3D Camera Modes -->
+        <div class="tool-group view-modes">
+          <div class="seg-btns" id="vp-mode-btns" title="Viewport Projection Mode (Tab)">
+            <button data-vpmode="live" class="active">Live Scene</button>
+            <button data-vpmode="plan">2D Plan</button>
+            <button data-vpmode="split">Split 2D+3D</button>
+          </div>
+          <button id="btn-orbit3d" class="tbtn toggle-btn" title="Unlock Free 3D Orbit Inspection Camera (O in 3D)">🌐 Orbit</button>
+          <button id="btn-grid" class="tbtn toggle-btn active" title="Toggle Isometric Tile Grid (G)"># Grid</button>
+          <button id="btn-heatmap" class="tbtn toggle-btn" title="Toggle 3D Step-Height & BFS Reachability Heatmap">🗺️ Walk Map</button>
+          <button id="btn-lighting" class="tbtn toggle-btn active" title="Toggle Dynamic Darkness & Torch Lighting">🕯️ Lights</button>
+        </div>
+      </div>
+
+      <!-- SPECIAL MODE CONTEXT BANNER (Playtest Active / Spiral Tower Scrubber / Dunes Tomb Switch / Naval Bake) -->
+      <div id="mode-banner" class="mode-banner" hidden></div>
+
+      <!-- DUAL VIEWPORT CONTAINER -->
+      <div id="viewport-split" class="viewport-split">
+        <div id="plan-pane" class="vp-pane plan-pane" hidden>
+          <div class="vp-badge">2D Unrolled / Plan Grid</div>
+          <canvas id="plan-canvas" tabindex="0"></canvas>
+        </div>
+        <div id="scene-pane" class="vp-pane scene-pane">
+          <div class="vp-badge" id="scene-badge">1:1 Live Engine Preview</div>
+          <canvas id="studio-canvas" tabindex="0"></canvas>
+          <div id="orbit-hint" class="orbit-hint" hidden>3D Orbit Inspection: Left-Drag Rotate · Right-Drag Pan · Wheel Zoom · Click [Orbit] to lock Game Ortho</div>
+        </div>
+      </div>
+
+      <!-- STATUS BAR -->
+      <div id="status-bar">
+        <span id="st-coords">Tile: (0.0, 0.0)</span>
+        <span class="st-sep">·</span>
+        <span id="st-elev">Elev: 0 lv</span>
+        <span class="st-sep">·</span>
+        <span id="st-tileinfo">Floor: —</span>
+        <span class="st-sep">·</span>
+        <span id="st-counts">Spawns: 0 · Props: 0</span>
+        <span class="st-spacer"></span>
+        <span id="st-zoom">Zoom: 150%</span>
+        <span class="st-sep">·</span>
+        <span id="st-fps">60 FPS</span>
+        <button id="btn-toggle-bottom" class="mini-btn" title="Collapse/Expand Cutscene & Trigger Dock">▾ Director Dock</button>
+      </div>
+
+      <!-- BOTTOM DOCK: CUTSCENE DIRECTOR, PLAYER TRIGGERS & VALIDATION -->
+      <section id="bottom-dock" class="bottom-dock">
+        <div class="bdock-header">
+          <div class="dock-tabs" role="tablist">
+            <button class="dtab active" data-btab="cutscenes" role="tab">🎬 Cutscene Director</button>
+            <button class="dtab" data-btab="triggers" role="tab">⚡ Triggers &amp; Objectives <span id="trig-badge" class="pill-cnt">1</span></button>
+            <button class="dtab" data-btab="validation" role="tab">📋 Diagnostics <span id="diag-badge" class="pill-cnt">0</span></button>
+          </div>
+          <div id="cine-toolbar" class="cine-toolbar">
+            <select id="sel-cutscene" title="Active Cutscene"></select>
+            <button id="btn-add-cine" class="mini-btn" title="Create New Cutscene">+ Scene</button>
+            <button id="btn-del-cine" class="mini-btn danger" title="Delete Selected Cutscene">✕</button>
+            <span class="tool-sep"></span>
+            <button id="btn-cine-play" class="mini-btn gold" title="Play Cutscene Live on Canvas">▶ Play</button>
+            <button id="btn-cine-stop" class="mini-btn" title="Stop Cutscene">⏹ Stop</button>
+            <select id="sel-cine-speed" class="mini-sel" title="Preview Playback Speed">
+              <option value="1">1× Normal</option>
+              <option value="2">2× Fast</option>
+              <option value="20">20× Seen Skip</option>
+            </select>
+            <span class="tool-sep"></span>
+            <span class="dim-lbl">Add Step:</span>
+            <button class="mini-btn" data-addstep="cam">+ 🎥 Cam</button>
+            <button class="mini-btn" data-addstep="say">+ 💬 Say</button>
+            <button class="mini-btn" data-addstep="card">+ 🪧 Card</button>
+            <button class="mini-btn" data-addstep="walk">+ 🚶 Walk</button>
+            <button class="mini-btn" data-addstep="vfx">+ ✨ FX/Door/Spawn</button>
+            <button class="mini-btn" data-addstep="wait">+ ⏱️ Wait</button>
+          </div>
+        </div>
+
+        <!-- BOTTOM PANE 1: VISUAL MULTI-TRACK TIMELINE -->
+        <div id="btab-cutscenes" class="btab-pane">
+          <div id="cine-tracks" class="cine-tracks"></div>
+        </div>
+
+        <!-- BOTTOM PANE 2: TRIGGERS & OBJECTIVES -->
+        <div id="btab-triggers" class="btab-pane" hidden>
+          <div id="triggers-panel" class="triggers-panel"></div>
+        </div>
+
+        <!-- BOTTOM PANE 3: DIAGNOSTICS -->
+        <div id="btab-validation" class="btab-pane" hidden>
+          <div id="validation-panel" class="validation-panel"></div>
+        </div>
+      </section>
+    </section>
+
+    <!-- RIGHT DOCK: Minimap, Layer Stack & Context Property Inspector -->
+    <aside id="right-dock" class="dock">
+      <div class="minimap-card">
+        <div class="card-head">
+          <span>Minimap &amp; Camera</span>
+          <button id="btn-fit-map" class="mini-btn" title="Center Camera">Center</button>
+        </div>
+        <canvas id="studio-minimap" width="280" height="168"></canvas>
+      </div>
+
+      <div class="layers-card">
+        <div class="card-head"><span>Visibility &amp; Edit Locks</span></div>
+        <div id="layer-list" class="layer-list"></div>
+      </div>
+
+      <div class="inspector-card">
+        <div class="card-head"><span id="insp-title">Inspector</span></div>
+        <div id="insp-body" class="insp-body"></div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- ================================================================ MODALS (NEW / SEED BAKE / OPEN / PLAYTEST) -->
+  <div id="modal-scrim" class="modal-scrim" hidden>
+    <div id="modal-box" class="modal-box" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h2 id="modal-title">New Scenario</h2>
+        <button id="modal-close" class="icon-sbtn" aria-label="Close">✕</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="studio-toast" class="studio-toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="tools/leveleditor/app.js"></script>
+</body>
+</html>

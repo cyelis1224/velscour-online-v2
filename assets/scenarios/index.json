@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-17T19:20:27.543Z",
+  "scenarios": [
+    {
+      "id": "sanctum_of_echoes",
+      "file": "assets/scenarios/sanctum_of_echoes.velscen.json",
+      "name": "Sanctum of Echoes",
+      "author": "Velscour Studio",
+      "blurb": "An ancient ossuary hall where a bound spirit warns the delves of the Sanctum Warden.",
+      "category": "dungeon",
+      "biomeId": "catacombs",
+      "mixBiomeId": null,
+      "variantId": "standard",
+      "size": [
+        56,
+        56
+      ],
+      "cutsceneCount": 2,
+      "triggerCount": 2,
+      "publish": {
+        "skullPortal": true,
+        "campaignPool": false,
+        "pinnedDepth": null
+      },
+      "updatedAt": null
+    }
+  ]
+}

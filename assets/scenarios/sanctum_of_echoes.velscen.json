@@ -1,0 +1,278 @@
+{
+  "format": "velscour-scenario",
+  "version": 1,
+  "meta": {
+    "id": "sanctum_of_echoes",
+    "name": "Sanctum of Echoes",
+    "author": "Velscour Studio",
+    "blurb": "An ancient ossuary hall where a bound spirit warns the delves of the Sanctum Warden.",
+    "category": "dungeon",
+    "biomeId": "catacombs",
+    "mixBiomeId": null,
+    "variantId": "standard",
+    "publish": {
+      "skullPortal": true,
+      "campaignPool": false,
+      "pinnedDepth": null
+    },
+    "lighting": {
+      "dark": 0.82,
+      "light": 7.5,
+      "fog": "#1a0e08",
+      "torch": "#ff9a40",
+      "rain": 0,
+      "night": false
+    },
+    "audio": {
+      "music": "wilds",
+      "ambience": "catacombs"
+    }
+  },
+  "grid": {
+    "w": 56,
+    "h": 56,
+    "projection": "flat",
+    "traversal": {
+      "climb": 2,
+      "drop": 10,
+      "walkStep": 3,
+      "smoothMax": 3,
+      "losCap": true
+    },
+    "layers": {
+      "t": "rle1:u8:3136:0gEAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABLAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABLgAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABRAIA"
+    },
+    "heightfield": {
+      "subdiv": 2,
+      "waterfalls": [],
+      "snowLine": 28,
+      "cloudSeaY": -6
+    },
+    "tower": null,
+    "dunes": null,
+    "train": null,
+    "naval": null,
+    "airship": null,
+    "splines": []
+  },
+  "architecture": {
+    "rooms": [
+      {
+        "id": "r_start",
+        "x": 20,
+        "y": 34,
+        "w": 16,
+        "h": 12,
+        "title": "Entrance Chamber",
+        "theme": null
+      },
+      {
+        "id": "r_sanctum",
+        "x": 18,
+        "y": 8,
+        "w": 20,
+        "h": 14,
+        "title": "The Inner Sanctum",
+        "theme": "shrine"
+      }
+    ],
+    "openings": [],
+    "torches": [],
+    "wallHangings": [],
+    "buildings": []
+  },
+  "entities": {
+    "start": [
+      28,
+      40
+    ],
+    "townPortal": [
+      30,
+      39.5
+    ],
+    "exit": {
+      "x": 28,
+      "y": 12,
+      "sealed": true,
+      "unsealOn": "boss_killed",
+      "continueToBiome": null
+    },
+    "props": [],
+    "spawns": [
+      {
+        "id": "sp_guard_1",
+        "castKey": "",
+        "x": 28,
+        "y": 28,
+        "arch": "skeleton",
+        "rank": "normal",
+        "n": 3,
+        "art": null,
+        "swap": null,
+        "name": ""
+      },
+      {
+        "id": "sp_boss_1",
+        "castKey": "sanctum_guardian",
+        "x": 28,
+        "y": 15,
+        "arch": "skeleton",
+        "rank": "boss",
+        "n": 1,
+        "art": null,
+        "swap": null,
+        "name": "Sanctum Warden"
+      }
+    ],
+    "npcs": [
+      {
+        "id": "npc_spirit",
+        "castKey": "bound_spirit",
+        "role": "villager",
+        "spriteId": "41_friar",
+        "name": "Brother Aldous",
+        "x": 28,
+        "y": 36,
+        "lines": [
+          "Tread softly, traveller. The Warden listens through the stone."
+        ]
+      }
+    ],
+    "interactables": [],
+    "zones": [
+      {
+        "id": "z_boss_approach",
+        "name": "Boss Approach Zone",
+        "shape": "rect",
+        "x": 22,
+        "y": 8,
+        "w": 12,
+        "h": 10,
+        "color": "#ff9a40"
+      }
+    ],
+    "marks": [
+      {
+        "id": "mk_arrival",
+        "name": "Arrival Look",
+        "x": 28,
+        "y": 38
+      }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "obj_slay_boss",
+      "kind": "kill_bosses",
+      "text": "Defeat Sanctum Warden"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "trig_arrival",
+      "name": "Arrival Intro Card",
+      "enabled": true,
+      "event": "onArrival",
+      "once": true,
+      "requireCombatClear": false,
+      "zoneId": null,
+      "targetKey": null,
+      "hpPct": 50,
+      "runCutscene": "cine_arrival"
+    },
+    {
+      "id": "trig_boss_zone",
+      "name": "Boss Chamber Entry Cutscene",
+      "enabled": true,
+      "event": "onEnterZone",
+      "once": true,
+      "requireCombatClear": false,
+      "zoneId": "z_boss_approach",
+      "runCutscene": "cine_boss_warn"
+    }
+  ],
+  "cutscenes": [
+    {
+      "id": "cine_arrival",
+      "name": "Scenario Arrival",
+      "allowFastForward": true,
+      "steps": [
+        {
+          "id": "st_1",
+          "type": "card",
+          "title": "SANCTUM OF ECHOES",
+          "sub": "Skull-Lined Catacombs",
+          "dur": 2.6,
+          "block": false
+        },
+        {
+          "id": "st_2",
+          "type": "cam",
+          "mode": "actor",
+          "who": "hero",
+          "zoom": 1.8,
+          "dur": 1.1,
+          "ease": "out",
+          "push": 0.02,
+          "wait": true
+        },
+        {
+          "id": "st_3",
+          "type": "cam",
+          "mode": "return_hero",
+          "dur": 0.7,
+          "wait": true
+        }
+      ]
+    },
+    {
+      "id": "cine_boss_warn",
+      "name": "Warden Awakening",
+      "allowFastForward": true,
+      "steps": [
+        {
+          "id": "bw_1",
+          "type": "cam",
+          "mode": "actor",
+          "who": "sanctum_guardian",
+          "zoom": 2.2,
+          "dur": 1.2,
+          "ease": "out",
+          "wait": true
+        },
+        {
+          "id": "bw_2",
+          "type": "say",
+          "who": "sanctum_guardian",
+          "text": "Who disturbs the Ossuary of Echoes, {hero}?!",
+          "voice": {
+            "pitch": 0.55,
+            "wave": "sawtooth"
+          }
+        },
+        {
+          "id": "bw_3",
+          "type": "say",
+          "who": "hero",
+          "text": "Your watch ends tonight, {@sanctum_guardian}.",
+          "voice": {
+            "pitch": 1,
+            "wave": "square"
+          }
+        },
+        {
+          "id": "bw_4",
+          "type": "shake",
+          "px": 7
+        },
+        {
+          "id": "bw_5",
+          "type": "cam",
+          "mode": "return_hero",
+          "dur": 0.8,
+          "wait": true
+        }
+      ]
+    }
+  ]
+}

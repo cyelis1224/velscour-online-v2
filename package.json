@@ -5,6 +5,7 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "node server.js",
+    "studio": "node tools/leveleditor/server.mjs",
     "server:shutdown": "node scripts/shutdown.js 3",
     "server:shutdown:now": "node scripts/shutdown.js 0",
     "server:shutdown:cancel": "node scripts/shutdown.js cancel",

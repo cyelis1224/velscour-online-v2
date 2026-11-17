@@ -2968,11 +2968,15 @@ wss.on('connection', (ws) => {
               biome: msg.biome || room.biome || 'crypt',
               seed: msg.seed || room.dungeonSeed || (Math.floor(Math.random() * 1e9) + 1),
               mixId: msg.mixId || null,
+              scenarioId: typeof msg.scenarioId === 'string' && msg.scenarioId ? msg.scenarioId.slice(0, 64) : null,
               heresies: Array.isArray(msg.heresies) ? msg.heresies : [],
             };
             room.floors.set(targetDepth, floor);
             if (room.killedMonsters && room.dungeonSeed !== floor.seed) {
               room.killedMonsters.delete(targetDepth);
+            }
+            if (room.firedCineTriggers) {
+              room.firedCineTriggers.delete(targetDepth);
             }
           }
 
@@ -2980,6 +2984,7 @@ wss.on('connection', (ws) => {
           room.biome = floor.biome;
           room.dungeonSeed = floor.seed;
           room.mixId = floor.mixId;
+          room.scenarioId = floor.scenarioId || null;
           room.heresies = floor.heresies;
 
           clientData.worldKind = 'dungeon';
@@ -2991,6 +2996,7 @@ wss.on('connection', (ws) => {
             biome: room.biome,
             seed: room.dungeonSeed,
             mixId: room.mixId,
+            scenarioId: room.scenarioId || null,
             heresies: room.heresies || [],
             killed: Array.from(room.killedMonsters?.get(room.depth) || []),
             unsealed: room.unsealedDepths ? room.unsealedDepths.has(room.depth) : false,
@@ -3000,6 +3006,34 @@ wss.on('connection', (ws) => {
           });
           broadcastLobbyUpdate();
         }
+        break;
+      }
+
+      case 'game_cine_trigger': {
+        if (!clientData.room || !msg.triggerId) break;
+        const room = rooms.get(clientData.room);
+        if (!room || !room.players.some(p => p.id === clientData.id)) break;
+        const trigDepth = typeof msg.depth === 'number' ? Math.max(0, Math.min(500, msg.depth)) : (room.depth || 0);
+        const trigId = String(msg.triggerId).slice(0, 64);
+        if (!room.firedCineTriggers) room.firedCineTriggers = new Map();
+        let firedSet = room.firedCineTriggers.get(trigDepth);
+        if (!firedSet) {
+          firedSet = new Set();
+          room.firedCineTriggers.set(trigDepth, firedSet);
+        }
+        if (firedSet.has(trigId)) break;
+        firedSet.add(trigId);
+
+        const peersOnFloor = room.players.filter(p => p.depth === trigDepth || trigDepth === 0);
+        const allSeen = !!msg.seenBySender && peersOnFloor.length <= 1;
+        broadcastToRoom(clientData.room, {
+          type: 'game_cine_trigger',
+          depth: trigDepth,
+          triggerId: trigId,
+          cineId: msg.cineId ? String(msg.cineId).slice(0, 64) : null,
+          allSeen,
+          sourcePlayerId: clientData.id,
+        }, ws);
         break;
       }
 
