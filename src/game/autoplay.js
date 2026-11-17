@@ -938,6 +938,8 @@ export const Auto = {
     if (g.kind === 'gold' || g.kind === 'key') return true;
     if (g.kind === 'orb_hp') return p.hp < p.maxHp * 0.85;
     if (g.kind === 'orb_mp') return p.mana < p.maxMana * 0.7;
+    if (g.kind === 'orb_rejuv') return p.hp < p.maxHp * 0.85 || p.mana < p.maxMana * 0.7;
+    if (g.kind === 'orb_fury') return true;
     if (g.kind === 'potion') return (c.potions[g.item.kind] || 0) < 30;
     if (g.kind !== 'item') return false;
     const it = g.item, free = bagFree(c), f = activeFilter();

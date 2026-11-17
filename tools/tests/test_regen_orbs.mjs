@@ -1,6 +1,7 @@
 import assert from 'assert';
 import { Player } from '../../src/game/player.js';
-import { dropLoot, dropChest } from '../../src/game/loot.js';
+import { dropLoot, dropChest, GroundItem, rollOrbKind } from '../../src/game/loot.js';
+import { heresyWorld } from '../../src/game/heresies.js';
 import { G } from '../../src/state.js';
 
 console.log('Testing life regen and health orb mechanics...');
@@ -67,12 +68,47 @@ p.char.class = 'warrior';
 p.pickup({ kind: 'orb_hp', data: {} });
 assert.strictEqual(p.hp, 300, `Expected 100 + 0.2*1000 = 300, got ${p.hp}`);
 
-// Test 3: Loot orb drop distributions
+// Test 3: Bonus orb effects and colors match their potion counterparts.
+p.maxHp = 1000; p.hp = 100; p.maxMana = 400; p.mana = 50;
+p.pickup({ kind: 'orb_rejuv' });
+assert.strictEqual(p.hp, 450, 'Rejuvenation Orb must restore 35% max life');
+assert.strictEqual(p.mana, 190, 'Rejuvenation Orb must restore 35% max mana');
+const rejuvOrb = new GroundItem(0, 0, 'orb_rejuv');
+const furyOrb = new GroundItem(0, 0, 'orb_fury');
+assert.strictEqual(rejuvOrb.color, '#c040ff', 'Rejuvenation Orb uses potion purple');
+assert.strictEqual(furyOrb.color, '#ffa020', 'Fury Orb uses Elixir orange');
+p.buffs = [];
+p.pickup(furyOrb);
+const fury = p.buffs.find((b) => b.id === 'fury');
+assert.ok(fury, 'Fury Orb applies the Elixir of Fury buff');
+assert.strictEqual(fury.t, 15, 'Fury Orb buff lasts as long as the elixir');
+assert.deepStrictEqual(fury.stats, { as: 30, speed: 30, cdr: 30 }, 'Fury Orb shares the elixir stats');
+
+const hungerWorld = { kind: 'dungeon', heresy: { ids: ['hunger'], rank: 2 }, loot: [], addLoot(it) { this.loot.push(it); } };
+heresyWorld(hungerWorld, char);
+for (const kind of ['orb_hp', 'orb_mp', 'orb_rejuv', 'orb_fury']) hungerWorld.addLoot(new GroundItem(0, 0, kind));
+assert.strictEqual(hungerWorld.loot.length, 0, 'Hunger of the Abyss blocks every orb type');
+
+const savedRandom = Math.random;
+try {
+  Math.random = () => 0.0005;
+  assert.strictEqual(rollOrbKind(0.01, 0.001), 'orb_fury', 'Fury is the rarest rolled orb');
+  Math.random = () => 0.005;
+  assert.strictEqual(rollOrbKind(0.01, 0.001), 'orb_rejuv', 'Rejuvenation is rarer than ordinary orbs');
+  Math.random = () => 0.1;
+  assert.strictEqual(rollOrbKind(0.01, 0.001), 'orb_hp');
+  Math.random = () => 0.9;
+  assert.strictEqual(rollOrbKind(0.01, 0.001), 'orb_mp');
+} finally {
+  Math.random = savedRandom;
+}
+
+// Test 4: Loot orb drop distributions
 G.player = p;
 const runs = 1000;
 
 // Normal monster (healthy player)
-p.hp = 1000; // 100% HP
+p.hp = p.maxHp; // 100% HP
 let normalOrbs = 0;
 for (let i = 0; i < runs; i++) {
   dungeonWorld.loot = [];
@@ -83,6 +119,19 @@ for (let i = 0; i < runs; i++) {
 const normalRate = normalOrbs / runs;
 console.log(`Normal monster orb drop rate (healthy): ${(normalRate * 100).toFixed(1)}% (expected ~30%)`);
 assert.ok(normalRate >= 0.25 && normalRate <= 0.35, `Normal orb rate ${normalRate} out of expected ~30%`);
+
+// Rejuvenation and Fury drops are independent and much rarer than the existing healing orbs.
+let rejuvDrops = 0, furyDrops = 0;
+for (let i = 0; i < 5000; i++) {
+  dungeonWorld.loot = [];
+  dropLoot(dungeonWorld, { rank: 'normal', level: 10, x: 25, y: 25 });
+  rejuvDrops += dungeonWorld.loot.filter((l) => l.kind === 'orb_rejuv').length;
+  furyDrops += dungeonWorld.loot.filter((l) => l.kind === 'orb_fury').length;
+}
+const rejuvRate = rejuvDrops / 5000, furyRate = furyDrops / 5000;
+console.log(`Rare orb drop rates: Rejuvenation ${(rejuvRate * 100).toFixed(2)}%, Fury ${(furyRate * 100).toFixed(2)}% (expected ~5% / 2%)`);
+assert.ok(rejuvRate >= 0.035 && rejuvRate <= 0.065, `Rejuvenation orb rate ${rejuvRate} outside expected range`);
+assert.ok(furyRate >= 0.010 && furyRate <= 0.035, `Fury orb rate ${furyRate} outside expected range`);
 
 // Normal monster (wounded player < 50% HP)
 p.hp = 300; // 30% HP
