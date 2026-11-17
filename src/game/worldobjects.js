@@ -1,14 +1,14 @@
 // The 50 reusable shrine and world-object encounters. Objects use biome scatter art,
 // the game's existing interaction path, player buffs, loot rules and VFX.
 import { G } from '../state.js';
-import { chance, dist, pick, rand, randi, TAU } from '../core/util.js';
+import { chance, dist, pick, rand, randi, TAU, shuffle } from '../core/util.js';
 import { sfx } from '../core/audio.js';
 import { addEffect, Ring, Column, burst, sparkle, addLight, glowSprite, spawn, floatText } from '../gfx/vfx.js';
 import { hit } from './combat.js';
 import { ambush } from './mayhem.js';
 import { makeMonster } from './monster.js';
 import { GroundItem, dropChest, rollGroundItem, rollGroundGem } from './loot.js';
-import { goldPile, goldScale, itemName, rarityAt } from '../data/items.js';
+import { goldPile, goldScale, itemName, rarityAt, GEMS } from '../data/items.js';
 import { depthLevel } from '../data/depth.js';
 import { UI } from '../ui/ui.js';
 
@@ -234,7 +234,7 @@ function useGamble(world,o,cost) {
 
 function sacrificeEquipment(world,o) {
   const c=G.char, gear=(c.bag||[]).map((item,index)=>({item,index})).filter(v=>v.item&&v.item.type!=='gem');
-  if(!gear.length){UI.log('The stone finds no equipment in your backpack to transmute.','#c8d8e0');return;}
+  if(!gear.length){UI.log('The stone finds no equipment in your backpack to transmute.','#c8d8e0');if(G.auto?.lootFor===o)G.auto.giveUp.add(o);return;}
   UI.dialog({title:o.name,html:'<p>Select one backpack item to sacrifice for a depth-appropriate replacement. Equipped gear is protected.</p>',buttons:[...gear.slice(0,18).map(({item,index})=>({label:itemName(item),fn:()=>{
     if(o.opened||!c.bag[index])return;
     UI.confirm('Confirm sacrifice',`Destroy ${itemName(item)} and receive a randomized replacement?`,()=>{
@@ -242,19 +242,27 @@ function sacrificeEquipment(world,o) {
       const replacement=rollGroundItem(level(world)+2,{rarity:rarityAt(level(world)+2,rar(o.rarity).name==='Mythic'?5:rar(o.rarity).name==='Legendary'?4:3),mf:G.player.st.magicFind});
       world.addLoot(new GroundItem(o.x,o.y+.3,'item',{item:replacement}));UI.log(`The stone consumes the offering and shapes ${itemName(replacement)}.`,o.color);
     },'Sacrifice','Keep item');
-  }})),{label:'Leave'}]});
+  }})),{label:'Leave',fn:()=>{if(G.auto?.lootFor===o)G.auto.giveUp.add(o);}}]});
 }
 function sacrificeGem(world,o,cost) {
-  const c=G.char, gems=(c.gemBag||[]).map((item,index)=>({item,index})).filter(v=>v.item&&v.item.type==='gem');
-  if(!gems.length){UI.log('The reliquary requires a gem offering.','#d8c080');return;}
-  UI.dialog({title:o.name,html:'<p>Choose one gem to offer. Its reward obeys current depth and character-level limits.</p>',buttons:[...gems.slice(0,18).map(({item,index})=>({label:itemName(item),fn:()=>{
-    if(o.opened||!c.gemBag[index])return;
+  const c=G.char;
+  const gems=[];
+  if(c.gemBag)c.gemBag.forEach((item,index)=>{if(item&&item.type==='gem'&&GEMS[item.gem])gems.push({item,index,source:'gemBag'});});
+  if(c.bag)c.bag.forEach((item,index)=>{if(item&&item.type==='gem'&&GEMS[item.gem])gems.push({item,index,source:'bag'});});
+  if(!gems.length){
+    UI.log('The reliquary requires a gem offering.','#d8c080');
+    if(G.auto?.lootFor===o)G.auto.giveUp.add(o);
+    return;
+  }
+  const pool=shuffle([...gems]).slice(0,5).sort((a,b)=>(a.item.tier??0)-(b.item.tier??0));
+  UI.dialog({title:o.name,html:'<p>Choose one gem to offer. Its reward obeys current depth and character-level limits.</p>',buttons:[...pool.map(({item,index,source})=>({label:itemName(item),fn:()=>{
+    if(o.opened||!c[source]||!c[source][index])return;
     UI.confirm('Confirm offering',`Offer ${itemName(item)} for a chance at depth-appropriate equipment?`,()=>{
-      if(G.world!==world||o.opened||!c.gemBag[index])return;c.gemBag[index]=null;used(world,o);
+      if(G.world!==world||o.opened||!c[source]||!c[source][index])return;c[source][index]=null;used(world,o);
       if(chance(.65*rewardScale(o)))world.addLoot(new GroundItem(o.x,o.y+.3,'item',{item:rollGroundItem(level(world)+3,{rarity:rarityAt(level(world)+3,Math.min(19,4+o.rarity)),mf:G.player.st.magicFind})}));
       else goldReward(world,o,2);
     },'Offer gem','Keep gem');
-  }})),{label:'Leave'}]});
+  }})),{label:'Leave',fn:()=>{if(G.auto?.lootFor===o)G.auto.giveUp.add(o);}}]});
 }
 function resolveMystery(world,o) {
   const p=G.player, out=randi(0,4);

@@ -647,10 +647,26 @@ export const Auto = {
           const lowHp = p && p.hp < p.maxHp * 0.45;
           targetBtn = lowHp ? waveBtns[0] : (waveBtns.find((b) => /\b2\s*waves?\b/i.test(b.textContent)) || waveBtns[0]);
           this.setStatus(`Auto-play selecting ${targetBtn.textContent}…`);
-        } else if (/transmute|sacrifice|destroy.*item/i.test(body) || /choose one.*(backpack|gem)/i.test(body)) {
-          // Dangerous equipment/gem sacrifice: leave user inventory intact
+        } else if (/reliquary/i.test(title) || /choose one gem/i.test(body)) {
+          // Ancestral Reliquary: pick a gem/sigil to offer (pool is sorted lowest tier first)
+          const gemBtns = btns.filter((b) => !/leave|cancel|keep/i.test(b.textContent));
+          if (gemBtns.length > 0) {
+            targetBtn = gemBtns[0];
+            this.setStatus(`Auto-play offering ${targetBtn.textContent}…`);
+          } else {
+            targetBtn = btns.find((b) => /leave|cancel|keep/i.test(b.textContent)) || btns[0];
+            this.setStatus('Leaving reliquary…');
+            if (this.lootFor) this.giveUp.add(this.lootFor);
+          }
+        } else if (/confirm offering/i.test(title) || /offer.*gem/i.test(body)) {
+          // Confirm offering dialog: click 'Offer gem'
+          targetBtn = btns.find((b) => /offer/i.test(b.textContent)) || btns.find((b) => b.classList.contains('red')) || btns[0];
+          this.setStatus('Auto-play confirming gem offering…');
+        } else if (/transmute|sacrifice|destroy.*item/i.test(body) || /choose one.*backpack/i.test(body)) {
+          // Dangerous equipment sacrifice: leave user inventory intact
           targetBtn = btns.find((b) => /leave|cancel|keep/i.test(b.textContent)) || btns[btns.length - 1];
           this.setStatus('Leaving sacrifice…');
+          if (this.lootFor) this.giveUp.add(this.lootFor);
         } else {
           // Monoliths, Shrines, Gambler, Mystery, Tome, Fountains
           targetBtn = btns.find((b) => /accept|yes|confirm|play|wager|roll|read|restore|blessing|drink|silence|hear/i.test(b.textContent))
@@ -658,6 +674,10 @@ export const Auto = {
             || btns.find((b) => !/leave|cancel|no/i.test(b.textContent))
             || btns[0];
           this.setStatus(`Auto-play activating ${title}…`);
+        }
+
+        if (targetBtn && /leave|cancel|keep/i.test(targetBtn.textContent) && this.lootFor) {
+          this.giveUp.add(this.lootFor);
         }
 
         if (this.dialogT >= 0.5) {
