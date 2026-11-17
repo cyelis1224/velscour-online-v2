@@ -4361,6 +4361,7 @@ export const game = {
     }
     this.tickPick(dt);
     Auto.tickDest(dt); // auto-play's Standard/Breach menu in town
+    if (Auto.on) Auto.handleScreens(dt); // auto-interact with dialogs (portals, altars, monoliths, waves)
     const pauseMenus = !G.room && G.settings.pauseMenus !== false && w.kind === 'dungeon' && ui.anyOpen();
     G.paused = !G.room && (ui.modal || pauseMenus);
     Cine.update(G.paused ? 0 : dt);

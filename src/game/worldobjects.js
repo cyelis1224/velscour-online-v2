@@ -123,7 +123,14 @@ function used(world,o) {
   vfx(world,o,true);
 }
 function ask(world,o,title,body,accept) {
-  return UI.confirm(title,body,()=>{ if(G.world!==world||o.opened)return; if(accept()===false)return; used(world,o); },'Accept','Leave');
+  return UI.dialog({
+    title,
+    html: `<p>${body}</p>`,
+    buttons: [
+      { label: 'Leave', fn: () => { if (typeof Auto !== 'undefined' && Auto.on) Auto.giveUp?.add(o); } },
+      { label: 'Accept', cls: 'red', fn: () => { if(G.world!==world||o.opened)return; if(accept()===false)return; used(world,o); } },
+    ]
+  });
 }
 function randomEnemy(world,x,y,rank='normal',hp=1) {
   const arch=pick(world.roster?.length?world.roster:world.biome?.roster||['skeleton']);
@@ -137,7 +144,7 @@ function beginWaves(world,o,count,rewardCount=1) {
   UI.centerMsg(o.name.toUpperCase(),`Survive ${count} wave${count===1?'':'s'} to claim the reward`,2.6);
 }
 function choose(world,o,title,body,choices) {
-  UI.dialog({title,html:`<p>${body}</p>`,buttons:[...choices.map(c=>({label:c.label,cls:c.cls||'',fn:()=>{if(G.world===world&&!o.opened){used(world,o);c.run();}}})),{label:'Leave'}]});
+  UI.dialog({title,html:`<p>${body}</p>`,buttons:[...choices.map(c=>({label:c.label,cls:c.cls||'',fn:()=>{if(G.world===world&&!o.opened){used(world,o);c.run();}}})),{label:'Leave',fn:()=>{if(typeof Auto!=='undefined'&&Auto.on)Auto.giveUp?.add(o);}}]});
 }
 function safeCost(p,cost) { if(p.char.gold<cost){UI.log('You do not have enough gold for the offering.','#ff8080');return false;} p.char.gold-=cost;return true; }
 

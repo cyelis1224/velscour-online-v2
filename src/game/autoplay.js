@@ -598,7 +598,7 @@ export const Auto = {
     return true;
   },
 
-  /** Click through the death, victory, and portal choice dialogs. */
+  /** Click through the death, victory, portal choice, and dungeon object dialogs. */
   handleScreens(dt) {
     const pcDialog = document.querySelector('.portal-choice');
     if (pcDialog) {
@@ -618,13 +618,69 @@ export const Auto = {
     }
 
     const scr = [...document.querySelectorAll('#screens > .screen')].find((x) => x.querySelector('.death-title'));
-    if (!scr) { this.screenT = 0; return false; }
-    const btn = [...scr.querySelectorAll('button')].find((b) => /Return to Town|Continue/.test(b.textContent));
-    if (!btn) return false;
-    this.screenT += dt;
-    this.setStatus(/Return/.test(btn.textContent) ? 'Back to town…' : 'Victory!');
-    if (this.screenT > (/Return/.test(btn.textContent) ? 2.5 : 5)) { this.screenT = 0; btn.click(); }
-    return true;
+    if (scr) {
+      const btn = [...scr.querySelectorAll('button')].find((b) => /Return to Town|Continue/.test(b.textContent));
+      if (btn) {
+        this.screenT = (this.screenT || 0) + dt;
+        this.setStatus(/Return/.test(btn.textContent) ? 'Back to town…' : 'Victory!');
+        if (this.screenT > (/Return/.test(btn.textContent) ? 2.5 : 5)) { this.screenT = 0; btn.click(); }
+        return true;
+      }
+    } else {
+      this.screenT = 0;
+    }
+
+    // Interactive dialogs: monoliths, wave altars, gamble, shrines
+    const dlg = document.querySelector('#screens .dialog-box:not(.portal-choice)');
+    if (dlg) {
+      this.dialogT = (this.dialogT || 0) + dt;
+      const title = dlg.querySelector('h2')?.textContent || 'Altar';
+      const body = (dlg.querySelector('.dlg-body')?.textContent || '').toLowerCase();
+      const btns = Array.from(dlg.querySelectorAll('.row button, button')).filter((b) => b.offsetParent !== null && !b.disabled);
+
+      if (btns.length > 0) {
+        let targetBtn = null;
+        // 1. Wave selection (e.g. War Horn, Fallen Ritual): 1 wave, 2 waves, 3 waves
+        const waveBtns = btns.filter((b) => /\b\d+\s*waves?\b/i.test(b.textContent));
+        if (waveBtns.length > 0) {
+          const p = G.player;
+          const lowHp = p && p.hp < p.maxHp * 0.45;
+          targetBtn = lowHp ? waveBtns[0] : (waveBtns.find((b) => /\b2\s*waves?\b/i.test(b.textContent)) || waveBtns[0]);
+          this.setStatus(`Auto-play selecting ${targetBtn.textContent}…`);
+        } else if (/transmute|sacrifice|destroy.*item/i.test(body) || /choose one.*(backpack|gem)/i.test(body)) {
+          // Dangerous equipment/gem sacrifice: leave user inventory intact
+          targetBtn = btns.find((b) => /leave|cancel|keep/i.test(b.textContent)) || btns[btns.length - 1];
+          this.setStatus('Leaving sacrifice…');
+        } else {
+          // Monoliths, Shrines, Gambler, Mystery, Tome, Fountains
+          targetBtn = btns.find((b) => /accept|yes|confirm|play|wager|roll|read|restore|blessing|drink|silence|hear/i.test(b.textContent))
+            || btns.find((b) => b.classList.contains('red'))
+            || btns.find((b) => !/leave|cancel|no/i.test(b.textContent))
+            || btns[0];
+          this.setStatus(`Auto-play activating ${title}…`);
+        }
+
+        if (this.dialogT >= 0.5) {
+          this.dialogT = 0;
+          if (targetBtn) {
+            targetBtn.click();
+            return true;
+          }
+        }
+        return true;
+      } else if (this.dialogT > 2.0) {
+        // Fallback for buttonless dialog
+        this.dialogT = 0;
+        dlg.closest('.screen')?.remove();
+        if (G.ui) G.ui.modalCount = Math.max(0, G.ui.modalCount - 1);
+        return true;
+      }
+      return true;
+    } else {
+      this.dialogT = 0;
+    }
+
+    return false;
   },
 
   // ================================================================ character management
