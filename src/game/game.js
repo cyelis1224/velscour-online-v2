@@ -3050,7 +3050,7 @@ export const game = {
     });
     world._generatingDungeon = false;
     this.setWorld(world, gen.start, old);
-    announceHappenings(world);
+    announceDungeonAffixes(world);
     if (biome.id === 'castle') { addCastleStory(world, gen); world.ambientFx = gen.variant?.look?.ambient || null; c.lastCastle = gen.variant?.id; }
     if (biome.overworld && !sky && !sea && !biome.cave && !gen.dunes && (!reg || reg.wilds)) {
       // townsfolk on the road: reachable landmarks to walk between (game/wanderers.js)
