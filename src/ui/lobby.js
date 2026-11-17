@@ -134,11 +134,13 @@ export function openLobby(char, onBack) {
   joinView.style.flex = '1';
   joinView.style.minHeight = '0';
 
-  const joinInputs = el('div', 'd2-join-inputs');
+  const joinInputs = el('form', 'd2-join-inputs');
+  joinInputs.onsubmit = (e) => { e.preventDefault(); doJoinBtn.click(); };
   const groupName = el('div', 'd2-input-group');
   groupName.innerHTML = '<label>GAME NAME</label>';
   const gameNameInput = el('input', 'd2-input');
   gameNameInput.placeholder = 'Game Name';
+  gameNameInput.autocomplete = 'off';
   groupName.appendChild(gameNameInput);
 
   const groupPass = el('div', 'd2-input-group');
@@ -146,6 +148,7 @@ export function openLobby(char, onBack) {
   const gamePassInput = el('input', 'd2-input');
   gamePassInput.type = 'password';
   gamePassInput.placeholder = 'Optional';
+  gamePassInput.autocomplete = 'current-password';
   groupPass.appendChild(gamePassInput);
 
   joinInputs.append(groupName, groupPass);
@@ -177,7 +180,8 @@ export function openLobby(char, onBack) {
   joinView.append(joinInputs, gamesSplit, joinActions);
 
   // Tab View 2: Create Game
-  const createView = el('div', 'd2-create-view');
+  const createView = el('form', 'd2-create-view');
+  createView.onsubmit = (e) => { e.preventDefault(); doCreateBtn.click(); };
   createView.style.display = 'none';
 
   createView.innerHTML = `
@@ -185,11 +189,11 @@ export function openLobby(char, onBack) {
       <div class="d2-create-row">
         <div class="d2-input-group">
           <label>GAME NAME</label>
-          <input class="d2-input" id="d2-create-name" value="${escapeHtml(char.name)}'s Game" maxlength="24">
+          <input class="d2-input" id="d2-create-name" value="${escapeHtml(char.name)}'s Game" maxlength="24" autocomplete="off">
         </div>
         <div class="d2-input-group">
           <label>PASSWORD</label>
-          <input class="d2-input" id="d2-create-pass" type="password" placeholder="Leave empty for public" maxlength="20">
+          <input class="d2-input" id="d2-create-pass" type="password" placeholder="Leave empty for public" maxlength="20" autocomplete="current-password">
         </div>
       </div>
       <div class="d2-create-row">

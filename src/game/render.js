@@ -7,7 +7,7 @@ import { orbitShieldDepth } from '../gfx/lancershields.js';
 import { drawWallTorch, wallTorchRect } from '../gfx/walltorches.js';
 import { drawWallHanging, wallHangingRect } from '../gfx/wallhangings.js';
 import { replacementImage } from '../core/replacementart.js';
-import { classSprite } from '../core/assets.js';
+import { classSprite, A } from '../core/assets.js';
 import { pixelSprite } from '../gfx/pixelart.js';
 import { gritAt } from '../gfx/grit.js';
 import { townFrame, townFrameOf, townMotion, isLying, TOWN_FRAME_W, TOWN_FRAME_H, TOWN_BASELINE } from './townsfolkvisuals.js';

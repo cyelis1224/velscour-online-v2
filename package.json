@@ -30,7 +30,6 @@
       "css/**/*",
       "src/**/*",
       "vendor/**/*",
-      "defense/**/*",
       "index.html",
       "server.js",
       "manifest.webmanifest",
