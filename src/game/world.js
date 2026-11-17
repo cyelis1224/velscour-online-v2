@@ -3,6 +3,7 @@ import { augHazard } from './augments.js';
 import { Clutter, isTreeProp } from './clutter.js';
 import { G } from '../state.js';
 import { net } from '../net/network.js';
+import { applyDungeonAffix } from '../data/dungeonaffixes.js';
 import { camera, isoX, isoY } from '../core/view.js';
 import { rand, dist2, TAU, chance } from '../core/util.js';
 import { sfx } from '../core/audio.js';
@@ -44,7 +45,7 @@ export class World {
   }
 
   initClutter() {
-    if (!this.map || !this.props) return;
+    if (!this.map || !this.props || this.map.darkForest) return;
     const W = this.map.w, H = this.map.h;
     if (!this.map.clutter) this.map.clutter = new Uint8Array(W * H);
     for (const pr of this.props) {
@@ -117,6 +118,7 @@ export class World {
         });
       }
     }
+    if (Array.isArray(this.dungeonAffixes)) for (const id of this.dungeonAffixes) applyDungeonAffix(c, id);
     return c;
   }
   remove(c) {

@@ -8,7 +8,7 @@ import { camera } from '../core/view.js';
 import { floatText, addEffect, Column, Ring, Sigil, SigilFlames, SkyBolts, sparkle, burst, spawn, elem, bloodSpray, smoke } from '../gfx/vfx.js';
 import { Creature } from './creature.js';
 import { CLASSES, DMG_TUNE, DMG_TUNE_AT } from '../data/classes.js';
-import { SKILLS, CLASS_SKILLS, effLevel, skillBaseDamage, manaCost, rageCost, cooldown, useTime, weaponCoef, grantedSkillsAt, skillRange, isMovementSkill } from '../data/skills.js';
+import { SKILLS, CLASS_SKILLS, effLevel, skillBaseDamage, manaCost, rageCost, whirlwindRageCost, cooldown, useTime, weaponCoef, grantedSkillsAt, skillRange, isMovementSkill } from '../data/skills.js';
 import { SLOTS, RING_SLOTS, itemStats, itemDmg, itemArmor, GEMS, shownEquip } from '../data/items.js';
 import { augHits, augmentable } from '../data/rings.js';
 import { depthLevel, fortitude, logCurve, MAX_LEVEL } from '../data/depth.js';
@@ -122,13 +122,16 @@ export class Player extends Creature {
     }
     // buffs
     let buffDmg = 0, buffAs = 0, buffArmor = 0, buffRes = 0, buffRegen = 0, buffSpeed = 0, buffCrit = 0, buffThorns = 0, buffLeech = 0, buffBlock = 0, buffLife = 0, buffCdr = 0, buffProj = 0;
-    let buffReduce = 0, buffMf = 0, buffGf = 0, buffXp = 0;
+    let buffReduce = 0, buffMf = 0, buffGf = 0, buffXp = 0, buffCritDmg = 0, buffArea = 0, buffEcho = 0;
+    const buffElemental = {};
     for (const b of this.buffs) {
       const s = b.stats;
       buffDmg += s.dmg || 0; buffAs += s.as || 0; buffArmor += s.armor || 0; buffRes += s.res || 0; buffRegen += s.regen || 0;
       buffSpeed += s.speed || 0; buffCrit += s.crit || 0; buffThorns += s.thorns || 0; buffLeech += s.leech || 0; buffBlock += s.block || 0;
       buffLife += s.life || 0; buffCdr += s.cdr || 0; buffProj += s.proj || 0;
       buffReduce += s.reduce || 0; buffMf += s.mf || 0; buffGf += s.gf || 0; buffXp += s.xp || 0;
+      buffCritDmg += s.critDmg || 0; buffArea += s.areaPct || 0; buffEcho += s.echoChance || 0;
+      for (const [el, value] of Object.entries(s.elemental || {})) buffElemental[el] = (buffElemental[el] || 0) + value;
     }
     // Defiance (deaths in this five-depth block) and the town's blessing (game/defiance.js)
     const hb = heroBonus(c);
@@ -151,7 +154,7 @@ export class Player extends Creature {
         magic: Math.round(((add.resAll || 0) + buffRes + Math.round((c.level - 1) * 0.2)) * 0.75),
       },
       critChance: clamp(critRaw, 0, 75), critOver,
-      critDmg: 50 + (add.critDmg || 0) + mk.critDmg + critOver * CRIT_OVER,
+      critDmg: 50 + (add.critDmg || 0) + buffCritDmg + mk.critDmg + critOver * CRIT_OVER,
       atkSpeed: Math.min(150, dex * 0.3 + (add.atkSpeed || 0) + buffAs),
       castSpeed: Math.min(150, int * 0.1 + (add.castSpeed || 0) + buffAs),
       moveSpeed: Math.min(80, (add.moveSpeed || 0) + buffSpeed * 0.6),
@@ -168,7 +171,9 @@ export class Player extends Creature {
       reduce: Math.min(60, (add.reduce || 0) + buffReduce),
       fortitude: fortitude(c.level),
       cdr: Math.min(60, (add.cdr || 0) + buffCdr / 2),
-      areaPct: add.areaPct || 0,
+      areaPct: (add.areaPct || 0) + buffArea,
+      echoChance: (add.echoChance || 0) + buffEcho,
+      elementalBonus: buffElemental,
       projSpeed: add.projSpeed || 0,
       extraProj: (add.extraProj || 0) + buffProj,
       pierce: add.pierce || 0,
@@ -537,7 +542,7 @@ export class Player extends Creature {
     const L = this.skillLevel(sk);
     if (!L) return 'unlearned';
     if ((this.cooldowns[sk.id] || 0) > 0) return 'cooldown';
-    if (sk.classId === 'barbarian' && ((sk.kind === 'whirl' && this.rage < 10) || this.rage < rageCost(sk))) return 'rage';
+    if (sk.classId === 'barbarian' && ((sk.kind === 'whirl' && this.rage < whirlwindRageCost(L)) || this.rage < rageCost(sk, L))) return 'rage';
     if (this.mana < manaCost(sk, L)) return 'mana';
     return null;
   }
@@ -545,7 +550,7 @@ export class Player extends Creature {
   tryUseSkill(skOrId, tx, ty, target = null) {
     const sk = typeof skOrId === 'string' ? SKILLS[skOrId] : skOrId;
     if (this.dead || !sk) return false;
-    if (sk.classId === 'barbarian' && ((sk.kind === 'whirl' && this.rage < 10) || this.rage < rageCost(sk))) {
+    if (sk.classId === 'barbarian' && ((sk.kind === 'whirl' && this.rage < whirlwindRageCost(L)) || this.rage < rageCost(sk, L))) {
       if ((this.noRageT || 0) <= 0) { floatText(this.x, this.y, 60, 'Need Rage', '#ff9933', 12); this.noRageT = 0.8; }
       return false;
     }
@@ -585,7 +590,8 @@ export class Player extends Creature {
     this.castFree = FREE_CAST.has(sk.kind); // Diablo style: buffs, summons, totems and turrets don't root the hero
     const morph = skillMorphFor(this, sk);
     const morphCdMul = morph && morph.cdPct ? 1 - morph.cdPct / 100 : 1;
-    this.cooldowns[sk.id] = cooldown(sk) * (1 - this.st.cdr / 100) * quick * morphCdMul;
+    const dungeonCooldownMul = this.world && this.world.dungeonAffixes?.includes('spell_fatigue') ? 1.25 : 1;
+    this.cooldowns[sk.id] = cooldown(sk) * (1 - this.st.cdr / 100) * quick * morphCdMul * dungeonCooldownMul;
     this.aim = [tx, ty];
     this.lastEl = (morph && morph.el) || sk.el;
     if (sk.id === 'barbarian.0.0') this.bashCastSerial++;
@@ -716,6 +722,15 @@ export class Player extends Creature {
     if (this.talentCheatCd > 0) this.talentCheatCd -= dt;
     if (this.morphHealCd > 0) this.morphHealCd -= dt;
     if (this.furyT > 0) this.furyT -= dt;
+    if (this.affixVulnerabilityT > 0 && (this.affixVulnerabilityT -= dt) <= 0) this.affixVulnerabilityStacks = 0;
+    if (this.affixCritVulnerableT > 0) this.affixCritVulnerableT -= dt;
+    if (this.affixRemainsT > 0) this.affixRemainsT -= dt;
+    if (this.affixSlowUntil && this.affixSlowUntil <= (this.world?.time || 0)) this.affixSlowUntil = 0;
+    if (this.affixWoundT > 0 && (this.affixWoundT -= dt) <= 0 && this.affixWoundBaseMaxHp) {
+      this.recompute();
+      this.affixWoundBaseMaxHp = 0;
+      this.hp = Math.min(this.hp, this.maxHp);
+    }
     if (this.noRageT > 0) this.noRageT -= dt;
     if (this.chatTimer > 0) {
       this.chatTimer -= dt;
@@ -736,16 +751,18 @@ export class Player extends Creature {
     // a dash, leap or beam whose effect was swept away under him (a level section changing round him: game/caverns.js,
     // dunes.js, tower.js) would hold him channelling for good, unable to move or fight: let it go
     if (this.channel && this.world && !this.world.hazards.includes(this.channel)) { if (this.channel instanceof Leap) this.z = 0; this.channel = null; }
-    // regen: natural baseline HP regen only recovers in town; outside town only gear/talent/buff regen applies
+    // regen: natural baseline HP regen only recovers in town; outside town only gear/buff regen applies
     const inTown = this.world && this.world.kind === 'town';
-    const effectiveRegen = heresyAllows('regen', c) ? ((inTown ? Math.max(st.naturalLifeRegen || 0, this.maxHp * 0.25) : 0) + (st.bonusLifeRegen || 0)) : 0;
-    st.lifeRegen = inTown ? ((st.naturalLifeRegen || 0) + (st.bonusLifeRegen || 0)) : (st.bonusLifeRegen || 0);
+    const healingMul = this.world && this.world.dungeonAffixes?.includes('healing_suppression') ? 0.7 : this.world && this.world.dungeonAffixes?.includes('cursed_fortune') ? 0.75 : 1;
+    const effectiveRegen = (heresyAllows('regen', c) ? ((inTown ? Math.max(st.naturalLifeRegen || 0, this.maxHp * 0.25) : 0) + (st.bonusLifeRegen || 0)) : 0) * healingMul;
+    st.lifeRegen = (inTown ? ((st.naturalLifeRegen || 0) + (st.bonusLifeRegen || 0)) : (st.bonusLifeRegen || 0)) * healingMul;
     if (this.hp < this.maxHp && effectiveRegen > 0) this.hp = Math.min(this.maxHp, this.hp + effectiveRegen * dt);
-    if (this.mana < this.maxMana) this.mana = Math.min(this.maxMana, this.mana + st.manaRegen * dt);
+    const manaRegenMul = this.world ? (this.world.dungeonAffixes?.includes('mana_drought') ? 0.5 : 1) * (this.world.dungeonAffixes?.includes('mana_surge') ? 2 : 1) : 1;
+    if (this.mana < this.maxMana) this.mana = Math.min(this.maxMana, this.mana + st.manaRegen * manaRegenMul * dt);
     for (let i = this.potionRegen.length - 1; i >= 0; i--) {
       const r = this.potionRegen[i];
       const k = Math.min(dt, r.t);
-      this.hp = Math.min(this.maxHp, this.hp + r.hp * k);
+      this.hp = Math.min(this.maxHp, this.hp + r.hp * k * healingMul);
       this.mana = Math.min(this.maxMana, this.mana + r.mp * k);
       r.t -= dt;
       if (r.t <= 0) this.potionRegen.splice(i, 1);
@@ -756,6 +773,10 @@ export class Player extends Creature {
     for (let i = this.buffs.length - 1; i >= 0; i--) {
       const b = this.buffs[i];
       b.t -= dt;
+      if (b.selfDrain) {
+        b.drainT = (b.drainT || 0) + dt;
+        while (b.drainT >= 1) { b.drainT -= 1; this.hp = Math.max(1, this.hp - Math.max(1, this.maxHp * b.selfDrain)); }
+      }
       if (b.pulse) {
         b.pulse.acc += dt;
         if (b.pulse.acc >= 1) {

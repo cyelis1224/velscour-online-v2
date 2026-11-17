@@ -1,4 +1,4 @@
-// Drops on the ground: gold, health/mana orbs, potions, gear and gems.
+// Drops on the ground: gold, recovery/blessing orbs, potions, gear and gems.
 import { G } from '../state.js';
 import { rand, chance, randi, TAU, pick, clamp, measureCtx, fmtInt } from '../core/util.js';
 import { isoX, isoY, camera } from '../core/view.js';
@@ -6,7 +6,7 @@ import { sfx } from '../core/audio.js';
 import { spawn, glowSprite, sparkle, floatText, addLight, elem } from '../gfx/vfx.js';
 import { replacementIcon } from '../core/replacementart.js';
 import { pixelSprite, gemIcon, goldIcon, ringIcon } from '../gfx/pixelart.js';
-import { rollItem, rollGem, itemName, itemColor, goldPile, goldScale, MATERIALS, GEMS, potionItem, RARITY_COLORS, SEAL_RARITY, SEALED_COLOR, SEAL_GAP } from '../data/items.js';
+import { rollItem, rollGem, itemName, itemColor, goldPile, goldScale, MATERIALS, GEMS, potionItem, RARITY_COLORS, RARITY_RARE, RARITY_LEGENDARY, qualityAtDepth, SEAL_RARITY, SEALED_COLOR, SEAL_GAP } from '../data/items.js';
 import { potionIcon } from '../core/assets.js';
 import { artIcon } from '../core/classart.js';
 import { gearIcon } from '../core/gearart.js';
@@ -14,11 +14,86 @@ import { heldIcon } from '../gfx/heldart.js';
 import { AUGMENTS } from '../data/rings.js';
 import { depthLevel } from '../data/depth.js';
 import { sheetIcon } from '../gfx/notation.js';
-import { filterPasses } from './lootfilter.js';
+import { filterPasses, labelFilterPasses } from './lootfilter.js';
 import { rollSigil, SIGILS } from '../data/items.js';
 import { maybeRelic } from '../data/relics.js';
 import { heresyAllows } from './heresies.js';
 import { keyChance } from './unbound.js';
+import { CHEST_RARITIES } from '../data/treasurechests.js';
+
+/** Highest quality unlocked for ground drops at this campaign depth. */
+export function groundDropRarityCap(depth) { return qualityAtDepth(Math.max(1, depth || 1)); }
+
+const ORB_COLOR = { orb_hp: '#ff2a2a', orb_mp: '#3a6aff', orb_rejuv: '#c040ff', orb_fury: '#ffa020' };
+const ORB_ICON = {
+  orb_hp: ['orb_hp', null], orb_mp: ['orb_mp', null],
+  orb_rejuv: ['orb_hp', { colorize: [282, 0.95] }], orb_fury: ['orb_hp', { colorize: [35, 0.95] }],
+};
+/** Roll an orb reward, with a 5% Rejuvenation and 2% Fury chance by default. */
+export function rollOrbKind(rejuvenationChance = 0.05, furyChance = 0.02, healthChance = 0.5) {
+  if (chance(furyChance)) return 'orb_fury';
+  if (chance(rejuvenationChance)) return 'orb_rejuv';
+  return chance(healthChance) ? 'orb_hp' : 'orb_mp';
+}
+
+/** Roll gear drops at the character's level and current depth's quality cap. Keep vendor rolls on rollItem. */
+export function rollGroundItem(ilvl, opts = {}) {
+  const level = G.char?.level;
+  const depth = G.world?.depth > 0 ? G.world.depth : G.char?.depth ?? 1;
+  const rarityCap = opts.maxRarity ?? groundDropRarityCap(depth);
+  return rollItem(level == null ? ilvl : Math.min(ilvl, level), { ...opts, maxRarity: rarityCap });
+}
+
+/** Roll ground gems at a tier available to the character's current level. */
+export function rollGroundGem(ilvl) {
+  const level = G.char?.level;
+  return rollGem(level == null ? ilvl : Math.min(ilvl, level));
+}
+
+// Breakable dungeon clutter can pay out only small, non-equipment rewards. Keep the gem
+// chance below every other reward; orb chances match the established rare-orb rates.
+export const CLUTTER_DROP_CHANCES = Object.freeze({
+  gold: 0.10,
+  orbHp: 0.08,
+  orbMp: 0.08,
+  orbRejuv: 0.05,
+  orbFury: 0.02,
+  gem: 0.01,
+});
+
+/** Roll the small reward table for a broken dungeon prop. At most one orb can drop. */
+export function dropClutterLoot(world, x, y) {
+  const p = G.player;
+  if (world?.kind !== 'dungeon' || !p || typeof world.addLoot !== 'function') return [];
+
+  const level = depthLevel(world.depth || G.char?.depth || 1);
+  const st = p.st || {};
+  const dropped = [];
+  const add = (kind, data = {}) => {
+    const item = new GroundItem(x + rand(-0.2, 0.2), y + rand(-0.2, 0.2), kind, data);
+    world.addLoot(item);
+    dropped.push(item);
+  };
+
+  if (chance(CLUTTER_DROP_CHANCES.gold)) {
+    add('gold', { amount: Math.max(1, Math.round(goldPile(level) * rand(0.6, 1.0) * (1 + (st.goldFind || 0) / 100) * (world.goldMul || 1))) });
+  }
+
+  if (heresyAllows('orb', p.char || G.char, world)) {
+    const roll = Math.random();
+    if (roll < CLUTTER_DROP_CHANCES.orbHp) add('orb_hp');
+    else if (roll < CLUTTER_DROP_CHANCES.orbHp + CLUTTER_DROP_CHANCES.orbMp) add('orb_mp');
+    else if (roll < CLUTTER_DROP_CHANCES.orbHp + CLUTTER_DROP_CHANCES.orbMp + CLUTTER_DROP_CHANCES.orbRejuv) add('orb_rejuv');
+    else if (roll < CLUTTER_DROP_CHANCES.orbHp + CLUTTER_DROP_CHANCES.orbMp + CLUTTER_DROP_CHANCES.orbRejuv + CLUTTER_DROP_CHANCES.orbFury) add('orb_fury');
+  }
+
+  if (chance(Math.min(1, CLUTTER_DROP_CHANCES.gem * (world.gemDropMul || 1)))) {
+    const item = rollGroundGem(level);
+    add('item', { item, fades: fadeOf(item) });
+  }
+
+  return dropped;
+}
 
 const sigilCache = new Map();
 /** A Sigil Stone's icon: a dark rune slab with its sigil's mark in the stone's colour, more ornate by rank. */
@@ -48,8 +123,7 @@ export function sigilIcon(rank, size = 48) {
   return c;
 }
 
-// Seconds a monster's lesser drop waits on the ground (Common, Uncommon, Rare; a gem). A long fight drops hundreds that
-// auto-play rightly walks past, and nothing else ever cleared them. Epics and up, sealed treasures, relics, Sigil Stones,
+// Seconds a monster's lesser drop waits on the ground (Orange, Light Blue, Yellow; a gem). A long fight drops hundreds that
 // keys, what the hero dropped, chest and quest rewards don't fade. 0: never.
 const FADE = [45, 60, 120];
 export const fadeOf = (it) => (it.relic || it.sealed ? 0 : it.type === 'gem' ? (GEMS[it.gem].sigil ? 0 : 180) : it.type === 'gear' ? FADE[it.rarity] || 0 : 0);
@@ -57,9 +131,9 @@ export const fadeOf = (it) => (it.relic || it.sealed ? 0 : it.type === 'gem' ? (
 export class GroundItem {
   constructor(x, y, kind, data = {}) {
     this.x = x; this.y = y; this.z = 0;
-    this.kind = kind; // gold | orb_hp | orb_mp | item | potion
+    this.kind = kind; // gold | orb_hp | orb_mp | orb_rejuv | orb_fury | item | potion
     Object.assign(this, data);
-    // an Epic or better hits the floor sealed, once (dropFromBag marks items that were already opened), when the seal
+    // a Green-quality or better item hits the floor sealed, once (dropFromBag marks items that were already opened), when the seal
     // clock allows one (SEAL_GAP); otherwise it arrives open
     if (kind === 'item' && this.item.type === 'gear' && this.item.rarity >= SEAL_RARITY && this.item.sealed === undefined) {
       const c = G.char, ready = !c || (c.sealT ?? SEAL_GAP) >= SEAL_GAP;
@@ -81,6 +155,7 @@ export class GroundItem {
   get color() {
     if (this.kind === 'gold') return '#ffd34a';
     if (this.kind === 'key') return KEY_COLOR;
+    if (ORB_COLOR[this.kind]) return ORB_COLOR[this.kind];
     if (this.kind === 'item' || this.kind === 'potion') return itemColor(this.item);
     return '#fff';
   }
@@ -110,8 +185,8 @@ export class GroundItem {
     if (this.t > 120 && this.kind !== 'item' && this.kind !== 'key') return false; // (an Abyssal Key waits)
     if (this.fades && this.t > this.fades && p.lootTarget !== this) return false;
     // light pillars for good loot
-    if (this.kind === 'item' && this.item.rarity >= 2) {
-      const r = this.item.sealed ? SEAL_RARITY : this.item.rarity;
+    if (this.kind === 'item' && this.item.rarity >= RARITY_RARE) {
+      const r = Math.min(5, this.item.sealed ? SEAL_RARITY : this.item.rarity);
       addLight(this.x, this.y, 1.6 + r * 0.5, 0.6);
       if (chance(dt * (r * 4))) sparkle(this.x, this.y, rand(4, 30), itemColor(this.item), 1, 0.2);
     }
@@ -128,13 +203,14 @@ export class GroundItem {
   }
   draw(ctx) {
     const px = isoX(this.x, this.y), py = isoY(this.x, this.y) - this.z;
-    if (this.kind === 'orb_hp' || this.kind === 'orb_mp') {
-      const c = this.kind === 'orb_hp' ? '#ff2a2a' : '#3a6aff';
+    if (ORB_COLOR[this.kind]) {
+      const c = ORB_COLOR[this.kind];
       const b = 8 + Math.sin(this.t * 6) * 1.5;
       ctx.globalCompositeOperation = 'lighter';
       ctx.drawImage(glowSprite(c), px - b * 2.2, py - 10 - b * 2.2, b * 4.4, b * 4.4);
       ctx.globalCompositeOperation = 'source-over';
-      const orb = replacementIcon(this.kind, 20);
+      const [art, swap] = ORB_ICON[this.kind];
+      const orb = replacementIcon(art, 20, null, 0.88, swap);
       if (orb) { ctx.drawImage(orb, px - 10, py - 20 - Math.sin(this.t * 4) * 2); return; }
       ctx.fillStyle = c; ctx.beginPath(); ctx.arc(px, py - 10 - Math.sin(this.t * 4) * 2, 4.5, 0, TAU); ctx.fill();
       ctx.fillStyle = '#ffffff'; ctx.fillRect(px - 2, py - 13 - Math.sin(this.t * 4) * 2, 2, 2);
@@ -151,10 +227,10 @@ export class GroundItem {
     }
     const art = this.kind === 'item' && !this.item.sealed && ((this.item.art && artIcon(this.item)) || gearIcon(this.item) || heldIcon(this.item));
     const s = this.kind === 'gold' ? 20 : art ? 30 : this.kind === 'key' ? 26 : 22;
-    if (this.kind === 'item' && this.item.rarity >= 2) {
-      const col = itemColor(this.item), r = this.item.sealed ? SEAL_RARITY : this.item.rarity;
+    if (this.kind === 'item' && this.item.rarity >= RARITY_RARE) {
+      const col = itemColor(this.item), r = Math.min(5, this.item.sealed ? SEAL_RARITY : this.item.rarity);
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.25 + r * 0.08;
+      ctx.globalAlpha = Math.min(0.65, 0.25 + r * 0.08);
       const g = ctx.createLinearGradient(px, py - 90, px, py);
       g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, col);
       ctx.fillStyle = g; ctx.fillRect(px - 3 - r, py - 90, 6 + r * 2, 90);
@@ -225,22 +301,17 @@ export function bannerKitIcon(size = 48) {
   c = document.createElement('canvas'); c.width = c.height = size;
   const x = c.getContext('2d'), s = size / 48;
   x.save();
-  // Warm golden banner backdrop glow
   const bg = x.createRadialGradient(24 * s, 24 * s, 3 * s, 24 * s, 24 * s, 24 * s);
   bg.addColorStop(0, 'rgba(70, 114, 207, 0.45)');
   bg.addColorStop(1, 'rgba(0, 0, 0, 0)');
   x.fillStyle = bg;
   x.fillRect(0, 0, size, size);
-  // Banner Pole
   x.strokeStyle = '#7c5a32'; x.lineWidth = 2.4 * s; x.lineCap = 'round';
   x.beginPath(); x.moveTo(24 * s, 6 * s); x.lineTo(24 * s, 44 * s); x.stroke();
-  // Crossbar
   x.strokeStyle = '#d4af37'; x.lineWidth = 2 * s;
   x.beginPath(); x.moveTo(8 * s, 11 * s); x.lineTo(40 * s, 11 * s); x.stroke();
-  // Finial Spearhead
   x.fillStyle = '#ffd860';
   x.beginPath(); x.moveTo(24 * s, 3 * s); x.lineTo(27 * s, 8 * s); x.lineTo(21 * s, 8 * s); x.closePath(); x.fill();
-  // Hanging Cloth Banner (Swallowtail / pointed)
   x.fillStyle = '#224488';
   x.beginPath();
   x.moveTo(10 * s, 11 * s);
@@ -250,9 +321,7 @@ export function bannerKitIcon(size = 48) {
   x.lineTo(10 * s, 35 * s);
   x.closePath();
   x.fill();
-  // Gold Trim
   x.strokeStyle = '#e6be44'; x.lineWidth = 1.2 * s; x.stroke();
-  // Central Emblem (Silver Lance/Cross)
   x.fillStyle = '#edf2fa';
   x.beginPath();
   x.moveTo(24 * s, 18 * s); x.lineTo(27 * s, 23 * s); x.lineTo(24 * s, 30 * s); x.lineTo(21 * s, 23 * s);
@@ -264,7 +333,6 @@ export function bannerKitIcon(size = 48) {
   iconCache.set(key, c);
   return c;
 }
-
 /** Inventory icon canvas for any item. */
 export function itemIcon(item, size = 48) {
   if (item.sealed) return sealedIcon(size);
@@ -280,16 +348,17 @@ export function itemIcon(item, size = 48) {
   let c = iconCache.get(key);
   if (c) return c;
   const mat = MATERIALS[item.tier].color;
-  const pal = { m: mat, w: '#ffffff', b: item.icon === 'shield' ? '#5a2a1a' : '#5a3a20', g: item.rarity >= 3 ? '#ffd040' : '#b08a3a', c: item.rarity >= 2 ? RARITY_COLORS[item.rarity] : '#8a6a40', e: '#ff4040', k: '#101010' };
+  const pal = { m: mat, w: '#ffffff', b: item.icon === 'shield' ? '#5a2a1a' : '#5a3a20', g: item.rarity >= RARITY_LEGENDARY ? '#ffd040' : '#b08a3a', c: item.rarity >= RARITY_RARE ? RARITY_COLORS[item.rarity] : '#8a6a40', e: '#ff4040', k: '#101010' };
   if (item.icon === 'orb') { pal.c = mat; pal.e = '#c060ff'; }
-  if (item.icon === 'staff' || item.icon === 'wand') { pal.c = ['#a0a0a0', '#60ff60', '#60a0ff', '#c060ff', '#ffa020', '#ff4058', '#20e0ff'][item.rarity]; pal.b = '#6a4a2a'; pal.e = '#ffffff'; }
-  c = replacementIcon('item_' + item.icon, size, mat) || (item.icon ? pixelSprite(item.icon, pal, 4) : null);
+  if (item.icon === 'staff' || item.icon === 'wand') { pal.c = RARITY_COLORS[item.rarity] || '#ffffff'; pal.b = '#6a4a2a'; pal.e = '#ffffff'; }
+  c = replacementIcon('item_' + item.icon, size, mat) || pixelSprite(item.icon, pal, 4);
   iconCache.set(key, c);
   return c;
 }
 
 // ------------------------------------------------------------------ drops
 export function dropLoot(world, m) {
+  if (m.chestMimic) return; // the disguised chest pays its own stored reward when the mimic dies
   const p = G.player;
   if (!p) return;
   const isRiftActive = world.rift && !world.rift.done && !m.isRaid && !m.riftPinata;
@@ -305,7 +374,7 @@ export function dropLoot(world, m) {
     for (let i = 0; i < n; i++) add('gold', { amount: Math.max(1, Math.round(goldPile(lvl) * rand(0.6, 1.4) * Math.sqrt(R) * (1 + st.goldFind / 100) * (world.goldMul || 1))) });
   }
   if (!isRiftActive && st.legendary.greed && chance(0.15)) for (let i = 0; i < 4; i++) add('gold', { amount: Math.round((2 + lvl) * goldScale(lvl) * (1 + st.goldFind / 100)) });
-  // orbs (none under the Hunger of the Abyss Heresy)
+  // Orbs (none under the Hunger of the Abyss Heresy).
   if (heresyAllows('orb', p.char, world)) {
     // Health orbs: primary recovery in dungeons with natural HP regen removed outside of town.
     if (rank === 'boss') {
@@ -326,6 +395,9 @@ export function dropLoot(world, m) {
       if (chance(0.30 + lowHpBonus)) add('orb_hp', {});
       if (chance(0.12)) add('orb_mp', {});
     }
+    const rankScale = Math.sqrt(R);
+    if (chance(0.05 * rankScale)) add('orb_rejuv', {});
+    if (chance(0.02 * rankScale)) add('orb_fury', {});
   }
   // active rifts suppress gear/gold drops until the Guardian piñata
   if (isRiftActive) return;
@@ -338,7 +410,7 @@ export function dropLoot(world, m) {
   const boost = (world.raid || m.isRaid || m.isVelscour ? 3 : 1) * (world.relicMul || 1); // BOSS ROOMs triple the Covenant odds (data/relics.js); Heresies raise them
   for (let i = 0; i < items; i++) {
     const ilvl = lvl + (rank === 'boss' ? 2 : rank === 'normal' ? 0 : 1) + randi(-1, 1);
-    const item = maybeRelic(rollItem(ilvl, { mf: st.magicFind + (world.mfAdd || 0), bonus }), boost);
+    const item = maybeRelic(rollGroundItem(ilvl, { mf: st.magicFind + (world.mfAdd || 0), bonus }), boost);
     add('item', { item, fades: fadeOf(item) });
   }
   // Sigil Stones: rare from the rank and file, common from guardians (Heresies: world.sigilMul)
@@ -347,22 +419,46 @@ export function dropLoot(world, m) {
   // an Abyssal Key (docs/ENDGAME.md): BOSS ROOM bosses past depth 600 under Heresy rank 10, rift guardians from tier 10
   if (m.isRaid && chance(keyChance(world, m))) add('key', {}); // (keyChance rolls once a boss: a raid boss pays out three dropLoots)
   // rings: a guardian usually drops one
-  if ((rank === 'boss' && chance(0.6)) || (rank === 'unique' && chance(0.2))) add('item', { item: rollItem(lvl + 2, { slot: 'ring', mf: st.magicFind + (world.mfAdd || 0), bonus }) });
+  if ((rank === 'boss' && chance(0.6)) || (rank === 'unique' && chance(0.2))) add('item', { item: rollGroundItem(lvl + 2, { slot: 'ring', mf: st.magicFind + (world.mfAdd || 0), bonus }) });
   // gems
-  const gems = more(rank === 'boss' ? randi(1, 3) : chance(rank === 'normal' ? 0.025 : 0.25) ? 1 : 0);
-  for (let i = 0; i < gems; i++) { const item = rollGem(lvl + (rank === 'boss' ? 6 : 0)); add('item', { item, fades: fadeOf(item) }); }
+  const gemChance = Math.min(1, (rank === 'normal' ? 0.025 : 0.25) * (world.gemDropMul || 1));
+  const gems = more(rank === 'boss' ? randi(1, 3) : chance(gemChance) ? 1 : 0);
+  for (let i = 0; i < gems; i++) { const item = rollGroundGem(lvl + (rank === 'boss' ? 6 : 0)); add('item', { item, fades: fadeOf(item) }); }
 }
 
 export function dropChest(world, chest, depth) {
   const st = G.player ? G.player.st : { magicFind: 0, goldFind: 0 };
-  const n = chest.rare ? randi(2, 3) : randi(1, 2);
   const add = (kind, data) => world.addLoot(new GroundItem(chest.x, chest.y + 0.3, kind, data));
-  for (let i = 0; i < n; i++) add('item', { item: maybeRelic(rollItem(depthLevel(depth) + 1, { mf: st.magicFind + (world.mfAdd || 0), bonus: chest.rare ? 1.2 : 0.35 })) });
-  if (chance(chest.rare ? 0.25 : 0.06)) add('item', { item: rollSigil(depth) });
-  for (let i = 0; i < randi(2, 4); i++) add('gold', { amount: Math.round((10 + depthLevel(depth) * 4) * goldScale(depthLevel(depth)) * rand(0.6, 1.4) * (1 + st.goldFind / 100)) });
-  if (chance(chest.rare ? 0.8 : 0.3)) add('item', { item: rollGem(depthLevel(depth) + 4) });
-  if (chance(0.5)) add('potion', { item: potionItem(pick(['hp', 'mp', 'rejuv'])) });
-  if (heresyAllows('orb', G.player?.char, world) && chance(0.75)) add('orb_hp', {});
+  const rarity = Number.isInteger(chest.chestRarity) ? CHEST_RARITIES[chest.chestRarity] : null;
+  const goldOnly = chest.chestType === 'gilded';
+  const gemsOnly = chest.chestType === 'jeweled';
+  // Special map caches and event chests keep their original rare/ordinary reward rules.
+  const gearRange = rarity ? rarity.gear : chest.rare ? [2, 3] : [1, 2];
+  const goldRange = rarity ? rarity.gold : [2, 4];
+  let gearCount = goldOnly || gemsOnly ? 0 : randi(gearRange[0], gearRange[1]);
+  if (!goldOnly && !gemsOnly && (chest.chestType === 'explosive' || chest.chestType === 'mimic')) gearCount++;
+  const rarityBonus = rarity ? [0.35, 0.65, 1.2, 1.5, 1.8, 2.1][rarity.id] : chest.rare ? 1.2 : 0.35;
+  for (let i = 0; i < gearCount; i++) {
+    add('item', { item: maybeRelic(rollGroundItem(depthLevel(depth) + 1, { mf: st.magicFind + (world.mfAdd || 0), bonus: rarityBonus })) });
+  }
+  const sigilChance = rarity ? rarity.sigilChance : chest.rare ? 0.25 : 0.06;
+  if (!goldOnly && !gemsOnly && chance(sigilChance)) add('item', { item: rollSigil(depth) });
+  const goldPiles = gemsOnly ? 0 : randi(goldRange[0], goldRange[1]) + (goldOnly ? 2 : 0);
+  if (!gemsOnly) for (let i = 0; i < goldPiles; i++) add('gold', { amount: Math.round((10 + depthLevel(depth) * 4) * goldScale(depthLevel(depth)) * rand(0.6, 1.4) * (1 + st.goldFind / 100)) });
+  const gemChance = rarity ? rarity.gemChance : chest.rare ? 0.8 : 0.3;
+  const guaranteedGems = Math.max(gemsOnly ? 1 : 0, rarity ? rarity.guaranteedGems : 0);
+  if (!goldOnly) {
+    for (let i = 0; i < guaranteedGems + (chance(rarity?.extraGemChance || 0) ? 1 : 0); i++) {
+      add('item', { item: rollGroundGem(depthLevel(depth) + 4) });
+    }
+    if (guaranteedGems === 0 && chance(gemChance)) add('item', { item: rollGroundGem(depthLevel(depth) + 4) });
+  }
+  if (!goldOnly && !gemsOnly) {
+    if (chance(0.5)) add('potion', { item: potionItem(pick(['hp', 'mp', 'rejuv'])) });
+    if (heresyAllows('orb', G.player?.char, world) && chance(0.75)) add('orb_hp', {});
+    if (heresyAllows('orb', G.player?.char, world) && chance(0.05)) add('orb_rejuv', {});
+    if (heresyAllows('orb', G.player?.char, world) && chance(0.02)) add('orb_fury', {});
+  }
 }
 
 /** Draw D2-style ground labels for nearby items (screen space). Returns hit boxes. */
@@ -391,8 +487,9 @@ const labelRank = (l) => {
   if (l.kind !== 'item') return 0; // gold, potions
   const it = l.item;
   if (it.sealed) return 8;
-  if (it.type !== 'gear') return 3; // gems, Sigil Stones, sheets, banner kits
-  return filterPasses(it) ? it.rarity || 0 : -1; // the loot filter says no: never named unprompted
+  if (it.type === 'gem') return labelFilterPasses(it) ? 3 : -1;
+  if (it.type !== 'gear') return 3; // sheets
+  return labelFilterPasses(it) ? it.rarity || 0 : -1; // the ground-label filter controls unprompted names
 };
 const labelReach = (r) => (r < 0 ? 0 : r < 2 ? 5 : r === 2 ? 9 : 14);
 export const labelBudget = (screenH) => clamp(Math.floor(screenH / 48), 8, 20);
@@ -414,7 +511,7 @@ export function drawLootLabels(ctx, world, mouse) {
     if (d > 14) continue;
     if (l.kind === 'gold' && !S.showGoldLabels) continue;
     const r = labelRank(l);
-    if (S.hideItemNames || (!all && d > labelReach(r))) { l.named = false; silent.push(l); continue; }
+    if (S.hideItemNames || r < 0 || (!all && d > labelReach(r))) { l.named = false; silent.push(l); continue; }
     l.nameScore = r * 100 - d + (l.named ? 2 : 0); // (a name keeps its place until something clearly better comes along)
     cand.push(l);
   }

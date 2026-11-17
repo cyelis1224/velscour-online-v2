@@ -1,5 +1,6 @@
 // LocalStorage persistence for heroes.
 import { CLASSES } from '../data/classes.js';
+import { normalizeDungeonAffixIds } from '../data/dungeonaffixes.js';
 import { rollItem, HOLLOW, augTarget } from '../data/items.js';
 import { drawBiome } from '../data/biomes.js';
 import { migrateBar, BAR_SIZE } from '../data/bar.js';
@@ -150,7 +151,7 @@ export function newCharData(classId, name) {
     jewelBox: Array(300).fill(null),
     tabs: Array(TAB_SLOTS).fill(null), tabAt: 0, // the Bard's Tabs: locked Music Sheets he plays (data/tabs.js)
     gold: 150, potions: { hp: 6, mp: 4, rejuv: 1, fury: 1 },
-    depth: 1, deepest: 0, nextBiome: null, biomeBag: [], cleared: {}, overworldMisses: 0, overworldLastVisit: null, seaOfSandRuns: {}, darkForestRuns: {}, breach: { best: 0, cleared: {} },
+    depth: 1, deepest: 0, nextBiome: null, biomeBag: [], cleared: {}, dungeonAffixes: [], nextAffixes: [], overworldMisses: 0, overworldLastVisit: null, seaOfSandRuns: {}, darkForestRuns: {}, breach: { best: 0, cleared: {} },
     heresy: { on: [] }, rifts: { open: 1, best: 0, cleared: {}, bestTime: {}, runs: 0, fails: 0, deaths: 0 }, keys: 0, unbound: { wins: 0, best: 0 }, unboundExploration: { depth: 1, deepest: 1, cleared: {} }, // the Endgame (docs/ENDGAME.md)
     kills: 0, deaths: 0, created: Date.now(), lastPlayed: Date.now(), tips: {},
   };
@@ -168,6 +169,8 @@ export function newCharData(classId, name) {
 export function migrate(c) {
   if (typeof c.depth === 'number' && c.depth > FINAL_DEPTH) c.depth = FINAL_DEPTH;
   if (typeof c.deepest === 'number' && c.deepest > FINAL_DEPTH) c.deepest = FINAL_DEPTH;
+  c.dungeonAffixes = normalizeDungeonAffixIds(c.dungeonAffixes);
+  c.nextAffixes = normalizeDungeonAffixIds(c.nextAffixes);
   c.potions = Object.assign({ hp: 0, mp: 0, rejuv: 0, fury: 0 }, c.potions);
   c.cleared = c.cleared || {};
   c.seaOfSandRuns = c.seaOfSandRuns || {};

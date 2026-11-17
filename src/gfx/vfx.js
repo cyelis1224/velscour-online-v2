@@ -499,6 +499,92 @@ function strokeBolt(ctx, p, frac, color, alpha, w) {
   ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.4 * w; ctx.stroke();
 }
 
+/** Ground warning and footprint for dungeon-affix damage fields. */
+export class AffixFieldMarker {
+  constructor(opts) { Object.assign(this, { t: 0, dur: 1, warning: 0, ground: true, spokes: false }, opts); }
+  update(dt) { this.t += dt; return this.t < this.dur; }
+  draw(ctx) {
+    const px = isoX(this.x, this.y), py = isoY(this.x, this.y);
+    const rx = this.r * HW * 1.41, ry = this.r * HH * 1.41;
+    const warning = this.t < this.warning, pulse = 0.5 + 0.5 * Math.sin(this.t * 18);
+    const k = Math.max(0, 1 - this.t / this.dur);
+    ctx.save();
+    if (this.fx === 'fire') {
+      ctx.globalAlpha = 0.58 * k; ctx.fillStyle = '#29110a';
+      ctx.beginPath(); ctx.ellipse(px, py + 1, rx, ry * 1.08, 0, 0, TAU); ctx.fill();
+      const lava = ctx.createRadialGradient(px, py, 1, px, py, Math.max(rx, ry));
+      lava.addColorStop(0, '#fff4a0'); lava.addColorStop(0.3, '#ff9220'); lava.addColorStop(1, '#b71d08');
+      ctx.globalAlpha = 0.75 * k; ctx.fillStyle = lava;
+      ctx.beginPath(); ctx.ellipse(px, py, rx * 0.82, ry * 0.72, 0, 0, TAU); ctx.fill();
+    } else if (this.fx === 'poison') {
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 5; i++) {
+        const a = i * TAU / 5, cx = px + Math.cos(a) * rx * 0.35 + Math.sin(this.t * 2 + i) * 2;
+        const cy = py + Math.sin(a) * ry * 0.28;
+        const cloud = ctx.createRadialGradient(cx, cy, 1, cx, cy, rx * 0.42);
+        cloud.addColorStop(0, 'rgba(150,230,64,0.45)'); cloud.addColorStop(1, 'rgba(48,90,16,0)');
+        ctx.globalAlpha = 0.7 * k; ctx.fillStyle = cloud;
+        ctx.beginPath(); ctx.ellipse(cx, cy, rx * 0.42, ry * 0.38, 0, 0, TAU); ctx.fill();
+      }
+    } else if (this.fx === 'frost') {
+      ctx.globalAlpha = 0.32 * k; ctx.fillStyle = '#8de2ff';
+      ctx.beginPath(); ctx.ellipse(px, py, rx, ry, 0, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 0.85 * k; ctx.strokeStyle = '#e8fcff'; ctx.lineWidth = 1.7;
+      for (let i = 0; i < 4; i++) {
+        const a = i * TAU / 4 + Math.PI / 4, sx = px + Math.cos(a) * rx * 0.55, sy = py + Math.sin(a) * ry * 0.48;
+        ctx.beginPath(); ctx.moveTo(sx - 3, sy); ctx.lineTo(sx, sy - 10); ctx.lineTo(sx + 3, sy); ctx.stroke();
+      }
+    } else if (this.fx === 'nova') {
+      // Death Nova visibly expands away from the corpse before the damaging field lingers.
+      const progress = this.warning > 0 ? clamp(this.t / this.warning, 0, 1) : 1;
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 3; i++) {
+        const scale = Math.min(1, progress + i * 0.18);
+        ctx.globalAlpha = (0.72 - i * 0.12) * k * (warning ? 1 : 0.45);
+        ctx.strokeStyle = i === 0 ? '#f2d8ff' : '#a754e0'; ctx.lineWidth = 3 - i * 0.55;
+        ctx.beginPath(); ctx.ellipse(px, py, rx * scale, ry * scale, 0, 0, TAU); ctx.stroke();
+      }
+    } else if (this.fx === 'shrapnel') {
+      // Metallic fragments point outward so the death burst reads as flying shrapnel.
+      const progress = this.warning > 0 ? clamp(this.t / this.warning, 0, 1) : 1;
+      ctx.globalAlpha = 0.85 * k; ctx.fillStyle = '#c9c9cf'; ctx.strokeStyle = '#f2f2f5'; ctx.lineWidth = 1;
+      for (let i = 0; i < 8; i++) {
+        const a = i * TAU / 8, d = rx * (0.2 + progress * 0.62), cx = px + Math.cos(a) * d, cy = py + Math.sin(a) * d * (ry / rx);
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(a);
+        ctx.beginPath(); ctx.moveTo(-5, -2); ctx.lineTo(7, 0); ctx.lineTo(-5, 2); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
+    } else if (this.fx === 'void') {
+      ctx.globalAlpha = 0.26 * k; ctx.fillStyle = '#23003a';
+      ctx.beginPath(); ctx.ellipse(px, py, rx, ry, 0, 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.2 * k;
+      ctx.drawImage(glowSprite('#9d52d8'), px - rx, py - ry, rx * 2, ry * 2);
+    } else {
+      ctx.globalAlpha = warning ? 0.12 + pulse * 0.1 : 0.1;
+      ctx.fillStyle = this.color; ctx.beginPath(); ctx.ellipse(px, py, rx, ry, 0, 0, TAU); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = warning ? 0.62 + pulse * 0.22 : 0.5 * k;
+    ctx.strokeStyle = this.color; ctx.lineWidth = warning ? 2.5 : 1.5;
+    ctx.setLineDash(warning ? [5, 3] : [3, 5]); ctx.lineDashOffset = -this.t * 18;
+    ctx.beginPath(); ctx.ellipse(px, py, rx, ry, 0, 0, TAU); ctx.stroke();
+    if (this.spokes) {
+      ctx.globalAlpha = warning ? 0.52 + pulse * 0.2 : 0.35 * k; ctx.setLineDash([3, 4]);
+      for (let i = 0; i < 8; i++) {
+        const a = i * TAU / 8, ex = px + Math.cos(a) * rx, ey = py + Math.sin(a) * ry;
+        ctx.beginPath(); ctx.moveTo(px, py);
+        if (this.fx === 'storm') {
+          const mx = px + Math.cos(a) * rx * 0.52 + Math.sin(i * 7 + this.t * 20) * 3;
+          const my = py + Math.sin(a) * ry * 0.52 + Math.cos(i * 7 + this.t * 20) * 2;
+          ctx.lineTo(mx, my); ctx.lineTo(ex, ey);
+        } else ctx.lineTo(ex, ey);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+}
+
 export class Telegraph {
   // ground warning marker for enemy attacks: circle or line
   constructor(opts) { Object.assign(this, { t: 0, color: '#ff2a10' }, opts); }

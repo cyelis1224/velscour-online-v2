@@ -1,7 +1,6 @@
-// The loot filter (Settings > Loot filter): which item types and rarities auto-pickup grabs. Auto-play picks up only
-// what it passes (plus upgrades it will wear, unless that's switched off); walking over an item picks it up only when
-// it passes. Clicking or tapping an item always picks it up. Sealed treasures always pass. Lives in G.settings.lootFilter.
-import { G } from '../state.js';
+// The loot filter (Settings > Loot filter): which item types and rarities auto-pickup grabs. Ground labels have a
+// separately saved filter, initially copied from this one to preserve existing behavior. Clicking an item always picks it up.
+import { G, saveSettings } from '../state.js';
 
 /** Filter rows: what each covers. Rarity rows hold the lowest rarity to keep (-1: none of them). */
 export const FILTER_ROWS = [
@@ -12,28 +11,62 @@ export const FILTER_ROWS = [
 ];
 export const FILTER_DEFAULT = { on: false, weapon: 0, offhand: 0, armor: 0, ring: 0, gems: 0, upgrades: true, keep: false };
 
-/** The filter's settings, filled with defaults (old settings have none). */
-export function lootFilter() {
-  if (!G.settings || typeof G.settings !== 'object') G.settings = {};
-  const f = G.settings.lootFilter;
-  if (!f || typeof f !== 'object') return (G.settings.lootFilter = { ...FILTER_DEFAULT });
-  for (const k in FILTER_DEFAULT) if (f[k] === undefined) f[k] = FILTER_DEFAULT[k];
-  // Migrate legacy boolean gems to tier grade (true -> 0: all, false -> -1: none)
+const LABEL_FILTER_DEFAULT = { on: false, weapon: 0, offhand: 0, armor: 0, ring: 0, gems: 0 };
+
+function normalizedFilter(target, key, defaults, fallback) {
+  let f = target[key];
+  if (!f || typeof f !== 'object') f = target[key] = { ...(fallback || defaults) };
+  for (const k in defaults) if (f[k] === undefined) f[k] = defaults[k];
   if (f.gems === true) f.gems = 0;
   else if (f.gems === false) f.gems = -1;
   return f;
 }
+
+/** Copy the former shared settings into a character the first time it is loaded. */
+export function initializeCharacterLootFilters(char) {
+  if (!char || typeof char !== 'object') return;
+  const legacyLoot = G.settings && G.settings.lootFilter;
+  const legacyLabels = G.settings && G.settings.lootLabelFilter;
+  normalizedFilter(char, 'lootFilter', FILTER_DEFAULT, legacyLoot);
+  const labelFallback = legacyLabels && typeof legacyLabels === 'object'
+    ? legacyLabels
+    : Object.fromEntries(Object.keys(LABEL_FILTER_DEFAULT).map((k) => [k, char.lootFilter[k]]));
+  normalizedFilter(char, 'lootLabelFilter', LABEL_FILTER_DEFAULT, labelFallback);
+}
+
+/** Persist filter edits to the active hero; title-screen edits remain shared for characters without saved profiles. */
+export function saveLootFilterSettings() {
+  if (G.char) {
+    if (G.game && typeof G.game.autosave === 'function') G.game.autosave();
+  } else saveSettings();
+}
+
+/** The filter's settings, filled with defaults (old settings have none). */
+export function lootFilter() {
+  if (!G.settings || typeof G.settings !== 'object') G.settings = {};
+  const target = G.char || G.settings;
+  if (G.char && (!G.char.lootFilter || typeof G.char.lootFilter !== 'object')) initializeCharacterLootFilters(G.char);
+  return normalizedFilter(target, 'lootFilter', FILTER_DEFAULT, null);
+}
 /** The filter when it's switched on, else null. */
 export const activeFilter = () => { const f = lootFilter(); return f && f.on ? f : null; };
 
-/** Does item `it` pass the filter? (Everything passes while it's off.) */
-export function filterPasses(it) {
-  const f = activeFilter();
+/** The ground-label filter keeps the same item categories but has its own character settings. */
+export function lootLabelFilter() {
+  if (!G.settings || typeof G.settings !== 'object') G.settings = {};
+  const target = G.char || G.settings;
+  if (G.char && (!G.char.lootLabelFilter || typeof G.char.lootLabelFilter !== 'object')) initializeCharacterLootFilters(G.char);
+  return normalizedFilter(target, 'lootLabelFilter', LABEL_FILTER_DEFAULT, null);
+}
+/** The label filter when it is switched on, else null. */
+export const activeLabelFilter = () => { const f = lootLabelFilter(); return f && f.on ? f : null; };
+
+function passesFilter(it, f) {
   if (!f || !it) return true;
   if (it.type === 'gem') {
     const minTier = f.gems === true ? 0 : f.gems === false ? -1 : (typeof f.gems === 'number' ? f.gems : 0);
     if (minTier < 0) return false;
-    // Sigil stones always pass if gem pickup is enabled
+    // Sigil stones always pass when gems are enabled.
     if (it.gem === 'sig') return true;
     return (it.tier ?? 0) >= minTier;
   }
@@ -42,5 +75,14 @@ export function filterPasses(it) {
   const min = row ? (f[row.k] ?? 0) : 0;
   return min >= 0 && (it.rarity || 0) >= min;
 }
-/** Should auto-play keep this item (store it in the chest) rather than sell it? */
+
+/** Does item `it` pass the auto-pickup filter? (Everything passes while it is off.) */
+export function filterPasses(it) {
+  return passesFilter(it, activeFilter());
+}
+
+/** Does item `it` get an unprompted ground label? */
+export function labelFilterPasses(it) {
+  return passesFilter(it, activeLabelFilter());
+}
 export const filterKeeps = (it) => { const f = activeFilter(); return !!(f && f.keep && it && !it.sealed && filterPasses(it)); };

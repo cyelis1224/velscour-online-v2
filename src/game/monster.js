@@ -1,5 +1,6 @@
 // Monsters and minions: one AI for both teams.
 import { G } from '../state.js';
+import { DUNGEON_AFFIX_CONFIG } from '../data/dungeonaffixes.js';
 import { net } from '../net/network.js';
 import { rand, chance, TAU, clamp, angleTo, angleDiff, dist, pick, randi, shuffle } from '../core/util.js';
 import { sfx } from '../core/audio.js';
@@ -94,7 +95,7 @@ export class Monster extends Creature {
   deal(target, amount, el, o = {}) {
     const d = hit(this, target, amount, el, o);
     if (d > 0) {
-      if (this.affixes && this.affixes.includes('vampiric') && this.rank !== 'boss') {
+      if (this.affixes && this.affixes.includes('vampiric') && this.rank !== 'boss' && !(this.dungeonAffixIds || []).includes('vampiric')) {
         const cap = (monsterBase(this.level || 1).hp || 100) * 0.01;
         const targetMul = target.isPlayer ? 1 : 0.2; // hitting player pets/summons gives heavily reduced drain
         this.heal(Math.min(d * 0.08 * targetMul, cap));
@@ -108,6 +109,12 @@ export class Monster extends Creature {
 
   onDamaged(src, dmg) {
     this.regenSuppress = 6.0; // Taking direct damage suppresses regeneration for 6 seconds
+    if (this.dungeonAffixIds?.includes('evasive') && src && !this.static && (this.affixEvasiveT || 0) <= 0) {
+      this.affixEvasiveT = 2.4;
+      const side = angleTo(src.x, src.y, this.x, this.y) + (chance(0.5) ? 1 : -1) * Math.PI / 2;
+      const [x, y] = this.world.map.nudge(this.x + Math.cos(side) * 1.4, this.y + Math.sin(side) * 1.4, this.r || 0.3);
+      [this.x, this.y] = [x, y];
+    }
     if (!this.affixes) return;
     if (this.affixes.includes('shocking') && (this.shockCd || 0) <= 0) {
       this.shockCd = 1.2;
@@ -150,6 +157,7 @@ export class Monster extends Creature {
     if (this.regenSuppress > 0) this.regenSuppress -= dt;
     if (this.shockCd > 0) this.shockCd -= dt;
     if (this.thornCd > 0) this.thornCd -= dt;
+    if (this.affixEvasiveT > 0) this.affixEvasiveT -= dt;
     if (this.invuln > 0) this.invuln -= dt;
     const canAct = this.tickStatus(dt, (k, amount, src) => hit(src, this, amount, k === 'burn' ? 'fire' : k === 'poison' ? 'poison' : k === 'bleed' ? 'blood' : 'shadow', { dot: true, crit: false }));
     if (this.dead) return;
@@ -159,6 +167,58 @@ export class Monster extends Creature {
     const ch = this.curses.charm;
     if (ch && ch.t <= 0 && ch.team) { this.team = ch.team; ch.team = null; this.aggro = null; }
     if (this.partyBuff && (this.partyBuff.t -= dt) <= 0) this.partyBuff = null;
+
+    const dungeonAffixes = this.dungeonAffixIds || [];
+    if (this.team === 'enemy' && dungeonAffixes.length) {
+      this.dungeonSpeedMul = 1;
+      if ((this.affixTemporalT || 0) > 0) { this.affixTemporalT -= dt; this.dungeonSpeedMul *= 1.2; }
+      for (const timer of ['affixBloodPactT', 'affixSoulHarvestT', 'affixSummonerPactT']) if (this[timer] > 0) this[timer] -= dt;
+      if (dungeonAffixes.includes('pack_hunters')) {
+        const allies = w.query(this.x, this.y, 5, (c) => c !== this && c.team === 'enemy' && !c.dead).length;
+        this.dungeonSpeedMul *= 1 + Math.min(0.4, allies * 0.06);
+      }
+      if (dungeonAffixes.includes('enraged_pursuit') && this.awake) {
+        this.dungeonPursuitT = Math.min(18, (this.dungeonPursuitT || 0) + dt);
+        this.dungeonSpeedMul *= 1 + Math.min(0.45, this.dungeonPursuitT * 0.025);
+      } else this.dungeonPursuitT = 0;
+      if (this.rank === 'boss') {
+        const healthRatio = this.hp / Math.max(1, this.maxHp);
+        if (dungeonAffixes.includes('boss_enrage') && healthRatio < 0.6) this.dungeonSpeedMul *= 1.3;
+        if (dungeonAffixes.includes('unholy_ascension') && healthRatio < 0.5) {
+          this.dungeonSpeedMul *= 1.4;
+          this.dmg *= this.affixAscendedDmg ? 1 : 1.35;
+          this.affixAscendedDmg = true;
+        }
+        if (dungeonAffixes.includes('final_stand') && healthRatio < 0.1) {
+          this.dungeonSpeedMul *= 1.5;
+        }
+        if (dungeonAffixes.includes('elemental_bosses') && (this.affixElementUntil || 0) <= w.time) {
+          const cycle = ['fire', 'cold', 'light', 'poison', 'shadow'];
+          this.affixElementIndex = ((this.affixElementIndex || 0) + 1) % cycle.length;
+          this.affixElement = cycle[this.affixElementIndex];
+          this.affixElementUntil = w.time + 6;
+          this.aura = elem(this.affixElement).glow;
+        }
+      }
+      if (dungeonAffixes.includes('phasing')) {
+        this.affixPhaseT = (this.affixPhaseT || 0) + dt;
+        this.ghost = Math.sin(this.affixPhaseT * 2.2) > 0.1;
+      }
+      if (dungeonAffixes.includes('burrowing') && !this.static) {
+        this.affixBurrowT = (this.affixBurrowT || rand(4, 7)) - dt;
+        if (this.affixBurrowT <= 0) {
+          this.affixBurrowT = rand(6, 10);
+          const tgt = this.target || w.player;
+          if (tgt) {
+            const ang = rand(TAU), r = rand(1.5, 3.5);
+            const [nx, ny] = w.map.nudge(tgt.x + Math.cos(ang) * r, tgt.y + Math.sin(ang) * r, this.r || 0.3);
+            smoke(this.x, this.y, 14, '#7c654d', 0.8);
+            [this.x, this.y] = [nx, ny];
+            smoke(this.x, this.y, 18, '#7c654d', 1.0);
+          }
+        }
+      }
+    }
 
     // Regeneration: suppressed for 6s after taking hits; DoTs (burn, poison, bleed) keep it suppressed for 3s
     const hasDot = (this.status.burn && this.status.burn.t > 0) ||
@@ -193,13 +253,27 @@ export class Monster extends Creature {
       return;
     }
     if (this.wardTick) return this.wardTick(dt); // raid warding crystals (game/raid.js)
-    this.cd -= dt * (this.partyBuff && this.partyBuff.stats.as ? 1 + this.partyBuff.stats.as / 100 : 1);
+    const partyAttackSpeed = this.partyBuff && this.partyBuff.stats.as ? 1 + this.partyBuff.stats.as / 100 : 1;
+    const berserkAttackSpeed = dungeonAffixes.includes('berserking') &&
+      this.hp / Math.max(1, this.maxHp) < DUNGEON_AFFIX_CONFIG.berserking.healthThreshold
+      ? DUNGEON_AFFIX_CONFIG.berserking.attackSpeedMultiplier : 1;
+    const rapidFire = dungeonAffixes.includes('rapid_fire') && ['ranged', 'caster'].includes(this.ai) ? 1.35 : 1;
+    const bossEnrage = this.rank === 'boss' && dungeonAffixes.includes('boss_enrage') && this.hp < this.maxHp * 0.6 ? 1.3 : 1;
+    const finalStand = this.rank === 'boss' && dungeonAffixes.includes('final_stand') && this.hp < this.maxHp * 0.1 ? 1.6 : 1;
+    this.cd -= dt * partyAttackSpeed * berserkAttackSpeed * rapidFire * bossEnrage * finalStand;
     if (this.spell && (this.spellCd -= dt) <= 0) this.castSpell();
 
     // fear: run away
     if (this.status.fear && this.status.fear.t > 0) {
       const t = w.nearestHostile(this.team, this.x, this.y, 10);
-      if (t) { const a = angleTo(t.x, t.y, this.x, this.y); this.moveToward(this.x + Math.cos(a) * 2, this.y + Math.sin(a) * 2, dt, this.speed * 0.8); }
+      if (t) {
+        const a = angleTo(t.x, t.y, this.x, this.y);
+        if (this.goblin) {
+          // Treasure Imps need to keep fleeing around walls instead of walking directly into corners.
+          const fleeDistance = 6;
+          this.navTo(this.x + Math.cos(a) * fleeDistance, this.y + Math.sin(a) * fleeDistance, dt, Math.max(this.speed, 4.0));
+        } else this.moveToward(this.x + Math.cos(a) * 2, this.y + Math.sin(a) * 2, dt, this.speed * 0.8);
+      }
       return;
     }
     if (this.state === 'windup' || this.state === 'act') { this.runAction(dt); return; }
@@ -213,6 +287,29 @@ export class Monster extends Creature {
     if (!this.summon && !this.awake) { this.awake = true; this.alertPack(); }
     const d = dist(this.x, this.y, target.x, target.y);
     this.trackTarget(target, dt);
+    if (dungeonAffixes.includes('cowardly') && this.hp < this.maxHp * 0.35 && !this.static) {
+      const away = angleTo(target.x, target.y, this.x, this.y);
+      w.map.move(this, Math.cos(away) * this.speed * dt, Math.sin(away) * this.speed * dt, this.ghost);
+      this.moving = true;
+      return;
+    }
+    if ((dungeonAffixes.includes('charging') || dungeonAffixes.includes('leaping')) &&
+        (this.affixLungeT = (this.affixLungeT || 0) - dt) <= 0 && d > 2.2 && d < 9 && w.map.los(this.x, this.y, target.x, target.y)) {
+      const leap = dungeonAffixes.includes('leaping');
+      const ang = angleTo(this.x, this.y, target.x, target.y);
+      const step = Math.min(d - 0.8, leap ? 4.5 : 3.2);
+      if (leap) {
+        const [x, y] = w.map.nudge(this.x + Math.cos(ang) * step, this.y + Math.sin(ang) * step, this.r || 0.3);
+        [this.x, this.y] = [x, y];
+      } else w.map.move(this, Math.cos(ang) * step, Math.sin(ang) * step, this.ghost);
+      this.affixLungeT = rand(5, 8);
+      if (dist(this.x, this.y, target.x, target.y) <= this.atkRange(target) + 0.6) this.deal(target, this.dmg * 1.15, this.el || 'phys', { knock: 0.5, melee: true });
+      this.moving = true;
+    }
+    if (dungeonAffixes.includes('flanking') && d > this.atkRange(target) + 0.4) {
+      const side = this.strafe || 1, ang = angleTo(this.x, this.y, target.x, target.y) + side * 0.65;
+      w.map.move(this, Math.cos(ang) * this.speed * 0.45 * dt, Math.sin(ang) * this.speed * 0.45 * dt, this.ghost);
+    }
     if (this.moves) {
       if (!this.frenzy && this.hp < this.maxHp * 0.4 && this.moves.includes('frenzy')) this.goFrenzy();
       if ((this.moveCd -= dt) <= 0 && this.trySpecial(target, d)) return;
@@ -629,12 +726,20 @@ export class Monster extends Creature {
       case 'shoot': {
         const t = a.target;
         if (!t || t.dead) break;
-        const shots = this.affixes && this.affixes.includes('multishot') ? 3 : 1;
+        const multishot = this.affixes && this.affixes.includes('multishot');
+        const rapidVolley = this.dungeonAffixIds?.includes('rapid_fire') && chance(0.25);
+        const shots = multishot || rapidVolley ? 3 : 1;
         const base = angleTo(this.x, this.y, t.x, t.y);
         const P = this.proj || { fx: PROJ_FX[el], speed: 7 };
         for (let i = 0; i < shots; i++) {
           const ang = base + (shots > 1 ? (i - 1) * 0.25 : 0) + rand(-0.04, 0.04);
-          w.addHazard(new Projectile({ world: w, src: this, x: this.x, y: this.y, ang, speed: P.speed || 7, range: (this.range || 7) + 2, fx: P.fx, el, dmg: [this.dmg * 0.85, this.dmg * 1.15], lob: P.lob, tx: t.x, ty: t.y, exp: P.lob ? 0.9 : 0, o: { poison: el === 'poison' } }));
+          const dungeonAffixes = this.dungeonAffixIds || [];
+          w.addHazard(new Projectile({ world: w, src: this, x: this.x, y: this.y, ang, speed: P.speed || 7, range: (this.range || 7) + 2, fx: P.fx, el, dmg: [this.dmg * 0.85, this.dmg * 1.15], lob: P.lob, tx: t.x, ty: t.y, exp: P.lob ? 0.9 : 0,
+            pierce: dungeonAffixes.includes('piercing_attacks') ? 2 : 0,
+            bounce: dungeonAffixes.includes('ricocheting_projectiles') ? 2 : 0,
+            ricochet: dungeonAffixes.includes('ricocheting_projectiles') ? 2 : 0,
+            home: dungeonAffixes.includes('homing_projectiles') ? 2.2 : 0,
+            o: { poison: el === 'poison' } }));
         }
         sfx(P.fx === 'arrow' ? 'bow' : elem(el).sfx, 0.5);
         this.cd = this.atkCd;
@@ -802,7 +907,7 @@ export class Monster extends Creature {
       const stats = { [stat]: amt };
       if (A.as) stats.as = A.as;
       if (A.regen) stats.regen = A.regen * 10;
-      if (typeof p.addBuff === 'function') {
+      if (typeof p?.addBuff === 'function') {
         p.addBuff({ id: 'aura_' + this.skillId, name: this.name, el: this.el || 'holy', stats, t: 1.5, max: 1.5, hidden: false, aura: true });
       }
     }

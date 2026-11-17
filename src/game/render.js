@@ -437,12 +437,28 @@ function drawCorpse(ctx, c) {
 }
 
 function drawNpc(ctx, n) {
-  if (n.altar) { // the Altar of Heresy (docs/ENDGAME.md): a dark obelisk, lit in Dagyr's red once the Endgame is open, a skull glow while a Heresy is on
+  if (n.altar) { // the Altar of Heresy: the reference-based crimson shrine landmark in the town plaza
     const x = isoX(n.x, n.y), y = isoY(n.x, n.y), open = endgameUnlocked(), lit = open && heresyRankOf() > 0;
-    if (lit) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.3 + Math.sin(G.time * 2.5) * 0.12; ctx.drawImage(glowSprite('#ff3020'), x - 48, y - 70, 96, 80); ctx.restore(); }
-    obelisk(ctx, x, y, open ? '#ff3020' : '#606070', open, 44);
-    if (open) addLight(n.x, n.y, 2.6, lit ? 0.9 : 0.5, 30, '#ff3020');
-    n.sbox = [x - 18, y - 56, x + 18, y + 6];
+    const heresyAltarSprite = A.heresyAltar;
+    const ready = heresyAltarSprite && heresyAltarSprite.complete && heresyAltarSprite.naturalWidth > 0;
+    if (ready) {
+      const h = 112, w = h * heresyAltarSprite.naturalWidth / heresyAltarSprite.naturalHeight;
+      if (open) {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = lit ? 0.24 + Math.sin(G.time * 2.5) * 0.08 : 0.12;
+        ctx.drawImage(glowSprite('#ff3020'), x - w * 0.45, y - h * 0.78, w * 0.9, h * 0.72);
+        ctx.restore();
+      }
+      ctx.save(); ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(heresyAltarSprite, x - w / 2, y - h + 6, w, h);
+      ctx.restore();
+      n.sbox = [x - w / 2 - 8, y - h - 8, x + w / 2 + 8, y + 12];
+    } else {
+      if (lit) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.3 + Math.sin(G.time * 2.5) * 0.12; ctx.drawImage(glowSprite('#ff3020'), x - 48, y - 70, 96, 80); ctx.restore(); }
+      obelisk(ctx, x, y, open ? '#ff3020' : '#606070', open, 44);
+      n.sbox = [x - 18, y - 56, x + 18, y + 6];
+    }
+    if (open) addLight(n.x, n.y, 3.4, lit ? 1.15 : 0.7, 36, '#ff3020');
     return;
   }
   if (n.stash) {

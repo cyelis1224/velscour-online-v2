@@ -1,10 +1,9 @@
 // Happenings: the random things that keep a run worth watching for hours.
-// Dungeon depths roll an omen (a level-wide twist), shrines, a treasure imp, a cursed chest, a fallen adventurer's
+// Dungeon depths roll affixes, shrines, a treasure imp, a cursed chest, a fallen adventurer's
 // remains and, now and then, Velscour's timed challenge. Kill streaks call out massacres everywhere, a new record
 // depth every tenth gets fireworks, and each town visit can bring a festival, a blessing or a gift.
 // Wiring: game.buildDungeon -> setupHappenings, game.update -> happeningsTick, combat kill -> world.onKill,
 // game.enterTown -> townHappening, loot.dropLoot reads world.lootMul / world.goldMul. Shrines, remains and cursed
-// chests live in world.chests (render.drawChest calls their draw()), so auto-play walks to them like chests.
 import { G } from '../state.js';
 import { rand, randi, chance, pick, TAU, dist } from '../core/util.js';
 import { sfx } from '../core/audio.js';
@@ -14,9 +13,9 @@ import { explosionFx } from '../gfx/shapes.js';
 import { hit, aoe } from './combat.js';
 import { makeMonster, makeElite, monsterBase } from './monster.js';
 import { ambush } from './mayhem.js';
-import { GroundItem, dropChest } from './loot.js';
+import { GroundItem, dropChest, rollGroundItem, rollGroundGem, rollOrbKind } from './loot.js';
 import { rollItem, rollGem, potionItem, itemName, itemColor, rarityAt, goldScale } from '../data/items.js';
-import { depthLevel, isRaidDepth, FINAL_DEPTH } from '../data/depth.js';
+import { depthLevel, FINAL_DEPTH } from '../data/depth.js';
 import { addToBag } from './player.js';
 import { UI } from '../ui/ui.js';
 import { addEncounters } from './encounters.js';
@@ -26,25 +25,9 @@ import { setupScenario, scenarioTick } from './scenarios.js';
 import { smiteKill } from './smite.js';
 import { greedTick } from './greed.js';
 import { worldHeresies } from './heresies.js';
-
-// ------------------------------------------------------------------------------------------------ omens
-// A level-wide twist, announced on arrival. mon: applied to every enemy as it appears (ambushes too).
-export const OMENS = {
-  bloodmoon: { name: 'Blood Moon', color: '#ff3040', text: 'Monsters hit harder and bleed riches: +60% XP, more drops.', mon: (m) => { m.dmg *= 1.2; m.maxHp *= 1.25; m.hp = m.maxHp; m.xp *= 1.6; }, loot: 1.6, dark: 0.3 },
-  golden: { name: 'Golden Hour', color: '#ffd040', text: 'Every foe is fat with coin: triple gold.', gold: 3 },
-  horde: { name: 'The Horde', color: '#ff8040', text: 'The depth teems with extra packs: +25% XP.', mon: (m) => { m.xp *= 1.25; }, horde: true },
-  champions: { name: 'Gathering of Champions', color: '#5a9aff', text: 'Champions lead many packs: better loot, harder fights.', champs: true },
-  starfall: { name: 'Starfall', color: '#c0e0ff', text: 'Stars fall on your foes.', star: true },
-  surge: { name: 'Arcane Surge', color: '#c060ff', text: 'Magic runs wild: faster cooldowns and casting.', hero: { cdr: 50, as: 20 } },
-  vault: { name: 'Treasure Vault', color: '#ffb040', text: 'Hidden caches glitter in the dark.', vault: true },
-  frenzy: { name: 'Feeding Frenzy', color: '#40e070', text: 'Kills spill health and mana orbs.', orbs: true },
-};
-const OMEN_KEYS = Object.keys(OMENS);
-/** Can a depth of this biome have an omen at all? (Not BOSS ROOMs, overworlds or Velscour's throne.) */
-export const omenable = (depth, biome) => !!biome && !biome.overworld && !isRaidDepth(depth) && depth < FINAL_DEPTH;
-/** A depth's omen roll: an OMENS key, or null for a quiet one. */
-export const rollOmen = (depth) => (chance(Math.min(0.45, 0.22 + depth * 0.004)) ? pick(OMEN_KEYS) : null);
-export const anyOmen = () => pick(OMEN_KEYS);
+import { DUNGEON_AFFIX_BY_ID, DUNGEON_AFFIX_CONFIG } from '../data/dungeonaffixes.js';
+import { setupWorldObjects } from './worldobjects.js';
+import { setupDungeonEvent } from './dungeonevents.js';
 
 // ------------------------------------------------------------------------------------------------ shrines
 export const SHRINES = {
@@ -56,7 +39,6 @@ export const SHRINES = {
   storm: { name: 'Storm Shrine', color: '#b0a0ff', el: 'light', buff: {}, t: 30, msg: 'lightning lashes nearby foes', storm: true },
   renewal: { name: 'Shrine of Renewal', color: '#60ff80', el: 'poison', buff: { regen: 30 }, t: 30, msg: 'life and mana restored', heal: true },
 };
-const SHRINE_KEYS = Object.keys(SHRINES);
 
 const EPITAPHS = [
   'who thought the imps were friendly', 'who skipped the potion vendor to save nine gold', 'who tried to pet the hound',
@@ -73,6 +55,7 @@ function roomSpots(world, start, n) {
   const map = world.map, out = [];
   const rooms = (world.rooms || []).slice().sort(() => Math.random() - 0.5);
   for (const r of rooms) {
+    if (r.shrineRoom || r.eventRoom) continue;
     if (out.length >= n) break;
     const cx = r.mx ?? r.x + r.w / 2, cy = r.my ?? r.y + r.h / 2;
     if (dist(cx, cy, start[0], start[1]) < 8) continue;
@@ -85,86 +68,84 @@ function roomSpots(world, start, n) {
   return out;
 }
 
-/** Roll this depth's happenings. Called once the level is built, before the hero arrives. */
-/** The last depth's omen buff ends with it. */
-function dropOmen() {
-  const p = G.player, i = p ? p.buffs.findIndex((b) => b.id === 'omen') : -1;
-  if (i >= 0) { p.buffs.splice(i, 1); p.recompute(); }
-}
-
+/** Build the non-affix happenings for a floor after its selected affixes are applied. */
 export function setupHappenings(world, start, gen) {
   const depth = world.depth || 1;
-  dropOmen();
   world.onKill = onKill;
   world.happen = { t: 0, starT: rand(3, 6), streak: 0, streakT: 0, best: 0 };
   world.scenario = null;
-  // the portal the hero took showed this depth's omen (game.portalChoice): keep its word
-  const c0 = G.char, told = c0 && c0.nextOmen !== undefined ? c0.nextOmen : undefined;
-  if (c0) delete c0.nextOmen;
-  // Black Omens (game/heresies.js): every level carries an omen, the Endless Torment's too (where nothing else happens)
-  const black = worldHeresies(world).includes('omens'), torment = black && depth > FINAL_DEPTH;
-  if (world.kind !== 'dungeon' || world.raid || gen.raid || (depth >= FINAL_DEPTH && !torment) || world.biome.overworld || G.room) return;
-  const H = world.happen;
-  if (!torment) setupScenario(world, start); // one of the biome's twenty optional set pieces (game/scenarios.js)
-  const omen = told !== undefined ? (OMENS[told] ? told : black ? pick(OMEN_KEYS) : null) : rollOmen(depth) || (black ? pick(OMEN_KEYS) : null);
-  if (omen) {
-    H.omen = omen;
-    const O = OMENS[H.omen];
-    world.lootMul = O.loot || 1;
-    world.goldMul = O.gold || 1;
-    if (O.dark) world.darkK = Math.max(world.darkK || 0, O.dark);
+  const affixes = new Set(Array.isArray(world.dungeonAffixes) ? world.dungeonAffixes : []);
+  const affixCascade = worldHeresies(world).includes('omens');
+  const torment = affixCascade && depth > FINAL_DEPTH;
+  const specialObjects = !!(world.raid || gen.raid || world.biome.overworld || world.biome.challenge || world.biome.cave || world.biome.tower || world.biome.id === 'throne');
+  setupWorldObjects(world, start, { special: specialObjects });
+  if (world.kind !== 'dungeon') return;
+  let eventRoom = gen.eventRoom;
+  if (world.biome.id === 'dark_forest' && gen.sideAreas?.length) {
+    const area = pick(gen.sideAreas);
+    eventRoom = { ...area, x: area.x - 2.5, y: area.y - 2.5, w: 5, h: 5, mx: area.x, my: area.y, eventRoom: true };
   }
-  if (torment) { if (H.omen === 'champions') for (const m of world.creatures) if (m.team === 'enemy' && m.rank === 'normal' && chance(0.12)) makeElite(m, 'champion', depth, world); return; }
-  const want = 1 + (chance(0.6) ? 1 : 0) + (chance(0.35) ? 1 : 0) + (H.omen === 'vault' ? 3 : 0);
-  const spots = roomSpots(world, start, want + 3);
-  // the monster that last killed the hero is back, and it remembers (its spot first: the shrines and caches can't take it)
-  const c = G.char, nemSpot = c && c.nemesis && (depth >= c.nemesis.depth - 5 || black) ? spots.pop() : null;
-  // shrines
-  const nShrines = chance(0.7) ? (chance(0.35) ? 2 : 1) : 0;
-  for (let i = 0; i < nShrines && spots.length; i++) addShrine(world, spots.pop(), pick(SHRINE_KEYS));
-  // a fallen adventurer's remains
-  if (spots.length && chance(0.35)) addRemains(world, spots.pop());
-  // a cursed chest
-  if (spots.length && chance(0.22 + Math.min(0.15, depth * 0.002))) addCursed(world, spots.pop());
-  // the vault's extra caches
-  if (H.omen === 'vault') for (let i = 0; i < 3 && spots.length; i++) addCache(world, spots.pop());
-  // people of the Hollow down here: captives, a knight's last stand, a merchant's camp, the wizard, the witch, a Greener
-  addEncounters(world, roomSpots(world, start, 4));
-  // a treasure imp shows up a while in; Velscour's challenge fires after the first kills
-  if (chance(0.3)) H.impT = rand(25, 70);
-  if (chance(0.3)) H.challengeAt = randi(12, 30);
-  // the horde: extra packs round the level
-  if (H.omen === 'horde') {
-    const extra = roomSpots(world, start, 8);
+  setupDungeonEvent(world, eventRoom, { start });
+  if (world.biome.overworld) return;
+  if (world.raid || gen.raid) return;
+
+  // These former level-wide effects now run only when their matching affix was selected.
+  if (affixes.has('vault')) {
+    const caches = roomSpots(world, start, DUNGEON_AFFIX_CONFIG.vault.extraCaches + 2);
+    for (let i = 0; i < DUNGEON_AFFIX_CONFIG.vault.extraCaches && caches.length; i++) addCache(world, caches.pop());
+  }
+  if (affixes.has('horde')) {
+    const extra = roomSpots(world, start, DUNGEON_AFFIX_CONFIG.horde.packLocations);
     const lvl = depthLevel(depth);
     for (const [x, y] of extra) {
       const arch = pick(world.roster || ['skeleton']);
-      for (let i = 0; i < randi(3, 5); i++) {
+      const [minSize, maxSize] = DUNGEON_AFFIX_CONFIG.horde.packSize;
+      for (let i = 0; i < randi(minSize, maxSize); i++) {
         const [mx, my] = i ? world.map.randomNear(x, y, 1.6) : [x, y];
         world.add(makeMonster(world, arch, world.biome, lvl, 'normal', mx, my, 0));
       }
     }
   }
-  if (nemSpot) spawnNemesis(world, nemSpot, c.nemesis);
-  if (H.omen === 'champions') {
-    for (const m of world.creatures) if (m.team === 'enemy' && m.rank === 'normal' && chance(0.12)) makeElite(m, 'champion', depth, world);
+  if (affixes.has('champions')) {
+    for (const m of world.creatures) if (m.team === 'enemy' && m.rank === 'normal' && chance(DUNGEON_AFFIX_CONFIG.champions.spawnChance)) makeElite(m, 'champion', depth, world);
   }
+
+  const H = world.happen;
+  if (torment) {
+    const c = G.char, spots = roomSpots(world, start, 1);
+    if (c && c.nemesis && spots.length) spawnNemesis(world, spots.pop(), c.nemesis);
+    return;
+  }
+  if (depth >= FINAL_DEPTH) return;
+  setupScenario(world, start); // biome set pieces remain independent of affixes
+  const want = 1 + (chance(0.6) ? 1 : 0) + (chance(0.35) ? 1 : 0);
+  const spots = roomSpots(world, start, want + 3);
+  const c = G.char, nemSpot = c && c.nemesis && (depth >= c.nemesis.depth - 5 || affixCascade) ? spots.pop() : null;
+  if (spots.length && chance(0.35)) addRemains(world, spots.pop());
+  if (spots.length && chance(0.22 + Math.min(0.15, depth * 0.002))) addCursed(world, spots.pop());
+  addEncounters(world, roomSpots(world, start, 4));
+  if (chance(0.3)) H.impT = rand(25, 70);
+  if (chance(0.3)) H.challengeAt = randi(12, 30);
+  if (nemSpot) spawnNemesis(world, nemSpot, c.nemesis);
+  if (torment) return;
 }
 
-/** The arrival banner (after the biome title has had its moment). */
-export function announceHappenings(world) {
-  const H = world.happen;
-  if (!H || !H.omen) return;
-  const O = OMENS[H.omen];
+/** Announce the selected dungeon affixes and apply the floor-only Arcane Surge buff. */
+export function announceDungeonAffixes(world) {
+  const p = G.player;
+  clearDungeonAffixBuff();
+  const affixes = (world.dungeonAffixes || []).map((id) => DUNGEON_AFFIX_BY_ID[id]).filter(Boolean);
+  if (affixes.some((affix) => affix.id === 'surge') && p && typeof p.addBuff === 'function') {
+    p.addBuff({ id: 'dungeon_affix_surge', name: 'Arcane Surge', el: 'arcane', stats: DUNGEON_AFFIX_CONFIG.surge.playerStats, t: 1e6, max: 1e6, aura: true });
+  }
+  if (!affixes.length) return;
+  const names = affixes.map((affix) => affix.name);
   setTimeout(() => {
     if (G.world !== world) return;
-    UI.centerMsg(O.name.toUpperCase(), O.text, 3);
-    UI.log(`<b style="color:${O.color}">${O.name}</b>: ${O.text}`, O.color);
-    sfx(H.omen === 'bloodmoon' ? 'boss' : 'gate', 0.6);
+    UI.centerMsg(names.length === 1 ? names[0].toUpperCase() : 'AFFIXES ACTIVE', names.join(' · '), 3);
+    UI.log(`Affixes active: <b>${names.map((name) => name.replace(/&/g, '&amp;').replace(/</g, '&lt;')).join(' · ')}</b>`, '#ffb060');
   }, 2600);
-  if (O.hero && G.player && typeof G.player.addBuff === 'function') G.player.addBuff({ id: 'omen', name: O.name, el: 'arcane', stats: O.hero, t: 1e6, max: 1e6, aura: true });
 }
-
 // ------------------------------------------------------------------------------------------------ interactables
 export function obelisk(ctx, x, y, col, lit, h = 34) {
   ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(x, y, 15, 6, 0, 0, TAU); ctx.fill();
@@ -193,7 +174,7 @@ export function addShrine(world, [x, y], key) {
       burst(p.x, p.y, 30, S.el, 30, 5, { up: 2 });
       sfx('levelup', 0.6);
       if (S.heal) { p.hp = p.maxHp; p.mana = p.maxMana; }
-      if (typeof p?.addBuff === 'function') p.addBuff({ id: 'shrine_' + key, name: S.name, el: S.el, stats: S.buff, t: S.t, max: S.t, storm: S.storm });
+      if (typeof p?.addBuff === 'function') p.addBuff({ id: 'shrine_' + key, name: S.name, el: S.el, stats: S.buff, t: S.t, max: S.t, storm: S.storm, floorOnly: true, worldObject: true });
       floatText(p.x, p.y, 90, S.name.toUpperCase(), S.color, 16, { life: 2 });
       UI.log(`<b style="color:${S.color}">${S.name}</b>: ${S.msg} for ${S.t} s.`, S.color);
     },
@@ -230,10 +211,12 @@ export function addRemains(world, [x, y]) {
 
 export function addCache(world, [x, y]) {
   const depth = world.depth;
-  world.chests.push({
+  const cache={
     x, y, opened: false, reach: 1.3, rare: true, far: 30,
     use() { if (this.opened) return; this.opened = true; sfx('chest'); sfx('gold'); dropChest(world, this, depth); sparkle(x, y, 20, '#ffd060', 20, 0.5); },
-  });
+  };
+  world.chests.push(cache);
+  return cache;
 }
 
 /** Opening it calls three ambush waves; outlive them and it spills a hoard. */
@@ -279,7 +262,7 @@ export function addCursed(world, [x, y]) {
           this.done = true;
           dropChest(world, { x, y, rare: true }, depth);
           dropChest(world, { x, y, rare: true }, depth);
-          if (chance(0.5)) world.addLoot(new GroundItem(x, y + 0.3, 'item', { item: rollItem(depthLevel(depth) + 2, { rarity: rarityAt(depthLevel(depth) + 2, chance(0.03) ? 5 : chance(0.3) ? 4 : 3), mf: p.st.magicFind }) }));
+          if (chance(0.5)) world.addLoot(new GroundItem(x, y + 0.3, 'item', { item: rollGroundItem(depthLevel(depth) + 2, { rarity: rarityAt(depthLevel(depth) + 2, chance(0.03) ? 5 : chance(0.3) ? 4 : 3), mf: p.st.magicFind }) }));
           explosionFx(x, y, 2, 'holy', 'eruption');
           sfx('gate'); UI.centerMsg('CURSE BROKEN', 'The hoard is yours', 2.2);
           world.happen.cursed = null;
@@ -314,7 +297,7 @@ export function spawnNemesis(world, [x, y], N) {
     UI.centerMsg('REVENGE!', `${m.name} is slain`, 3);
     UI.log(`<b style="color:#ff4a3a">Revenge!</b> ${m.name} will not gloat again.`, '#ff8070');
     addEffect(new Column(m.x, m.y, '#ff4030', 1, 40, 420)); camera.shake(6); sfx('gate');
-    for (let i = 0; i < 4; i++) world.addLoot(new GroundItem(m.x, m.y, 'item', { item: rollItem(lvl + 3, { mf: p.st.magicFind, bonus: 1.5 }) }));
+    for (let i = 0; i < 4; i++) world.addLoot(new GroundItem(m.x, m.y, 'item', { item: rollGroundItem(lvl + 3, { mf: p.st.magicFind, bonus: 1.5 }) }));
     for (let i = 0; i < 8; i++) world.addLoot(new GroundItem(m.x, m.y, 'gold', { amount: Math.round((20 + lvl * 5) * goldScale(lvl) * rand(0.7, 1.4)) }));
   };
   world.add(m);
@@ -336,24 +319,28 @@ export function spawnImp(world) {
   const lvl = depthLevel(world.depth);
   const m = makeMonster(world, 'imp', world.biome, lvl + 1, 'normal', at[0], at[1], 0, null);
   Object.assign(m, { name: 'Treasure Imp', goblin: true, aura: '#ffd040', scale: 0.9, dmg: 0, xp: m.xp * 8, awake: true, rank: 'unique', affixes: [] });
-  m.maxHp *= 9; m.hp = m.maxHp; m.speed = 3.5; // the hero runs 4.2: it can be caught m.res = { phys: 0.1 };
+  m.maxHp *= 15; m.hp = m.maxHp; m.speed = 3.5; // tougher to mow down; its fear run is near the hero's pace.
   m.moves = null; m.summoner = false; m.proj = null; m.aoeCaster = false;
   const base = m.onDamaged.bind(m);
   m.onDamaged = (src, d) => {
     base(src, d);
-    if (chance(0.45)) world.addLoot(new GroundItem(m.x, m.y, 'gold', { amount: impGold(world, lvl, 10 + lvl * 3) }));
+    if (!m.dungeonEventImp && chance(0.45)) world.addLoot(new GroundItem(m.x, m.y, 'gold', { amount: impGold(world, lvl, 10 + lvl * 3) }));
   };
   m.onDeath = () => {
     sfx('gold'); sfx('chest'); camera.shake(5);
     explosionFx(m.x, m.y, 1.6, 'holy', 'eruption');
-    for (let i = 0; i < 24; i++) world.addLoot(new GroundItem(m.x + rand(-0.6, 0.6), m.y + rand(-0.6, 0.6), 'gold', { amount: impGold(world, lvl, 25 + lvl * 6) }));
-    for (let i = 0; i < randi(3, 5); i++) world.addLoot(new GroundItem(m.x, m.y, 'item', { item: rollItem(lvl + 2, { mf: G.player.st.magicFind, bonus: 1.3 }) }));
-    if (chance(0.5)) world.addLoot(new GroundItem(m.x, m.y, 'item', { item: rollGem(lvl + 6) }));
-    UI.centerMsg('TREASURE IMP SLAIN', 'It burst like a piÃ±ata', 2);
-    world.happen.imp = null;
+    if (!m.dungeonEventImp) {
+      for (let i = 0; i < 24; i++) world.addLoot(new GroundItem(m.x + rand(-0.6, 0.6), m.y + rand(-0.6, 0.6), 'gold', { amount: impGold(world, lvl, 25 + lvl * 6) }));
+      for (let i = 0; i < randi(3, 5); i++) world.addLoot(new GroundItem(m.x, m.y, 'item', { item: rollGroundItem(lvl + 2, { mf: G.player.st.magicFind, bonus: 1.3 }) }));
+      if (chance(0.5)) world.addLoot(new GroundItem(m.x, m.y, 'item', { item: rollGroundGem(lvl + 6) }));
+    }
+    UI.centerMsg('TREASURE IMP SLAIN', 'It burst in a shower of gold', 2);
   };
   world.add(m);
-  world.happen.imp = m; world.happen.impLeft = 32;
+  const H = world.happen;
+  m.impLeft = 32;
+  (H.imps ||= []).push(m);
+  H.imp = m; H.impLeft = 32;
   addEffect(new Ring(m.x, m.y, 0.2, 2, 0.5, '#ffd040', 4));
   floatText(m.x, m.y, 70, 'Treasure Imp!', '#ffd040', 16, { life: 2 });
   UI.log('<b style="color:#ffd040">A Treasure Imp</b> scurries past, dripping gold. Catch it before it escapes!', '#ffd040');
@@ -361,18 +348,27 @@ export function spawnImp(world) {
 }
 
 function impTick(world, dt) {
-  const H = world.happen, m = H.imp;
-  if (!m) return;
-  if (m.dead) { H.imp = null; return; }
-  m.status.fear = { t: 1 }; // it always runs from the hero
-  if (chance(dt * 8)) sparkle(m.x, m.y, 20, '#ffd040', 1, 0.3);
-  if (chance(dt * 1.2)) world.addLoot(new GroundItem(m.x, m.y, 'gold', { amount: impGold(world, depthLevel(world.depth), 5 + depthLevel(world.depth) * 1.5) }));
-  if ((H.impLeft -= dt) <= 0) {
-    addEffect(new Ring(m.x, m.y, 2, 0.1, 0.5, '#ffd040', 4)); addEffect(new Column(m.x, m.y, '#ffd040', 0.5, 20, 240));
-    floatText(m.x, m.y, 70, 'Escaped!', '#ffd040', 14, { life: 1.6 });
-    UI.log('The Treasure Imp escaped through a rift, cackling.', '#c0a060');
-    m.dead = true; H.imp = null; sfx('portal', 0.5);
+  const H = world.happen, imps = H.imps ||= (H.imp ? [H.imp] : []);
+  for (const m of imps.slice()) {
+    if (m.dead) continue;
+    m.status.fear = { t: 1 }; // every imp in a multi-imp event flees from the hero
+    if (chance(dt * 8)) sparkle(m.x, m.y, 20, '#ffd040', 1, 0.3);
+    if (!m.dungeonEventImp && chance(dt * 1.2)) world.addLoot(new GroundItem(m.x, m.y, 'gold', { amount: impGold(world, depthLevel(world.depth), 5 + depthLevel(world.depth) * 1.5) }));
+    if ((m.impLeft -= dt) <= 0) {
+      addEffect(new Ring(m.x, m.y, 2, 0.1, 0.5, '#ffd040', 4)); addEffect(new Column(m.x, m.y, '#ffd040', 0.5, 20, 240));
+      floatText(m.x, m.y, 70, 'Escaped!', '#ffd040', 14, { life: 1.6 });
+      UI.log('The Treasure Imp escaped through a rift, cackling.', '#c0a060');
+      m.dungeonEventImpEscaped = true; m.dead = true; sfx('portal', 0.5);
+    }
   }
+  H.imps = imps.filter(m => !m.dead);
+  H.imp = H.imps[H.imps.length - 1] || null;
+  H.impLeft = H.imp?.impLeft || 0;
+}
+
+// Sky and sea battles skip the regular happenings simulation, but their event spawned imps still flee and escape.
+export function eventImpsTick(world, dt) {
+  if (world?.happen?.imps?.some(m => m.dungeonEventImp)) impTick(world, dt);
 }
 
 // ------------------------------------------------------------------------------------------------ challenge
@@ -399,7 +395,7 @@ function challengeTick(world, dt) {
     const lvl = depthLevel(world.depth);
     UI.centerMsg('CHALLENGE MET', 'Velscour grudgingly pays up', 2.2);
     addEffect(new Column(p.x, p.y, '#ffd040', 0.9, 30, 360));
-    for (let i = 0; i < 3; i++) world.addLoot(new GroundItem(p.x, p.y, 'item', { item: rollItem(lvl + 2, { mf: p.st.magicFind, bonus: 1 }) }));
+    for (let i = 0; i < 3; i++) world.addLoot(new GroundItem(p.x, p.y, 'item', { item: rollGroundItem(lvl + 2, { mf: p.st.magicFind, bonus: 1 }) }));
     for (let i = 0; i < 6; i++) world.addLoot(new GroundItem(p.x, p.y, 'gold', { amount: Math.round((20 + lvl * 5) * goldScale(lvl) * rand(0.7, 1.3)) }));
     world.addLoot(new GroundItem(p.x, p.y, 'potion', { item: potionItem(pick(['rejuv', 'fury'])) }));
     sfx('gate');
@@ -420,7 +416,7 @@ export function onKill(m) {
   H.kills = (H.kills || 0) + 1;
   if (H.ch) H.ch.got++;
   if (H.challengeAt && H.kills >= H.challengeAt) { H.challengeAt = 0; startChallenge(w); }
-  if (H.omen === 'frenzy' && chance(0.3)) w.addLoot(new GroundItem(m.x, m.y, chance(0.6) ? 'orb_hp' : 'orb_mp', {}));
+  if (w.dungeonAffixes && w.dungeonAffixes.includes('frenzy') && chance(DUNGEON_AFFIX_CONFIG.frenzy.orbChance)) w.addLoot(new GroundItem(m.x, m.y, rollOrbKind(0.05, 0.02, DUNGEON_AFFIX_CONFIG.frenzy.healthOrbChance), {}));
   H.streak = H.streakT > 0 ? H.streak + 1 : 1;
   H.streakT = 4; // a few seconds a kill: the next one in time keeps the streak
   const s = STREAKS.find(([n]) => n === H.streak);
@@ -443,13 +439,12 @@ export function happeningsTick(world, dt) {
   H.t += dt;
   greedTick(world, dt); // the Greed lever's tougher monsters (game/greed.js)
   if (H.streakT > 0) H.streakT -= dt;
-  // the omen marks every enemy as it appears
-  if (H.omen && OMENS[H.omen].mon && (H.monT = (H.monT || 0) - dt) <= 0) {
-    H.monT = 0.4;
-    for (const m of world.creatures) if (m.team === 'enemy' && !m._omen && !m.dead) { m._omen = true; OMENS[H.omen].mon(m); }
+  const affixes = new Set(world.dungeonAffixes || []);
+  if (affixes.has('starfall') && (H.starT -= dt) <= 0) {
+    H.starT = rand(...DUNGEON_AFFIX_CONFIG.starfall.repeatDelay);
+    starfall(world);
   }
-  if (H.omen === 'starfall' && (H.starT -= dt) <= 0) { H.starT = rand(2.5, 5); starfall(world); }
-  if (H.omen === 'bloodmoon' && chance(dt * 4)) spawn({ type: 'glow', x: p.x + rand(-8, 8), y: p.y + rand(-8, 8), z: rand(40, 160), vz: -20, life: 1.4, size: rand(1.5, 3), size1: 0, color: '#ff2030', add: true });
+  if (affixes.has('bloodmoon') && chance(dt * 4)) spawn({ type: 'glow', x: p.x + rand(-8, 8), y: p.y + rand(-8, 8), z: rand(40, 160), vz: -20, life: 1.4, size: rand(1.5, 3), size1: 0, color: '#ff2030', add: true });
   // storm shrine aura
   if (p.buffs.some((b) => b.storm) && (H.zapT = (H.zapT || 0) - dt) <= 0) {
     H.zapT = 0.6;
@@ -495,7 +490,7 @@ export function recordDepth(world, depth) {
   const p = G.player;
   UI.centerMsg(`DEPTH ${depth} CONQUERED`, 'A new record descent', 3);
   for (let i = 0; i < 6; i++) setTimeout(() => { if (G.world === world && p) firework(p.x + rand(-4, 4), p.y + rand(-4, 4)); }, i * 260);
-  world.addLoot(new GroundItem(p.x, p.y, 'item', { item: rollItem(depthLevel(depth) + 2, { rarity: rarityAt(depthLevel(depth) + 2, chance(0.12) ? 4 : 3), mf: p.st.magicFind }) }));
+  world.addLoot(new GroundItem(p.x, p.y, 'item', { item: rollGroundItem(depthLevel(depth) + 2, { rarity: rarityAt(depthLevel(depth) + 2, chance(0.12) ? 4 : 3), mf: p.st.magicFind }) }));
 }
 
 function firework(x, y) {
@@ -515,28 +510,32 @@ export const TOWN_EVENTS = {
   oracle: { name: 'The Fortune Teller', color: '#d080ff', text: 'Your stars align for 3 depths: +60% magic and gold find.', bless: { mf: 60, gf: 60 } },
   scholar: { name: 'A Travelling Scholar', color: '#60e0ff', text: 'Lessons in monster lore: +30% experience for 3 depths.', bless: { xp: 30 } },
   warden: { name: "The Watch Captain's Drill", color: '#a0c0ff', text: 'Drilled in the yard: 10% less damage taken for 3 depths.', bless: { reduce: 10 } },
-  apprentice: {
-    name: "The Blacksmith's Apprentice", color: '#ff9050', text: 'Practises on your gear for free.', fn: (c) => {
-      const list = Object.values(c.equip).filter((it) => it && it.type === 'gear' && (it.upg || 0) < 10);
-      if (!list.length) return 'Nothing left to improve.';
-      const it = pick(list); it.upg = (it.upg || 0) + 1; return `${itemName(it)} is now +${it.upg}.`;
-    }
-  },
-  peddler: {
-    name: 'A Wandering Peddler', color: '#ff9a2a', text: 'Gifts you a treasure from the deep roads, made for your level.', fn: (c) => {
-      const it = rollItem(c.level, { rarity: rarityAt(c.level, chance(0.02) ? 5 : chance(0.15) ? 4 : chance(0.6) ? 3 : 2) });
-      return addToBag(c, it) ? `Received <span style="color:${itemColor(it)}">${itemName(it)}</span>.` : 'Your bag was full, so the peddler shrugged and left.';
-    }
-  },
+  apprentice: { name: "The Blacksmith's Apprentice", color: '#ff9050', text: 'Practises on your gear for free.', fn: (c) => {
+    const list = Object.values(c.equip).filter((it) => it && it.type === 'gear' && (it.upg || 0) < 10);
+    if (!list.length) return 'Nothing left to improve.';
+    const it = pick(list); it.upg = (it.upg || 0) + 1; return `${itemName(it)} is now +${it.upg}.`;
+  } },
+  peddler: { name: 'A Wandering Peddler', color: '#ff9a2a', text: 'Gifts you a treasure from the deep roads, made for your level.', fn: (c) => {
+    const it = rollGroundItem(c.level, { rarity: rarityAt(c.level, chance(0.02) ? 5 : chance(0.15) ? 4 : chance(0.6) ? 3 : 2) });
+    return addToBag(c, it) ? `Received <span style="color:${itemColor(it)}">${itemName(it)}</span>.` : 'Your bag was full, so the peddler shrugged and left.';
+  } },
   lottery: { name: 'The Town Lottery', color: '#ffd040', text: 'Your ticket wins!', fn: (c) => { const g = Math.round(randi(30, 90) * (5 + depthLevel(c.depth || 1)) * (1 + Math.max(0, c.level - 60) * 0.04)); c.gold += g; return `Won ${g} gold.`; } },
   gemfair: { name: 'The Gem Fair', color: '#c8f0ff', text: 'A jeweller hands out samples.', fn: (c) => { const g = rollGem(depthLevel(c.depth || 1) + 4); return addToBag(c, g) ? 'Received a gem.' : 'Your bag was full.'; } },
 };
 const TOWN_KEYS = Object.keys(TOWN_EVENTS);
 
 /** Each town visit after the first may bring a happening. */
+function clearDungeonAffixBuff() {
+  const p = G.player;
+  if (!p || !Array.isArray(p.buffs)) return;
+  const oldLength = p.buffs.length;
+  p.buffs = p.buffs.filter((buff) => buff.id !== 'omen' && buff.id !== 'dungeon_affix_surge');
+  if (p.buffs.length !== oldLength) p.recompute();
+}
+
 export function townHappening(world) {
   const c = G.char;
-  dropOmen();
+  clearDungeonAffixBuff();
   if (!c || (c.townVisitCount || 0) < 2 || !chance(0.65)) return;
   const key = pick(TOWN_KEYS.filter((k) => k !== c.lastTownEvent));
   c.lastTownEvent = key;
