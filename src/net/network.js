@@ -206,7 +206,7 @@ class NetworkManager {
       this.simWelcomeTimeout = null;
     }
 
-    const defaultRemoteHost = 'mmo.dagyr.me:8124';
+    const defaultRemoteHost = 'velscour.dagyr.me:8124';
     let params;
     try { params = new URLSearchParams(window.location.search); } catch (e) { params = new URLSearchParams(); }
     const configuredHost = params.get('server') || localStorage.getItem('dagyr_lobby_server') || defaultRemoteHost;
@@ -214,9 +214,9 @@ class NetworkManager {
     this.targetHost = configuredHost;
 
     let url;
-    if (configuredHost.startsWith('mmo.dagyr.me')) {
+    if (configuredHost.startsWith('velscour.dagyr.me')) {
       // Connect to Cloudflare tunnel WebSocket on port 443 which forwards to the port 8124 server
-      url = 'wss://mmo.dagyr.me/ws';
+      url = 'wss://velscour.dagyr.me/ws';
     } else {
       const loc = window.location;
       const proto = (loc.protocol === 'https:' && !configuredHost.includes('localhost')) ? 'wss:' : 'ws:';

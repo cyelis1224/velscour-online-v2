@@ -75,6 +75,7 @@ import {
   stampThemedRoom,
   paintSplinePath,
   snapWallMount,
+  openingCenter,
   placeOpeningAt,
   pickSceneObjectAt,
   drawEditorOverlays,
@@ -1018,6 +1019,19 @@ class VelscourStudio {
     pushGroup('Rooms', (doc.architecture.rooms || []).map((r, i) =>
       mkRow('room', i, `🏛️ ${r.title || r.theme || r.id}${typeof r.floorLv === 'number' ? ` (${r.floorLv} lv)` : ''}`, r.x + r.w / 2, r.y + r.h / 2)
     ));
+    pushGroup('Doors, Arches & Interactables', [
+      ...(doc.architecture.openings || []).map((op, i) => {
+        const [cx, cy] = openingCenter(op);
+        const lbl = op.kind === 'door' ? `🚪 Door #${i} (${op.design || 'door'})` : `🏛️ Arch #${i} (${op.design || 'arch'})`;
+        return mkRow('opening', i, lbl, cx, cy);
+      }),
+      ...(doc.entities.interactables || []).map((it, i) =>
+        mkRow('interactable', i, `📦 ${it.label || it.subType || 'Chest'} (${it.id})`, it.x, it.y)
+      ),
+      ...(doc.architecture.buildings || []).map((b, i) =>
+        mkRow('building', i, `🏠 ${b.kind || 'Building'}`, b.x + b.w / 2, b.y + b.h / 2)
+      ),
+    ]);
     if (doc.grid?.airship?.vessels?.length) {
       pushGroup('Airship Fleet', doc.grid.airship.vessels.map((av, i) =>
         mkRow('sky_vessel', i, `⛵ ${av.name || av.kind}${av.castKey ? ` (@${av.castKey})` : ''}${av.hooks ? ` · 🪝${av.hooks}` : ''}`, av.x - (av.lv || 0) / 8, av.y - (av.lv || 0) / 8)
@@ -1045,6 +1059,9 @@ class VelscourStudio {
         else if (type === 'zone') obj = doc.entities.zones[idx];
         else if (type === 'mark') obj = doc.entities.marks[idx];
         else if (type === 'room') obj = doc.architecture.rooms[idx];
+        else if (type === 'opening') obj = doc.architecture.openings[idx];
+        else if (type === 'interactable') obj = doc.entities.interactables[idx];
+        else if (type === 'building') obj = doc.architecture.buildings[idx];
         else if (type === 'sky_vessel') obj = doc.grid.airship?.vessels?.[idx];
         else if (type === 'naval_ship') obj = doc.grid.naval?.ships?.[idx];
         if (obj) {
@@ -1571,10 +1588,125 @@ class VelscourStudio {
         this.renderInspector();
         this.refreshBanner();
       });
+    } else if (type === 'opening') {
+      const opIdx = (this.doc.architecture.openings || []).indexOf(obj);
+      const span = Math.max(1, (obj.a1 ?? 2) - (obj.a0 ?? 0));
+      const isDoor = obj.kind === 'door';
+      body.innerHTML = `
+        <div class="form-stack">
+          <div class="fg"><label>${isDoor ? '🚪 Door' : '🏛️ Archway'} Design (Door #${Math.max(0, opIdx)})</label><input type="text" value="${obj.design || obj.kind}" disabled></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button id="op-rot" class="mini-btn gold" style="flex:1">↻ Rotate 90° (Axis: ${(obj.axis || 'x').toUpperCase()})</button>
+          </div>
+          <label class="chk-line"><input id="op-flip" type="checkbox" ${obj.flip ? 'checked' : ''}> Flip Hinge / Facing Side</label>
+          <div class="fg-row">
+            <div class="fg"><label>Wall Line (${obj.axis === 'y' ? 'X' : 'Y'})</label><input id="op-line" type="number" step="1" value="${obj.line ?? 0}"></div>
+            <div class="fg"><label>Start (${obj.axis === 'y' ? 'Y' : 'X'})</label><input id="op-a0" type="number" step="1" value="${obj.a0 ?? 0}"></div>
+          </div>
+          <div class="fg"><label>Span Width (tiles)</label><input id="op-span" type="number" min="1" max="8" value="${span}"></div>
+          <button id="in-del" class="mini-btn danger">✕ Delete ${isDoor ? 'Door' : 'Archway'} (Del)</button>
+        </div>
+      `;
+      const applyOp = () => {
+        this.history.snapshot(this.doc, `Edit ${isDoor ? 'Door' : 'Arch'}`);
+        obj.flip = body.querySelector('#op-flip').checked;
+        obj.line = Math.round(Number(body.querySelector('#op-line').value) || 0);
+        obj.a0 = Math.round(Number(body.querySelector('#op-a0').value) || 0);
+        const sp = Math.max(1, Math.min(8, Math.round(Number(body.querySelector('#op-span').value) || span)));
+        obj.a1 = obj.a0 + sp;
+        this.syncFastMapEdit({ rebuildWalls: true });
+        this.renderOutliner();
+      };
+      body.querySelectorAll('input').forEach((el) => el.addEventListener('change', applyOp));
+      body.querySelector('#op-rot')?.addEventListener('click', () => {
+        this.history.snapshot(this.doc, `Rotate ${isDoor ? 'Door' : 'Arch'}`);
+        const [cx, cy] = openingCenter(obj);
+        const sp = Math.max(1, (obj.a1 ?? 2) - (obj.a0 ?? 0));
+        obj.axis = obj.axis === 'y' ? 'x' : 'y';
+        this.doc._lastOpenAxis = obj.axis;
+        obj.line = Math.round(obj.axis === 'y' ? cx : cy);
+        obj.a0 = Math.round((obj.axis === 'y' ? cy : cx) - sp / 2);
+        obj.a1 = obj.a0 + sp;
+        this.syncFastMapEdit({ rebuildWalls: true });
+        this.renderOutliner();
+        this.renderInspector();
+      });
+      body.querySelector('#in-del')?.addEventListener('click', () => this.deleteSelectedObject());
+    } else if (['interactable', 'building', 'torch', 'hanging', 'naval_ship'].includes(type)) {
+      const labelMap = {
+        interactable: 'Chest / Shrine',
+        building: 'Building',
+        torch: 'Wall Torch',
+        hanging: 'Wall Banner / Hanging',
+        naval_ship: 'Naval Ship',
+      };
+      body.innerHTML = `
+        <div class="form-stack">
+          <div class="dim-lbl">Selected <b>${labelMap[type] || type}</b>. Drag on the viewport to reposition, or press <b>Delete</b> to remove.</div>
+          ${type === 'interactable' ? `<div class="fg"><label>Custom Label</label><input id="it-lbl" type="text" value="${obj.label || ''}"></div>` : ''}
+          <button id="in-del" class="mini-btn danger">✕ Delete ${labelMap[type] || type} (Del)</button>
+        </div>
+      `;
+      body.querySelector('#it-lbl')?.addEventListener('change', async (e) => {
+        obj.label = e.target.value;
+        await this.rebuildWorld({ keepCamera: true });
+        this.renderOutliner();
+      });
+      body.querySelector('#in-del')?.addEventListener('click', () => this.deleteSelectedObject());
     } else {
       body.innerHTML = `<div class="dim-lbl">Selected <b>${type}</b>. Drag on the viewport to reposition.</div>`;
     }
     void BESTIARY;
+  }
+
+  async deleteSelectedObject() {
+    const sel = this.state.selected;
+    if (!sel || !sel.obj || !this.doc) return false;
+    const { type, obj } = sel;
+    if (['start', 'exit', 'townPortal'].includes(type)) {
+      this.toast(`${type} is a required scenario anchor — drag it to reposition.`);
+      return false;
+    }
+
+    const listMap = {
+      opening: this.doc.architecture.openings,
+      torch: this.doc.architecture.torches,
+      hanging: this.doc.architecture.wallHangings,
+      building: this.doc.architecture.buildings,
+      room: this.doc.architecture.rooms,
+      spawn: this.doc.entities.spawns,
+      npc: this.doc.entities.npcs,
+      prop: this.doc.entities.props,
+      interactable: this.doc.entities.interactables,
+      passage: this.doc.entities.passages,
+      zone: this.doc.entities.zones,
+      mark: this.doc.entities.marks,
+      sky_vessel: this.doc.grid?.airship?.vessels,
+      naval_ship: this.doc.grid?.naval?.ships,
+    };
+    const arr = listMap[type];
+    if (!Array.isArray(arr)) return false;
+    const idx = arr.indexOf(obj);
+    if (idx < 0) return false;
+
+    this.history.snapshot(this.doc, `Delete ${type}`);
+    arr.splice(idx, 1);
+    this.state.selected = null;
+
+    if (type === 'opening') {
+      this.syncFastMapEdit({ rebuildWalls: true });
+    } else if (type === 'sky_vessel') {
+      this.world?.skyDirector?.syncPlacedVessels?.({ inEditor: true });
+    } else if (!['zone', 'mark', 'room'].includes(type)) {
+      await this.rebuildWorld({ keepCamera: true });
+    }
+
+    this.cineEditor.renderAll();
+    this.renderOutliner();
+    this.renderInspector();
+    this.refreshBanner();
+    this.refreshValidation();
+    return true;
   }
 
   refreshValidation() {
@@ -2017,7 +2149,9 @@ class VelscourStudio {
         return;
       }
     } else if (it.kind === 'opening') {
-      placeOpeningAt(doc, tx, ty, it);
+      const op = placeOpeningAt(doc, tx, ty, it);
+      this.state.selectedCineStep = null;
+      this.state.selected = { type: 'opening', obj: op };
     } else if (it.kind === 'prop' || it.kind === 'caveProp') {
       doc.entities.props.push({
         id: `pr_${Date.now().toString(36)}`,
@@ -2163,6 +2297,17 @@ class VelscourStudio {
       } else if (type === 'zone' || type === 'room') {
         obj.x = Math.floor(tx - (obj.w || 4) / 2);
         obj.y = Math.floor(ty - (obj.h || 4) / 2);
+      } else if (type === 'opening') {
+        const sp = Math.max(1, (obj.a1 ?? 2) - (obj.a0 ?? 0));
+        if (obj.axis === 'y') {
+          obj.line = Math.round(tx);
+          obj.a0 = Math.round(ty - sp / 2);
+        } else {
+          obj.line = Math.round(ty);
+          obj.a0 = Math.round(tx - sp / 2);
+        }
+        obj.a1 = obj.a0 + sp;
+        this.syncFastMapEdit({ rebuildWalls: true });
       } else if (type === 'sky_vessel') {
         const shift = (obj.lv || 0) / 8;
         obj.x = Math.round((tx + shift) * 2) / 2;
@@ -2307,6 +2452,11 @@ class VelscourStudio {
       if (typing) return;
 
       if (e.key === ' ') { this.state.spaceDown = true; e.preventDefault(); return; }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && this.state.selected) {
+        e.preventDefault();
+        this.deleteSelectedObject();
+        return;
+      }
       if (e.key === 'Enter' && this.state.tool === 'spline') { this.commitSpline(); return; }
       if (e.key === 'Escape') {
         this.plankMode = false; this.plankStart = null; this.rampAnchor = null;

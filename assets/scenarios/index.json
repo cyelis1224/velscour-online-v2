@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-18T17:30:36.697Z",
+  "updatedAt": "2026-11-18T19:36:48.176Z",
   "scenarios": [
     {
       "id": "sanctum_of_echoes",
@@ -16,14 +16,14 @@
         56,
         56
       ],
-      "cutsceneCount": 2,
-      "triggerCount": 2,
+      "cutsceneCount": 3,
+      "triggerCount": 3,
       "publish": {
         "skullPortal": true,
         "campaignPool": false,
         "pinnedDepth": null
       },
-      "updatedAt": "2026-11-18T17:25:31.477Z"
+      "updatedAt": "2026-11-18T19:36:48.174Z"
     },
     {
       "id": "sea_of_sand_seed_936020",

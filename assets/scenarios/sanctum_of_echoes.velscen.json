@@ -27,7 +27,7 @@
       "music": "wilds",
       "ambience": "catacombs"
     },
-    "updatedAt": "2026-11-18T17:25:31.477Z"
+    "updatedAt": "2026-11-18T19:36:48.174Z"
   },
   "grid": {
     "w": 56,
@@ -41,7 +41,8 @@
       "losCap": true
     },
     "layers": {
-      "t": "rle1:u8:3136:0gEAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABLAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABLgAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABRAIA"
+      "t": "rle1:u8:3136:0gEAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABJAAAFAABLAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNAAABAABNQAAAgABNgAAAgABNgAAAgABLwAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABKAAAEAABRAIA",
+      "block": "rle1:u8:3136:QwIAAQABDwAAAQABXwAAAgABbwAAAQABpwAAAQABbgAAAQABDwAAAQABPgMAAQABAwAAAQABAQAAAQABnQAAAQABbwAAAQABpwAAAQABNgAAAQABCwAAAQABtgIA"
     },
     "heightfield": {
       "subdiv": 2,
@@ -78,7 +79,18 @@
         "theme": "shrine"
       }
     ],
-    "openings": [],
+    "openings": [
+      {
+        "id": "op_mwmfll5s",
+        "axis": "x",
+        "line": 33,
+        "a0": 27,
+        "a1": 29,
+        "kind": "door",
+        "design": "ironbound_oak",
+        "flip": false
+      }
+    ],
     "torches": [],
     "wallHangings": [],
     "buildings": []
@@ -86,42 +98,391 @@
   "entities": {
     "start": [
       28,
-      40
+      44.5
     ],
     "townPortal": [
-      30,
-      39.5
+      54.5,
+      54.5
     ],
     "exit": {
       "x": 28,
-      "y": 12,
+      "y": 9,
       "sealed": true,
       "unsealOn": "boss_killed",
-      "continueToBiome": null
+      "continueToBiome": "town"
     },
-    "props": [],
+    "props": [
+      {
+        "id": "pr_mwmf3qrj",
+        "kind": "scatter",
+        "name": "iron_candelabrum",
+        "caveProp": null,
+        "m": 0,
+        "x": 26,
+        "y": 34.5,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 3.2,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf3rie",
+        "kind": "scatter",
+        "name": "iron_candelabrum",
+        "caveProp": null,
+        "m": 0,
+        "x": 30.5,
+        "y": 34.5,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 3.2,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf3vgn",
+        "kind": "scatter",
+        "name": "iron_candelabrum",
+        "caveProp": null,
+        "m": 0,
+        "x": 19.5,
+        "y": 19.5,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 3.2,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf3xfq",
+        "kind": "scatter",
+        "name": "iron_candelabrum",
+        "caveProp": null,
+        "m": 0,
+        "x": 19.5,
+        "y": 10,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 3.2,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf3zqm",
+        "kind": "scatter",
+        "name": "iron_candelabrum",
+        "caveProp": null,
+        "m": 0,
+        "x": 35.5,
+        "y": 10.5,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 3.2,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf42fa",
+        "kind": "scatter",
+        "name": "iron_candelabrum",
+        "caveProp": null,
+        "m": 0,
+        "x": 35.5,
+        "y": 19.5,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 3.2,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf4kxz",
+        "kind": "scatter",
+        "name": "shrouded_altar",
+        "caveProp": null,
+        "m": 0,
+        "x": 20.5,
+        "y": 14.5,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf4ogu",
+        "kind": "scatter",
+        "name": "reliquary_chest",
+        "caveProp": null,
+        "m": 0,
+        "x": 20.5,
+        "y": 17,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf4r4m",
+        "kind": "scatter",
+        "name": "reliquary_chest",
+        "caveProp": null,
+        "m": 0,
+        "x": 20.5,
+        "y": 12,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf50dq",
+        "kind": "scatter",
+        "name": "ossuary_urn",
+        "caveProp": null,
+        "m": 0,
+        "x": 19,
+        "y": 8.5,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf51su",
+        "kind": "scatter",
+        "name": "ossuary_urn",
+        "caveProp": null,
+        "m": 0,
+        "x": 18.5,
+        "y": 9.5,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf53au",
+        "kind": "scatter",
+        "name": "ossuary_urn",
+        "caveProp": null,
+        "m": 0,
+        "x": 18.5,
+        "y": 17,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf5hb2",
+        "kind": "scatter",
+        "name": "column_stump",
+        "caveProp": null,
+        "m": 0,
+        "x": 31,
+        "y": 10,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf5khy",
+        "kind": "scatter",
+        "name": "fallen_column",
+        "caveProp": null,
+        "m": 0,
+        "x": 25.5,
+        "y": 10,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf5s46",
+        "kind": "scatter",
+        "name": "gothic_rubble",
+        "caveProp": null,
+        "m": 0,
+        "x": 35,
+        "y": 15.5,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmf6fvi",
+        "kind": "scatter",
+        "name": "funerary_bell",
+        "caveProp": null,
+        "m": 0,
+        "x": 19,
+        "y": 12.5,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmg7ct7",
+        "kind": "scatter",
+        "name": "prayer_lectern",
+        "caveProp": null,
+        "m": 0,
+        "x": 22.5,
+        "y": 39.5,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmg7ho3",
+        "kind": "scatter",
+        "name": "reliquary_chest",
+        "caveProp": null,
+        "m": 0,
+        "x": 22.5,
+        "y": 42,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmg7ipn",
+        "kind": "scatter",
+        "name": "reliquary_chest",
+        "caveProp": null,
+        "m": 0,
+        "x": 22.5,
+        "y": 37,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmg7nv0",
+        "kind": "scatter",
+        "name": "ossuary_urn",
+        "caveProp": null,
+        "m": 0,
+        "x": 20.5,
+        "y": 35,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmg7p9w",
+        "kind": "scatter",
+        "name": "broken_amphora",
+        "caveProp": null,
+        "m": 0,
+        "x": 21,
+        "y": 34.5,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmg7vub",
+        "kind": "scatter",
+        "name": "burial_urn_cluster",
+        "caveProp": null,
+        "m": 0,
+        "x": 32.5,
+        "y": 34.5,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 0,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmg82gr",
+        "kind": "scatter",
+        "name": "iron_candelabrum",
+        "caveProp": null,
+        "m": 0,
+        "x": 21.5,
+        "y": 43,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 3.2,
+        "tree": false
+      },
+      {
+        "id": "pr_mwmg84sj",
+        "kind": "scatter",
+        "name": "iron_candelabrum",
+        "caveProp": null,
+        "m": 0,
+        "x": 33,
+        "y": 43,
+        "z": 0,
+        "k": 0.4,
+        "flip": false,
+        "light": 3.2,
+        "tree": false
+      }
+    ],
     "spawns": [
       {
-        "id": "sp_guard_1",
+        "id": "sp_mwmejmig",
         "castKey": "",
-        "x": 28,
-        "y": 28,
+        "x": 28.5,
+        "y": 27.5,
         "arch": "skeleton",
         "rank": "normal",
         "n": 3,
-        "art": null,
+        "art": "bone_cleaver",
         "swap": null,
         "name": ""
       },
       {
-        "id": "sp_boss_1",
-        "castKey": "sanctum_guardian",
-        "x": 28,
-        "y": 15,
+        "id": "sp_mwmejrwo",
+        "castKey": "",
+        "x": 28.5,
+        "y": 23.5,
         "arch": "skeleton",
+        "rank": "normal",
+        "n": 3,
+        "art": "sickle_reaver",
+        "swap": null,
+        "name": ""
+      },
+      {
+        "id": "sp_mwmeksi0",
+        "castKey": "thronewheel_of_judgement",
+        "x": 28,
+        "y": 12.5,
+        "arch": "eye",
         "rank": "boss",
         "n": 1,
-        "art": null,
+        "art": "hv_ophanim_5",
         "swap": null,
         "name": "Sanctum Warden"
       }
@@ -132,11 +493,11 @@
         "castKey": "bound_spirit",
         "role": "villager",
         "spriteId": "41_friar",
-        "name": "Brother Aldous",
+        "name": "Brother Cael",
         "x": 28,
-        "y": 36,
+        "y": 37.5,
         "lines": [
-          "Tread softly, traveller. The Warden listens through the stone."
+          "Tread softly, traveller. The Warden lies ahead."
         ]
       }
     ],
@@ -147,7 +508,7 @@
         "name": "Boss Approach Zone",
         "shape": "rect",
         "x": 22,
-        "y": 8,
+        "y": 12,
         "w": 12,
         "h": 10,
         "color": "#ff9a40"
@@ -158,16 +519,17 @@
         "id": "mk_arrival",
         "name": "Arrival Look",
         "x": 28,
-        "y": 38
+        "y": 40
       }
     ],
     "passages": []
   },
   "objectives": [
     {
-      "id": "obj_slay_boss",
-      "kind": "kill_bosses",
-      "text": "Defeat Sanctum Warden"
+      "id": "obj_mwmfdkmu",
+      "kind": "kill_cast",
+      "text": "Defeat the area boss",
+      "_done": true
     }
   ],
   "triggers": [
@@ -191,7 +553,21 @@
       "once": true,
       "requireCombatClear": false,
       "zoneId": "z_boss_approach",
-      "runCutscene": "cine_boss_warn"
+      "runCutscene": "cine_boss_warn",
+      "unsealExit": false
+    },
+    {
+      "id": "trig_mwmfel1a",
+      "name": "win condition",
+      "enabled": true,
+      "event": "onEntityDeath",
+      "once": true,
+      "requireCombatClear": true,
+      "zoneId": null,
+      "targetKey": "thronewheel_of_judgement",
+      "hpPct": 50,
+      "runCutscene": "cine_scene_3_e1p",
+      "unsealExit": true
     }
   ],
   "cutscenes": [
@@ -217,6 +593,17 @@
           "dur": 1.3,
           "ease": "out",
           "push": 0.02,
+          "wait": false
+        },
+        {
+          "id": "st_mwmg563n_8",
+          "type": "walk",
+          "who": "hero",
+          "markId": "mk_arrival",
+          "x": 29,
+          "y": 42,
+          "dur": 1.4,
+          "pathfind": true,
           "wait": true
         },
         {
@@ -225,11 +612,33 @@
           "dur": 1
         },
         {
+          "id": "st_mwmev2pz",
+          "type": "cam",
+          "mode": "actor",
+          "who": "bound_spirit",
+          "zoom": 1.8,
+          "dur": 1.3,
+          "ease": "out",
+          "push": 0.02,
+          "wait": true
+        },
+        {
           "id": "st_mwme2izm_5",
           "type": "say",
           "who": "bound_spirit",
-          "text": "{hero}! We've been waiting for a {class} like yourself to come along and take care of the {@sanctum_guardian}! I am {@bound_spirit}. Please Listen to what I have to say.",
+          "text": "{hero}! We've been waiting for a {class} like yourself to come and lay the {@thronewheel_of_judgement} back to rest!",
           "autoFrame": true,
+          "voice": {
+            "pitch": 1,
+            "wave": "square"
+          }
+        },
+        {
+          "id": "st_mwmethev",
+          "type": "say",
+          "who": "bound_spirit",
+          "text": "I am {@bound_spirit}. Please Listen to what I have to say. ",
+          "autoFrame": false,
           "voice": {
             "pitch": 1,
             "wave": "square"
@@ -253,7 +662,7 @@
           "id": "bw_1",
           "type": "cam",
           "mode": "actor",
-          "who": "sanctum_guardian",
+          "who": "thronewheel_of_judgement",
           "zoom": 2.2,
           "dur": 1.2,
           "ease": "out",
@@ -262,18 +671,28 @@
         {
           "id": "bw_2",
           "type": "say",
-          "who": "sanctum_guardian",
-          "text": "Who disturbs the Ossuary of Echoes, {hero}?!",
+          "who": "thronewheel_of_judgement",
+          "text": "Who disturbs the Ossuary of Echoes, a {class}?!",
           "voice": {
             "pitch": 0.55,
             "wave": "sawtooth"
           }
         },
         {
+          "id": "st_mwmevjuv",
+          "type": "cam",
+          "mode": "actor",
+          "who": "hero",
+          "zoom": 2.2,
+          "dur": 1.2,
+          "ease": "out",
+          "wait": true
+        },
+        {
           "id": "bw_3",
           "type": "say",
           "who": "hero",
-          "text": "Your watch ends tonight, {@sanctum_guardian}.",
+          "text": "Your watch ends tonight, {@thronewheel_of_judgement}!",
           "voice": {
             "pitch": 1,
             "wave": "square"
@@ -286,6 +705,42 @@
         },
         {
           "id": "bw_5",
+          "type": "cam",
+          "mode": "return_hero",
+          "dur": 0.8,
+          "wait": true
+        }
+      ]
+    },
+    {
+      "id": "cine_scene_3_e1p",
+      "name": "Stage Clear",
+      "allowFastForward": true,
+      "steps": [
+        {
+          "id": "st_1795024813021_1",
+          "type": "cam",
+          "mode": "actor",
+          "who": "hero",
+          "zoom": 2,
+          "dur": 1.1,
+          "ease": "io",
+          "push": 0.02,
+          "wait": true
+        },
+        {
+          "id": "st_1795024813021_2",
+          "type": "say",
+          "who": "hero",
+          "text": "It is done.",
+          "autoFrame": true,
+          "voice": {
+            "pitch": 0.72,
+            "wave": "sawtooth"
+          }
+        },
+        {
+          "id": "st_1795024813021_3",
           "type": "cam",
           "mode": "return_hero",
           "dur": 0.8,

@@ -227,7 +227,7 @@ public class LiveUpdatePlugin extends Plugin {
 
     @PluginMethod
     public void downloadAndApply(PluginCall call) {
-        final String baseUrl = call.getString("baseUrl", "https://mmo.dagyr.me").replaceAll("/+$", "");
+        final String baseUrl = call.getString("baseUrl", "https://velscour.dagyr.me").replaceAll("/+$", "");
         final String targetVersion = call.getString("version", "0.1.0");
         final String targetManifestHash = call.getString("manifestHash", "");
         final JSONArray filesArr = call.getArray("files", new JSArray());

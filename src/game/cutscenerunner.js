@@ -524,28 +524,51 @@ export function createScenarioDirector(world, doc, opts = {}) {
   let arrivalPending = !opts.skipArrival;
   let arrivalDelay = 0.25;
 
+  const orientActor = (who, fx, fy, tx, ty) => {
+    const dx = tx - fx, dy = ty - fy;
+    if (Math.hypot(dx, dy) < 1e-3) return;
+    if (who.sprite === 'townsfolk' || ('walking' in who && !('moving' in who))) {
+      if (typeof who.face === 'function') who.face(tx, ty);
+    } else {
+      const ang = Math.atan2(dy, dx);
+      who.facing = ang;
+      const sx = Math.cos(ang) - Math.sin(ang);
+      if (Math.abs(sx) > 0.12) {
+        who.flip = sx < 0;
+        who.flipAt = -1;
+      }
+    }
+  };
+
   const walkActor = (who, to, dur = 1.0, fadeIn = false, then = null) => {
     const fx = who.x, fy = who.y;
     let t = 0;
     const total = Math.max(0.05, dur);
-    if (who.isPlayer && who.face) who.face(Math.atan2(to[1] - fy, to[0] - fx));
-    else if (who.face) who.face(to[0], to[1]);
+    const isFolk = !!(who.sprite === 'townsfolk' || ('walking' in who && !('moving' in who)));
+    orientActor(who, fx, fy, to[0], to[1]);
     scripted.push((dt) => {
       t += dt;
       const k = clamp(t / total, 0, 1);
+      const active = k < 1;
       who.x = fx + (to[0] - fx) * k;
       who.y = fy + (to[1] - fy) * k;
-      if (fadeIn) who.alpha = k < 1 ? k : 1;
-      if (who.isPlayer) {
-        who.moving = k < 1;
-        who.moveTarget = null;
-        who.path = null;
-        who.attackTarget = null;
+      if (fadeIn) who.alpha = active ? k : 1;
+      if (!active && then) then();
+      const keepMoving = active || !!who.going;
+      if (isFolk) {
+        who.walking = keepMoving;
+        if (keepMoving) who.walkT = (who.walkT || 0) + dt;
+        else who.walkT = 0;
       } else {
-        who.walking = k < 1;
+        who.animT = (who.animT || 0) + dt;
+        who.moving = keepMoving;
+        if (who.isPlayer) {
+          who.moveTarget = null;
+          who.path = null;
+          who.attackTarget = null;
+        }
       }
-      if (k >= 1 && then) then();
-      return k < 1;
+      return active;
     });
   };
 

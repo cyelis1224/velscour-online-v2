@@ -137,7 +137,7 @@ export function getServerBaseUrl() {
     const params = new URLSearchParams(loc.search);
     const configured = params.get('server') || localStorage.getItem('dagyr_lobby_server');
     if (configured) {
-      if (configured.startsWith('mmo.dagyr.me')) return 'https://mmo.dagyr.me';
+      if (configured.startsWith('velscour.dagyr.me')) return 'https://velscour.dagyr.me';
       if (configured.startsWith('http://') || configured.startsWith('https://')) {
         return configured.replace(/\/+$/, '');
       }
@@ -152,7 +152,7 @@ export function getServerBaseUrl() {
   }
 
   // Default production tunnel for desktop and native mobile clients
-  return 'https://mmo.dagyr.me';
+  return 'https://velscour.dagyr.me';
 }
 
 /**
@@ -280,9 +280,9 @@ export async function checkForUpdates({ force = false } = {}) {
       clearTimeout(timeoutId);
 
       if (!res || !res.ok) {
-        if (baseUrl !== 'https://mmo.dagyr.me' && (!window.VELSCOUR_TEST_MENU || forceTestUpdate)) {
+        if (baseUrl !== 'https://velscour.dagyr.me' && (!window.VELSCOUR_TEST_MENU || forceTestUpdate)) {
           try {
-            const fallbackRes = await fetch(`https://mmo.dagyr.me/api/version?_t=${Date.now()}`, { cache: 'no-store' });
+            const fallbackRes = await fetch(`https://velscour.dagyr.me/api/version?_t=${Date.now()}`, { cache: 'no-store' });
             if (fallbackRes && fallbackRes.ok) {
               res = fallbackRes;
             }

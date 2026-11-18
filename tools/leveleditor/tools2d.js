@@ -388,12 +388,25 @@ export function snapWallMount(doc, world, tx, ty, item) {
   return true;
 }
 
+/** Center tile `[cx, cy]` of an architectural opening (`door` or `arch`). */
+export function openingCenter(op) {
+  const mid = ((op.a0 ?? 0) + (op.a1 ?? 2)) / 2;
+  return op.axis === 'y' ? [op.line ?? 0, mid] : [mid, op.line ?? 0];
+}
+
 /** Snap an Arch or Door opening across a hallway/doorway near `(tx, ty)`. */
 export function placeOpeningAt(doc, tx, ty, item) {
   const span = item.span || (item.openKind === 'door' ? 2 : 3);
-  const axis = doc._lastOpenAxis || 'x';
+  const { w, h, layers } = doc.grid;
+  const fl = (x, y) => x >= 0 && y >= 0 && x < w && y < h && layers.t[y * w + x] === 1;
+  const ix = Math.floor(tx), iy = Math.floor(ty);
+  // Infer hallway axis from flanking walls when clear, else use last axis
+  const wallsEW = (!fl(ix - 1, iy) ? 1 : 0) + (!fl(ix + 1, iy) ? 1 : 0) + (!fl(ix - 2, iy) ? 0.5 : 0) + (!fl(ix + 2, iy) ? 0.5 : 0);
+  const wallsNS = (!fl(ix, iy - 1) ? 1 : 0) + (!fl(ix, iy + 1) ? 1 : 0) + (!fl(ix, iy - 2) ? 0.5 : 0) + (!fl(ix, iy + 2) ? 0.5 : 0);
+  const axis = wallsEW > wallsNS ? 'x' : wallsNS > wallsEW ? 'y' : (doc._lastOpenAxis || 'x');
+  doc._lastOpenAxis = axis;
   const line = Math.round(axis === 'x' ? ty : tx);
-  const a0 = Math.floor((axis === 'x' ? tx : ty) - span / 2);
+  const a0 = Math.round((axis === 'x' ? tx : ty) - span / 2);
   const opening = {
     id: `op_${Date.now().toString(36)}`,
     axis,
@@ -432,6 +445,34 @@ export function pickSceneObjectAt(doc, tx, ty, maxDist = 1.6, world = null) {
   for (const psg of doc.entities.passages || []) {
     if (Array.isArray(psg.from)) check('passage', psg, psg.from[0], psg.from[1], 1.6, { end: 'from' });
     if (Array.isArray(psg.to)) check('passage', psg, psg.to[0], psg.to[1], 1.6, { end: 'to' });
+  }
+
+  // Doors & Arches: test both floor threshold segment and upright sprite height in iso screen space
+  for (const op of doc.architecture.openings || []) {
+    const [cx, cy] = openingCenter(op);
+    if (world && !inActiveEditorRegion(world, cx)) continue;
+    let bestD = Infinity;
+    for (const hs of [0, 0.45, 0.9, 1.35, 1.8]) {
+      const qx = tx + hs, qy = ty + hs;
+      const u = op.axis === 'y' ? qy : qx;
+      const v = op.axis === 'y' ? qx : qy;
+      const cu = clamp(u, Math.min(op.a0, op.a1), Math.max(op.a0, op.a1));
+      const d = Math.hypot(u - cu, v - op.line);
+      if (d < bestD) bestD = d;
+    }
+    if (bestD <= 1.25) candidates.push({ type: 'opening', obj: op, d: bestD });
+  }
+
+  // Wall Torches & Wall Hangings (accounting for vertical wall height shift in iso screen space)
+  for (const tc of doc.architecture.torches || []) {
+    if (world && !inActiveEditorRegion(world, tc.x)) continue;
+    const d = Math.min(dist(tx, ty, tc.x, tc.y), dist(tx + 0.9, ty + 0.9, tc.x, tc.y), dist(tx + 1.6, ty + 1.6, tc.x, tc.y));
+    if (d <= 1.1) candidates.push({ type: 'torch', obj: tc, d: d + 0.15 });
+  }
+  for (const wh of doc.architecture.wallHangings || []) {
+    if (world && !inActiveEditorRegion(world, wh.x)) continue;
+    const d = Math.min(dist(tx, ty, wh.x, wh.y), dist(tx + 0.9, ty + 0.9, wh.x, wh.y), dist(tx + 1.6, ty + 1.6, wh.x, wh.y));
+    if (d <= 1.15) candidates.push({ type: 'hanging', obj: wh, d: d + 0.15 });
   }
 
   for (const sp of doc.entities.spawns || []) check('spawn', sp, sp.x, sp.y, 1.5);
@@ -903,6 +944,35 @@ export function drawEditorOverlays(ctx, doc, world, state) {
       ctx.ellipse(vx, vy - 18, av.kind === 'galleon' ? 128 : 54, av.kind === 'galleon' ? 58 : 26, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
+    } else if (sel.type === 'opening' && sel.obj) {
+      const op = sel.obj;
+      const pA = op.axis === 'y' ? [op.line, op.a0] : [op.a0, op.line];
+      const pB = op.axis === 'y' ? [op.line, op.a1] : [op.a1, op.line];
+      const [cx, cy] = openingCenter(op);
+      const sx0 = isoX(pA[0], pA[1]), sy0 = isoY(pA[0], pA[1]);
+      const sx1 = isoX(pB[0], pB[1]), sy1 = isoY(pB[0], pB[1]);
+      const mx = isoX(cx, cy), my = isoY(cx, cy);
+      if (Math.abs(mx) < 1e6) {
+        ctx.save();
+        ctx.strokeStyle = '#ffe2a0';
+        ctx.lineWidth = 3 / Math.max(0.5, camera.zoom);
+        ctx.beginPath();
+        ctx.moveTo(sx0, sy0);
+        ctx.lineTo(sx1, sy1);
+        ctx.lineTo(sx1, sy1 - 54);
+        ctx.lineTo(sx0, sy0 - 54);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(255, 226, 160, 0.12)';
+        ctx.fill();
+        ctx.setLineDash([5, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = 'bold 11px monospace';
+        ctx.fillStyle = '#ffe2a0';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${op.kind === 'door' ? '🚪 Door' : '🏛️ Arch'} (${op.axis.toUpperCase()})`, mx, Math.min(sy0, sy1) - 60);
+        ctx.restore();
+      }
     } else if (sel.type === 'start' || sel.type === 'townPortal') { ox = sel.obj[0]; oy = sel.obj[1]; }
     else if (sel.type === 'passage') {
       const pt = sel.end === 'to' ? sel.obj.to : sel.obj.from;

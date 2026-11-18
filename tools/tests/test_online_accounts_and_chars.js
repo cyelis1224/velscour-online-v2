@@ -186,14 +186,14 @@ async function waitForServer(url, timeoutMs = 15000) {
     assert(checkFreed.available === true, 'Deleted character name should be freed and available again');
     console.log('[Test] Verified character deletion and name release');
 
-    // 8b. Enter Lobby with "SirValen" and verify it connects to mmo.dagyr.me:8124 (not old Velscour.dagyr.me:8123 lobby)
+    // 8b. Enter Lobby with "SirValen" and verify it connects to velscour.dagyr.me:8124 (not old Velscour.dagyr.me:8123 lobby)
     await page.click('#online-enter-lobby-btn');
     await page.waitForSelector('#d2-lobby', { timeout: 10000 });
     await page.waitForFunction(() => {
       const sub = document.querySelector('#d2-channel-sub');
-      return sub && sub.textContent.includes('mmo.dagyr.me:8124');
+      return sub && sub.textContent.includes('velscour.dagyr.me:8124');
     }, { timeout: 8000 });
-    console.log('[Test] Verified lobby targets mmo.dagyr.me:8124');
+    console.log('[Test] Verified lobby targets velscour.dagyr.me:8124');
 
     // 8c. Verify uniform character body sizing in lobby pedestal regardless of weapon size
     const sizingCheck = await page.evaluate(async () => {
