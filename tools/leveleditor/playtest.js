@@ -9,7 +9,7 @@ import { SKILLS, CLASS_SKILLS } from '../../src/data/skills.js';
 import { rollItem } from '../../src/data/items.js';
 import { CLASSES } from '../../src/data/classes.js';
 import { camera, screenDirToTile } from '../../src/core/view.js';
-import { updateVfx } from '../../src/gfx/vfx.js';
+import { updateVfx, clearVfx } from '../../src/gfx/vfx.js';
 import { dist } from '../../src/core/util.js';
 import { buildCustomScenarioWorld } from '../../src/world/customscenario.js';
 import { loadGearArt } from '../../src/core/gearart.js';
@@ -89,6 +89,10 @@ export class PlaytestController {
 
     G.world = world;
     G.player = player;
+    G.godMode = !!this.godMode;
+    G.hurtFlash = 0;
+    G.flash = 0;
+    G.hitStop = 0;
     this.studio.world = world;
 
     camera.computeZoom();
@@ -103,7 +107,15 @@ export class PlaytestController {
     this.keys.clear();
     this.mouseDown = false;
     Cine.abort();
+    clearVfx();
     G.player = null;
+    G.godMode = false;
+    G.hurtFlash = 0;
+    G.flash = 0;
+    G.hitStop = 0;
+    camera.shakeAmt = 0;
+    camera.shakeX = 0;
+    camera.shakeY = 0;
     await this.studio.rebuildWorld({ keepCamera: true });
     if (this.savedCam) {
       camera.x = this.savedCam.x;
@@ -228,6 +240,14 @@ export class PlaytestController {
     const world = this.studio.world;
     if (!this.active || !world) return;
     const p = world.player;
+
+    G.godMode = !!this.godMode;
+    if (this.godMode) {
+      G.hurtFlash = 0;
+    } else if (G.hurtFlash > 0) {
+      G.hurtFlash = Math.max(0, G.hurtFlash - dt * 2.5);
+    }
+    if (G.flash > 0) G.flash = Math.max(0, G.flash - dt * 3.5);
 
     Cine.update(dt);
     camera.update(dt);

@@ -4,6 +4,7 @@
 // - 3D Pirate Seas Naval (GPU bakeDeck One-Click Ship Deck Baker & 2-Click Boarding Plank Linker)
 // - Sky Lanes Airship (Flagship & Weather Controls)
 // - 3D Iron Express Train (Roof Cutaway Scrubber, Gorge Speed Preview & Car Consist Editor)
+import { G } from '../../src/state.js';
 import { camera, isoX, isoY } from '../../src/core/view.js';
 import { CLASSES } from '../../src/data/classes.js';
 import { bakeDeck, seaPlank } from '../../src/gfx/seabattle3d.js';
@@ -93,6 +94,8 @@ export function renderModeBanner(bannerEl, doc, world, studio) {
     });
     bannerEl.querySelector('#pt-god')?.addEventListener('change', (e) => {
       pt.godMode = e.target.checked;
+      G.godMode = pt.godMode;
+      if (pt.godMode) G.hurtFlash = 0;
     });
     bannerEl.querySelector('#pt-respawn')?.addEventListener('click', () => pt.restart(doc));
     bannerEl.querySelector('#pt-stop')?.addEventListener('click', () => studio.togglePlaytest(false));

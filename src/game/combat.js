@@ -419,8 +419,8 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
   if (!o.silent) {
     const z = clamp((tgt.artH || tgt.spriteH || 40) * (tgt.scale || 1) * 0.85, 26, 150) + (tgt.fly ? 18 : 0);
     if (tgt.isPlayer) {
-      damageText(tgt.x, tgt.y, z, dmg, o.dot ? 'dot' : 'hurt', '#ff4030');
-      if (!o.dot) {
+      if (dmg > 0) damageText(tgt.x, tgt.y, z, dmg, o.dot ? 'dot' : 'hurt', '#ff4030');
+      if (!o.dot && !G.godMode && dmg > 0) {
         sfx('hurt');
         const hurtMax = G.settings?.reduceFlashing ? 0.2 : 0.4;
         G.hurtFlash = Math.min(hurtMax, (G.hurtFlash || 0) + (dmg / tgt.maxHp) * (G.settings?.reduceFlashing ? 0.8 : 1.5));

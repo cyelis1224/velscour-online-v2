@@ -1997,6 +1997,8 @@ class VelscourStudio {
           this.playtest.drawPlaytestHud(this.ctx);
         } else {
           // Editor preview tick (lights, torches, 3D water/flames, and optional Cine preview)
+          G.hurtFlash = 0;
+          if (G.flash > 0) G.flash = Math.max(0, G.flash - dt * 3.5);
           lights.length = 0;
           this.world.ambientLights();
           if (this.state.showLighting) {
