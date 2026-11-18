@@ -1054,21 +1054,14 @@ const server = http.createServer((req, res) => {
       serverTime: Date.now(),
       buildTime: latestBuild,
       changelog: [
-        "257 Active Dungeon Affixes: Full dungeon affix catalog with active mechanics (enemy modifiers, death bursts, hazards, healing suppression, spell fatigue, and mana droughts/surges).",
-        "Interactive Portal Descent Dialog: Descent portal choices now preview up to 5 real active dungeon affixes per depth along with themed biome selection.",
-        "50 Interactive Shrines & World Encounters: Added 50 interactive world objects across dungeons including stat blessings, cursed altars, recovery fountains, gambling idols, and wave altars.",
-        "Dynamic Wave Altars & Power Monoliths: Trigger escalating enemy ambush waves, active pylon defense fields, and multi-tier chest rewards upon completion.",
-        "6-Tier Specialized Treasure Chests: Common through Mythic chest rarities with scaling loot multipliers, plus specialized Gilded (gold) and Jeweled (gems) chests.",
-        "20-Tier Gear & 6-Act Campaign Rebalance: Expanded equipment into 20 distinct tiers (10 core + 10 ascendancy) across 6 Act campaign depth bands.",
-        "Live Gear Tooltip Comparisons: Hovering over weapons, armor, and jewelry displays real-time stat differentials (+/- differences) against equipped gear.",
-        "Resource Orb Collection Lifecycle: Added ground drop handlers for Rejuvenation Orbs (35% life/mana restore) and Fury Orbs (15s haste/CDR blessing), and fixed orb stacking vacuum bug.",
-        "Auto-Play World Object & Orb Intelligence: Auto-play automatically interacts with shrines, wave altars, and monoliths, and prioritizes collecting Rejuvenation and Fury orbs.",
-        "Paladin Blessed Shield Multiplayer Sync: Fixed Paladin orbiting Blessed Shield visual effects to render reliably for remote party members.",
-        "Duel Self-Hit Immunity: Fixed friendly player duel combat registration to prevent self-inflicted damage.",
-        "Monk Armor & Gear Art Overhaul: Complete sprite redesign for Monk armor across all rarities from Common to Mythic with updated isometric gear art.",
-        "NPC Render Crash Fix: Resolved asset map import crash during NPC rendering in render.js.",
-        "Lobby Password Form Autofill: Wrapped multiplayer room password inputs in valid HTML forms for browser compliance.",
-        "Engine Cleanup: Removed legacy defense/ prototype directory, streamlining codebase and reducing mobile/desktop bundle sizes."
+        "Single-Player Save Isolation Fix: Fixed a bug where playing Single Player while logged into an Online account misflagged local heroes as online characters, preventing local saves and redirecting Save & Quit to the Online Character Select screen.",
+        "Browser-Close & Tab-Exit Save Protection: Closing the browser window/tab or backgrounding on mobile now synchronously flushes online character and reliquary state via both WebSocket frames (supporting >64 KB stashes) and navigator.sendBeacon / keepalive HTTP saves.",
+        "Loot Pickup & Smart Periodic Autosaves: Immediate character saves on Abyssal Keys and Epic/Legendary/Mythic/Sealed pickups, 1.5s coalesced saves on backpack/gem loot drops, and change-aware 30s/60s periodic timers that skip redundant idle writes.",
+        "WebSocket Save Fallback Fix: Exposed live NetworkManager handle so HTTP save fallbacks reliably route over active WebSocket sessions in both game rooms and the Battle.net lobby.",
+        "Velscour Level & Cutscene Studio: Added full 2D/3D scenario and cutscene authoring suite with 3D camera depth/slice controls, single-track keyframe timeline, multi-boss & passage baking, and instant Playtest across all 11 world categories.",
+        "Custom 3D Worlds & Fleet Boarding Choreography: Added Mountainside forested switchbacks, Snowy Summit multi-boss peaks, 3D Airship & Naval boarding skiff grappling hook encounters, and multiplayer cutscene trigger synchronization.",
+        "Mobile HUD Quest Tracker Toggle: Added collapsible quest tracker toggle on mobile HUD and cleared residual screen flashes/VFX when exiting Playtest or God Mode.",
+        "Town, Altar & Reliquary Polish: Aligned Act 2 Altar of Heresy collision to base point, fixed auto-play town destination dialog dismissal, and capped Ancestral Reliquary random gem selection to 5 choices with auto-play support."
       ],
       downloads: {
         android: {

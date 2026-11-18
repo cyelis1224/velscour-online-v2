@@ -328,20 +328,18 @@ async function boot() {
   UI.macros = MacrosUI;
   window.addEventListener('error', (e) => reportError(e.error || e.message));
   window.addEventListener('unhandledrejection', (e) => reportError(e.reason));
-  window.addEventListener('beforeunload', () => {
-    if (G.char) {
-      try { game.autosave(); } catch (e) { }
-    }
-  });
-  window.addEventListener('beforeunload', () => {
-    if (G.char) {
-      try { game.autosave(); } catch (e) { }
-    }
-  });
+  const onPageUnload = () => {
+    try { game.flushUnloadSave(); } catch (e) { }
+  };
+  window.addEventListener('beforeunload', onPageUnload);
+  window.addEventListener('pagehide', onPageUnload);
   let bgHeartbeat = null;
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       if (G.char) game.autosave();
+      else if (G.mode === 'lobby' && G.selectedChar) {
+        try { game.flushUnloadSave(); } catch (e) { }
+      }
       if (G.mode === 'game' && G.room && !bgHeartbeat) {
         let bgLast = performance.now();
         bgHeartbeat = setInterval(() => {

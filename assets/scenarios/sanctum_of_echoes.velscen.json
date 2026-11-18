@@ -26,7 +26,8 @@
     "audio": {
       "music": "wilds",
       "ambience": "catacombs"
-    }
+    },
+    "updatedAt": "2026-11-18T17:25:31.477Z"
   },
   "grid": {
     "w": 56,
@@ -46,7 +47,8 @@
       "subdiv": 2,
       "waterfalls": [],
       "snowLine": 28,
-      "cloudSeaY": -6
+      "cloudSeaY": -6,
+      "torches3d": []
     },
     "tower": null,
     "dunes": null,
@@ -158,7 +160,8 @@
         "x": 28,
         "y": 38
       }
-    ]
+    ],
+    "passages": []
   },
   "objectives": [
     {
@@ -211,16 +214,32 @@
           "mode": "actor",
           "who": "hero",
           "zoom": 1.8,
-          "dur": 1.1,
+          "dur": 1.3,
           "ease": "out",
           "push": 0.02,
           "wait": true
         },
         {
+          "id": "st_mwme15ia_4",
+          "type": "wait",
+          "dur": 1
+        },
+        {
+          "id": "st_mwme2izm_5",
+          "type": "say",
+          "who": "bound_spirit",
+          "text": "{hero}! We've been waiting for a {class} like yourself to come along and take care of the {@sanctum_guardian}! I am {@bound_spirit}. Please Listen to what I have to say.",
+          "autoFrame": true,
+          "voice": {
+            "pitch": 1,
+            "wave": "square"
+          }
+        },
+        {
           "id": "st_3",
           "type": "cam",
           "mode": "return_hero",
-          "dur": 0.7,
+          "dur": 3,
           "wait": true
         }
       ]

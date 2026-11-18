@@ -908,9 +908,9 @@ export function renderWorld(ctx, world) {
   }
   for (const c of world.creatures) {
     if (c.dead) continue;
-    const px = isoX(c.x, c.y), py = isoY(c.x, c.y);
-    if (px < vr.x0 - 80 || px > vr.x1 + 80 || py < vr.y0 - 40 || py > vr.y1 + 160) { c.sbox = null; continue; }
-    enqueue(c.x + c.y + (c.fly ? 0.2 : 0), 6, c);
+    const px = isoX(c.x, c.y), py = isoY(c.x, c.y), sy = py - (c.z || 0);
+    if (px < vr.x0 - 90 || px > vr.x1 + 90 || (py < vr.y0 - 40 && sy < vr.y0 - 40) || (py > vr.y1 + 160 && sy > vr.y1 + 160)) { c.sbox = null; continue; }
+    enqueue(c.x + c.y + (c.entering && (c.z || 0) > 24 ? 3.5 : c.fly ? 0.2 : 0), 6, c);
   }
   const closeEnough = (x, y, marginX = 90, marginY = 130) => {
     const px = isoX(x, y), py = isoY(x, y);

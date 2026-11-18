@@ -462,6 +462,7 @@ export class Player extends Creature {
         return true;
       case 'key': { // an Abyssal Key (docs/ENDGAME.md): three open Velscour Unbound
         c.keys = (c.keys | 0) + 1; endgame().keysFound++; saveEndgame();
+        if (G.game?.autosave) G.game.autosave();
         sfx('levelup', 0.5); floatText(this.x, this.y, 56, `ABYSSAL KEY ${Math.min(3, c.keys)}/3`, '#20e0ff', 15, { life: 2 });
         if (G.ui) { G.ui.log(`An <b style="color:#20e0ff">Abyssal Key</b>: ${c.keys} held${c.keys >= 3 ? ' — three open <b>Velscour Unbound</b> at the Altar of Heresy' : ' (three open Velscour Unbound)'}.`, '#a0f0ff'); G.ui.refresh(); }
         return true;
@@ -494,6 +495,12 @@ export class Player extends Creature {
             sfx('error');
           }
           return false;
+        } else if (G.game) {
+          if ((g.item.rarity || 0) >= 3 || g.item.legendary || g.item.sealed) {
+            G.game.autosave();
+          } else if (G.game.autosaveSoon) {
+            G.game.autosaveSoon(1500);
+          }
         }
         sfx('pickup');
         if (G.room && g.lootId) net.sendLootPickup(g.lootId);
@@ -574,22 +581,26 @@ export class Player extends Creature {
   tryUseSkill(skOrId, tx, ty, target = null) {
     const sk = typeof skOrId === 'string' ? SKILLS[skOrId] : skOrId;
     if (this.dead || !sk) return false;
-    if (sk.classId === 'barbarian' && ((sk.kind === 'whirl' && this.rage < whirlwindRageCost(L)) || this.rage < rageCost(sk, L))) {
-      if ((this.noRageT || 0) <= 0) { floatText(this.x, this.y, 60, 'Need Rage', '#ff9933', 12); this.noRageT = 0.8; }
-      return false;
-    }
+    const L = this.skillLevel(sk);
+    if (!L) return false;
     if (this.world.kind === 'town') {
       if ((this.noManaT || 0) <= 0) { floatText(this.x, this.y, 60, 'You cannot fight in town', '#c0b090', 12); this.noManaT = 1; }
       return false;
     }
     if (this.castLock > 0) { this.queued = { sk, tx, ty, target }; return false; }
     if (this.channel) {
+      if (sk.kind === 'whirl' && this.channel.rage !== undefined) {
+        this.channel = null; // pressing Whirlwind again stops spinning cleanly
+        return true;
+      }
       if (!(this.channel instanceof BeamCh)) return false;
       this.channel = null; // re-casting cancels a channelled beam
     }
-    const L = this.skillLevel(sk);
-    if (!L) return false;
     if ((this.cooldowns[sk.id] || 0) > 0) return false;
+    if (sk.classId === 'barbarian' && ((sk.kind === 'whirl' && this.rage < whirlwindRageCost(L)) || this.rage < rageCost(sk, L))) {
+      if ((this.noRageT || 0) <= 0) { floatText(this.x, this.y, 60, 'Need Rage', '#ff9933', 12); this.noRageT = 0.8; }
+      return false;
+    }
     const aug = this.augFor(sk), quick = aug && aug.haste ? 1 - Math.min(0.6, 0.25 * aug.haste) : 1;
     const cost = Math.round(manaCost(sk, L) * quick * 10) / 10;
     if (this.mana < cost) {
@@ -632,7 +643,8 @@ export class Player extends Creature {
       };
     }
     if (G.room) net.sendSkillCast(sk.id, tx, ty, target?.id || null, L, extra);
-    if (rageCost(sk)) { this.rage -= rageCost(sk); this.char.rage = this.rage; }
+    const rCost = rageCost(sk, L);
+    if (rCost) { this.rage = Math.max(0, this.rage - rCost); this.char.rage = this.rage; }
     // Attacks build Rage; no passive regeneration. Hits award most of the resource.
     if (this.classId === 'barbarian' && sk.attack) this.gainRage(sk.id === 'barbarian.0.0' ? 3 : sk.kind === 'whirl' ? 0 : 0.7);
     castArtFx(this, sk, tx, ty);

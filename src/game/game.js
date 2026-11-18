@@ -110,7 +110,7 @@ import { offerCommissions, setupCommissions, commissionClear, wantedBiomes, LINE
 import { titleScreen, onlineCharSelectScreen, hide as hideScreen, deathScreen, victoryScreen, pauseMenu, helpDialog } from '../ui/screens.js';
 import { openLobby } from '../ui/lobby.js';
 import { net, serializeShownGear, gearSignature } from '../net/network.js';
-import { saveOnlineCharacter, flushOnlineSave, getOnlineToken } from '../net/online.js';
+import { saveOnlineCharacter, flushOnlineSave, flushOnlineSaveUnload } from '../net/online.js';
 import { RemotePlayer } from '../net/remoteplayer.js';
 import { updateAutomapPartyRoster } from '../ui/partyroster.js';
 import { GameChat } from '../ui/chat.js';
@@ -227,7 +227,11 @@ let monSyncT = 0;
 function cineTick(w, dt) {
   w.time += dt;
   lights.length = 0;
-  for (const c of w.creatures) if (c.entering && !c.dead) c.update(dt);
+  for (const c of w.creatures) {
+    if (c.dead) continue;
+    if (c.entering) c.update(dt);
+    else if (c.spawnT < 1) c.spawnT += dt;
+  }
   for (const n of w.npcs) n.update && n.update(dt);
   if (w.overworldScenario) w.overworldScenario.update(dt);
   updateVfx(dt, w);
@@ -1227,7 +1231,8 @@ export const game = {
     const classId = charInfo.classId;
     await this.loadClassPack(classId);
     const c = fresh ? newCharData(classId, charInfo.name) : migrate(charInfo);
-    if (charInfo && charInfo.isOnline) c.isOnline = true;
+    c.isOnline = false;
+    delete c.accountId;
     G.selectedChar = c;
     this.startChar(c, fresh, null);
   },
@@ -1405,20 +1410,52 @@ export const game = {
     this.autosave();
   },
 
-  async autosave() {
+  autosaveSoon(delayMs = 1500) {
+    if (!G.char) return;
+    if (this._saveSoonTimer) return;
+    this._saveSoonTimer = setTimeout(() => {
+      this._saveSoonTimer = null;
+      if (G.char) this.autosave();
+    }, delayMs);
+  },
+
+  async autosave({ periodic = false } = {}) {
+    if (this._saveSoonTimer) {
+      clearTimeout(this._saveSoonTimer);
+      this._saveSoonTimer = null;
+    }
     if (!G.char) return false;
     saveT = 0;
     saveMarkXp(); // XP towards the next Infernal Mark (game/marks.js)
-    if (G.char.isOnline || (getOnlineToken() && G.char.id)) {
-      G.char.isOnline = true;
+    if (G.char.isOnline) {
       G.char.marks = JSON.parse(JSON.stringify(endgame().marks));
-      return await saveOnlineCharacter(G.char);
+      return await saveOnlineCharacter(G.char, { onlyIfChanged: periodic });
     }
     writeSave(G.char);
     return true;
   },
 
+  flushUnloadSave() {
+    if (this._saveSoonTimer) {
+      clearTimeout(this._saveSoonTimer);
+      this._saveSoonTimer = null;
+    }
+    const c = G.char || (G.mode === 'lobby' ? G.selectedChar : null);
+    if (!c) return false;
+    if (G.char) saveMarkXp();
+    if (c.isOnline) {
+      try { c.marks = JSON.parse(JSON.stringify(endgame().marks)); } catch (e) { }
+      return flushOnlineSaveUnload(c);
+    }
+    writeSave(c);
+    return true;
+  },
+
   async quitToTitle(toLobby = !!G.room) {
+    if (this._saveSoonTimer) {
+      clearTimeout(this._saveSoonTimer);
+      this._saveSoonTimer = null;
+    }
     if (Auto.on) Auto.toggle(false);
     if (G.room) {
       net.leaveRoom();
@@ -1441,6 +1478,7 @@ export const game = {
     }
     UI.closeAll();
     G.world = null; G.player = null; G.char = null;
+    if (!toLobby) G.selectedChar = null;
     setClassItems(null);
     HUD.show(false); TouchUI.show(false); GameChat.hide();
     clearVfx();
@@ -4685,7 +4723,7 @@ export const game = {
     // hovering things -> cursor
     G.canvas.style.cursor = G.hover ? 'pointer' : '';
     saveT += dt;
-    if (saveT > 30) this.autosave();
+    if (saveT > 30) this.autosave({ periodic: true });
   },
 
   render() {

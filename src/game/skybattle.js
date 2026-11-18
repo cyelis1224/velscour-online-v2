@@ -170,6 +170,8 @@ export function createSkyBattle(world, gen, biome, depth, opts, onSuccess) {
     const d = Math.hypot(to[0] - from[0], to[1] - from[1]), dur = o.dur ?? 0.55 + d / 11, arc = o.arc ?? 60 + d * 6;
     const lvTo = o.toLv ?? lvAt(to[0], to[1]);
     let t = 0, fast = 0;
+    m.spawnT = 1; m.x = from[0]; m.y = from[1]; m.z = from[2] * HS - elevationAt(m.x, m.y);
+    { const ang = Math.atan2(to[1] - from[1], to[0] - from[0]), sx = Math.cos(ang) - Math.sin(ang); m.facing = ang; if (Math.abs(sx) > 0.05) m.flip = sx < 0; }
     m.targetable = false; m.awake = true; m.moving = true; m.boarding = !!o.board;
     m.entering = (dt) => {
       // a boarder in the air with nothing on the deck to fight (hurry): the rest of the leap takes a quarter second
@@ -193,6 +195,8 @@ export function createSkyBattle(world, gen, biome, depth, opts, onSuccess) {
   function swingAcross(m, anchor, to, o = {}) {
     const from = [m.x, m.y, (m.z + elevationAt(m.x, m.y)) / HS], dur = o.dur ?? 1.5, rope = { a: anchor, m };
     let t = 0; const hit = new Set();
+    m.spawnT = 1;
+    { const ang = Math.atan2(to[1] - from[1], to[0] - from[0]), sx = Math.cos(ang) - Math.sin(ang); m.facing = ang; if (Math.abs(sx) > 0.05) m.flip = sx < 0; }
     m.targetable = false; m.awake = true; m.moving = true; S.ropes.push(rope); sfx('swing', 0.8);
     m.entering = (dt) => {
       t += dt; m.animT += dt;
@@ -213,7 +217,8 @@ export function createSkyBattle(world, gen, biome, depth, opts, onSuccess) {
   function rappelIn(m, to, anchor) {
     const top = 70 + rand(0, 30); let t = 0;
     const rope = { a: anchor || (() => [to[0] - 0.6, to[1] + 0.4, lvAt(to[0], to[1]) + top + 30]), m };
-    m.targetable = false; m.awake = true; m.boarding = true; m.x = to[0]; m.y = to[1]; S.ropes.push(rope);
+    m.spawnT = 1;
+    m.targetable = false; m.awake = true; m.boarding = true; m.x = to[0]; m.y = to[1]; m.z = top * HS; S.ropes.push(rope);
     const dur = rand(1.0, 1.4);
     let fast = 0;
     m.entering = (dt) => {

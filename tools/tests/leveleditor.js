@@ -260,11 +260,77 @@ function waitHealth(url, timeoutMs = 8000) {
     });
     check(pyramidPlaytestOk, 'Stepping onto Pyramid Door passage during Playtest did not teleport Hero into the Interior Tomb');
 
+    // 4c. Bake Forested Mountainside Switchback Climb (from Overworld -> Mountainside) & verify grass/dirt floors + pine trees!
+    const mtnReport = await page.evaluate(async () => {
+      const st = window.__STUDIO__;
+      await st.bakeSeedScenario({
+        title: 'Baked Mountainside Climb',
+        category: 'overworld',
+        biomeId: 'mountainside',
+        seed: 1337,
+        bossCount: 2,
+      });
+      return {
+        cat: st.doc.meta.category,
+        biome: st.doc.meta.biomeId,
+        snowLine: st.doc.grid.heightfield.snowLine,
+        floorCount: st.world?.townTiles?.length || 0,
+        propCount: st.doc.entities.props.length,
+        bosses: st.doc.entities.spawns.filter((s) => s.rank === 'boss' || s.rank === 'raid').length,
+      };
+    });
+    check(mtnReport.cat === '3d_alpine' && mtnReport.snowLine > 100 && mtnReport.floorCount >= 30 && mtnReport.propCount > 80 && mtnReport.bosses >= 2, `Mountainside bake check failed: ${JSON.stringify(mtnReport)}`);
+    await page.waitForTimeout(450);
+    await page.screenshot({ path: path.join(OUT, 'leveleditor_3d_mountainside.png') });
+
     // Verify Naval Fleet 3D scene still loads cleanly
     await page.selectOption('#sel-category', 'naval');
     await page.waitForFunction(() => window.__STUDIO__.doc.meta.category === 'naval' && !!window.__STUDIO__.world?.cave?.sea, null, { timeout: 15000 });
     await page.waitForTimeout(350);
     await page.screenshot({ path: path.join(OUT, 'leveleditor_naval_3d.png') });
+
+    // 4d. Verify Airship full Ironclad hull slices, 3D & Fleet Airship palette, sky placement/drag & Grappling Hooks!
+    await page.selectOption('#sel-category', 'airship');
+    await page.waitForFunction(() => window.__STUDIO__.doc.meta.category === 'airship' && !!window.__STUDIO__.world?.skyDirector, null, { timeout: 15000 });
+    await page.click('[data-pcat="3d"]');
+    await page.waitForTimeout(250);
+    const airReport = await page.evaluate(async () => {
+      const st = window.__STUDIO__;
+      const mapTCount = st.world.map.t.reduce((s, v) => s + v, 0);
+      const docDeckCount = st.doc.grid.layers.t.reduce((s, v) => s + v, 0);
+      const airCards = Array.from(document.querySelectorAll('#pal-grid .pitem')).filter((el) => /Flagship|Cutter|Hauler|Gasbag/i.test(el.textContent));
+      // Place a Flagship Galleon and a Boarding Cutter from the palette, lash 4 grappling hooks, and drag the Cutter!
+      const galItem = { kind: 'sky_vessel', vesselKind: 'galleon', defLv: 6, name: 'Pirate Flagship Galleon' };
+      const cutItem = { kind: 'sky_vessel', vesselKind: 'cutter', defLv: 12, name: 'Swift Boarding Cutter' };
+      await st.placePaletteEntityAt(14.0, 34.0, galItem);
+      st.doc.grid.airship.vessels[0].hooks = 4;
+      await st.placePaletteEntityAt(20.5, 27.0, cutItem);
+      st.setTool('select');
+      st.handleToolDown(20.5, 27.0);
+      st.handleToolMove(21.0, 26.5);
+      await st.handleToolUp();
+      // Select the Flagship so its Vessel Inspector & grappling chains show cleanly
+      st.state.selected = { type: 'sky_vessel', obj: st.doc.grid.airship.vessels[0] };
+      st.world.skyDirector.syncPlacedVessels({ inEditor: true });
+      st.renderInspector();
+      st.refreshBanner();
+      const cam = (await import('/src/core/view.js')).camera;
+      cam.zoom = 0.62;
+      cam.x = (22 - 34) * 32;
+      cam.y = (22 + 34) * 16 - 40;
+      return {
+        mapTCount,
+        docDeckCount,
+        airCards: airCards.length,
+        vessels: st.doc.grid.airship.vessels.length,
+        liveHooks: st.world.sky.hooks.length,
+      };
+    });
+    check(airReport.mapTCount > airReport.docDeckCount + 100, `Expected full Ironclad baked hull/spire tiles (> deck + 100), got ${JSON.stringify(airReport)}`);
+    check(airReport.airCards >= 4 && airReport.vessels === 2 && airReport.liveHooks === 4, `Airship fleet/hooks check failed: ${JSON.stringify(airReport)}`);
+    await page.click('#sky-add-hook-cine');
+    await page.waitForTimeout(350);
+    await page.screenshot({ path: path.join(OUT, 'leveleditor_airship_fleet.png') });
 
     // 5. Return to Sanctum of Echoes & run F5 Live Playtest
     await page.evaluate(async () => {

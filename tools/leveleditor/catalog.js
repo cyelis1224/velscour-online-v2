@@ -1,15 +1,18 @@
 // Unified Studio Asset & Entity Catalog: merges tools/assetmanager/manifest.json thumbnail sheets
 // with live runtime biome tilesets, BESTIARY, RAID_BOSSES, TOWNSFOLK, ANIMALS, VENDORS, BIOME_ROOMS,
 // 3D Cave/Dune baked props, and 3D Naval/Airship Fleet models.
-import { A } from '../../src/core/assets.js';
+import { A, biomeTileSet } from '../../src/core/assets.js';
+import { BIOME_BY_ID } from '../../src/data/biomes.js';
 import { BESTIARY, SWAPS } from '../../src/data/bestiary.js';
 import { RAID_BOSSES } from '../../src/game/raid.js';
 import { TOWNSFOLK, ANIMALS } from '../../src/data/townsfolk.js';
 import { VENDORS, townObject } from '../../src/world/town.js';
 import { overworldObject, EXTRA_TREES, SHRINES } from '../../src/gfx/overworldart.js';
+import { darkForestTree, DARK_TREE_NAMES } from '../../src/gfx/darkforest.js';
 import { THEMES, BIOME_ROOMS } from '../../src/data/biomerooms.js';
 import { caveSprite } from '../../src/gfx/cave3d.js';
 import { duneSprite } from '../../src/gfx/dunes3d.js';
+import { castle3dState } from '../../src/gfx/castle3dart.js';
 
 export const PALETTE_CATEGORIES = [
   { id: 'floors', label: 'Floors' },
@@ -21,6 +24,23 @@ export const PALETTE_CATEGORIES = [
   { id: 'rooms', label: 'Room Stamps' },
   { id: '3d', label: '3D & Fleet' },
 ];
+
+export const AIRSHIP_FLEET_KINDS = [
+  { id: 'galleon', name: 'Pirate Flagship Galleon', spriteKey: 'galleon', tag: 'FLAGSHIP', defLv: 6 },
+  { id: 'cutter', name: 'Swift Boarding Cutter', spriteKey: 'skiff_cutter_down', tag: 'SKIFF', defLv: 12 },
+  { id: 'hauler', name: 'Armored Iron Hauler', spriteKey: 'skiff_hauler_down', tag: 'SKIFF', defLv: 12 },
+  { id: 'gasbag', name: 'Gasbag Boarding Airship', spriteKey: 'skiff_gasbag_down', tag: 'AIRSHIP', defLv: 14 },
+];
+
+function skyshipBakedSprite(spriteKey) {
+  const st = castle3dState();
+  const sp = st?.sprites?.[spriteKey];
+  if (!sp || !sp.f?.length || !st.imgs) return null;
+  const f = sp.f[0];
+  const img = st.imgs[f[0]];
+  if (!img) return null;
+  return { img, sx: f[1], sy: f[2], w: f[3], h: f[4] };
+}
 
 export const NAVAL_FLEET_KINDS = [
   { id: 'brig', name: 'Black Tide Gun-Brig', deck: true },
@@ -189,6 +209,43 @@ export function getPaletteItems(tabId, { world, doc, biomeOnly = true, query = '
         });
       }
     }
+    if (biome?.id === 'mountainside' || biome?.id === 'dark_forest' || !biomeOnly) {
+      for (const tn of DARK_TREE_NAMES()) {
+        const nm = titleCase(tn);
+        if (!match(nm)) continue;
+        const spr = darkForestTree(tn);
+        if (spr) {
+          items.push({
+            uid: `dftree_${tn}`,
+            kind: 'prop',
+            propName: tn,
+            block: true,
+            tree: true,
+            name: nm,
+            tag: 'PINE',
+            spr,
+          });
+        }
+      }
+      if (biome?.id === 'mountainside') {
+        for (const extraId of ['dark_forest', 'snowy_summit']) {
+          const extraTs = BIOME_BY_ID[extraId] ? biomeTileSet(BIOME_BY_ID[extraId]) : null;
+          for (const s of extraTs?.scatter || []) {
+            const nm = titleCase(s.name);
+            if (!match(nm)) continue;
+            items.push({
+              uid: `mtn_${extraId}_${s.name}`,
+              kind: 'prop',
+              propName: s.name,
+              block: !!s.block,
+              name: nm,
+              tag: extraId === 'snowy_summit' ? 'SUMMIT' : 'TRAIL',
+              spr: s,
+            });
+          }
+        }
+      }
+    }
     // Town & Overworld buildings, trees, and shrines when outdoor or when "Biome" filter is unchecked
     if ((!biomeOnly || biome?.overworld || cat === 'town_arena') && A.town?.meta?.objects) {
       for (const key of Object.keys(A.town.meta.objects)) {
@@ -354,6 +411,24 @@ export function getPaletteItems(tabId, { world, doc, biomeOnly = true, query = '
       });
     }
   } else if (tabId === '3d') {
+    const pushAirships = () => {
+      for (const ak of AIRSHIP_FLEET_KINDS) {
+        if (match(`${ak.name} airship skyship skiff flagship`)) {
+          items.push({
+            uid: `airship_${ak.id}`,
+            kind: 'sky_vessel',
+            vesselKind: ak.id,
+            defLv: ak.defLv,
+            name: ak.name,
+            tag: ak.tag,
+            spr: skyshipBakedSprite(ak.spriteKey),
+            manifestId: ak.id === 'galleon' ? 'sea_galleon' : 'sea_cutter',
+          });
+        }
+      }
+    };
+    if (cat === 'airship') pushAirships();
+
     // 3D Cave baked stalagmites / columns
     for (const [ck, label] of [['mite', 'Stalagmite Spire'], ['cluster', 'Stalagmite Cluster'], ['column', 'Cavern Pillar'], ['tite', 'Hanging Stalactite'], ['boulder', '3D Cave Boulder']]) {
       if (match(label)) {
@@ -380,7 +455,8 @@ export function getPaletteItems(tabId, { world, doc, biomeOnly = true, query = '
         });
       }
     }
-    // 3D Naval & Airship Fleet
+    if (cat !== 'airship') pushAirships();
+    // 3D Naval Fleet
     for (const fk of NAVAL_FLEET_KINDS) {
       if (match(fk.name)) {
         items.push({

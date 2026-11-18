@@ -4,6 +4,37 @@ All notable changes to Velscour Online are documented in this file.
 
 ---
 
+## [0.2.8] - 2026-11-18
+
+### Fixed
+- **Single-Player vs. Online Character Save Isolation**:
+  - Fixed a critical bug in `game.autosave()` / `game.flushUnloadSave()` where `(getOnlineToken() && char.id)` caused Single Player heroes to be misflagged with `isOnline = true` whenever an Online session token was stored in `localStorage`, preventing local `writeSave()` persistence and sending players to the Online Character Select screen upon Save & Quit.
+  - Enforced `c.isOnline = false` in `startSinglePlayer()`, guarded `saveOnlineCharacter()` / `flushOnlineSaveUnload()` to require `char.isOnline === true`, and stripped any stray `isOnline` / `accountId` flags when reading local Single Player saves.
+
+---
+
+## [0.2.7] - 2026-11-18
+
+### Added
+- **Browser-Close & Tab-Exit Character Save Protection**:
+  - Added synchronous `flushOnlineSaveUnload()` wired to both `beforeunload` and `pagehide` (as well as lobby `visibilitychange` on mobile) so closing the browser tab/window without clicking Save & Quit still persists character and reliquary progress.
+  - Dual-channel unload flush writes directly to the open WebSocket (`save_character` / `save_reliquary`, bypassing the browser's 64 KB `keepalive` payload limit for large 300-slot stashes) while simultaneously queueing a CORS-safelisted `navigator.sendBeacon` / `fetch(..., { keepalive: true })` HTTP save fallback.
+- **Loot Pickup & Change-Aware Periodic Autosaves**:
+  - Picking up Abyssal Keys or Epic/Legendary/Mythic/Sealed items triggers an immediate character save; picking up standard gear or gems into the backpack/Gem Bag schedules a coalesced 1.5s debounced save (`autosaveSoon`).
+  - Periodic 30s in-game and 60s lobby autosaves now fingerprint character state (ignoring `lastPlayed`) to skip redundant network/disk writes while idle in town or lobby.
+- **Velscour Level & Cutscene Studio**:
+  - Full 2D/3D scenario and cutscene authoring suite (`npm run studio`) with 3D camera depth/slice controls, single-track keyframe timeline, multi-boss and passage baking, and live Playtest across all 11 world categories.
+  - Custom 3D world templates and choreography for Mountainside forested switchback trails, Snowy Summit peaks, and 3D Airship/Naval boarding skiff encounters with multiplayer cutscene trigger sync (`game_cine_trigger`).
+
+### Fixed & Improved
+- **Online HTTP/WebSocket Save Reliability**:
+  - Enabled `keepalive: true` (with automatic >64 KB quota retry fallback) on online character and reliquary HTTP saves, exposed `window.net` so WebSocket save fallbacks actually fire when HTTP fails, and awaited `flushOnlineSave()` on Lobby Quit.
+- **Mobile HUD, Town & Reliquary Polish**:
+  - Added collapsible mobile HUD quest tracker toggle and cleared residual screen flashes/VFX on exiting Studio Playtest.
+  - Aligned Act 2 Altar of Heresy collision to its marked base point, fixed auto-play town destination dialog dismissal, and limited Ancestral Reliquary random gem choices to 5 with auto-play selection support.
+
+---
+
 ## [0.2.6] - 2026-11-17
 
 ### Added

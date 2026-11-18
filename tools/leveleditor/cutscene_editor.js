@@ -6,6 +6,7 @@ import { auditionVoice } from '../../src/game/cutscenerunner.js';
 import { camera } from '../../src/core/view.js';
 import { Player } from '../../src/game/player.js';
 import { newCharData } from '../../src/game/save.js';
+import { AIR_CAPTAINS } from '../../src/data/airpirates.js';
 
 const TRIGGER_EVENTS = [
   { id: 'onArrival', label: '🚪 On Floor Arrival' },
@@ -40,6 +41,10 @@ const STEP_TYPE_OPTIONS = [
   ['wait', '⏱️ Timed Pause (Wait)'],
   ['until_arrived', '⏳ Wait Until Walks Finish'],
   ['until_cleared', '⏳ Wait Until Hostiles Cleared'],
+  ['sky_skiff', '🛥️ Airship: Boarding Skiff / Rope-Drop'],
+  ['sky_flagship', '🚢 Airship: Enemy Flagship Arrival / Exit'],
+  ['sky_hooks', '🪝 Airship: Grappling Hooks & Lash Ships'],
+  ['sky_volley', '💥 Airship: Broadside Volley / Captain Boards'],
 ];
 
 function escapeHtml(s) {
@@ -83,6 +88,26 @@ function describeStepKeyframe(st) {
     const sub = type === 'wait' ? `${dur.toFixed(1)}s pause` : 'Hold sequence';
     return { cls: 'wait', icon: type === 'wait' ? '⏱️' : '⏳', title, sub, dur, blocks: true };
   }
+  if (type === 'sky_skiff') {
+    const kindLbl = st.boatKind === 'flyover' ? 'Gasbag Rope-Drop' : `${st.boatKind || 'cutter'} (${st.dock || 'auto'})`;
+    return { cls: 'act', icon: '🛥️', title: `Skiff: ${kindLbl}`, sub: `${st.count ?? 4}× boarders`, dur: st.wait !== false ? 3.2 : 0.4, blocks: st.wait !== false };
+  }
+  if (type === 'sky_flagship') {
+    const act = st.action || 'arrive';
+    const dur = Number(st.dur) || 3.2;
+    return { cls: 'act', icon: '🚢', title: act === 'depart' ? 'Flagship Sinks' : 'Flagship Alongside', sub: act === 'arrive' ? `${dur.toFixed(1)}s approach` : act, dur: st.wait !== false && act === 'arrive' ? dur : 0.5, blocks: st.wait !== false && act === 'arrive' };
+  }
+  if (type === 'sky_hooks') {
+    const act = st.action || 'throw_and_lash';
+    const cnt = Number(st.count ?? 4);
+    return { cls: 'act', icon: '🪝', title: act === 'release' ? 'Unhook Chains' : 'Grapple & Lash', sub: act === 'release' ? 'Drop chains' : `${cnt}× iron chains`, dur: st.wait !== false && act !== 'release' ? 1.5 : 0.4, blocks: st.wait !== false && act !== 'release' };
+  }
+  if (type === 'sky_volley') {
+    const act = st.action || 'flagship_volley';
+    const title = act === 'captain_swing' ? 'Captain Swings!' : act === 'captain_leap' ? 'Captain Leaps!' : act === 'ironclad_volley' ? 'Return Broadside' : 'Flagship Volley';
+    const sub = act.startsWith('captain_') ? (st.captainId || 'ap_admiral_veyl').replace(/^ap_/, '') : `${st.count ?? 4}× cannon shots`;
+    return { cls: 'act', icon: act.startsWith('captain_') ? '⚔️' : '💥', title, sub, dur: st.wait ? 1.6 : 0.5, blocks: !!st.wait };
+  }
   const actMap = {
     vfx: ['✨', `VFX: ${st.vfx || 'ring'}`, st.who ? `@${st.who}` : `(${st.x ?? 0},${st.y ?? 0})`],
     shake: ['📳', 'Screen Shake', `${st.px ?? 7}px`],
@@ -98,6 +123,16 @@ function describeStepKeyframe(st) {
 
 function collectCastOptions(doc) {
   const out = [{ key: 'hero', label: 'Hero (Player Paperdoll)' }];
+  if (doc?.meta?.category === 'airship') {
+    for (const av of doc.grid?.airship?.vessels || []) {
+      if (av.castKey) out.push({ key: av.castKey, label: `⛵ @${av.castKey} (${av.name || av.kind})` });
+    }
+    out.push(
+      { key: 'flagship', label: '🚢 @flagship (Active Flagship)' },
+      { key: 'skiff', label: '🛥️ @skiff (Latest Boarding Skiff)' },
+      { key: 'gate', label: '🚪 @gate (Ironclad Bridge Gate)' },
+    );
+  }
   for (const s of doc.entities?.spawns || []) {
     if (s.castKey) out.push({ key: s.castKey, label: `@${s.castKey} (${s.name || s.arch})` });
   }
@@ -209,6 +244,14 @@ export class CutsceneEditorController {
       step = { id, type: 'walk', who: 'hero', markId: mk?.id || '', x: Math.round(sx), y: Math.round(sy - 3), dur: 1.4, pathfind: true, wait: true };
     } else if (kind === 'vfx') {
       step = { id, type: 'vfx', vfx: 'ring', who: 'hero', x: Math.round(sx), y: Math.round(sy), radius: 3.5, dur: 0.9, color: '#ffb060' };
+    } else if (kind === 'sky_skiff') {
+      step = { id, type: 'sky_skiff', boatKind: 'cutter', dock: 'mid', count: 4, rank: 'normal', captainId: '', wait: true };
+    } else if (kind === 'sky_flagship') {
+      step = { id, type: 'sky_flagship', action: 'arrive', dur: 3.2, captainA: 'ap_admiral_veyl', captainB: 'ap_red_gale_corsair', wait: true };
+    } else if (kind === 'sky_hooks') {
+      step = { id, type: 'sky_hooks', action: 'throw_and_lash', count: 4, wait: true };
+    } else if (kind === 'sky_volley') {
+      step = { id, type: 'sky_volley', action: 'flagship_volley', count: 4, captainId: 'ap_admiral_veyl', castKey: 'flagship_captain', dz: 0, wait: true };
     } else {
       step = { id, type: 'wait', dur: 1.0 };
     }
@@ -258,6 +301,7 @@ export class CutsceneEditorController {
       this.tempHero = p;
     }
     this.previewing = true;
+    studio.world.skyDirector?.syncPlacedVessels?.({ inEditor: false });
     const ok = studio.world.customDirector?.playCutscene(cine.id, {
       forceNormalSpeed: spd < 20,
       onEnd: () => this.cleanupAfterPreview(),
@@ -293,6 +337,7 @@ export class CutsceneEditorController {
       camera.zoom = this.savedCam.zoom;
       this.savedCam = null;
     }
+    this.studio.world?.skyDirector?.restoreEditorPreview?.();
   }
 
   renderAll() {
@@ -345,6 +390,7 @@ export class CutsceneEditorController {
       `;
     }).join('');
 
+    const isAirship = this.studio.doc?.meta?.category === 'airship';
     host.innerHTML = `
       <div class="ckf-meta-bar">
         <div class="ckf-add-bar">
@@ -353,10 +399,17 @@ export class CutsceneEditorController {
           <button class="mini-btn" data-addstep="say">💬 Say</button>
           <button class="mini-btn" data-addstep="card">🪧 Card</button>
           <button class="mini-btn" data-addstep="walk">🚶 Walk</button>
-          <button class="mini-btn" data-addstep="vfx">✨ FX / Door / Spawn</button>
+          <button class="mini-btn" data-addstep="vfx">✨ FX</button>
           <button class="mini-btn" data-addstep="wait">⏱️ Wait</button>
+          ${isAirship ? `
+            <span class="dp-sep"></span>
+            <button class="mini-btn gold" data-addstep="sky_skiff" title="Sail an enemy skiff alongside & leap boarders">🛥️ Skiff</button>
+            <button class="mini-btn gold" data-addstep="sky_flagship" title="Bring Enemy Flagship out of clouds alongside">🚢 Flagship</button>
+            <button class="mini-btn gold" data-addstep="sky_hooks" title="Throw iron grappling hooks & lash ships together">🪝 Grapple</button>
+            <button class="mini-btn gold" data-addstep="sky_volley" title="Broadside cannon volley or Captain leaps/rope-swings aboard">💥 Broadside</button>
+          ` : ''}
         </div>
-        <span class="dim-lbl">${steps.length} keyframe${steps.length === 1 ? '' : 's'} (~${totalEst.toFixed(1)}s) · Click ◆ to inspect · Drag ◆ to reorder</span>
+        <span class="dim-lbl" style="white-space:nowrap">${isAirship ? `${steps.length} kf (~${totalEst.toFixed(1)}s)` : `${steps.length} keyframe${steps.length === 1 ? '' : 's'} (~${totalEst.toFixed(1)}s) · Click ◆ to inspect · Drag ◆ to reorder`}</span>
       </div>
       <div class="ckf-timeline" id="ckf-scroll">
         <div class="ckf-rail-track" id="ckf-rail">
@@ -534,9 +587,9 @@ export class CutsceneEditorController {
     const trigCards = (doc.triggers || []).map((tr, idx) => `
       <div class="tcard">
         <div class="tcard-head">
-          <input data-trname="${idx}" type="text" value="${tr.name || tr.id}" style="font-weight:700;background:var(--bg-deep);border:1px solid var(--line);border-radius:4px;padding:2px 6px;flex:1">
-          <span class="coop-tag" title="Locks input/AI and plays simultaneously for all party members on this floor">🔒 Party Lock &amp; Play</span>
-          <button class="mini-btn danger" data-deltrig="${idx}" title="Delete Trigger">✕</button>
+          <input data-trname="${idx}" type="text" value="${tr.name || tr.id}" style="font-weight:700;font-size:12px;height:22px;background:var(--bg-deep);border:1px solid var(--line);border-radius:4px;padding:1px 6px;flex:1;min-width:0">
+          <span class="coop-tag" title="Locks input/AI and plays simultaneously for all party members on this floor">🔒 Party Lock</span>
+          <button class="mini-btn danger" data-deltrig="${idx}" title="Delete Trigger" style="height:20px;padding:0 6px">✕</button>
         </div>
         <div class="fg-row">
           <div class="fg">
@@ -559,51 +612,59 @@ export class CutsceneEditorController {
             <label>Target @castKey / ID ${tr.event === 'onBossHpBelow' ? 'or HP%' : ''}</label>
             <div style="display:flex;gap:4px">
               <input data-trkey="${idx}" type="text" placeholder="@castKey or chest id" value="${tr.targetKey || ''}">
-              ${tr.event === 'onBossHpBelow' ? `<input data-trhp="${idx}" type="number" min="5" max="95" value="${tr.hpPct ?? 50}" style="width:58px" title="HP % threshold">` : ''}
+              ${tr.event === 'onBossHpBelow' ? `<input data-trhp="${idx}" type="number" min="5" max="95" value="${tr.hpPct ?? 50}" style="width:54px" title="HP % threshold">` : ''}
             </div>
           </div>
         </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:2px">
+        <div style="display:flex;gap:8px;flex-wrap:nowrap;align-items:center">
           <label class="chk-line"><input data-tronce="${idx}" type="checkbox" ${tr.once !== false ? 'checked' : ''}> Once</label>
-          <label class="chk-line"><input data-trclear="${idx}" type="checkbox" ${tr.requireCombatClear ? 'checked' : ''}> Require Combat Clear</label>
+          <label class="chk-line"><input data-trclear="${idx}" type="checkbox" ${tr.requireCombatClear ? 'checked' : ''}> Combat Clear</label>
           <label class="chk-line"><input data-trunseal="${idx}" type="checkbox" ${tr.unsealExit ? 'checked' : ''}> Unseal Exit</label>
         </div>
       </div>
     `).join('');
 
     const objCards = (doc.objectives || []).map((ob, idx) => `
-      <div class="tcard" style="border-color:#4b3d22">
+      <div class="tcard tcard-obj" style="border-color:#4b3d22">
         <div class="tcard-head">
-          <b style="color:var(--gold-b)">🏆 Objective #${idx + 1}</b>
-          <button class="mini-btn danger" data-delobj="${idx}">✕</button>
+          <b style="color:var(--gold-b);font-size:12px">🏆 Objective #${idx + 1}</b>
+          <button class="mini-btn danger" data-delobj="${idx}" style="height:20px;padding:0 6px">✕</button>
         </div>
-        <div class="fg-row">
-          <div class="fg">
-            <label>Condition</label>
-            <select data-objkind="${idx}">
-              ${OBJECTIVE_KINDS.map((k) => `<option value="${k.id}" ${ob.kind === k.id ? 'selected' : ''}>${k.label}</option>`).join('')}
-            </select>
-          </div>
-          <div class="fg">
-            <label>HUD Banner Text</label>
-            <input data-objtxt="${idx}" type="text" value="${ob.text || ''}">
-          </div>
+        <div class="fg">
+          <label>Condition</label>
+          <select data-objkind="${idx}">
+            ${OBJECTIVE_KINDS.map((k) => `<option value="${k.id}" ${ob.kind === k.id ? 'selected' : ''}>${k.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="fg">
+          <label>HUD Banner Text</label>
+          <input data-objtxt="${idx}" type="text" value="${ob.text || ''}">
         </div>
       </div>
     `).join('');
 
     panel.innerHTML = `
-      <div class="tcard" style="justify-content:center;align-items:flex-start;background:var(--bg-deep);border-style:dashed">
-        <b style="color:var(--gold-b)">⚡ Scenario Triggers &amp; Win Objectives</b>
-        <span class="dim-lbl">Connect spatial zones, NPCs, shrines, or boss HP phases to cutscenes &amp; exit gates.</span>
-        <div style="display:flex;gap:6px;margin-top:4px">
+      <div class="tcard tcard-intro" style="align-items:flex-start;background:var(--bg-deep);border-style:dashed">
+        <b style="color:var(--gold-b);font-size:12.5px">⚡ Triggers &amp; Objectives</b>
+        <span class="dim-lbl" style="line-height:1.25">Connect zones, NPCs, shrines, or boss HP phases to cutscenes &amp; exit gates.</span>
+        <div style="display:flex;gap:6px;margin-top:2px;flex-wrap:wrap">
           <button id="btn-new-trig" class="mini-btn gold">+ Add Trigger</button>
-          <button id="btn-new-obj" class="mini-btn">+ Add Win Objective</button>
+          <button id="btn-new-obj" class="mini-btn">+ Objective</button>
         </div>
       </div>
       ${trigCards}
       ${objCards}
     `;
+
+    if (!panel._horizWheelBound) {
+      panel._horizWheelBound = true;
+      panel.addEventListener('wheel', (e) => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && panel.scrollWidth > panel.clientWidth) {
+          panel.scrollLeft += e.deltaY;
+          e.preventDefault();
+        }
+      }, { passive: false });
+    }
 
     panel.querySelector('#btn-new-trig')?.addEventListener('click', () => {
       this.studio.history.snapshot(doc, 'Add Trigger');
@@ -620,6 +681,7 @@ export class CutsceneEditorController {
         runCutscene: doc.cutscenes?.[0]?.id || '',
       });
       this.renderTriggersPanel(doc);
+      panel.scrollLeft = panel.scrollWidth;
       this.studio.refreshValidation();
     });
 
@@ -627,6 +689,7 @@ export class CutsceneEditorController {
       this.studio.history.snapshot(doc, 'Add Objective');
       doc.objectives.push({ id: `obj_${Date.now().toString(36)}`, kind: 'kill_bosses', text: 'Defeat the area boss' });
       this.renderTriggersPanel(doc);
+      panel.scrollLeft = panel.scrollWidth;
     });
 
     panel.querySelectorAll('[data-deltrig]').forEach((b) => b.addEventListener('click', () => {
@@ -793,9 +856,10 @@ export class CutsceneEditorController {
         <label class="chk-line"><input id="ci-block" type="checkbox" ${step.block ? 'checked' : ''}> Block next step until card finishes</label>
       `;
     } else if (step.type === 'walk') {
+      const isVessel = (doc.grid?.airship?.vessels || []).some((v) => v.castKey && v.castKey === step.who);
       bodyHtml += `
         <div class="fg">
-          <label>Actor to Move</label>
+          <label>${isVessel ? 'Airship Vessel to Sail / Move' : 'Actor / Airship to Move'}</label>
           <select id="ci-who">${castOpts.map((o) => `<option value="${o.key}" ${step.who === o.key ? 'selected' : ''}>${o.label}</option>`).join('')}</select>
         </div>
         <div class="fg"><label>Destination Mark</label><select id="ci-mark">${markOpts}</select></div>
@@ -803,10 +867,14 @@ export class CutsceneEditorController {
           <div class="fg"><label>Dest X</label><input id="ci-x" type="number" step="0.5" value="${step.x ?? 28}"></div>
           <div class="fg"><label>Dest Y</label><input id="ci-y" type="number" step="0.5" value="${step.y ?? 28}"></div>
         </div>
+        ${isVessel ? `
+          <div class="fg"><label>Target Sky Altitude (lv)</label><input id="ci-lv" type="number" step="1" min="-40" max="120" value="${step.lv ?? 8}"></div>
+          <label class="chk-line"><input id="ci-fromclouds" type="checkbox" ${step.fromClouds ? 'checked' : ''}> Sail in from offscreen clouds</label>
+        ` : ''}
         <button id="ci-capcam" class="mini-btn gold">🎯 Pick Current Viewport Center</button>
-        <div class="fg"><label>Duration / Speed (s)</label><input id="ci-dur" type="number" step="0.1" min="0.2" max="15" value="${step.dur ?? 1.4}"></div>
-        <label class="chk-line"><input id="ci-path" type="checkbox" ${step.pathfind ? 'checked' : ''}> Use A* Pathfinding around obstacles</label>
-        <label class="chk-line"><input id="ci-wait" type="checkbox" ${step.wait !== false ? 'checked' : ''}> Wait until actor reaches target</label>
+        <div class="fg"><label>Duration (s)</label><input id="ci-dur" type="number" step="0.1" min="0.2" max="15" value="${step.dur ?? 1.4}"></div>
+        ${!isVessel ? `<label class="chk-line"><input id="ci-path" type="checkbox" ${step.pathfind ? 'checked' : ''}> Use A* Pathfinding around obstacles</label>` : ''}
+        <label class="chk-line"><input id="ci-wait" type="checkbox" ${step.wait !== false ? 'checked' : ''}> Wait until arrival</label>
       `;
     } else if (step.type === 'vfx') {
       bodyHtml += `
@@ -873,6 +941,100 @@ export class CutsceneEditorController {
       `;
     } else if (step.type === 'wait') {
       bodyHtml += `<div class="fg"><label>Wait Seconds</label><input id="ci-dur" type="number" step="0.1" min="0.1" max="30" value="${step.dur ?? 1.0}"></div>`;
+    } else if (step.type === 'sky_skiff') {
+      const capOpts = `<option value="">(No Captain — Crew Only)</option>` + AIR_CAPTAINS.map((c) => `<option value="${c.id}" ${step.captainId === c.id ? 'selected' : ''}>${c.name} (${c.title})</option>`).join('');
+      bodyHtml += `
+        <div class="fg-row">
+          <div class="fg">
+            <label>Skiff / Airboat Craft</label>
+            <select id="ci-skboat">
+              <option value="cutter" ${step.boatKind === 'cutter' ? 'selected' : ''}>🛥️ Swift Boarding Cutter</option>
+              <option value="hauler" ${step.boatKind === 'hauler' ? 'selected' : ''}>🛡️ Armored Iron Hauler</option>
+              <option value="gasbag" ${step.boatKind === 'gasbag' ? 'selected' : ''}>🎈 Gasbag Boarding Skiff</option>
+              <option value="flyover" ${step.boatKind === 'flyover' ? 'selected' : ''}>🪂 Overhead Gasbag Rope-Drop</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label>Port Dock Position</label>
+            <select id="ci-skdock">
+              <option value="fore" ${step.dock === 'fore' ? 'selected' : ''}>Bow Dock (z = -6)</option>
+              <option value="mid" ${(step.dock || 'mid') === 'mid' ? 'selected' : ''}>Amidships Dock (z = +3)</option>
+              <option value="aft" ${step.dock === 'aft' ? 'selected' : ''}>Quarterdeck Dock (z = +13.5)</option>
+              <option value="auto" ${step.dock === 'auto' ? 'selected' : ''}>Auto Free Dock</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg-row">
+          <div class="fg"><label>Boarders (1–8)</label><input id="ci-n" type="number" min="0" max="8" value="${step.count ?? 4}"></div>
+          <div class="fg">
+            <label>Lead Rank</label>
+            <select id="ci-srank">
+              ${['normal', 'champion', 'unique'].map((r) => `<option value="${r}" ${(step.rank || 'normal') === r ? 'selected' : ''}>${r}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="fg"><label>Boarding Captain (optional)</label><select id="ci-skcap">${capOpts}</select></div>
+        <label class="chk-line"><input id="ci-wait" type="checkbox" ${step.wait !== false ? 'checked' : ''}> Hold timeline until skiff docks alongside</label>
+      `;
+    } else if (step.type === 'sky_flagship') {
+      const capOptsA = AIR_CAPTAINS.map((c) => `<option value="${c.id}" ${(step.captainA || 'ap_admiral_veyl') === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
+      const capOptsB = AIR_CAPTAINS.map((c) => `<option value="${c.id}" ${(step.captainB || 'ap_red_gale_corsair') === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
+      bodyHtml += `
+        <div class="fg">
+          <label>Flagship Maneuver</label>
+          <select id="ci-flact">
+            <option value="arrive" ${(step.action || 'arrive') === 'arrive' ? 'selected' : ''}>☁️ Emerge from Cloud Bank &amp; Sail Alongside</option>
+            <option value="close" ${step.action === 'close' ? 'selected' : ''}>⚓ Snap Immediately Alongside</option>
+            <option value="depart" ${step.action === 'depart' ? 'selected' : ''}>🔥 Cut Loose &amp; Sink into Clouds</option>
+          </select>
+        </div>
+        <div class="fg"><label>Approach Duration (s)</label><input id="ci-dur" type="number" step="0.2" min="0.8" max="10" value="${step.dur ?? 3.2}"></div>
+        <div class="fg-row">
+          <div class="fg"><label>Rail Captain #1</label><select id="ci-flcapa">${capOptsA}</select></div>
+          <div class="fg"><label>Rail Captain #2</label><select id="ci-flcapb">${capOptsB}</select></div>
+        </div>
+        <label class="chk-line"><input id="ci-wait" type="checkbox" ${step.wait !== false ? 'checked' : ''}> Hold timeline until Flagship reaches broadside</label>
+      `;
+    } else if (step.type === 'sky_hooks') {
+      const vesselOpts = `<option value="">(Active Enemy Flagship)</option>` + (doc.grid?.airship?.vessels || []).map((v) => `<option value="${v.castKey || v.id}" ${step.vesselKey === (v.castKey || v.id) ? 'selected' : ''}>⛵ ${v.name || v.kind} (@${v.castKey || v.id})</option>`).join('');
+      bodyHtml += `
+        <div class="fg">
+          <label>Grappling Action</label>
+          <select id="ci-hkact">
+            <option value="throw_and_lash" ${(step.action || 'throw_and_lash') === 'throw_and_lash' ? 'selected' : ''}>🪝 Throw Iron Hooks &amp; Haul Ships Taut</option>
+            <option value="throw" ${step.action === 'throw' ? 'selected' : ''}>↗ Throw Grappling Hooks Only</option>
+            <option value="taut" ${step.action === 'taut' ? 'selected' : ''}>⛓️ Haul Existing Chains Taut</option>
+            <option value="release" ${step.action === 'release' ? 'selected' : ''}>✨ Unhook &amp; Drop All Chains</option>
+          </select>
+        </div>
+        <div class="fg"><label>Target Airship</label><select id="ci-hkvessel">${vesselOpts}</select></div>
+        <div class="fg"><label>Chain Count (2–6)</label><input id="ci-n" type="number" min="2" max="6" value="${step.count ?? 4}"></div>
+        <label class="chk-line"><input id="ci-wait" type="checkbox" ${step.wait !== false ? 'checked' : ''}> Hold timeline until chains haul taut</label>
+      `;
+    } else if (step.type === 'sky_volley') {
+      const capOpts = AIR_CAPTAINS.map((c) => `<option value="${c.id}" ${(step.captainId || 'ap_admiral_veyl') === c.id ? 'selected' : ''}>${c.name} (${c.title})</option>`).join('');
+      const isCap = String(step.action || '').startsWith('captain_');
+      bodyHtml += `
+        <div class="fg">
+          <label>Combat / Boarding Action</label>
+          <select id="ci-vlact">
+            <option value="flagship_volley" ${(step.action || 'flagship_volley') === 'flagship_volley' ? 'selected' : ''}>💥 Enemy Flagship Broadside Volley at Deck</option>
+            <option value="ironclad_volley" ${step.action === 'ironclad_volley' ? 'selected' : ''}>🔥 Ironclad Return Broadside at Flagship</option>
+            <option value="captain_leap" ${step.action === 'captain_leap' ? 'selected' : ''}>⚔️ Captain High-Leaps from Rail onto Deck</option>
+            <option value="captain_swing" ${step.action === 'captain_swing' ? 'selected' : ''}>🪢 Captain Rope-Swings from Mainmast onto Deck</option>
+          </select>
+        </div>
+        ${isCap ? `
+          <div class="fg"><label>Boarding Captain</label><select id="ci-skcap">${capOpts}</select></div>
+          <div class="fg-row">
+            <div class="fg"><label>@castKey Handle</label><input id="ci-vcast" type="text" value="${escapeHtml(step.castKey || 'flagship_captain')}"></div>
+            <div class="fg"><label>Deck Z Offset (-10..12)</label><input id="ci-vdz" type="number" step="0.5" value="${step.dz ?? 0}"></div>
+          </div>
+        ` : `
+          <div class="fg"><label>Cannon Shots (1–8)</label><input id="ci-n" type="number" min="1" max="8" value="${step.count ?? 4}"></div>
+        `}
+        <label class="chk-line"><input id="ci-wait" type="checkbox" ${step.wait ? 'checked' : ''}> Hold timeline until ${isCap ? 'Captain lands on deck' : 'volley lands'}</label>
+      `;
     } else {
       bodyHtml += `<div class="dim-lbl">Holds timeline progression until ${step.type === 'until_arrived' ? 'all scripted actor walks complete' : 'all awake hostiles are defeated'}.</div>`;
     }
@@ -922,12 +1084,16 @@ export class CutsceneEditorController {
       else if (nt === 'card') { step.title ||= doc.meta.name.toUpperCase(); step.dur ??= 2.6; }
       else if (nt === 'walk') { step.who ||= 'hero'; step.x ??= Math.round(sx); step.y ??= Math.round(sy - 3); step.dur ??= 1.4; }
       else if (nt === 'vfx') { step.vfx ||= 'ring'; step.color ||= '#ffb060'; step.x ??= Math.round(sx); step.y ??= Math.round(sy); step.radius ??= 3.5; step.dur ??= 0.9; }
+      else if (nt === 'sky_skiff') { step.boatKind ||= 'cutter'; step.dock ||= 'mid'; step.count ??= 4; step.rank ||= 'normal'; }
+      else if (nt === 'sky_flagship') { step.action ||= 'arrive'; step.dur ??= 3.2; step.captainA ||= 'ap_admiral_veyl'; step.captainB ||= 'ap_red_gale_corsair'; }
+      else if (nt === 'sky_hooks') { step.action ||= 'throw_and_lash'; step.count ??= 4; }
+      else if (nt === 'sky_volley') { step.action ||= 'flagship_volley'; step.count ??= 4; step.captainId ||= 'ap_admiral_veyl'; }
       else if (nt === 'wait') { step.dur ??= 1.0; }
       refresh(); this.studio.renderInspector();
     });
 
     container.querySelector('#ci-cammode')?.addEventListener('change', (e) => { step.mode = e.target.value; refresh(); this.studio.renderInspector(); });
-    container.querySelector('#ci-who')?.addEventListener('change', (e) => { step.who = e.target.value; refresh(); });
+    container.querySelector('#ci-who')?.addEventListener('change', (e) => { step.who = e.target.value; refresh(); if (step.type === 'walk') this.studio.renderInspector(); });
     container.querySelector('#ci-fitactors')?.addEventListener('change', (e) => { step.actors = e.target.value.split(',').map((s) => s.trim()).filter(Boolean); refresh(); });
     container.querySelector('#ci-mark')?.addEventListener('change', (e) => { step.markId = e.target.value; refresh(); });
     container.querySelector('#ci-x')?.addEventListener('change', (e) => { step.x = Number(e.target.value); refresh(); });
@@ -997,8 +1163,26 @@ export class CutsceneEditorController {
     container.querySelector('#ci-dooridx')?.addEventListener('change', (e) => { step.doorIndex = Number(e.target.value) || 0; refresh(); });
     container.querySelector('#ci-arch')?.addEventListener('change', (e) => { step.arch = e.target.value.trim(); refresh(); });
     container.querySelector('#ci-srank')?.addEventListener('change', (e) => { step.rank = e.target.value; refresh(); });
-    container.querySelector('#ci-n')?.addEventListener('change', (e) => { step.n = Number(e.target.value) || 3; refresh(); });
+    container.querySelector('#ci-n')?.addEventListener('change', (e) => {
+      const v = Number(e.target.value) || 3;
+      if (step.type === 'spawn') step.n = v;
+      else step.count = v;
+      refresh();
+    });
     container.querySelector('#ci-emo')?.addEventListener('change', (e) => { step.emotion = e.target.value.trim(); refresh(); });
+    container.querySelector('#ci-lv')?.addEventListener('change', (e) => { step.lv = Number(e.target.value) || 0; refresh(); });
+    container.querySelector('#ci-fromclouds')?.addEventListener('change', (e) => { step.fromClouds = e.target.checked; refresh(); });
+    container.querySelector('#ci-skboat')?.addEventListener('change', (e) => { step.boatKind = e.target.value; refresh(); });
+    container.querySelector('#ci-skdock')?.addEventListener('change', (e) => { step.dock = e.target.value; refresh(); });
+    container.querySelector('#ci-skcap')?.addEventListener('change', (e) => { step.captainId = e.target.value; refresh(); });
+    container.querySelector('#ci-flact')?.addEventListener('change', (e) => { step.action = e.target.value; refresh(); });
+    container.querySelector('#ci-flcapa')?.addEventListener('change', (e) => { step.captainA = e.target.value; refresh(); });
+    container.querySelector('#ci-flcapb')?.addEventListener('change', (e) => { step.captainB = e.target.value; refresh(); });
+    container.querySelector('#ci-hkact')?.addEventListener('change', (e) => { step.action = e.target.value; refresh(); });
+    container.querySelector('#ci-hkvessel')?.addEventListener('change', (e) => { step.vesselKey = e.target.value; refresh(); });
+    container.querySelector('#ci-vlact')?.addEventListener('change', (e) => { step.action = e.target.value; refresh(); this.studio.renderInspector(); });
+    container.querySelector('#ci-vcast')?.addEventListener('change', (e) => { step.castKey = e.target.value.trim(); refresh(); });
+    container.querySelector('#ci-vdz')?.addEventListener('change', (e) => { step.dz = Number(e.target.value) || 0; refresh(); });
 
     return true;
   }

@@ -5,7 +5,7 @@ import { G } from '../state.js';
 import { TileMap } from './map.js';
 import { World } from '../game/world.js';
 import { RNG, clamp } from '../core/util.js';
-import { camera, setElevation, setWarp, warpMoved, HW, HH, isoX, isoY } from '../core/view.js';
+import { camera, setElevation, setWarp, warpMoved, HW, HH, isoX, isoY, elevationAt } from '../core/view.js';
 import { loadBiomeArt, biomeTileSet, mixedTileSet, keepTileSets, A } from '../core/assets.js';
 import { loadArtFor } from '../core/enemyart.js';
 import { TOWN_BIOME, ACT2_TOWN_BIOME } from '../data/biomes.js';
@@ -15,8 +15,8 @@ import { VENDORS, makeTownTiles, townObject } from './town.js';
 import { overworldObject } from '../gfx/overworldart.js';
 import { seaOfSandFloorTiles, seaOfSandObject, loadSeaOfSandPack } from '../gfx/seaofsand.js';
 import { castleFloorTiles, castleObject, loadCastlePack } from '../gfx/castle.js';
-import { loadDarkForestTrees } from '../gfx/darkforest.js';
-import { loadBaked } from '../gfx/castle3dart.js';
+import { loadDarkForestTrees, darkForestTree } from '../gfx/darkforest.js';
+import { loadBaked, castle3dState } from '../gfx/castle3dart.js';
 import { loadVelscourThrone, throneSprite, THRONE_ART } from '../gfx/velscourthrone.js';
 import { useTerrain, HS } from '../gfx/terrain.js';
 import { dropBakes, propReach, preloadTownSheets } from '../game/render.js';
@@ -27,7 +27,8 @@ import { depthLevel } from '../data/depth.js';
 import { rollTreasureChest } from '../data/treasurechests.js';
 import { dropChest } from '../game/loot.js';
 import { sfx } from '../core/audio.js';
-import { sparkle, floatText, addLight, addEffect, Column, burst } from '../gfx/vfx.js';
+import { sparkle, floatText, addLight, addEffect, Column, Ring, Telegraph, burst, smoke, spawn as vfxSpawn } from '../gfx/vfx.js';
+import { aoe } from '../game/combat.js';
 import { deserializeScenarioDoc, resolveBiome } from './scenariocodec.js';
 import { createScenarioDirector } from '../game/cutscenerunner.js';
 
@@ -36,15 +37,18 @@ import { VZ, CAVE_S, CAVE_VARIANTS, vnoise } from './caverns.js';
 import { loadCave3D, buildCave3D, drawCave3D, tickCave3D, disposeCave3D, caveSprite } from '../gfx/cave3d.js';
 import { TOWER_VARIANTS, towerGeo, CUT_N, CUT_C, upCut } from './tower.js';
 import { loadTower3D, buildTower3D, drawTower3D, drawTowerFront, tickTower3D, disposeTower3D } from '../gfx/tower3d.js';
-import { buildField, fieldLevels, LV as ALP_LV } from './alpine.js';
+import { buildField, fieldLevels, LV as ALP_LV, AS as ALP_AS, fbm as alpFbm, smooth as alpSmooth } from './alpine.js';
+import { mountainFloorList } from './mountain.js';
 import { loadAlpine3D, disposeAlpine3D } from '../gfx/alpine3d.js';
 import { alpineHook } from '../game/alpine.js';
 import { DUNE_VARIANTS } from '../data/dunes.js';
 import { loadDunes3D, buildDunes3D, drawDunes3D, tickDunes3D, disposeDunes3D, duneSprite, openSeal } from '../gfx/dunes3d.js';
 import { applyDeck, joinDecks, mapChanged as seaMapChanged, SEA_LV } from './seaship.js';
 import { loadSea3D, loadFleet, buildSea3D, spawnShip as spawnSeaShip, bakeDeck, seaPlank, tickSea3D, drawSea3D, disposeSea3D } from '../gfx/seabattle3d.js';
-import { SKY_VARIANTS } from '../data/skybattle.js';
-import { warmSky } from '../gfx/skyship.js';
+import { SKY_VARIANTS, DOCKS as SKY_DOCKS } from '../data/skybattle.js';
+import { AIR_CREW, AIR_CAPTAIN, AIR_ART } from '../data/airpirates.js';
+import { warmSky, tilePx as skyTilePx } from '../gfx/skyship.js';
+import { shipLayout, OX as SKY_OX, OY as SKY_OY, LV as SKY_LV, FC_H as SKY_FC_H, GATE as SKY_GATE, beam as skyBeam, sheer as skySheer, inner as skyInner, sAt as skySAt } from './skyship.js';
 import { loadTrain3D, buildTrain3D, tickTrain3D, drawTrain3D, trainCutaway, disposeTrain3D } from '../gfx/ghosttrain3d.js';
 
 let cachedIndex = null;
@@ -127,14 +131,23 @@ export async function loadCustomScenarioArt(doc) {
   } else if (cat === '3d_tower') {
     jobs.push(loadTower3D());
   } else if (cat === '3d_alpine') {
-    jobs.push(loadBiomeArt(resolveBiome('dark_forest')), loadBiomeArt(resolveBiome('snowy_summit')), loadAlpine3D());
+    jobs.push(
+      loadBiomeArt(TOWN_BIOME),
+      loadBiomeArt(resolveBiome('dark_forest')),
+      loadBiomeArt(resolveBiome('snowy_summit')),
+      loadDarkForestTrees().catch(() => {}),
+      loadAlpine3D(),
+    );
   } else if (cat === '3d_dunes') {
     jobs.push(loadDunes3D());
   } else if (cat === 'naval') {
     const shipKinds = (doc.grid?.naval?.ships || []).map((s) => s.kind).filter(Boolean);
     jobs.push(loadSea3D(), loadFleet(['longboat', 'cutter', 'brig', ...shipKinds]));
   } else if (cat === 'airship') {
-    jobs.push(loadBaked('assets/tiles/skyship/'));
+    jobs.push(
+      loadBaked('assets/tiles/skyship/'),
+      loadArtFor(AIR_ART.map((a) => a.id)).catch(() => {}),
+    );
   } else if (cat === '3d_train') {
     jobs.push(loadTrain3D());
   }
@@ -510,10 +523,21 @@ export function compileDunesFieldFromDoc(doc) {
 /** Compile an Alpine3D spec (`av`) from `doc.grid` layers. */
 export function compileAlpineSpecFromDoc(doc, floors) {
   const { w: W, h: H, layers, traversal, heightfield } = doc.grid;
+  const isSummit = doc.meta?.biomeId === 'snowy_summit';
   const rk = new Float32Array(W * H);
+  let walkLo = Infinity, walkHi = -Infinity;
   for (let i = 0; i < W * H; i++) {
-    rk[i] = layers.t[i] ? layers.hgt[i] / ALP_LV : (layers.hgt[i] / ALP_LV + 3.2);
+    if (layers.t[i]) {
+      const h0 = layers.hgt[i] / ALP_LV;
+      rk[i] = h0;
+      if (h0 < walkLo) walkLo = h0;
+      if (h0 > walkHi) walkHi = h0;
+    } else {
+      rk[i] = layers.hgt[i] !== 0 ? (layers.hgt[i] / ALP_LV) : 3.2;
+    }
   }
+  if (!Number.isFinite(walkLo)) { walkLo = 0; walkHi = 6; }
+
   const F = buildField({
     W,
     H,
@@ -521,20 +545,36 @@ export function compileAlpineSpecFromDoc(doc, floors) {
     walk: layers.t,
     rk,
     smoothMax: traversal?.smoothMax ?? 3,
-    rough: (u, v, b0, d) => b0 + Math.min(5.5, d * 1.35) + (vnoise(u * 0.35, v * 0.35, 19) - 0.5) * 0.9,
+    rough: (u, v, b0, d) => b0 + (alpFbm(u * 1.3, v * 1.3, 32) - 0.5) * Math.min(0.5, d * 0.6),
   });
   const tfloor = new Uint8Array(W * H);
   const maxFl = Math.max(1, floors.length);
   for (let i = 0; i < W * H; i++) tfloor[i] = layers.v[i] % maxFl;
-  const isSummit = doc.meta?.biomeId === 'snowy_summit';
-  const snowLo = (heightfield?.snowLine ?? (isSummit ? -10 : 24)) / ALP_LV;
-  const vmat = new Uint8Array(F.VW * F.VH * 4);
-  for (let k = 0; k < F.VW * F.VH; k++) {
-    vmat[k * 4] = F.own[k] < 0 ? 255 : 0;
-    vmat[k * 4 + 1] = 0;
-    vmat[k * 4 + 2] = 220;
-    vmat[k * 4 + 3] = Math.round(vnoise((k % F.VW) * 0.1, ((k / F.VW) | 0) * 0.1, 7) * 255);
+  const snowLo = (heightfield?.snowLine ?? (isSummit ? -10 : 165)) / ALP_LV;
+  const { VW, VH, own, near: vnear } = F;
+  const vmat = new Uint8Array(VW * VH * 4);
+  for (let k = 0; k < VW * VH; k++) {
+    const u = (k % VW) / ALP_AS, vv = ((k / VW) | 0) / ALP_AS;
+    const rock = own[k] < 0;
+    vmat[k * 4] = rock ? (vnear[k] < 0.6 ? 200 : 255) : 0;
+    vmat[k * 4 + 1] = rock ? Math.round(255 * alpSmooth(1.5, 9, vnear[k]) * 0.5) : 0;
+    vmat[k * 4 + 2] = Math.round(255 * (0.25 + 0.75 * alpFbm(u * 0.21, vv * 0.21, 62)));
+    vmat[k * 4 + 3] = Math.round(255 * alpSmooth(0.4, 0.6, alpFbm(u * 0.08, vv * 0.08, 64)));
   }
+
+  const FI = Object.fromEntries(floors.map((f, idx) => [f.name, idx]));
+  const edgeH = (x, y) => F.H2(Math.min(W - 0.01, Math.max(0, x)), Math.min(H - 0.01, Math.max(0, y)));
+  const skirt = (x, y) => {
+    const ex = Math.min(W, Math.max(0, x)), ey = Math.min(H, Math.max(0, y)), d = Math.hypot(x - ex, y - ey), he = edgeH(x, y);
+    if (x > 0 && y > 0 && x < W && y < H) return he - 0.25;
+    const n1 = alpFbm(x * 0.07, y * 0.07, 92), n2 = alpFbm(x * 0.21, y * 0.21, 94);
+    if (x < 0 || y < 0) {
+      const k = (d * d) / (d * d + 40);
+      return he + k * (6 + 16 * n1 + 5 * n2) + (y < 0 ? Math.max(0, -y) * 0.35 : 0) - (x > W ? (x - W) * 1.4 : 0);
+    }
+    return Math.min(he, walkHi) - d * 1.1 - 1.8 * n1;
+  };
+
   return {
     W,
     H,
@@ -542,27 +582,59 @@ export function compileAlpineSpecFromDoc(doc, floors) {
     tfloor,
     floors,
     vmat,
-    look: {
-      rock: [isSummit ? 'ice_bound_shale' : 'snow_capped_granite', null],
-      rockB: ['frost_niche_slate', null],
-      snow: [snowLo, snowLo + 3.5],
-      snowC: '#eef4fa',
-      mist: [-14, -4],
-      mistC: isSummit ? '#2a384e' : '#304254',
-      cloud: { y: heightfield?.cloudSeaY ?? -6, color: '#bcd0e4', k: 0.75 },
-      sun: '#fff0d8',
-      sunI: 2.1,
-      amb: '#687890',
-      ambI: 0.8,
-      hemiSky: '#a8c8f0',
-      hemiGround: '#2c343e',
-      hemiI: 1.4,
-      sky: isSummit ? ['#0d182b', '#274268', '#6e8eb2'] : ['#1b3556', '#46709b', '#9ab8d4'],
-      far: ['#2a3f5c', '#3c5678', '#527094'],
-      peaks: true,
-      winter: isSummit ? 1 : 0,
-    },
-    skirt: (x, y) => -8 - Math.hypot(x - W / 2, y - H / 2) * 0.12 + vnoise(x * 0.08, y * 0.08, 41) * 4,
+    skirt,
+    skirtP: 44,
+    snowFloor: FI['s:windpacked_snow'] ?? FI.windpacked_snow ?? 0,
+    flankSnowFloor: FI['s:blue_snow_crust'] ?? FI.blue_snow_crust ?? 0,
+    stepFloor: FI.steps ?? FI.snowy_slate_flags ?? 0,
+    noFlip: new Set(
+      ['steps', 's:bootprints', 's:snowy_slate_flags', 's:compact_snow_path', 'bootprints', 'crossed_bootprints', 'sled_groove', 'runner_tracks', 'snowy_slate_flags', 'compact_snow_path', 'weathered_sun']
+        .map((n) => FI[n])
+        .filter((v) => v !== undefined)
+    ),
+    look: isSummit
+      ? {
+          rock: ['ice_bound_shale', null],
+          rockB: ['frost_niche_slate', null],
+          snow: [snowLo, snowLo + 3.5],
+          snowC: '#eef4fa',
+          mist: [walkLo - 0.5, walkLo - 6],
+          mistC: '#2a384e',
+          cloud: { y: heightfield?.cloudSeaY ?? (walkLo - 3.5), color: '#bcd0e4', shade: '#6f87a6', k: 0.78, wisp: 0.35 },
+          sun: '#fff0d8',
+          sunI: 2.1,
+          amb: '#687890',
+          ambI: 0.8,
+          hemiSky: '#a8c8f0',
+          hemiGround: '#2c343e',
+          hemiI: 1.4,
+          sky: ['#0d182b', '#274268', '#6e8eb2'],
+          far: ['#2a3f5c', '#3c5678', '#527094'],
+          peaks: true,
+          winter: 1,
+        }
+      : {
+          rock: ['snow_capped_granite', { sat: 0.82, light: -0.02 }],
+          rockB: ['ice_bound_shale', { sat: 0.7, light: -0.04 }],
+          tint: '#e8e2d8',
+          snow: [snowLo, snowLo + 1.5],
+          snowC: '#e9eef3',
+          mist: [walkLo - 0.2, walkLo - 3.7],
+          mistC: '#c8d4dc',
+          flank: '#a8b4c4',
+          cloud: { y: heightfield?.cloudSeaY ?? (walkLo - 3.2), color: '#eef2f6', shade: '#a8b4c4', k: 0.8, wisp: 0.32 },
+          sun: '#fff1dc',
+          sunI: 2.3,
+          amb: '#c8d0dc',
+          ambI: 0.85,
+          hemiSky: '#cfe0f0',
+          hemiGround: '#7a705e',
+          hemiI: 1.35,
+          sky: ['#5b86b8', '#a8c4dc', '#e0e6ea'],
+          far: ['#9fb4c8', '#8197ad', '#6c8199'],
+          rockScale: 0.24,
+          bump: 1.0,
+        },
   };
 }
 
@@ -574,6 +646,8 @@ function resolvePropSprite(pr, tileset, biomeId) {
     const hit = tileset.scatter.find((s) => s.name === name);
     if (hit) return hit;
   }
+  const dTree = darkForestTree(name);
+  if (dTree) return dTree;
   if (biomeId === 'castle' || biomeId === 'endless_siege') {
     const co = castleObject(name);
     if (co) return co;
@@ -581,6 +655,12 @@ function resolvePropSprite(pr, tileset, biomeId) {
   if (biomeId === 'sea_of_sand' || biomeId === 'scorpion_king_pyramid') {
     const so = pr.tree ? (seaOfSandObject(name, 'tree') || seaOfSandObject(name)) : (seaOfSandObject(name) || seaOfSandObject(name, 'tree'));
     if (so) return so;
+  }
+  if (biomeId === 'mountainside' || biomeId === 'snowy_summit' || biomeId === 'dark_forest') {
+    const dfScat = biomeTileSet(resolveBiome('dark_forest'))?.scatter?.find((s) => s.name === name);
+    if (dfScat) return dfScat;
+    const snScat = biomeTileSet(resolveBiome('snowy_summit'))?.scatter?.find((s) => s.name === name);
+    if (snScat) return snScat;
   }
   const ow = overworldObject(name);
   if (ow) return ow;
@@ -591,10 +671,697 @@ function resolvePropSprite(pr, tileset, biomeId) {
   return tileset?.scatter?.[0] || null;
 }
 
-/**
- * Instantiate a complete, playable `World` (with active 2D/2.5D/3D render hooks and Cutscene Director)
- * from a live `VelscourScenarioDoc`.
- */
+// ------------------------------------------------------------------ Custom Airship Sky Director (Skiffs, Flagship, Broadsides & Grappling Hooks)
+function createCustomSkyDirector(world, doc, biome, depth) {
+  const S = world.sky;
+  const map = world.map;
+  const lvl = depthLevel(depth);
+  const spawnedByDirector = new Set();
+  const timers = [];
+  const easeOut = (k) => 1 - (1 - k) ** 3;
+
+  const stagePreview = { flagship: false, skiffs: false, hooks: false };
+
+  const tileOf = (x, z) => [SKY_OX + x, SKY_OY + z];
+  const lvAt = (x, y) => (map.hgt ? map.hgt[map.tileIdx(x, y)] || 0 : 0);
+  const nearDeck = (x, y, r = 2.4) => {
+    if (map.walkable(x, y)) return [x, y];
+    for (let rad = 0.6; rad <= r; rad += 0.6) {
+      for (let a = 0; a < 8; a++) {
+        const nx = x + Math.cos((a * Math.PI) / 4) * rad, ny = y + Math.sin((a * Math.PI) / 4) * rad;
+        if (map.walkable(nx, ny)) return [nx, ny];
+      }
+    }
+    return [SKY_OX + 0.5, SKY_OY + 0.5];
+  };
+
+  const dockZOf = (dock) => {
+    if (typeof dock === 'number') return dock;
+    if (dock === 'fore') return SKY_DOCKS[0];
+    if (dock === 'mid') return SKY_DOCKS[1];
+    if (dock === 'aft') return SKY_DOCKS[2];
+    const busy = (d) => S.boats.some((b) => !b._preview && b.dz === d && (b.st === 'in' || (b.st === 'dock' && b.crew.length)));
+    const free = SKY_DOCKS.filter((d) => !busy(d));
+    return (free.length ? free : SKY_DOCKS)[Math.floor(Math.random() * (free.length || SKY_DOCKS.length))];
+  };
+
+  const dockSpot = (kind, dz) => {
+    const A0 = castle3dState()?.anchors;
+    const K = A0?.skiffs?.[kind] || { rampLen: 2.2, ramp: [2.2, 0.2, 0], deck: [[0, 0, -1], [0, 0, 0], [0, 0, 1], [-0.5, 0, 0]] };
+    const s = skySAt(dz), reach = K.rampLen * Math.cos(0.1);
+    return {
+      x: SKY_OX - (skyBeam(s) - 0.15) - reach - K.ramp[0],
+      y: SKY_OY + dz - K.ramp[2],
+      lv: ((skySheer(s) + 0.12) - K.ramp[1] + K.rampLen * Math.sin(0.1)) * SKY_LV,
+      deck: K.deck || [[0, 0, 0]],
+    };
+  };
+
+  const later = (sec, fn) => timers.push({ t: Math.max(0.01, sec), fn });
+
+  const orientToward = (m, fx, fy, tx, ty) => {
+    const ang = Math.atan2(ty - fy, tx - fx);
+    m.facing = ang;
+    const sx = Math.cos(ang) - Math.sin(ang);
+    if (Math.abs(sx) > 0.05) m.flip = sx < 0;
+  };
+
+  const leapMonster = (m, from, to, opts = {}) => {
+    const d = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    const dur = opts.dur ?? (0.55 + d / 11);
+    const arc = opts.arc ?? (65 + d * 6);
+    const lvTo = lvAt(to[0], to[1]);
+    let t = 0;
+    m.spawnT = 1;
+    m.x = from[0];
+    m.y = from[1];
+    m.z = from[2] * HS - elevationAt(m.x, m.y);
+    orientToward(m, from[0], from[1], to[0], to[1]);
+    m.targetable = false; m.awake = true; m.moving = true;
+    m.entering = (dt) => {
+      t += dt; m.animT = (m.animT || 0) + dt; m.spawnT = Math.max(m.spawnT || 0, 1);
+      const k = Math.min(1, t / dur);
+      m.x = from[0] + (to[0] - from[0]) * k;
+      m.y = from[1] + (to[1] - from[1]) * k;
+      m.z = (from[2] * (1 - k) + lvTo * k) * HS + arc * Math.sin(Math.PI * k) - elevationAt(m.x, m.y);
+      if (k >= 1) {
+        m.entering = null; m.targetable = true; m.z = 0; m.x = to[0]; m.y = to[1]; m.moving = false;
+        smoke(m.x, m.y, 4, '#6a5a4a', 3, 9);
+        sfx('thud', m.rank === 'boss' ? 0.9 : 0.4);
+        if (m.rank === 'boss') {
+          addEffect(new Ring(m.x, m.y, 0.2, 2.6, 0.5, '#e8d0a0', 6));
+          camera.shake(8);
+        }
+      }
+    };
+  };
+
+  const swingMonster = (m, anchorFn, to, dur = 1.6) => {
+    const from = [m.x, m.y, ((m.z || 0) + elevationAt(m.x, m.y)) / HS];
+    const rope = { a: anchorFn, m };
+    let t = 0;
+    m.spawnT = 1;
+    orientToward(m, from[0], from[1], to[0], to[1]);
+    m.targetable = false; m.awake = true; m.moving = true;
+    S.ropes.push(rope);
+    sfx('swing', 0.8);
+    m.entering = (dt) => {
+      t += dt; m.animT = (m.animT || 0) + dt; m.spawnT = Math.max(m.spawnT || 0, 1);
+      const k = Math.min(1, t / dur), e = k * k * (3 - 2 * k);
+      m.x = from[0] + (to[0] - from[0]) * e;
+      m.y = from[1] + (to[1] - from[1]) * e;
+      const ground = lvAt(m.x, m.y), lInterp = from[2] * (1 - e) + lvAt(to[0], to[1]) * e;
+      m.z = Math.max(ground + 6, lInterp - Math.sin(Math.PI * e) * 14 + Math.sin(Math.PI * e) * 30 * (1 - Math.abs(2 * e - 1))) * HS - elevationAt(m.x, m.y);
+      if (k >= 1) {
+        const ri = S.ropes.indexOf(rope); if (ri >= 0) S.ropes.splice(ri, 1);
+        m.entering = null; m.targetable = true; m.z = 0; m.x = to[0]; m.y = to[1]; m.moving = false;
+        smoke(m.x, m.y, 4, '#6a5a4a', 4, 10);
+        sfx('thud', 0.85);
+        camera.shake(7);
+      }
+    };
+  };
+
+  const rappelMonster = (m, to, anchorFn) => {
+    const top = 78;
+    let t = 0;
+    const dur = 1.15;
+    const rope = { a: anchorFn || (() => [to[0] - 0.6, to[1] + 0.4, lvAt(to[0], to[1]) + top + 28]), m };
+    m.spawnT = 1;
+    m.targetable = false; m.awake = true; m.x = to[0]; m.y = to[1]; m.z = top * HS;
+    S.ropes.push(rope);
+    m.entering = (dt) => {
+      t += dt; m.animT = (m.animT || 0) + dt; m.spawnT = Math.max(m.spawnT || 0, 1);
+      const k = Math.min(1, t / dur);
+      m.z = top * HS * (1 - k * k);
+      if (k >= 1) {
+        const ri = S.ropes.indexOf(rope); if (ri >= 0) S.ropes.splice(ri, 1);
+        m.entering = null; m.targetable = true; m.z = 0;
+        smoke(m.x, m.y, 2, '#6a5a4a', 2, 7);
+        sfx('thud', 0.4);
+      }
+    };
+  };
+
+  const spawnAirBoarder = (crewDef, rank, from, to, how = 'leap', anchorFn = null) => {
+    const c = crewDef || AIR_CREW[Math.floor(Math.random() * AIR_CREW.length)];
+    const m = makeMonster(world, c.arch || 'ghoul', biome, lvl + (rank === 'normal' ? 0 : 1), rank || 'normal', to[0], to[1], 0, { art: c.id });
+    if (c.shot && m.proj) m.proj = { ...m.proj, fx: c.shot };
+    m.artH = c.h || 56;
+    m.name = c.name || m.name;
+    m.sky = true;
+    m.spawnT = 1;
+    world.add(m);
+    spawnedByDirector.add(m);
+    if (how === 'rope') rappelMonster(m, to, anchorFn);
+    else leapMonster(m, from, to);
+    return m;
+  };
+
+  const spawnAirCaptain = (capId, from, to, castKey = '', style = 'leap', anchorFn = null) => {
+    const cap = AIR_CAPTAIN[capId] || AIR_CAPTAIN.ap_admiral_veyl;
+    const m = makeMonster(world, cap.arch || 'knight', biome, lvl + 2, 'boss', to[0], to[1], 0, { art: cap.id });
+    if (cap.shot && m.proj) m.proj = { ...m.proj, fx: cap.shot };
+    m.name = cap.name;
+    m.title = cap.title;
+    m.scale = 1;
+    m.artH = cap.h || 90;
+    m.castKey = castKey || cap.id;
+    m.sky = true;
+    m.spawnT = 1;
+    world.add(m);
+    world.boss = m;
+    spawnedByDirector.add(m);
+    if (style === 'swing' && anchorFn) {
+      m.x = from[0]; m.y = from[1];
+      m.z = from[2] * HS - elevationAt(m.x, m.y);
+      swingMonster(m, anchorFn, to, 1.65);
+    } else {
+      leapMonster(m, from, to, { arc: 135 });
+    }
+    return m;
+  };
+
+  const buildGalleonObj = (capA = 'ap_admiral_veyl', capB = 'ap_red_gale_corsair', closeNow = false) => {
+    const far = { x: SKY_OX - 33, y: SKY_OY + 7, lv: 26 };
+    const close = { x: SKY_OX - 15.2, y: SKY_OY + 0.6, lv: 0.6 * SKY_LV };
+    const g = {
+      galleon: true,
+      x: closeNow ? close.x : far.x,
+      y: closeNow ? close.y : far.y,
+      lv: closeNow ? close.lv : far.lv,
+      alpha: closeNow ? 1 : 0.05,
+      far,
+      close,
+      k: closeNow ? 1 : 0,
+      speed: 1 / 3.2,
+      burn: [],
+      crew: [],
+    };
+    const G0 = castle3dState()?.anchors?.galleon;
+    if (G0?.rail) {
+      G0.rail.forEach(([x, y, z], i) => {
+        if (i === 2 && AIR_CAPTAIN[capA]) {
+          const ca = AIR_CAPTAIN[capA];
+          g.crew.push({ art: ca.id, cap: capA, x, y, z, h: (ca.h || 90) * 0.95, flip: false, ph: i });
+        } else if (i === 4 && AIR_CAPTAIN[capB]) {
+          const cb = AIR_CAPTAIN[capB];
+          g.crew.push({ art: cb.id, cap: capB, x, y, z, h: (cb.h || 90) * 0.95, flip: false, ph: i });
+        } else {
+          const cr = AIR_CREW[(i * 5 + 3) % AIR_CREW.length];
+          g.crew.push({ art: cr.id, x, y, z, h: cr.h || 56, flip: false, ph: i * 1.3 });
+        }
+      });
+    }
+    return g;
+  };
+
+  const railOfIronclad = (dz) => {
+    const s = skySAt(dz);
+    return [SKY_OX - skyBeam(s) + 0.1, SKY_OY + dz, (skySheer(s) + 0.1) * SKY_LV];
+  };
+  const railOfGalleon = (g, idx) => {
+    const G0 = castle3dState()?.anchors?.galleon;
+    const list = G0?.railTop || G0?.rail || [[3.2, 2.4, -4], [3.2, 2.4, 0], [3.2, 2.4, 4]];
+    const [x, y, z] = list[idx % list.length];
+    return [g.x + x, g.y + z, g.lv + y * SKY_LV];
+  };
+
+  const director = {
+    stagePreview,
+
+    launchSkiff(opts = {}) {
+      const boatKind = opts.boatKind || 'cutter';
+      const count = Math.max(0, Math.min(10, Number(opts.count ?? 4)));
+      const rank = opts.rank || 'normal';
+      const captainId = opts.captainId || '';
+
+      if (boatKind === 'flyover') {
+        const b = { kind: 'gasbag', dz: 0, x: SKY_OX - 3, y: SKY_OY + 34, lv: 95, alpha: 0, ramp: 0, phase: 0, st: 'fly', t: 0, crew: [], drops: count, rank };
+        S.boats.push(b);
+        return b;
+      }
+
+      const kind = ['cutter', 'hauler', 'gasbag'].includes(boatKind) ? boatKind : 'cutter';
+      const dz = dockZOf(opts.dock || 'auto');
+      for (const old of S.boats) {
+        if (!old._preview && old.dz === dz && old.st === 'dock' && !old.crew.length) { old.st = 'out'; old.t = 0; }
+      }
+      const dock = dockSpot(kind, dz);
+      const from = { x: dock.x - 16, y: dock.y + 18, lv: dock.lv + 40 };
+      const crew = [];
+      if (captainId && AIR_CAPTAIN[captainId]) {
+        const cap = AIR_CAPTAIN[captainId];
+        const sp = dock.deck[0] || [0, 0, 0];
+        crew.push({ art: cap.id, captain: true, captainId, castKey: opts.castKey || captainId, x: sp[0], z: sp[2], h: cap.h || 90, flip: false, ph: 0 });
+      }
+      for (let i = 0; i < count; i++) {
+        const c = AIR_CREW[(i * 7 + Math.abs(Math.round(dz))) % AIR_CREW.length];
+        const sp = dock.deck[(i + 1) % dock.deck.length] || [0, 0, 0];
+        crew.push({ crewDef: c, art: c.id, rank: i === 0 && rank !== 'normal' ? rank : 'normal', x: sp[0] + (i % 2 ? 0.14 : -0.14), z: sp[2], h: c.h || 56, flip: false, ph: i * 1.4 });
+      }
+      const b = {
+        kind, dz, x: from.x, y: from.y, lv: from.lv, alpha: 0, ramp: 0, phase: Math.floor(Math.random() * 4),
+        st: 'in', t: 0, dock, from, wait: 0.65, hold: 2.5, leap: true, crew,
+      };
+      S.boats.push(b);
+      return b;
+    },
+
+    controlFlagship(opts = {}) {
+      const action = opts.action || 'arrive';
+      if (action === 'depart') {
+        if (S.galleon) { S.galleon.leaving = true; S.galleon.t2 = 0; S.galleon._preview = false; }
+        S.hooks.length = 0;
+        return S.galleon;
+      }
+      const closeNow = action === 'close';
+      const g = buildGalleonObj(opts.captainA || 'ap_admiral_veyl', opts.captainB || 'ap_red_gale_corsair', closeNow);
+      g.speed = 1 / Math.max(0.5, Number(opts.dur) || 3.2);
+      S.galleon = g;
+      if (!closeNow) S.bank = { x: g.far.x, y: g.far.y, lv: g.far.lv, t: 0 };
+      return g;
+    },
+
+    controlHooks(opts = {}) {
+      const action = opts.action || 'throw_and_lash';
+      if (action === 'release') {
+        for (const h of S.hooks) {
+          const [x, y, l] = h.to;
+          sparkle(x, y, l * HS, '#ffd080', 10, 0.4);
+        }
+        S.hooks.length = 0;
+        sfx('thud', 0.6);
+        camera.shake(5);
+        return;
+      }
+      const targetVessel = opts.vesselKey
+        ? S.boats.find((b) => b._vesselKey === opts.vesselKey || b._vesselId === opts.vesselKey)
+        : null;
+      if (!targetVessel && !S.galleon) director.controlFlagship({ action: 'close' });
+      const g = targetVessel || S.galleon;
+      if (!g) return;
+      g.alpha = 1;
+      if (!targetVessel && g.close) { g.k = 1; g.x = g.close.x; g.y = g.close.y; g.lv = g.close.lv; }
+
+      const vRail = (idx) => {
+        if (g.galleon) return railOfGalleon(g, idx);
+        return [g.x + 1.8, g.y + (idx - 1.5) * 1.2, g.lv + 2];
+      };
+
+      if (action === 'taut') {
+        for (const h of S.hooks) { h.t = 1; h.taut = 1; }
+        if (g.close) g.close.x = SKY_OX - 14.0;
+        else g.x += 1.0;
+        camera.shake(8);
+        sfx('thud', 0.9);
+        return;
+      }
+
+      const cnt = Math.max(2, Math.min(6, Number(opts.count ?? 4)));
+      const baseZ = clamp((g.y || SKY_OY) - SKY_OY, -12, 12);
+      const dzList = g.galleon ? [-7, -2.5, 2.5, 7.5, 11.5, -10] : [baseZ - 2, baseZ, baseZ + 2, baseZ - 3.5, baseZ + 3.5, baseZ + 1];
+      const created = [];
+      for (let i = 0; i < cnt; i++) {
+        const dz = clamp(dzList[i % dzList.length], -12, 14);
+        const fromVessel = i % 2 === 1;
+        const pShip = railOfIronclad(dz);
+        const pVes = vRail(i);
+        const hk = { from: fromVessel ? pVes : pShip, to: fromVessel ? pShip : pVes, t: 0, taut: 0, delay: i * 0.16 };
+        S.hooks.push(hk);
+        created.push(hk);
+      }
+      if (action === 'throw_and_lash') {
+        later(0.72 + cnt * 0.16, () => {
+          for (const h of created) { h.t = 1; h.taut = 1; }
+          if (g.close) g.close.x = SKY_OX - 14.0;
+          else g.x += 0.9;
+          camera.shake(8);
+          sfx('thud', 0.95);
+        });
+      }
+    },
+
+    fireVolley(opts = {}) {
+      const action = opts.action || 'flagship_volley';
+      if (action === 'captain_leap' || action === 'captain_swing') {
+        if (!S.galleon) director.controlFlagship({ action: 'close' });
+        const g = S.galleon;
+        const capId = opts.captainId || 'ap_admiral_veyl';
+        g.crew = (g.crew || []).filter((c) => c.cap !== capId);
+        const from = railOfGalleon(g, action === 'captain_swing' ? 4 : 2);
+        const dz = Number(opts.dz ?? (action === 'captain_swing' ? 2.4 : -1.2));
+        const to = nearDeck(...tileOf(-1.8, dz));
+        const mast = () => (S.galleon ? [S.galleon.x, S.galleon.y - 0.8, S.galleon.lv + 17 * SKY_LV] : [SKY_OX - 15, SKY_OY, 40]);
+        return spawnAirCaptain(capId, from, to, opts.castKey || capId, action === 'captain_swing' ? 'swing' : 'leap', mast);
+      }
+
+      const count = Math.max(1, Math.min(8, Number(opts.count ?? 4)));
+      const A0 = castle3dState()?.anchors;
+      for (let i = 0; i < count; i++) {
+        later(i * 0.28, () => {
+          if (action === 'ironclad_volley') {
+            const ports = A0?.ship?.ports?.filter((q) => q[3] < 0) || [[-5.5, -1.2, 0]];
+            const [px, py, pz] = ports[i % ports.length];
+            const from = [SKY_OX + px, SKY_OY + pz, py * SKY_LV];
+            const g = S.galleon;
+            const to = g ? [g.x + 2, g.y + (i - 1.5) * 3, g.lv + 14] : [SKY_OX - 18, SKY_OY + (i - 1.5) * 3, 20];
+            S.shots.push({
+              from, to, t: 0, dur: 1.05, arc: 85,
+              onHit: () => {
+                burst(to[0], to[1], to[2] * HS, 'fire', 16, 4);
+                smoke(to[0], to[1], to[2] * HS, '#3a3230', 6, 15);
+                sfx('explode', 0.55);
+                camera.shake(4);
+                if (S.galleon && S.galleon.burn.length < 4) S.galleon.burn.push([1.8, 1.2, (i - 1.5) * 2.5]);
+              },
+            });
+            vfxSpawn({ type: 'glow', x: from[0], y: from[1], z: from[2] * HS, life: 0.25, size: 24, size1: 4, color: '#ffd080', add: true });
+            sfx('explode', 0.35);
+          } else {
+            const g = S.galleon;
+            const gPorts = A0?.galleon?.ports || [[3.0, 1.0, -3], [3.0, 1.0, 2]];
+            const [gx, gy, gz] = gPorts[i % gPorts.length];
+            const from = g ? [g.x + gx, g.y + gz, g.lv + gy * SKY_LV] : [SKY_OX - 22, SKY_OY + (i - 1.5) * 3.5, 28];
+            const tgt = nearDeck(SKY_OX + (Math.random() - 0.5) * 8, SKY_OY + (Math.random() - 0.5) * 18);
+            const to = [tgt[0], tgt[1], lvAt(tgt[0], tgt[1])];
+            addEffect(new Telegraph({ kind: 'circle', x: to[0], y: to[1], r: 1.5, dur: 1.25 }), 'ground');
+            S.shots.push({
+              from, to, t: 0, dur: 1.25, arc: 95,
+              onHit: () => {
+                if (!G.cine) aoe(world, null, to[0], to[1], 1.5, 18, 'fire', { team: 'player', knock: 0.7 });
+                burst(to[0], to[1], 10, 'fire', 18, 4);
+                smoke(to[0], to[1], 8, '#3a3230', 6, 14);
+                addEffect(new Ring(to[0], to[1], 0.2, 2.3, 0.4, '#ffb060', 5));
+                camera.shake(6);
+                sfx('explode', 0.6);
+              },
+            });
+            vfxSpawn({ type: 'glow', x: from[0], y: from[1], z: from[2] * HS, life: 0.25, size: 24, size1: 4, color: '#ffd080', add: true });
+            sfx('explode', 0.35);
+          }
+        });
+      }
+    },
+
+    syncPlacedVessels({ inEditor = false } = {}) {
+      S.boats = S.boats.filter((b) => !b._placed);
+      S.hooks = S.hooks.filter((h) => !h._placed);
+      const vessels = doc.grid?.airship?.vessels || [];
+      for (const av of vessels) {
+        const isGal = av.kind === 'galleon';
+        const dock = isGal ? null : dockSpot(av.kind || 'cutter', (av.y || SKY_OY) - SKY_OY);
+        const crew = [];
+        const cnt = Math.max(0, Math.min(8, Number(av.crewCount ?? 4)));
+        if (isGal) {
+          const G0 = castle3dState()?.anchors?.galleon;
+          (G0?.rail || []).slice(0, Math.max(cnt, av.captainId ? 3 : cnt)).forEach(([x, y, z], i) => {
+            if (i === 2 && av.captainId && AIR_CAPTAIN[av.captainId]) {
+              const cp = AIR_CAPTAIN[av.captainId];
+              crew.push({ art: cp.id, cap: av.captainId, x, y, z, h: (cp.h || 90) * 0.95, flip: false, ph: i });
+            } else if (i < cnt) {
+              const cr = AIR_CREW[(i * 5 + 1) % AIR_CREW.length];
+              crew.push({ art: cr.id, x, y, z, h: cr.h || 56, flip: false, ph: i * 1.2 });
+            }
+          });
+        } else {
+          const spots = dock?.deck || [[0, 0, 0]];
+          if (av.captainId && AIR_CAPTAIN[av.captainId]) {
+            const cp = AIR_CAPTAIN[av.captainId];
+            crew.push({ art: cp.id, cap: av.captainId, x: spots[0]?.[0] || 0, z: spots[0]?.[2] || 0, h: cp.h || 90, flip: false, ph: 0 });
+          }
+          for (let i = 0; i < cnt; i++) {
+            const cr = AIR_CREW[(i * 7 + 2) % AIR_CREW.length];
+            const sp = spots[(i + 1) % spots.length] || [0, 0, 0];
+            crew.push({ art: cr.id, x: sp[0], z: sp[2], h: cr.h || 56, flip: false, ph: i * 1.3 });
+          }
+        }
+        const hiddenNow = !!av.startHidden && !inEditor;
+        const b = {
+          _placed: true,
+          _vesselId: av.id,
+          _vesselKey: av.castKey || av.id,
+          galleon: isGal,
+          kind: isGal ? 'galleon' : (av.kind || 'cutter'),
+          x: Number(av.x ?? (SKY_OX - 10)),
+          y: Number(av.y ?? SKY_OY),
+          baseLv: Number(av.lv ?? (isGal ? 6 : 12)),
+          lv: Number(av.lv ?? (isGal ? 6 : 12)),
+          alpha: hiddenNow ? 0 : (av.startHidden && inEditor ? 0.52 : 1),
+          ramp: av.rampDown !== false ? 1 : 0,
+          phase: 0,
+          st: 'placed',
+          t: 0,
+          burn: [],
+          crew,
+        };
+        S.boats.push(b);
+
+        const hkCnt = Math.max(0, Math.min(6, Number(av.hooks ?? 0)));
+        if (hkCnt > 0 && !hiddenNow) {
+          const baseZ = clamp((b.y || SKY_OY) - SKY_OY, -12, 12);
+          for (let i = 0; i < hkCnt; i++) {
+            const dz = clamp(isGal ? [-7, -2.5, 2.5, 7.5, 11.5, -10][i % 6] : (baseZ + (i - (hkCnt - 1) / 2) * 2.2), -12, 14);
+            const pShip = railOfIronclad(dz);
+            const pVes = isGal ? railOfGalleon(b, i) : [b.x + 1.8, b.y + (i - (hkCnt - 1) / 2) * 1.1, b.lv + 2];
+            S.hooks.push({ from: pShip, to: pVes, t: 1, taut: 1, _placed: true, _vesselId: av.id });
+          }
+        }
+      }
+    },
+
+    hasVessel(keyRaw) {
+      const k = String(keyRaw || '').replace(/^@/, '');
+      return S.boats.some((b) => b._placed && (b._vesselKey === k || b._vesselId === k));
+    },
+
+    vesselScreenPos(keyRaw) {
+      const k = String(keyRaw || '').replace(/^@/, '');
+      const b = S.boats.find((q) => q._placed && (q._vesselKey === k || q._vesselId === k));
+      return b ? skyTilePx(b.x, b.y, b.lv + (b.galleon ? 18 : 8)) : null;
+    },
+
+    sailPlacedVessel(keyRaw, opts = {}) {
+      const k = String(keyRaw || '').replace(/^@/, '');
+      const b = S.boats.find((q) => q._placed && (q._vesselKey === k || q._vesselId === k));
+      if (!b) return null;
+      const toX = Number.isFinite(opts.toX) ? opts.toX : b.x;
+      const toY = Number.isFinite(opts.toY) ? opts.toY : b.y;
+      const toLv = Number.isFinite(opts.toLv) ? opts.toLv : b.baseLv;
+      if (opts.fromClouds) {
+        b.x = toX - 18;
+        b.y = toY + 14;
+        b.lv = toLv + 28;
+        b.alpha = 0.05;
+        if (b.galleon) S.bank = { x: b.x, y: b.y, lv: b.lv, t: 0 };
+      } else {
+        b.alpha = 1;
+      }
+      b._sail = {
+        fromX: b.x, fromY: b.y, fromLv: b.lv,
+        toX, toY, toLv,
+        t: 0,
+        dur: Math.max(0.3, Number(opts.dur) || 2.2),
+      };
+      return b;
+    },
+
+    setStagePreview(next = {}) {
+      Object.assign(stagePreview, next);
+      director.restoreEditorPreview();
+    },
+
+    restoreEditorPreview() {
+      timers.length = 0;
+      S.shots.length = 0;
+      S.ropes.length = 0;
+      S.bank = null;
+      for (const m of spawnedByDirector) world.remove(m);
+      spawnedByDirector.clear();
+
+      S.boats = [];
+      S.galleon = null;
+      S.hooks = [];
+      director.syncPlacedVessels({ inEditor: !world.player });
+
+      if (stagePreview.skiffs) {
+        for (const [kind, dz] of [['cutter', -6], ['hauler', 3]]) {
+          const dock = dockSpot(kind, dz);
+          const cr1 = AIR_CREW[0], cr2 = AIR_CREW[2];
+          S.boats.push({
+            _preview: true, kind, dz, x: dock.x, y: dock.y, lv: dock.lv, alpha: 1, ramp: 1, phase: 0, st: 'dock', t: 2, dock, from: dock, wait: 999, hold: 999, leap: false,
+            crew: [
+              { art: cr1.id, x: dock.deck[0]?.[0] || 0, z: dock.deck[0]?.[2] || 0, h: 55, flip: false, ph: 0 },
+              { art: cr2.id, x: dock.deck[1]?.[0] || -0.4, z: dock.deck[1]?.[2] || 0.6, h: 55, flip: false, ph: 1.5 },
+            ],
+          });
+        }
+      }
+      if (stagePreview.flagship || stagePreview.hooks) {
+        const g = buildGalleonObj('ap_admiral_veyl', 'ap_red_gale_corsair', true);
+        g._preview = true;
+        if (stagePreview.hooks) g.close.x = SKY_OX - 14.0;
+        g.x = g.close.x;
+        S.galleon = g;
+      }
+      if (stagePreview.hooks && S.galleon) {
+        const g = S.galleon;
+        [-6, -1.5, 3.5, 8.5].forEach((dz, i) => {
+          S.hooks.push({ from: railOfIronclad(dz), to: railOfGalleon(g, i), t: 1, taut: 1, _preview: true });
+        });
+      }
+    },
+
+    flagshipScreenPos() {
+      const g = S.galleon;
+      return g ? skyTilePx(g.x, g.y, g.lv + 18) : skyTilePx(SKY_OX - 16, SKY_OY + 1, 20);
+    },
+
+    skiffScreenPos() {
+      const b = S.boats[S.boats.length - 1];
+      return b ? skyTilePx(b.x, b.y, b.lv + 8) : skyTilePx(SKY_OX - 9, SKY_OY + 3, 12);
+    },
+
+    gateScreenPos() {
+      return skyTilePx(SKY_OX + 0.5, SKY_OY + SKY_GATE.z, (SKY_FC_H + 1.4) * SKY_LV);
+    },
+
+    tick(dt) {
+      if (!dt) return;
+      for (let i = timers.length - 1; i >= 0; i--) {
+        timers[i].t -= dt;
+        if (timers[i].t <= 0) {
+          const fn = timers[i].fn;
+          timers.splice(i, 1);
+          fn();
+        }
+      }
+
+      if (S.gateFlash > 0) S.gateFlash = Math.max(0, S.gateFlash - dt * 1.2);
+      if (S.bank) {
+        S.bank.t += dt;
+        if (S.bank.t > 8) S.bank = null;
+      }
+
+      const g = S.galleon;
+      if (g && !g._preview) {
+        g.alpha = Math.min(1, g.alpha + dt * 0.65);
+        if (g.leaving) {
+          g.t2 = (g.t2 || 0) + dt;
+          const k = clamp(g.t2 / 6.5, 0, 1);
+          g.x = g.close.x - k * k * 38;
+          g.y = g.close.y + k * 28;
+          g.lv = g.close.lv - k * 56;
+          g.alpha = 1 - k;
+          if (k >= 1) S.galleon = null;
+        } else {
+          g.k = Math.min(1, (g.k || 0) + dt * (g.speed || 0.32));
+          const k = easeOut(clamp(g.k, 0, 1)), bob = Math.sin(G.time * 0.9) * 1.1;
+          g.x = g.far.x + (g.close.x - g.far.x) * k;
+          g.y = g.far.y + (g.close.y - g.far.y) * k;
+          g.lv = g.far.lv + (g.close.lv - g.far.lv) * k + bob;
+        }
+      } else if (g && g._preview) {
+        g.lv = g.close.lv + Math.sin(G.time * 0.9) * 0.9;
+      }
+
+      for (let i = S.boats.length - 1; i >= 0; i--) {
+        const b = S.boats[i];
+        if (b._placed) {
+          if (b._sail) {
+            const sl = b._sail;
+            sl.t += dt;
+            const q = easeOut(clamp(sl.t / sl.dur, 0, 1));
+            b.x = sl.fromX + (sl.toX - sl.fromX) * q;
+            b.y = sl.fromY + (sl.toY - sl.fromY) * q;
+            b.baseLv = sl.fromLv + (sl.toLv - sl.fromLv) * q;
+            b.alpha = Math.min(1, b.alpha + dt * 1.4);
+            if (q >= 1) b._sail = null;
+          }
+          if (b.alpha > 0) {
+            b.lv = (b.baseLv ?? b.lv) + Math.sin(G.time * 1.2 + i) * 0.6;
+          }
+          continue;
+        }
+        if (b._preview) {
+          b.lv = b.dock.lv + Math.sin(G.time * 1.3 + i) * 0.5;
+          continue;
+        }
+        b.t += dt;
+        if (b.st === 'fly') {
+          b.y -= dt * 5.8;
+          b.lv = 95 + Math.sin(b.t * 0.8) * 2;
+          b.alpha = clamp(Math.min(b.t / 1.0, (b.y - (SKY_OY - 30)) / 6), 0, 1);
+          if (b.drops > 0 && b.y < SKY_OY + 12 && ((b.dropT = (b.dropT ?? 0) - dt) <= 0)) {
+            b.dropT = 0.42;
+            b.drops--;
+            const to = nearDeck(b.x + 3 + (Math.random() - 0.5) * 4, b.y + (Math.random() - 0.5) * 2);
+            spawnAirBoarder(null, b.rank || 'normal', null, to, 'rope', () => [b.x + 0.4, b.y + 0.2, b.lv]);
+          }
+          if (b.y < SKY_OY - 32) S.boats.splice(i, 1);
+          continue;
+        }
+        const bob = Math.sin(G.time * 1.3 + b.phase) * 0.75;
+        if (b.st === 'in') {
+          const k = easeOut(clamp(b.t / 3.4, 0, 1));
+          b.x = b.from.x + (b.dock.x - b.from.x) * k;
+          b.y = b.from.y + (b.dock.y - b.from.y) * k;
+          b.lv = b.from.lv + (b.dock.lv - b.from.lv) * k + bob;
+          b.alpha = clamp(b.t / 0.7, 0, 1);
+          if (k >= 1) { b.st = 'dock'; b.t = 0; sfx('thud', 0.6); camera.shake(3); }
+        } else if (b.st === 'dock') {
+          b.lv = b.dock.lv + bob * 0.4;
+          b.ramp = Math.min(1, b.t / 0.45);
+          if (b.leap && b.crew.length && b.t > b.wait && ((b.nextLeap = (b.nextLeap ?? 0) - dt) <= 0)) {
+            b.nextLeap = 0.32;
+            const c = b.crew.shift();
+            const s = skySAt(b.dz);
+            const to = nearDeck(...tileOf(-(skyInner(s) - 1.1) + Math.random() * 2.4, b.dz + (Math.random() - 0.5) * 2.8));
+            const from = [b.x + (c.x || 0), b.y + (c.z || 0), b.lv];
+            if (c.captain) spawnAirCaptain(c.captainId, from, to, c.castKey, 'leap');
+            else spawnAirBoarder(c.crewDef, c.rank, from, to, 'leap');
+          }
+          if (!b.crew.length && b.t > b.wait + 0.6) {
+            b.holdT = (b.holdT || 0) + dt;
+            if (b.holdT > b.hold) { b.st = 'out'; b.t = 0; }
+          }
+        } else if (b.st === 'out') {
+          const k = clamp(b.t / 3.5, 0, 1), e = k * k;
+          b.ramp = 0;
+          b.x = b.dock.x + (b.from.x - b.dock.x) * e;
+          b.y = b.dock.y + (b.from.y - b.dock.y) * e;
+          b.lv = b.dock.lv + (b.from.lv - b.dock.lv) * e;
+          b.alpha = 1 - k;
+          if (k >= 1) S.boats.splice(i, 1);
+        }
+      }
+
+      for (const h of S.hooks) {
+        if (h._preview) continue;
+        if (h.delay > 0) { h.delay -= dt; continue; }
+        if (h.t < 1) {
+          h.t = Math.min(1, h.t + dt * 1.75);
+          if (h.t >= 1 && !h.hit) {
+            h.hit = true;
+            sfx('thud', 0.5);
+            sparkle(h.to[0], h.to[1], h.to[2] * HS, '#ffe0a0', 6, 0.3);
+          }
+        }
+      }
+
+      for (let i = S.shots.length - 1; i >= 0; i--) {
+        const sh = S.shots[i];
+        sh.t += dt;
+        if (sh.t >= sh.dur) {
+          S.shots.splice(i, 1);
+          sh.onHit?.();
+        }
+      }
+    },
+  };
+
+  return director;
+}
 export async function buildCustomScenarioWorld(doc, opts = {}) {
   const cat = doc.meta?.category || 'dungeon';
   const biomeId = doc.meta?.biomeId || 'catacombs';
@@ -613,8 +1380,11 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
   if (!opts.keepAllTileSets) keepTileSets(tileset);
 
   let townTiles = null;
-  if (useTownFloors) townTiles = makeTownTiles();
-  else if (biomeId === 'act2_town' || (biomeId === 'sea_of_sand' && cat !== '3d_dunes')) {
+  if (cat === '3d_alpine' && biomeId === 'mountainside') {
+    townTiles = mountainFloorList();
+  } else if (useTownFloors) {
+    townTiles = makeTownTiles();
+  } else if (biomeId === 'act2_town' || (biomeId === 'sea_of_sand' && cat !== '3d_dunes')) {
     const sf = seaOfSandFloorTiles();
     if (sf && sf.length) townTiles = sf;
   } else if (biomeId === 'castle') {
@@ -685,6 +1455,22 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
     map.sky = true;
     map.c3struct = new Uint8Array(N);
     for (let i = 0; i < N; i++) if (layers.flags[i] & 4) map.c3struct[i] = 1;
+    // Ensure all baked 3D hull, keel, bowsprit, outrigger & bridge-spire slices outside walkable L.ship render cleanly
+    const st = castle3dState();
+    const L = shipLayout();
+    for (const partMap of [st?.base, st?.over]) {
+      if (!partMap) continue;
+      for (const idx of partMap.keys()) {
+        if (idx >= 0 && idx < N && !L.ship[idx]) {
+          map.t[idx] = 1;
+          map.block[idx] = 1;
+          map.c3struct[idx] = 1;
+        }
+      }
+    }
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < N; i++) if (map.t[i] === 1) { lo = Math.min(lo, map.hgt[i]); hi = Math.max(hi, map.hgt[i]); }
+    if (Number.isFinite(lo)) { map.minLevel = lo; map.maxLevel = hi; map.baseLevel = lo - 40; }
   } else if (cat === 'naval') {
     map.sea = true;
     map.noSky = true;
@@ -961,8 +1747,10 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
     tw.setClimbTurn(0.05);
     setWarp(tw.warp, tw.pick);
   } else if (cat === '3d_alpine') {
-    const summitFloors = biomeTileSet(resolveBiome('snowy_summit')).floors;
-    const av = compileAlpineSpecFromDoc(doc, summitFloors.length ? summitFloors : tileset.floors);
+    const alpFloors = biomeId === 'mountainside'
+      ? (townTiles || mountainFloorList())
+      : biomeTileSet(resolveBiome('snowy_summit')).floors;
+    const av = compileAlpineSpecFromDoc(doc, alpFloors.length ? alpFloors : tileset.floors);
     map.hgt = fieldLevels(av.F, w, h, layers.hgt, layers.t);
     map.smoothField = true;
     map.hopArc = true;
@@ -1159,6 +1947,8 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
     };
     warmSky(world);
     useTerrain(map);
+    world.skyDirector = createCustomSkyDirector(world, doc, biome, depth);
+    world.skyDirector.syncPlacedVessels({ inEditor: !!opts.isEditor && !world.player });
   } else if (cat === '3d_train') {
     buildTrain3D(world);
     const cr = (world.cave = {

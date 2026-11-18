@@ -34,7 +34,8 @@ export function buildSkiff(M, kind, rampSide = 1) {
   const root = new THREE.Group(); root.name = kind;
   const P = new Parts(M), spin = [], waves = [], glow = [], fx = [];
   hull(P, { L, beam, sheer, keel, prof: o.prof, transom: o.bands[0][0], inner, deckAt, wall: o.wall, cap: o.cap, bands: o.bands, decks: [[o.deck, 0.01, 0.97, 0]] });
-  P.add(o.wall, box(inner(0) * 2, sheer(0), 0.2, 0, sheer(0) / 2, Z0 - 0.1));
+  P.add(o.wall, box(inner(0) * 2, sheer(0) + 0.03, 0.2, 0, (sheer(0) + 0.03) / 2, Z0 - 0.1));
+  P.add(o.cap, box(beam(0) * 2 + 0.12, 0.14, 0.28, 0, sheer(0) + 0.03, Z0 - 0.1));
 
   const lantern = (x, y, z) => {
     P.add('iron', rod([x, y - 0.5, z], [x, y, z], 0.04, 0.04, 4));

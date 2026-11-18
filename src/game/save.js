@@ -29,6 +29,14 @@ function readAll() {
   if (!unreadable && !localStorage.getItem(KEY) && raw) {
     try { localStorage.setItem(KEY, raw); } catch (e) { }
   }
+  if (!unreadable) {
+    for (const c of list) {
+      if (c && typeof c === 'object') {
+        delete c.isOnline;
+        delete c.accountId;
+      }
+    }
+  }
   return unreadable ? [] : list;
 }
 /** False when this device's saves exist but can't be read (cloud.js then changes nothing). */

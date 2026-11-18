@@ -423,13 +423,16 @@ export class Creature {
     }
     const fly = this.fly ? 16 + Math.sin(this.animT * 3) * 4 : 0;
     const z = this.z + fly + bob;
-    // shadow (none under Velscour's Mirror of Sin copies: game/velscour.js)
-    if (!this.noShadow) {
-      ctx.fillStyle = 'rgba(0,0,0,0.38)';
-      const sw = Math.max(8, Math.min(w, h) * 0.32);
-      const sh = Math.max(4, Math.min(w, h) * 0.14);
+    // shadow (none under Velscour's Mirror of Sin copies or while leaping across open sky between ships)
+    const map0 = this.world?.map;
+    const overSkyVoid = !!(map0?.sky && !map0.t[map0.tileIdx(this.x, this.y)]);
+    if (!this.noShadow && !overSkyVoid && w > 1 && h > 1) {
+      const airFade = this.z > 6 ? Math.max(0.14, 1 - this.z / 260) : 1;
+      ctx.fillStyle = `rgba(0,0,0,${(0.38 * airFade).toFixed(3)})`;
+      const sw = Math.max(4, Math.min(w, h) * 0.32 * (0.65 + 0.35 * airFade));
+      const sh = Math.max(2, Math.min(w, h) * 0.14 * (0.65 + 0.35 * airFade));
       const bobR = isHero ? bob * 0.5 : 0;
-      ctx.beginPath(); ctx.ellipse(px, py, Math.max(4, sw - bobR), Math.max(2, sh - bobR * 0.35), 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(px, py, Math.max(3, sw - bobR), Math.max(1.5, sh - bobR * 0.35), 0, 0, TAU); ctx.fill();
     }
     // elite aura
     if (this.aura) {

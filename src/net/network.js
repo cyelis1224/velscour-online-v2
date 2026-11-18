@@ -1247,3 +1247,4 @@ class NetworkManager {
 }
 
 export const net = new NetworkManager();
+if (typeof window !== 'undefined') window.net = net;

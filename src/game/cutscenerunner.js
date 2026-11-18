@@ -126,6 +126,13 @@ export function compileCutsceneSteps(cine, runtime) {
   const findPoint = (ref) => {
     if (!ref) return faceOfEntity(p(), 0.45);
     const key = String(ref).replace(/^@/, '');
+    if (world.skyDirector) {
+      const vp = world.skyDirector.vesselScreenPos?.(key);
+      if (vp) return vp;
+      if (key === 'flagship') return world.skyDirector.flagshipScreenPos();
+      if (key === 'skiff') return world.skyDirector.skiffScreenPos();
+      if (key === 'gate') return world.skyDirector.gateScreenPos();
+    }
     const act = findActor(key);
     if (act) return faceOfEntity(act);
     const mk = (doc.entities?.marks || []).find((q) => q.id === key || q.name === key);
@@ -275,6 +282,24 @@ export function compileCutsceneSteps(cine, runtime) {
       case 'walk': {
         const [tx, ty] = resolveTileCoords(st);
         const dur = Number(st.dur) || 1.2;
+        if (world.skyDirector?.hasVessel?.(st.who)) {
+          let vRef = null;
+          steps.push({
+            do: () => {
+              vRef = world.skyDirector.sailPlacedVessel(st.who, {
+                toX: tx,
+                toY: ty,
+                toLv: Number.isFinite(Number(st.lv)) ? Number(st.lv) : undefined,
+                fromClouds: !!st.fromClouds,
+                dur,
+              });
+            },
+          });
+          if (st.wait !== false) {
+            steps.push({ until: () => !vRef || !vRef._sail, max: dur + 2 });
+          }
+          break;
+        }
         steps.push({
           do: () => {
             const act = findActor(st.who || 'hero');
@@ -390,6 +415,85 @@ export function compileCutsceneSteps(cine, runtime) {
           until: () => !world.creatures.some((c) => c.team === 'enemy' && !c.dead && c.awake),
           max: Number(st.max) || 60,
         });
+        break;
+      }
+      case 'sky_skiff': {
+        let boatRef = null;
+        steps.push({
+          do: () => {
+            boatRef = world.skyDirector?.launchSkiff({
+              boatKind: st.boatKind || 'cutter',
+              dock: st.dock || 'auto',
+              count: st.count ?? 4,
+              rank: st.rank || 'normal',
+              captainId: st.captainId || '',
+              castKey: st.castKey || '',
+            });
+          },
+        });
+        if (st.wait !== false) {
+          steps.push({
+            until: () => !boatRef || boatRef.st === 'dock' || boatRef.st === 'out' || !world.sky?.boats?.includes(boatRef),
+            max: 6.5,
+          });
+        }
+        break;
+      }
+      case 'sky_flagship': {
+        const action = st.action || 'arrive';
+        const dur = Number(st.dur) || 3.2;
+        steps.push({
+          do: () => {
+            world.skyDirector?.controlFlagship({
+              action,
+              dur,
+              captainA: st.captainA || 'ap_admiral_veyl',
+              captainB: st.captainB || 'ap_red_gale_corsair',
+            });
+          },
+        });
+        if (st.wait !== false && action === 'arrive') {
+          steps.push({
+            until: () => !world.sky?.galleon || (world.sky.galleon.k || 0) >= 0.98,
+            max: dur + 2.0,
+          });
+        }
+        break;
+      }
+      case 'sky_hooks': {
+        const action = st.action || 'throw_and_lash';
+        const cnt = Number(st.count ?? 4);
+        steps.push({
+          do: () => {
+            world.skyDirector?.controlHooks({ action, count: cnt, vesselKey: st.vesselKey || '' });
+          },
+        });
+        if (st.wait !== false && (action === 'throw_and_lash' || action === 'throw')) {
+          steps.push({ wait: action === 'throw_and_lash' ? (0.95 + cnt * 0.16) : 0.8 });
+        }
+        break;
+      }
+      case 'sky_volley': {
+        const action = st.action || 'flagship_volley';
+        let capEntity = null;
+        steps.push({
+          do: () => {
+            capEntity = world.skyDirector?.fireVolley({
+              action,
+              count: st.count ?? 4,
+              captainId: st.captainId || 'ap_admiral_veyl',
+              castKey: st.castKey || '',
+              dz: st.dz ?? 0,
+            });
+          },
+        });
+        if (st.wait) {
+          if (action === 'captain_leap' || action === 'captain_swing') {
+            steps.push({ until: () => !capEntity || !capEntity.entering, max: 4.5 });
+          } else {
+            steps.push({ wait: Math.max(0.8, (Number(st.count ?? 4)) * 0.28 + 1.0) });
+          }
+        }
         break;
       }
     }
@@ -594,6 +698,7 @@ export function createScenarioDirector(world, doc, opts = {}) {
       return true;
     },
     tickScripted(dt) {
+      world.skyDirector?.tick(dt);
       for (let i = scripted.length - 1; i >= 0; i--) {
         if (!scripted[i](dt)) scripted.splice(i, 1);
       }

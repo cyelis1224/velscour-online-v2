@@ -155,12 +155,12 @@ export function buildAirship(M) {
     idx.push(0, 1, all.length);
     P.add('hull', tris(pts, idx));
   }
-  // Bulwark inner faces and the gold cap rail; decks.
-  const capH = 0.12;
+  // Bulwark inner faces and the solid 3D gold cap rail; decks.
+  const capH = 0.10;
   for (const side of [1, -1]) {
-    P.add('blackwood', surf(NS, 1, (u, v) => [side * inner(u), v ? deckAt(u) - 0.05 : sheer(u), zAt(u)], (u, v) => [zAt(u) / 2, v * 0.6], side < 0), { uv: 'keep' });
-    P.add('goldHammer', surf(NS, 1, (u, v) => [side * (v ? inner(u) - 0.05 : beam(u) + 0.06), sheer(u) + capH, zAt(u)], (u, v) => [zAt(u) / 2, v * 0.2], side < 0), { uv: 'keep' });
+    P.add('blackwood', surf(NS, 1, (u, v) => [side * inner(u), v ? deckAt(u) - 0.05 : sheer(u) + 0.03, zAt(u)], (u, v) => [zAt(u) / 2, v * 0.6], side < 0), { uv: 'keep' });
   }
+  capRail(P, 'goldHammer', NS, zAt, beam, inner, sheer, capH, 0.04);
   const deckStrip = (mat, s0, s1, y) => P.add(mat, surf(Math.ceil((s1 - s0) * NS), 1, (u, v) => {
     const s = s0 + (s1 - s0) * u; return [(v * 2 - 1) * inner(s), y, zAt(s)];
   }, (u, v) => { const s = s0 + (s1 - s0) * u; return [zAt(s) / 2, (v * 2 - 1) * inner(s) / 2]; }, true), { uv: 'keep' });
@@ -168,8 +168,8 @@ export function buildAirship(M) {
   deckStrip('deck2', 0.0075, QD_S, QD_H);
   deckStrip('deck2', FC_S, 0.995, FC_H);
   // stern bulwark across the quarterdeck, and the bulkheads under the raised decks
-  P.add('blackwood', box(inner(0) * 2, sheer(0) - QD_H, WALL, 0, (sheer(0) + QD_H) / 2, ZS - WALL / 2));
-  P.add('goldHammer', box(beam(0) * 2 + 0.1, capH, WALL + 0.12, 0, sheer(0) + capH / 2, ZS - WALL / 2));
+  P.add('blackwood', box(inner(0) * 2, sheer(0) + 0.03 - QD_H, WALL, 0, (sheer(0) + 0.03 + QD_H) / 2, ZS - WALL / 2));
+  P.add('goldHammer', box(beam(0) * 2 + 0.12, capH + 0.04, WALL + 0.12, 0, sheer(0) + (capH - 0.04) / 2, ZS - WALL / 2));
   const zq = zAt(QD_S), zf = zAt(FC_S);
   P.add('cedar', box(inner(QD_S) * 2, QD_H, 0.3, 0, QD_H / 2, zq - 0.15));
   P.add('cedar', box(inner(FC_S) * 2, FC_H, 0.3, 0, FC_H / 2, zf + 0.15));
@@ -534,6 +534,18 @@ function sail(mat, [z, y0, y1, w0, w1]) {
 }
 
 // ------------------------------------------------------------------ shared by the other ships
+/** A solid 4-sided coping rail along both bulwarks so no gap opens between the wall top and the cap ribbon. */
+export function capRail(P, mat, ns, zAt, beam, inner, sheer, capH = 0.10, drop = 0.04) {
+  const xOut = (u) => beam(u) + 0.06, xIn = (u) => Math.max(0, inner(u) - 0.05);
+  const yTop = (u) => sheer(u) + capH, yBot = (u) => sheer(u) - drop;
+  for (const side of [1, -1]) {
+    P.add(mat, surf(ns, 1, (u, v) => [side * (v ? xIn(u) : xOut(u)), yTop(u), zAt(u)], (u, v) => [zAt(u) / 2, v * 0.22], side < 0), { uv: 'keep' });
+    P.add(mat, surf(ns, 1, (u, v) => [side * xOut(u), v ? yBot(u) : yTop(u), zAt(u)], (u, v) => [zAt(u) / 2, v * 0.1], side > 0), { uv: 'keep' });
+    P.add(mat, surf(ns, 1, (u, v) => [side * xIn(u), v ? yBot(u) : yTop(u), zAt(u)], (u, v) => [zAt(u) / 2, v * 0.1], side < 0), { uv: 'keep' });
+    P.add(mat, surf(ns, 1, (u, v) => [side * (v ? xIn(u) : xOut(u)), yBot(u), zAt(u)], (u, v) => [zAt(u) / 2, v * 0.22], side > 0), { uv: 'keep' });
+  }
+}
+
 /** A lofted hull from H = { L, beam(s), sheer(s), keel(s), prof(k), bands: [[mat, k0, k1, nk]], ns, transom } (s: 0 stern
  *  .. 1 bow, bow toward -Z, centred on z = 0), plus the bulwarks' inner faces and cap when H.inner/H.deckAt/H.wall/H.cap
  *  are given, and flat decks H.decks: [[mat, s0, s1, y]]. Adds to the Parts P. */
@@ -552,9 +564,11 @@ export function hull(P, H) {
     idx.push(0, 1, all.length);
     P.add(H.transom, tris(pts, idx));
   }
-  if (H.inner) for (const side of [1, -1]) {
-    P.add(H.wall, surf(ns, 1, (u, v) => [side * H.inner(u), v ? H.deckAt(u) - 0.05 : H.sheer(u), zAt(u)], (u, v) => [zAt(u) / 2, v * 0.6], side < 0), { uv: 'keep' });
-    P.add(H.cap, surf(ns, 1, (u, v) => [side * (v ? H.inner(u) - 0.05 : H.beam(u) + 0.06), H.sheer(u) + 0.12, zAt(u)], (u, v) => [zAt(u) / 2, v * 0.2], side < 0), { uv: 'keep' });
+  if (H.inner) {
+    for (const side of [1, -1]) {
+      P.add(H.wall, surf(ns, 1, (u, v) => [side * H.inner(u), v ? H.deckAt(u) - 0.05 : H.sheer(u) + 0.03, zAt(u)], (u, v) => [zAt(u) / 2, v * 0.6], side < 0), { uv: 'keep' });
+    }
+    capRail(P, H.cap, ns, zAt, H.beam, H.inner, H.sheer, 0.10, 0.04);
   }
   for (const [mat, s0, s1, y] of H.decks || []) P.add(mat, surf(Math.max(2, Math.ceil((s1 - s0) * ns)), 1, (u, v) => {
     const s = s0 + (s1 - s0) * u; return [(v * 2 - 1) * H.inner(s), y, zAt(s)];

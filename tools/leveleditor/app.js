@@ -12,6 +12,8 @@ import { BESTIARY } from '../../src/data/bestiary.js';
 import { TOWNSFOLK } from '../../src/data/townsfolk.js';
 import { VENDORS } from '../../src/world/town.js';
 import { TOWN_BIOME } from '../../src/data/biomes.js';
+import { AIR_CAPTAINS } from '../../src/data/airpirates.js';
+import { OX as SKY_OX, OY as SKY_OY } from '../../src/world/skyship.js';
 
 import {
   SCENARIO_CATEGORIES,
@@ -451,6 +453,16 @@ class VelscourStudio {
     }
 
     selBiome?.addEventListener('change', async () => {
+      if (this.doc.meta.category === 'overworld' && selBiome.value === 'mountainside') {
+        const nextDoc = createBlankScenarioDoc({
+          id: 'mountainside_custom',
+          name: 'Custom Mountainside',
+          category: '3d_alpine',
+          biomeId: 'mountainside',
+        });
+        await this.loadDocument(nextDoc, { center: true });
+        return;
+      }
       this.history.snapshot(this.doc, 'Change Biome');
       this.doc.meta.biomeId = selBiome.value;
       const vars = variantsFor(this.doc.meta.category, this.doc.meta.biomeId);
@@ -647,7 +659,7 @@ class VelscourStudio {
         const vars = variantsFor(cat.id, selBiomeId);
         if (!vars.some((v) => v.id === selVarId)) selVarId = vars[0]?.id || 'default';
         const biomeName = resolveBiome(selBiomeId).name;
-        const multiBoss3D = mode === 'bake' && ['3d_dunes', '3d_caverns', '3d_tower', '3d_alpine'].includes(selCatId);
+        const multiBoss3D = mode === 'bake' && (['3d_dunes', '3d_caverns', '3d_tower', '3d_alpine'].includes(selCatId) || selBiomeId === 'mountainside');
 
         body.innerHTML = `
           <div style="display:flex;gap:8px;margin-bottom:10px">
@@ -735,6 +747,7 @@ class VelscourStudio {
 
   async bakeSeedScenario({ title, category, biomeId, variantId, seed, bossCount = 2 }) {
     const resolvedBiomeId = biomeId || CATEGORY_BY_ID[category]?.biomes?.[0] || 'catacombs';
+    if (category === 'overworld' && resolvedBiomeId === 'mountainside') category = '3d_alpine';
     this.toast(`Baking ${resolvedBiomeId} (seed ${seed})…`);
     const biome = resolveBiome(resolvedBiomeId);
     const dummyDoc = createBlankScenarioDoc({ category, biomeId: resolvedBiomeId, variantId });
@@ -1005,6 +1018,16 @@ class VelscourStudio {
     pushGroup('Rooms', (doc.architecture.rooms || []).map((r, i) =>
       mkRow('room', i, `🏛️ ${r.title || r.theme || r.id}${typeof r.floorLv === 'number' ? ` (${r.floorLv} lv)` : ''}`, r.x + r.w / 2, r.y + r.h / 2)
     ));
+    if (doc.grid?.airship?.vessels?.length) {
+      pushGroup('Airship Fleet', doc.grid.airship.vessels.map((av, i) =>
+        mkRow('sky_vessel', i, `⛵ ${av.name || av.kind}${av.castKey ? ` (@${av.castKey})` : ''}${av.hooks ? ` · 🪝${av.hooks}` : ''}`, av.x - (av.lv || 0) / 8, av.y - (av.lv || 0) / 8)
+      ));
+    }
+    if (doc.grid?.naval?.ships?.length) {
+      pushGroup('Naval Fleet', doc.grid.naval.ships.map((sh, i) =>
+        mkRow('naval_ship', i, `⚓ ${sh.kind} (${sh.id})`, sh.x, sh.y)
+      ));
+    }
 
     listEl.innerHTML = rows.join('');
     listEl.querySelectorAll('[data-otype]').forEach((btn) => {
@@ -1022,6 +1045,8 @@ class VelscourStudio {
         else if (type === 'zone') obj = doc.entities.zones[idx];
         else if (type === 'mark') obj = doc.entities.marks[idx];
         else if (type === 'room') obj = doc.architecture.rooms[idx];
+        else if (type === 'sky_vessel') obj = doc.grid.airship?.vessels?.[idx];
+        else if (type === 'naval_ship') obj = doc.grid.naval?.ships?.[idx];
         if (obj) {
           this.state.selectedCineStep = null;
           this.state.selected = { type, obj, _idx: idx, end: type === 'passage' ? 'from' : undefined };
@@ -1441,6 +1466,110 @@ class VelscourStudio {
         this.state.selected = null;
         await this.rebuildWorld({ keepCamera: true });
         this.renderInspector();
+      });
+    } else if (type === 'sky_vessel') {
+      const capOpts = `<option value="">(None — Crew Only)</option>` + AIR_CAPTAINS.map((c) => `<option value="${c.id}" ${obj.captainId === c.id ? 'selected' : ''}>${c.name} (${c.title})</option>`).join('');
+      body.innerHTML = `
+        <div class="form-stack">
+          <div class="fg"><label>Vessel Name</label><input id="sv-name" type="text" value="${obj.name || ''}"></div>
+          <div class="fg"><label>Cutscene @castKey Handle</label><input id="sv-cast" type="text" placeholder="e.g. enemy_flagship" value="${obj.castKey || ''}"></div>
+          <div class="fg">
+            <label>Vessel Class</label>
+            <select id="sv-kind">
+              <option value="galleon" ${obj.kind === 'galleon' ? 'selected' : ''}>🚢 Pirate Flagship Galleon</option>
+              <option value="cutter" ${obj.kind === 'cutter' ? 'selected' : ''}>🛥️ Swift Boarding Cutter</option>
+              <option value="hauler" ${obj.kind === 'hauler' ? 'selected' : ''}>🛡️ Armored Iron Hauler</option>
+              <option value="gasbag" ${obj.kind === 'gasbag' ? 'selected' : ''}>🎈 Gasbag Boarding Airship</option>
+            </select>
+          </div>
+          <div class="fg-row">
+            <div class="fg"><label>Sky X</label><input id="sv-x" type="number" step="0.5" value="${obj.x}"></div>
+            <div class="fg"><label>Sky Y</label><input id="sv-y" type="number" step="0.5" value="${obj.y}"></div>
+          </div>
+          <div class="fg-row">
+            <div class="fg"><label>Altitude (lv)</label><input id="sv-lv" type="number" step="1" min="-30" max="110" value="${obj.lv ?? 10}"></div>
+            <div class="fg"><label>🪝 Grappling Chains (0–6)</label><input id="sv-hooks" type="number" min="0" max="6" value="${obj.hooks ?? 0}"></div>
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <button class="mini-btn" data-svsnap="fore" title="Snap alongside Port Bow Dock">⚓ Bow</button>
+            <button class="mini-btn" data-svsnap="mid" title="Snap alongside Port Amidships Dock">⚓ Mid</button>
+            <button class="mini-btn" data-svsnap="aft" title="Snap alongside Port Quarterdeck Dock">⚓ Aft</button>
+            <button class="mini-btn" data-svsnap="broad" title="Snap to Flagship Broadside Range">🚢 Broadside</button>
+          </div>
+          <div class="fg-row">
+            <div class="fg"><label>Deck Crew (0–8)</label><input id="sv-crew" type="number" min="0" max="8" value="${obj.crewCount ?? 4}"></div>
+            <div class="fg"><label>Captain at Rail</label><select id="sv-cap">${capOpts}</select></div>
+          </div>
+          <label class="chk-line"><input id="sv-ramp" type="checkbox" ${obj.rampDown !== false ? 'checked' : ''}> Boarding Ramp Lowered</label>
+          <label class="chk-line"><input id="sv-hid" type="checkbox" ${obj.startHidden ? 'checked' : ''}> Start Hidden in Clouds Until Cutscene</label>
+          <button id="sv-cine" class="sbtn gold" style="justify-content:center">🎬 + Add "Sail In &amp; Grapple" to Cutscene</button>
+          <button id="in-del" class="mini-btn danger">✕ Delete Airship</button>
+        </div>
+      `;
+      const syncVessel = () => {
+        obj.name = body.querySelector('#sv-name').value.trim();
+        obj.castKey = slugifyId(body.querySelector('#sv-cast').value.trim());
+        obj.kind = body.querySelector('#sv-kind').value;
+        obj.x = Number(body.querySelector('#sv-x').value);
+        obj.y = Number(body.querySelector('#sv-y').value);
+        obj.lv = Number(body.querySelector('#sv-lv').value) || 0;
+        obj.hooks = Math.max(0, Math.min(6, Number(body.querySelector('#sv-hooks').value) || 0));
+        obj.crewCount = Math.max(0, Math.min(8, Number(body.querySelector('#sv-crew').value) || 0));
+        obj.captainId = body.querySelector('#sv-cap').value;
+        obj.rampDown = body.querySelector('#sv-ramp').checked;
+        obj.startHidden = body.querySelector('#sv-hid').checked;
+        this.world?.skyDirector?.syncPlacedVessels?.({ inEditor: true });
+        this.renderOutliner();
+        this.cineEditor.renderAll();
+        this.refreshBanner();
+      };
+      body.querySelectorAll('input, select').forEach((el) => el.addEventListener('change', () => {
+        this.history.snapshot(this.doc, 'Edit Airship Vessel');
+        syncVessel();
+      }));
+      body.querySelectorAll('[data-svsnap]').forEach((b) => b.addEventListener('click', () => {
+        this.history.snapshot(this.doc, 'Snap Airship Position');
+        const mode = b.dataset.svsnap;
+        if (mode === 'broad') { obj.x = SKY_OX - 15.2; obj.y = SKY_OY + 0.6; obj.lv = 6; }
+        else if (mode === 'fore') { obj.x = SKY_OX - 8.2; obj.y = SKY_OY - 6; obj.lv = 12; }
+        else if (mode === 'mid') { obj.x = SKY_OX - 8.8; obj.y = SKY_OY + 3; obj.lv = 12; }
+        else { obj.x = SKY_OX - 8.2; obj.y = SKY_OY + 13.5; obj.lv = 22; }
+        this.world?.skyDirector?.syncPlacedVessels?.({ inEditor: true });
+        this.renderOutliner();
+        this.renderInspector();
+      }));
+      body.querySelector('#sv-cine')?.addEventListener('click', () => {
+        this.history.snapshot(this.doc, 'Add Airship Sail & Grapple Steps');
+        let cine = this.cineEditor.currentCutscene(this.doc);
+        if (!cine) {
+          cine = { id: 'cine_airship_action', name: 'Airship Boarding', allowFastForward: true, steps: [] };
+          this.doc.cutscenes.push(cine);
+          this.cineEditor.activeCineId = cine.id;
+        }
+        obj.startHidden = true;
+        if (!obj.castKey) obj.castKey = slugifyId(obj.name || obj.id);
+        const now = Date.now().toString(36);
+        cine.steps.push(
+          { id: `st_${now}_1`, type: 'walk', who: obj.castKey, x: obj.x, y: obj.y, lv: obj.lv, fromClouds: true, dur: 2.8, wait: false },
+          { id: `st_${now}_2`, type: 'cam', mode: 'fit', actors: ['hero', obj.castKey], zoom: 1.1, dur: 1.5, ease: 'out', wait: true },
+          { id: `st_${now}_3`, type: 'sky_hooks', action: 'throw_and_lash', vesselKey: obj.castKey, count: Math.max(2, obj.hooks || 3), wait: true },
+          { id: `st_${now}_4`, type: 'cam', mode: 'return_hero', dur: 0.9, wait: true },
+        );
+        this.world?.skyDirector?.syncPlacedVessels?.({ inEditor: true });
+        this.cineEditor.renderAll();
+        this.renderInspector();
+        this.toast(`Added Sail-In & Grapple keyframes for @${obj.castKey} to "${cine.name}"!`);
+      });
+      body.querySelector('#in-del')?.addEventListener('click', () => {
+        this.history.snapshot(this.doc, 'Delete Airship');
+        const list = this.doc.grid.airship?.vessels || [];
+        const idx = list.indexOf(obj);
+        if (idx >= 0) list.splice(idx, 1);
+        this.state.selected = null;
+        this.world?.skyDirector?.syncPlacedVessels?.({ inEditor: true });
+        this.renderOutliner();
+        this.renderInspector();
+        this.refreshBanner();
       });
     } else {
       body.innerHTML = `<div class="dim-lbl">Selected <b>${type}</b>. Drag on the viewport to reposition.</div>`;
@@ -1976,6 +2105,39 @@ class VelscourStudio {
         walkableDeck: !!it.walkableDeck,
         autoBake: true,
       });
+    } else if (it.kind === 'sky_vessel') {
+      if (doc.meta.category !== 'airship') {
+        this.toast('Switch Scenario Type to "Airship Battle (Sky Lanes)" to place 3D skyships.');
+        return;
+      }
+      doc.grid.airship ||= { flagship: 'THE BLACK SCOURGE', flagshipSub: 'Pirate Dreadnought', vessels: [], knights: [], waves: [], gauntlet: null };
+      doc.grid.airship.vessels ||= [];
+      const idx = doc.grid.airship.vessels.length + 1;
+      const defLv = it.defLv ?? (it.vesselKind === 'galleon' ? 6 : 12);
+      const shift = defLv / 8;
+      const av = {
+        id: `air_${Date.now().toString(36)}`,
+        castKey: `${it.vesselKind}_${idx}`,
+        kind: it.vesselKind,
+        name: `${it.name} #${idx}`,
+        x: Math.round((tx + shift) * 2) / 2,
+        y: Math.round((ty + shift) * 2) / 2,
+        lv: defLv,
+        rampDown: it.vesselKind !== 'galleon',
+        crewCount: it.vesselKind === 'galleon' ? 5 : 4,
+        captainId: it.vesselKind === 'galleon' ? 'ap_admiral_veyl' : '',
+        hooks: 0,
+        startHidden: false,
+      };
+      doc.grid.airship.vessels.push(av);
+      this.state.selectedCineStep = null;
+      this.state.selected = { type: 'sky_vessel', obj: av };
+      this.world?.skyDirector?.syncPlacedVessels?.({ inEditor: true });
+      this.renderOutliner();
+      this.renderInspector();
+      this.cineEditor.renderAll();
+      this.refreshBanner();
+      return;
     }
 
     await this.rebuildWorld({ keepCamera: true });
@@ -2001,6 +2163,11 @@ class VelscourStudio {
       } else if (type === 'zone' || type === 'room') {
         obj.x = Math.floor(tx - (obj.w || 4) / 2);
         obj.y = Math.floor(ty - (obj.h || 4) / 2);
+      } else if (type === 'sky_vessel') {
+        const shift = (obj.lv || 0) / 8;
+        obj.x = Math.round((tx + shift) * 2) / 2;
+        obj.y = Math.round((ty + shift) * 2) / 2;
+        this.world?.skyDirector?.syncPlacedVessels?.({ inEditor: true });
       } else if (obj && typeof obj.x === 'number') {
         obj.x = rx; obj.y = ry;
       }
@@ -2038,8 +2205,13 @@ class VelscourStudio {
 
   async handleToolUp() {
     if (this.state.draggingObject) {
+      const wasSkyVessel = this.state.selected?.type === 'sky_vessel';
       this.state.draggingObject = false;
-      await this.rebuildWorld({ keepCamera: true });
+      if (!wasSkyVessel) {
+        await this.rebuildWorld({ keepCamera: true });
+      } else {
+        this.world?.skyDirector?.syncPlacedVessels?.({ inEditor: true });
+      }
       this.renderOutliner();
       this.renderInspector();
       this.refreshValidation();
@@ -2305,7 +2477,14 @@ class VelscourStudio {
           }
           Cine.update(dt);
           camera.update(dt);
+          for (const c of this.world.creatures || []) {
+            if (c.dead) continue;
+            if (c.entering) c.update(dt);
+            else if (c.spawnT < 1) c.spawnT += dt;
+          }
+          for (const n of this.world.npcs || []) n.update?.(dt);
           if (G.cine) this.world.customDirector?.tickScripted(dt);
+          else this.world.skyDirector?.tick(dt);
           updateVfx(dt);
           this.world.cave?.frame?.(dt);
           this.world.tower?.frame?.(dt);

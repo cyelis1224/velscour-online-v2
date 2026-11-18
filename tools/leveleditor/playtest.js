@@ -61,7 +61,8 @@ export class PlaytestController {
         this.studio.togglePlaytest(false);
       },
       onExitUsed: () => {
-        this.studio.toast('🏆 Entered Exit Portal! Scenario cleared.');
+        this.studio.toast('🏆 Entered Exit Portal! Scenario cleared — ending Playtest.');
+        this.studio.togglePlaytest(false);
       },
     });
 
@@ -81,11 +82,17 @@ export class PlaytestController {
 
     G.char = ch;
     const player = new Player(ch);
+    if (this.classId === 'barbarian') {
+      player.rage = 100;
+      ch.rage = 100;
+    }
     const [sx, sy] = doc.entities.start || [world.map.w / 2, world.map.h / 2];
     [player.x, player.y] = world.map.nudge(sx, sy, player.r);
     world.player = player;
     world.add(player);
     world.map.reveal(player.x, player.y, 14);
+    const initExit = (world.portals || []).find((po) => po.type === 'exit');
+    this._exitStepArmed = !initExit || dist(player.x, player.y, initExit.x, initExit.y) > 1.35;
 
     G.world = world;
     G.player = player;
@@ -179,21 +186,21 @@ export class PlaytestController {
     for (const po of world.portals || []) {
       if (dist(tx, ty, po.x, po.y) < 1.6) {
         if (dist(p.x, p.y, po.x, po.y) <= (po.reach || 1.8)) po.use();
-        else p.moveTarget = [po.x, po.y];
+        else p.interact = po;
         return;
       }
     }
     for (const ch of world.chests || []) {
       if (!ch.opened && dist(tx, ty, ch.x, ch.y) < 1.5) {
         if (dist(p.x, p.y, ch.x, ch.y) <= 2.0) ch.use();
-        else p.moveTarget = [ch.x, ch.y];
+        else p.interact = ch;
         return;
       }
     }
     for (const n of world.npcs || []) {
       if (dist(tx, ty, n.x, n.y) < 1.5) {
         if (dist(p.x, p.y, n.x, n.y) <= 2.4) n.onUse?.();
-        else p.moveTarget = [n.x, n.y];
+        else p.interact = { x: n.x, y: n.y, reach: 2.2, use: () => n.onUse?.() };
         return;
       }
     }
@@ -214,6 +221,9 @@ export class PlaytestController {
     if (!this.active) return;
     this.mouseTile = [tx, ty];
     const p = this.studio.world?.player;
+    if (p && p.channel && !p.dead && !G.cine) {
+      p.aim = [tx, ty];
+    }
     if (this.mouseDown && p && !p.dead && !G.cine) {
       p.moveTarget = [tx, ty];
     }
@@ -253,6 +263,12 @@ export class PlaytestController {
     camera.update(dt);
 
     if (G.cine) {
+      for (const c of world.creatures) {
+        if (c.dead) continue;
+        if (c.entering) c.update(dt);
+        else if (c.spawnT < 1) c.spawnT += dt;
+      }
+      for (const n of world.npcs) n.update?.(dt);
       world.customDirector?.tickScripted(dt);
       updateVfx(dt);
       world.cave?.frame?.(dt);
@@ -288,6 +304,18 @@ export class PlaytestController {
       camera.follow(p.x, p.y, dt);
     }
     world.customDirector?.update(dt);
+    if (this.active && p && !p.dead) {
+      const ex = (world.portals || []).find((po) => po.type === 'exit');
+      if (ex) {
+        const dEx = dist(p.x, p.y, ex.x, ex.y);
+        if (dEx > 1.35) this._exitStepArmed = true;
+        else if (ex.active && this._exitStepArmed && dEx < 0.95) {
+          this._exitStepArmed = false;
+          ex.use();
+          return;
+        }
+      }
+    }
     world.cave?.frame?.(dt);
     world.tower?.frame?.(dt);
   }
@@ -308,13 +336,16 @@ export class PlaytestController {
     ctx.fillRect(x, y, w, h);
     ctx.strokeRect(x, y, w, h);
 
-    // HP & Mana bars
+    // HP & Resource (Mana or Rage) bars
     const hpPct = Math.max(0, Math.min(1, p.hp / Math.max(1, p.maxHp)));
-    const mpPct = Math.max(0, Math.min(1, p.mana / Math.max(1, p.maxMana)));
+    const isBarb = p.classId === 'barbarian';
+    const resPct = isBarb
+      ? Math.max(0, Math.min(1, (p.rage || 0) / 100))
+      : Math.max(0, Math.min(1, p.mana / Math.max(1, p.maxMana)));
     ctx.fillStyle = '#3a110e'; ctx.fillRect(x + 10, y + 10, 140, 10);
     ctx.fillStyle = '#c93428'; ctx.fillRect(x + 10, y + 10, 140 * hpPct, 10);
-    ctx.fillStyle = '#101d3b'; ctx.fillRect(x + 160, y + 10, 140, 10);
-    ctx.fillStyle = '#3674d9'; ctx.fillRect(x + 160, y + 10, 140 * mpPct, 10);
+    ctx.fillStyle = isBarb ? '#3b1e0a' : '#101d3b'; ctx.fillRect(x + 160, y + 10, 140, 10);
+    ctx.fillStyle = isBarb ? '#e07820' : '#3674d9'; ctx.fillRect(x + 160, y + 10, 140 * resPct, 10);
 
     // Objective text
     ctx.font = 'bold 12px "Cinzel", serif';

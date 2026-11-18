@@ -441,6 +441,10 @@ export function pickSceneObjectAt(doc, tx, ty, maxDist = 1.6, world = null) {
   for (const pr of doc.entities.props || []) check('prop', pr, pr.x, pr.y, 1.2);
   for (const b of doc.architecture.buildings || []) check('building', b, b.x + b.w / 2, b.y + b.h / 2, 2.2);
   for (const sh of doc.grid?.naval?.ships || []) check('naval_ship', sh, sh.x, sh.y, 4.5);
+  for (const av of doc.grid?.airship?.vessels || []) {
+    const shift = (av.lv || 0) / 8;
+    check('sky_vessel', av, av.x - shift, av.y - shift, av.kind === 'galleon' ? 7.5 : 4.2);
+  }
 
   if (candidates.length) {
     candidates.sort((a, b) => a.d - b.d);
@@ -874,12 +878,32 @@ export function drawEditorOverlays(ctx, doc, world, state) {
     ctx.textAlign = 'center';
     ctx.fillText(`@${np.castKey}`, px, py - 54);
   }
+  for (const av of doc.grid?.airship?.vessels || []) {
+    const vx = (av.x - av.y) * HW, vy = (av.x + av.y) * HH - (av.lv || 0) * 4;
+    ctx.save();
+    ctx.font = 'bold 11px monospace';
+    ctx.fillStyle = av.startHidden ? '#b694ff' : '#4fcdb9';
+    ctx.textAlign = 'center';
+    ctx.fillText(`⛵ @${av.castKey || av.id}${av.startHidden ? ' [Hidden until Cine]' : ''}`, vx, vy - (av.kind === 'galleon' ? 115 : 52));
+    ctx.restore();
+  }
 
   // 4. Selection Highlight
   if (state.selected) {
     const sel = state.selected;
     let ox = null, oy = null;
-    if (sel.type === 'start' || sel.type === 'townPortal') { ox = sel.obj[0]; oy = sel.obj[1]; }
+    if (sel.type === 'sky_vessel' && sel.obj) {
+      const av = sel.obj;
+      const vx = (av.x - av.y) * HW, vy = (av.x + av.y) * HH - (av.lv || 0) * 4;
+      ctx.save();
+      ctx.strokeStyle = '#ffe2a0';
+      ctx.lineWidth = 2.5 / Math.max(0.5, camera.zoom);
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.ellipse(vx, vy - 18, av.kind === 'galleon' ? 128 : 54, av.kind === 'galleon' ? 58 : 26, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    } else if (sel.type === 'start' || sel.type === 'townPortal') { ox = sel.obj[0]; oy = sel.obj[1]; }
     else if (sel.type === 'passage') {
       const pt = sel.end === 'to' ? sel.obj.to : sel.obj.from;
       if (pt) { ox = pt[0]; oy = pt[1]; }

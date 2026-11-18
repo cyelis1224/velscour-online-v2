@@ -12,6 +12,7 @@ import { HUNT_LANDS } from '../data/huntlands.js';
 import { shipLayout, MAP_W as SKY_W, MAP_H as SKY_H, OX as SKY_OX, OY as SKY_OY, GATE as SKY_GATE, LANDING as SKY_LANDING } from './skyship.js';
 import { SEA_W, SEA_H, OX as SEA_OX, OY as SEA_OY, SEA_LV, DAWNWAKE } from './seaship.js';
 import { GT_W, GT_H, ROW0, ROWS, trainLayout, crateCells } from './ghosttrain.js';
+import { LV as ALP_LV } from './alpine.js';
 
 export const SCENARIO_FORMAT = 'velscour-scenario';
 export const SCENARIO_VERSION = 1;
@@ -177,8 +178,8 @@ export const SCENARIO_CATEGORIES = [
     icon: '🌲',
     projection: 'terrain_25d',
     defaultSize: [72, 72],
-    blurb: '2.5D outdoor wilds, towering Dark Forest, concentric 3D-baked Castles, Endless Siege keeps, Great Hunt & Rail Mines.',
-    biomes: ['overworld', 'dark_forest', 'castle', 'sea_of_sand', 'endless_siege', 'great_hunt', 'deep_mines'],
+    blurb: '2.5D outdoor wilds, towering Dark Forest, forested Mountainside climb, 3D-baked Castles, Siege keeps, Hunt & Mines.',
+    biomes: ['overworld', 'dark_forest', 'mountainside', 'castle', 'sea_of_sand', 'endless_siege', 'great_hunt', 'deep_mines'],
     variantsByBiome: {
       castle: CASTLE_VARIANTS.map((v) => ({ id: v.id, name: v.name })),
       endless_siege: SIEGE_VARIANTS.map((v) => ({ id: v.id, name: v.name })),
@@ -261,15 +262,15 @@ export const SCENARIO_CATEGORIES = [
   },
   {
     id: '3d_alpine',
-    name: '3D Alpine Mountains & Summit',
-    short: '3D Alpine',
+    name: '3D Mountainside & Snowy Summit',
+    short: '3D Mountain',
     icon: '🏔️',
     projection: 'heightfield_3d',
-    defaultSize: [80, 96],
-    blurb: 'Live Three.js mountain heightfield compiling tile elevations into smooth trails, crisp hop ledges, snow cliffs & cloud seas.',
+    defaultSize: [72, 96],
+    blurb: 'Forested hillside switchback trail (Mountainside) & high ridgeline climb (Snowy Summit) drawn live in Three.js.',
     biomes: ['mountainside', 'snowy_summit'],
     variants: [
-      { id: 'switchback', name: 'Alpine Switchback Climb' },
+      { id: 'switchback', name: 'Forested Hillside Switchback' },
       { id: 'ridgeline', name: 'High Ridgeline & Plateaus' },
     ],
   },
@@ -346,7 +347,8 @@ export function slugifyId(text) {
 
 // ------------------------------------------------------------------ Blank Scenario Factory (Playable Starter Canvas)
 export function createBlankScenarioDoc(opts = {}) {
-  const category = CATEGORY_BY_ID[opts.category] ? opts.category : 'dungeon';
+  let category = CATEGORY_BY_ID[opts.category] ? opts.category : 'dungeon';
+  if (category === 'overworld' && opts.biomeId === 'mountainside') category = '3d_alpine';
   const cat = CATEGORY_BY_ID[category];
   const biomeId = opts.biomeId && cat.biomes.includes(opts.biomeId) ? opts.biomeId : cat.biomes[0];
   const biome = resolveBiome(biomeId);
@@ -580,27 +582,41 @@ export function createBlankScenarioDoc(opts = {}) {
     );
     spawns.push({ id: 'sp_roof_boss', castKey: 'sky_admiral', x: g.AX, y: g.AY + 4, arch: 'knight', rank: 'boss', n: 1, art: null, swap: null, name: 'Tower Sovereign' });
   } else if (category === '3d_alpine') {
-    // Switchback mountain climb
-    carveDisk(22, 80, 9, 0, 0);
+    const isMtn = biomeId === 'mountainside';
+    // Grassy forested hillside switchback (Mountainside) or snowy ridge climb (Snowy Summit)
+    carveDisk(20, 80, 10, isMtn ? 1 : 0, 8);
     for (let s = 0; s <= 40; s++) {
       const k = s / 40;
-      carveDisk(22 + k * 34, 80 - k * 24, 3.8, 0, Math.round(k * 16));
+      const px = 20 + k * 34, py = 80 - k * 24, lv = Math.round(8 + k * 18);
+      carveDisk(px, py, 5.2, isMtn ? 0 : 0, lv);
+      if (isMtn) carveDisk(px, py, 1.9, 9, lv); // dirt forest path down the middle
     }
-    carveDisk(56, 56, 8, 0, 16);
+    carveDisk(54, 56, 9, isMtn ? 3 : 0, 26);
     for (let s = 0; s <= 40; s++) {
       const k = s / 40;
-      carveDisk(56 - k * 22, 56 - k * 34, 3.8, 0, Math.round(16 + k * 20));
+      const px = 54 - k * 20, py = 56 - k * 34, lv = Math.round(26 + k * 22);
+      carveDisk(px, py, 5.0, isMtn ? 6 : 0, lv);
+      if (isMtn) carveDisk(px, py, 1.9, 10, lv); // gravel switchback path
     }
-    carveDisk(34, 22, 11, 1, 36);
+    carveDisk(34, 22, 11, isMtn ? 7 : 1, 48);
+    if (isMtn) {
+      for (const [tx, ty, nm, tr] of [
+        [14.5, 78.5, 't_scots_pine', true], [27.5, 81.5, 't_medium_fir', true], [16.5, 84.5, 't_old_cedar', true],
+        [29.5, 73.5, 'wildflowers', false], [48.5, 62.5, 't_scots_pine', true], [60.5, 53.5, 't_medium_fir', true],
+        [49.5, 55.5, 'campfire', false], [42.5, 42.5, 't_wind_pine', true], [26.5, 24.5, 'stone_cairn', false],
+      ]) {
+        props.push({ id: `pr_mtn_${props.length + 1}`, kind: 'scatter', name: nm, x: tx, y: ty, z: 0, k: 0.4, flip: false, light: nm === 'campfire' ? 5 : 0, tree: tr });
+      }
+    }
     rooms.push(
-      { id: 'r_alp_base', x: 14, y: 72, w: 16, h: 16, title: 'Trailhead Camp', theme: null, floorLv: 0 },
-      { id: 'r_alp_mid', x: 48, y: 48, w: 16, h: 16, title: 'Midway Shelf', theme: null, floorLv: 16 },
-      { id: 'r_alp_peak', x: 24, y: 12, w: 20, h: 20, title: 'Summit Plateau', theme: null, floorLv: 36 }
+      { id: 'r_alp_base', x: 12, y: 72, w: 16, h: 16, title: isMtn ? 'Forest Trailhead' : 'Arrival Ridge Camp', theme: null, floorLv: 8 },
+      { id: 'r_alp_mid', x: 46, y: 48, w: 16, h: 16, title: isMtn ? 'Hillside Pine Camp' : 'Midway Shelf', theme: null, floorLv: 26 },
+      { id: 'r_alp_peak', x: 24, y: 12, w: 20, h: 20, title: isMtn ? 'Slate Pass Summit' : 'Summit Plateau', theme: null, floorLv: 48 }
     );
-    start = [22.5, 82.5];
-    townPortal = [24.5, 82.0];
-    exit = { x: 34.5, y: 17.5, sealed: true, unsealOn: 'boss_killed', continueToBiome: null };
-    spawns.push({ id: 'sp_peak_boss', castKey: 'peak_warden', x: 34.5, y: 23.5, arch: 'golem', rank: 'boss', n: 1, art: null, swap: null, name: 'The Summit Warden' });
+    start = [20.5, 82.5];
+    townPortal = [22.5, 82.0];
+    exit = { x: 34.5, y: 17.5, sealed: true, unsealOn: 'boss_killed', continueToBiome: isMtn ? 'snowy_summit' : null };
+    spawns.push({ id: 'sp_peak_boss', castKey: 'peak_warden', x: 34.5, y: 23.5, arch: 'golem', rank: 'boss', n: 1, art: null, swap: 'frost', name: 'The Summit Warden' });
   } else if (category === '3d_dunes') {
     const E = 172, OXI = E + 26;
     const pc = 41, half = 26, doorStep = [pc + 0.5, pc + half + 3.5];
@@ -687,9 +703,9 @@ export function createBlankScenarioDoc(opts = {}) {
         ...(opts.publish || {}),
       },
       lighting: {
-        dark: biome.dark ?? 0.75,
+        dark: category === '3d_alpine' ? (biomeId === 'mountainside' ? 0.05 : 0.12) : (biome.dark ?? 0.75),
         light: biome.light ?? 8.5,
-        fog: biome.fog || '#0b0706',
+        fog: biomeId === 'mountainside' ? '#a8c4dc' : (biome.fog || '#0b0706'),
         torch: biome.torch || '#ffb060',
         rain: 0,
         night: false,
@@ -725,14 +741,14 @@ export function createBlankScenarioDoc(opts = {}) {
         subdiv: category === '3d_alpine' ? 4 : 2,
         waterfalls,
         torches3d,
-        snowLine: biomeId === 'snowy_summit' ? 0 : 28,
-        cloudSeaY: -6,
+        snowLine: biomeId === 'snowy_summit' ? -10 : 165,
+        cloudSeaY: biomeId === 'mountainside' ? -2.4 : -6,
       },
       tower: towerSpec,
       dunes: dunesMeta,
       train: trainCars ? { cars: trainCars, stations: [] } : null,
       naval: category === 'naval' ? { ships: [], planks: [], docks: [[-16, 12], [2.5, 12], [12, 15.5]], waves: [] } : null,
-      airship: category === 'airship' ? { flagship: 'THE BLACK SCOURGE', flagshipSub: 'Pirate Dreadnought', knights: [], waves: [], gauntlet: null } : null,
+      airship: category === 'airship' ? { flagship: 'THE BLACK SCOURGE', flagshipSub: 'Pirate Dreadnought', vessels: [], knights: [], waves: [], gauntlet: null } : null,
       splines: [],
     },
     architecture: {
@@ -929,6 +945,7 @@ export function deserializeScenarioDoc(raw) {
   doc.grid.heightfield ||= { subdiv: 2, waterfalls: [], torches3d: [], snowLine: 28, cloudSeaY: -6 };
   doc.grid.heightfield.waterfalls ||= [];
   doc.grid.heightfield.torches3d ||= [];
+  if (doc.grid.airship) doc.grid.airship.vessels ||= [];
   doc.architecture ||= { rooms: [], openings: [], torches: [], wallHangings: [], buildings: [] };
   doc.architecture.rooms ||= [];
   doc.architecture.openings ||= [];
@@ -1701,10 +1718,44 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
     base.entities.exit = { x: ex, y: ey, sealed: true, unsealOn: 'boss_killed', continueToBiome: null };
   }
 
-  // 4. 3D ALPINE (Mountainside Trail & Snowy Summit Multi-Boss Peak)
+  // 4. 3D ALPINE (Forested Mountainside Switchback Trail & Snowy Summit Multi-Boss Peak)
   if (category === '3d_alpine') {
+    if (gen.alpine) {
+      const av = gen.alpine;
+      if (av.tfloor && av.tfloor.length >= N) {
+        for (let i = 0; i < N; i++) L.v[i] = av.tfloor[i];
+      }
+      if (av.F?.H2) {
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const i = y * w + x;
+            if (L.t[i] === 1 && gen.lv) L.hgt[i] = gen.lv[i];
+            else L.hgt[i] = Math.round(av.F.H2(x + 0.5, y + 0.5) * ALP_LV);
+          }
+        }
+      }
+      if (Array.isArray(av.look?.snow)) {
+        base.grid.heightfield.snowLine = Math.round(av.look.snow[0] * ALP_LV);
+      }
+      if (av.look?.cloud?.y !== undefined) {
+        base.grid.heightfield.cloudSeaY = round2(av.look.cloud.y);
+      }
+    }
+    base.meta.lighting.dark = biomeId === 'mountainside' ? 0.05 : 0.12;
+
     if (gen.map?.mountain) {
       const mt = gen.map.mountain;
+      const [stX, stY] = base.entities.start;
+      base.architecture.rooms.push({
+        id: 'r_mtn_foot',
+        x: Math.max(1, Math.round(stX - 6)),
+        y: Math.max(1, Math.round(stY - 6)),
+        w: 12,
+        h: 12,
+        title: 'Forest Trailhead Foot',
+        theme: null,
+        floorLv: computeRectFloorLv(L, w, h, stX - 6, stY - 6, 12, 12),
+      });
       (mt.camps || []).forEach((c, idx) => {
         base.architecture.rooms.push({
           id: `r_mtn_camp_${idx + 1}`,
@@ -1730,6 +1781,25 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
           floorLv: computeRectFloorLv(L, w, h, sx - 9, sy - 9, 18, 18),
         });
         setBossZone(sx - 8, sy - 7, 16, 16, 'Mountainside Warden Arena');
+        const mainWarden = base.entities.spawns.find((s) => s.rank === 'boss');
+        if (mainWarden) {
+          mainWarden.castKey = 'summit_warden';
+          mainWarden.name = 'The Summit Warden';
+          mainWarden.swap = 'frost';
+        }
+        for (let bi = 1; bi < bossCount; bi++) {
+          pushSpawn({
+            id: `sp_mtn_boss_${bi + 1}`,
+            castKey: `summit_warden_${bi + 1}`,
+            x: sx + (bi % 2 ? -3.5 : 3.5),
+            y: sy + 2.0,
+            arch: bi === 1 ? 'gargoyle' : 'knight',
+            rank: 'boss',
+            n: 1,
+            swap: 'rime',
+            name: bi === 1 ? 'Frostbound Crag Sentinel' : 'Keeper of Slate Pass',
+          });
+        }
       }
     } else if (gen.map?.summit) {
       const sm = gen.map.summit;
@@ -1772,6 +1842,81 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
         }
       }
     }
+  }
+
+  // 5. AIRSHIP BATTLE (Placed Flagship, Boarding Skiffs & Grappling Hook Choreography)
+  if (category === 'airship') {
+    base.grid.airship ||= { flagship: 'THE BLACK SCOURGE', flagshipSub: 'Pirate Dreadnought', vessels: [], knights: [], waves: [], gauntlet: null };
+    base.grid.airship.vessels = [
+      {
+        id: 'air_flagship',
+        castKey: 'enemy_flagship',
+        kind: 'galleon',
+        name: 'The Black Scourge (Flagship)',
+        x: SKY_OX - 15.2,
+        y: SKY_OY + 0.6,
+        lv: 6,
+        rampDown: false,
+        crewCount: 5,
+        captainId: 'ap_admiral_veyl',
+        hooks: 0,
+        startHidden: true,
+      },
+      {
+        id: 'air_skiff_fore',
+        castKey: 'skiff_fore',
+        kind: 'cutter',
+        name: 'Bow Boarding Cutter',
+        x: SKY_OX - 8.2,
+        y: SKY_OY - 6,
+        lv: 12,
+        rampDown: true,
+        crewCount: 4,
+        captainId: '',
+        hooks: 0,
+        startHidden: false,
+      },
+      {
+        id: 'air_skiff_mid',
+        castKey: 'skiff_mid',
+        kind: 'hauler',
+        name: 'Midship Iron Hauler',
+        x: SKY_OX - 8.8,
+        y: SKY_OY + 3,
+        lv: 12,
+        rampDown: true,
+        crewCount: 4,
+        captainId: 'ap_brass_beak',
+        hooks: 0,
+        startHidden: true,
+      },
+    ];
+    setBossZone(SKY_OX - 5, SKY_OY - 6, 11, 14, 'Main Deck Boarding Zone');
+    base.cutscenes.push({
+      id: 'cine_flagship_hooks',
+      name: 'Flagship & Grappling Hooks',
+      allowFastForward: true,
+      steps: [
+        { id: 'fh_1', type: 'sky_flagship', action: 'arrive', dur: 3.0, captainA: 'ap_admiral_veyl', captainB: 'ap_red_gale_corsair', wait: false },
+        { id: 'fh_2', type: 'cam', mode: 'fit', actors: ['hero', 'flagship'], zoom: 1.0, dur: 1.6, ease: 'out', wait: true },
+        { id: 'fh_3', type: 'sky_volley', action: 'flagship_volley', count: 4, wait: true },
+        { id: 'fh_4', type: 'card', title: 'GRAPPLING HOOKS', sub: 'The ships are lashed together', dur: 2.4, block: false },
+        { id: 'fh_5', type: 'sky_hooks', action: 'throw_and_lash', count: 4, wait: true },
+        { id: 'fh_6', type: 'sky_volley', action: 'captain_leap', captainId: 'ap_admiral_veyl', castKey: 'admiral_veyl', dz: -1.2, wait: false },
+        { id: 'fh_7', type: 'sky_volley', action: 'captain_swing', captainId: 'ap_red_gale_corsair', castKey: 'red_gale', dz: 2.4, wait: true },
+        { id: 'fh_8', type: 'cam', mode: 'return_hero', dur: 0.9, wait: true },
+      ],
+    });
+    base.triggers.push({
+      id: 'trig_middeck_hooks',
+      name: 'Mid-Deck Flagship & Grappling Ambush',
+      enabled: true,
+      event: 'onEnterZone',
+      once: true,
+      requireCombatClear: false,
+      zoneId: 'z_boss_approach',
+      runCutscene: 'cine_flagship_hooks',
+    });
   }
 
   // Fit default Boss Approach Zone to actual baked Raid Arena or Exit Portal on all other map types

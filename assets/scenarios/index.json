@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-18T03:19:59.483Z",
+  "updatedAt": "2026-11-18T17:30:36.697Z",
   "scenarios": [
     {
       "id": "sanctum_of_echoes",
@@ -23,7 +23,30 @@
         "campaignPool": false,
         "pinnedDepth": null
       },
-      "updatedAt": null
+      "updatedAt": "2026-11-18T17:25:31.477Z"
+    },
+    {
+      "id": "sea_of_sand_seed_936020",
+      "file": "assets/scenarios/sea_of_sand_seed_936020.velscen.json",
+      "name": "Sea of Sand (Seed 936020)",
+      "author": "creator",
+      "blurb": "Hand-crafted Outdoor Overworld & Regions scenario in Sea of Sand.",
+      "category": "overworld",
+      "biomeId": "sea_of_sand",
+      "mixBiomeId": null,
+      "variantId": "default",
+      "size": [
+        72,
+        72
+      ],
+      "cutsceneCount": 1,
+      "triggerCount": 1,
+      "publish": {
+        "skullPortal": true,
+        "campaignPool": false,
+        "pinnedDepth": null
+      },
+      "updatedAt": "2026-11-18T13:24:49.676Z"
     },
     {
       "id": "the_sky_lanes_seed_711509",

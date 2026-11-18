@@ -9,9 +9,13 @@ const { chromium } = require('playwright');
 
 const BASE = process.env.BASE_URL || 'http://localhost:8124';
 const ROOT = path.resolve(__dirname, '..');
+const CHROME = process.env.CHROMIUM_PATH || ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome', '/usr/bin/chromium', '/usr/bin/google-chrome-stable'].find((p) => fs.existsSync(p));
 const png = (u) => Buffer.from(u.split(',')[1], 'base64');
 (async () => {
-  const browser = await chromium.launch({ args: (process.env.CHROMIUM_ARGS || '').split(' ').filter(Boolean) });
+  const browser = await chromium.launch({
+    ...(CHROME && fs.existsSync(CHROME) ? { executablePath: CHROME } : {}),
+    args: (process.env.CHROMIUM_ARGS || '').split(' ').filter(Boolean),
+  });
   const page = await browser.newPage();
   page.on('console', (m) => ['error', 'warning'].includes(m.type()) && console.log('[page]', m.text()));
   page.on('pageerror', (e) => console.log('[page]', e.message));

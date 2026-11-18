@@ -9,7 +9,7 @@ import { CLASSES } from '../data/classes.js';
 import { BIOMES } from '../data/biomes.js';
 import { shownEquip } from '../data/items.js';
 import { net } from '../net/network.js';
-import { saveOnlineCharacter } from '../net/online.js';
+import { saveOnlineCharacter, flushOnlineSave } from '../net/online.js';
 import { toggleFriends } from './friends.js';
 import { endgame } from '../game/endgame.js';
 import { attachLobbyLogoFire, attachLobbyBackground } from './titlefx.js';
@@ -266,6 +266,7 @@ export function openLobby(char, onBack) {
       try {
         if (char && char.isOnline) {
           await saveOnlineCharacter(char);
+          await flushOnlineSave();
         }
       } catch (e) {
         console.warn('[Velscour Online] Error saving character on lobby quit:', e);
@@ -273,6 +274,8 @@ export function openLobby(char, onBack) {
       detachLobbyListeners();
       net.leaveRoom();
       net.disconnect();
+      G.mode = 'title';
+      G.selectedChar = null;
       if (lobbyEl) { lobbyEl.remove(); lobbyEl = null; }
       onBack();
     };
@@ -664,6 +667,8 @@ export function openLobby(char, onBack) {
   const onReconnecting = () => updateConnectionBadge();
   const onSessionKicked = (msg) => {
     detachLobbyListeners();
+    G.mode = 'title';
+    G.selectedChar = null;
     if (lobbyEl) {
       lobbyEl.remove();
       lobbyEl = null;
@@ -681,7 +686,7 @@ export function openLobby(char, onBack) {
       try {
         char.marks = JSON.parse(JSON.stringify(endgame().marks));
       } catch (e) { }
-      saveOnlineCharacter(char).catch(() => { });
+      saveOnlineCharacter(char, { onlyIfChanged: true }).catch(() => { });
     }
   }, 60000);
 

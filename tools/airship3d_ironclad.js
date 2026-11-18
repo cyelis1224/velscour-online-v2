@@ -4,7 +4,7 @@
 // exhausts at the stern. Same size and deck plan as the galleon (tools/airship3d.js): 1 unit = 1 tile, bow to -Z.
 // Tall parts go toward the bow (the iso camera only loses sky behind them); the starboard side and stern stay low.
 import * as THREE from 'three';
-import { Parts, box, rod, tris, flag, sm, hull, slab, plume, smoke } from './airship3d.js';
+import { Parts, box, rod, tris, surf, flag, sm, hull, slab, plume, smoke } from './airship3d.js';
 
 import { L, ZS, QD_S, FC_S, QD_H, FC_H, WALL, TOWER, zAt, sAt, beam, sheer, keel, prof, inner, deckAt, hullX, yAtK, STAIR_W, QD_STAIRS, FC_STAIRS } from '../src/world/skyship.js';
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -33,8 +33,8 @@ export function buildIronclad(M, opts = {}) {
   hull(P, { L, beam, sheer, keel, prof, ns: 140, transom: 'iron', inner, deckAt, wall: 'iron', cap: 'goldHammer',
     bands: [['goldHammer', 0, 0.04, 1], ['iron', 0.04, 0.4, 6], ['bronze', 0.4, 0.43, 1], ['gunmetal', 0.43, 0.72, 6], ['iron', 0.72, 1, 6]],
     decks: [['greyboards', QD_S - 0.01, FC_S + 0.01, 0], ['greyboards', 0.009, QD_S, QD_H], ['greyboards', FC_S, 0.995, FC_H]] });
-  P.add('iron', box(inner(0) * 2, sheer(0) - QD_H, WALL, 0, (sheer(0) + QD_H) / 2, ZS - WALL / 2));
-  P.add('goldHammer', box(beam(0) * 2 + 0.1, 0.12, WALL + 0.12, 0, sheer(0) + 0.06, ZS - WALL / 2));
+  P.add('iron', box(inner(0) * 2, sheer(0) + 0.03 - QD_H, WALL, 0, (sheer(0) + 0.03 + QD_H) / 2, ZS - WALL / 2));
+  P.add('goldHammer', box(beam(0) * 2 + 0.12, 0.14, WALL + 0.12, 0, sheer(0) + 0.03, ZS - WALL / 2));
   const zq = zAt(QD_S), zf = zAt(FC_S);
   P.add('gunmetal', box(inner(QD_S) * 2, QD_H, 0.3, 0, QD_H / 2, zq - 0.15));
   P.add('gunmetal', box(inner(FC_S) * 2, FC_H, 0.3, 0, FC_H / 2, zf + 0.15));
@@ -87,11 +87,11 @@ export function buildIronclad(M, opts = {}) {
   };
   door(-3.0, zf + 0.3, 1); door(3.0, zf + 0.3, 1); door(-3.8, zq - 0.3, -1); door(3.8, zq - 0.3, -1);
   const LAMPS = [0.1, 0.3, 0.45, 0.6, 0.72];
-  for (const s of LAMPS) for (const side of [-1, 1]) lantern(side * (inner(s) + WALL / 2), sheer(s) + 0.12, zAt(s), 0.75);
+  for (const s of LAMPS) for (const side of [-1, 1]) lantern(side * (inner(s) + WALL / 2), sheer(s) + 0.09, zAt(s), 0.75);
   // Crenellations along the bulwarks.
   for (const [s0, s1] of [[0.02, 0.165], [0.24, 0.76]]) for (let z = zAt(s0); z > zAt(s1); z -= 1.3) for (const side of [-1, 1]) {
     const s = sAt(z); if (LAMPS.some((q) => Math.abs(zAt(q) - z) < 0.6)) continue;
-    P.add('gunmetal', box(0.34, 0.36, 0.55, side * (inner(s) + WALL / 2), sheer(s) + 0.3, z));
+    P.add('gunmetal', box(0.34, 0.36, 0.55, side * (inner(s) + WALL / 2), sheer(s) + 0.27, z));
   }
 
   // Broadside batteries: two gun decks of arched ports between buttresses.
@@ -324,11 +324,18 @@ export function buildIronclad(M, opts = {}) {
   }
 
   // Furnaces at the stern: two engine sponsons along the quarters and three through the transom, each a bronze bell
-  // glowing like a forge and venting steam.
+  // with an inward-facing concave bell liner, solid throat plate, and glowing forge core.
   const furnace = (x, y, z, r, len) => {
-    P.add('bronze', new THREE.CylinderGeometry(r + 0.35, r, 0.9, 20, 1, true).rotateX(Math.PI / 2).translate(x, y, z + 0.45));
-    P.add('goldHammer', new THREE.TorusGeometry(r + 0.36, 0.1, 5, 24).translate(x, y, z + 0.9));
-    P.add('ember', new THREE.CircleGeometry(r * 0.95, 20).translate(x, y, z + 0.3));
+    P.add('bronze', new THREE.CylinderGeometry(r + 0.36, r, 0.94, 24, 1, true).rotateX(Math.PI / 2).translate(x, y, z + 0.43));
+    P.add('bronze', surf(24, 4, (u, v) => {
+      const a = u * Math.PI * 2, rr = lerp(r * 0.84, r + 0.31, v), zz = z + 0.04 + v * 0.86;
+      return [x + Math.cos(a) * rr, y + Math.sin(a) * rr, zz];
+    }, (u, v) => [u * (r + 0.3) * 2.4, v * 0.6], true), { uv: 'keep' });
+    P.add('goldHammer', new THREE.TorusGeometry(r + 0.35, 0.105, 8, 28).translate(x, y, z + 0.9));
+    P.add('iron', new THREE.CircleGeometry(r * 0.96, 24).translate(x, y, z + 0.05));
+    const rCore = lerp(r * 0.84, r + 0.31, 0.256);
+    P.add('ember', new THREE.CircleGeometry(rCore + 0.025, 24).translate(x, y, z + 0.26));
+    P.add('gunmetal', new THREE.TorusGeometry(rCore, 0.045, 5, 24).translate(x, y, z + 0.27));
     const pl = plume(r * 0.85, len, 0xff6a1a); pl.position.set(x, y, z + 0.35); if (live) root.add(pl); fx.push(pl);
     const st = smoke([x, y + 0.2, z + 1.2], 7, ['#dfe2e8', '#b8bdc8'], 1.4, 1.2); if (live) root.add(st.grp); fx.push(st);
     anchors.furnaces.push([x, y, z + 0.35, r]);
@@ -341,11 +348,12 @@ export function buildIronclad(M, opts = {}) {
     P.add('goldHammer', new THREE.TorusGeometry(r * 0.55, 0.1, 5, 18).translate(x, y, z0 - 1.1));
     finial(x, y - 0.12, z0 - 2.25, 0.16);
     for (const z of [z0 + 0.3, z0 + 4.6, z0 + 9.0, z1 - 0.5]) P.add('goldHammer', new THREE.CylinderGeometry(r + 0.08, r + 0.08, 0.3, 22).rotateX(Math.PI / 2).translate(x, y, z));
+    P.add('iron', new THREE.CylinderGeometry(r + 0.04, r + 0.04, 0.24, 22).rotateX(Math.PI / 2).translate(x, y, z1 - 0.06));
     for (let z = z0 + 1.4; z < z1 - 1; z += 1.45) P.add('glass', new THREE.SphereGeometry(0.15, 6, 4).translate(x + side * (r - 0.06), y + 0.35, z));
     furnace(x, y, z1, r * 0.8, 3.2);
   }
   for (const [x, y, r] of [[-2.6, -1.4, 1.15], [2.6, -1.4, 1.15], [0, -3.7, 0.8]]) {
-    P.add('iron', new THREE.CylinderGeometry(r + 0.1, r + 0.2, 0.6, 20).rotateX(Math.PI / 2).translate(x, y, ZS + 0.25));
+    P.add('iron', new THREE.CylinderGeometry(r + 0.1, r + 0.2, 0.65, 24).rotateX(Math.PI / 2).translate(x, y, ZS + 0.23));
     furnace(x, y, ZS + 0.5, r, 2.6 + r);
   }
   // Stern gallery: gothic lancets above the furnaces.

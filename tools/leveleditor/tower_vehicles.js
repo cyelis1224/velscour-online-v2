@@ -438,13 +438,77 @@ export function renderModeBanner(bannerEl, doc, world, studio) {
     });
   } else if (cat === 'airship') {
     bannerEl.hidden = false;
-    const fl = doc.grid?.airship?.flagship || 'THE BLACK SCOURGE';
+    const vessels = doc.grid?.airship?.vessels || [];
+    const totalHooks = vessels.reduce((s, v) => s + (Number(v.hooks) || 0), 0);
+    const pv = world?.skyDirector?.stagePreview || {};
     bannerEl.innerHTML = `
-      <b>⛵ Sky Lanes Ironclad</b>
-      <span>Enemy Flagship: <b style="color:var(--gold-b)">${fl}</b></span>
+      <b>⛵ Sky Lanes Fleet</b>
+      <span>Ships: <b>${vessels.length}</b> · Chains: <b>${totalHooks}</b></span>
+      <button id="sky-open-3d" class="mini-btn gold" title="Open 3D & Fleet Palette to place Galleons, Cutters, Haulers & Gasbags">+ Place Airships</button>
+      <span class="dp-sep"></span>
+      <button id="sky-add-skiff-cine" class="mini-btn" title="Create a Skiff Boarding Wave cutscene in the Cutscene Director">+ 🛥️ Skiff Boarding Scene</button>
+      <button id="sky-add-hook-cine" class="mini-btn gold" title="Create a Flagship Broadside + Grappling Hooks + Captain Boarding cutscene">+ 🪝 Flagship &amp; Grapple Scene</button>
+      <span class="dp-sep"></span>
+      <button id="sky-pv-hooks" class="mini-btn ${pv.hooks ? 'teal' : ''}" title="Preview Enemy Flagship & Grappling Chains alongside Ironclad">👁️ Preview Lashed Flagship</button>
       <span class="tool-spacer"></span>
-      <small style="color:var(--dim)">Author arrival cards, Sky-Knight banter &amp; boarding camera shots in the <b>Cutscene Director</b> below</small>
+      <small class="dp-hint">Select &amp; drag ships in sky · Edit Altitude &amp; Grappling Chains in Right Inspector</small>
     `;
+    bannerEl.querySelector('#sky-open-3d')?.addEventListener('click', () => {
+      document.querySelector('[data-ltab="palette"]')?.click();
+      document.querySelector('[data-pcat="3d"]')?.click();
+      studio.toast('Click an Airship in 3D & Fleet, then click in the sky to place it!');
+    });
+    bannerEl.querySelector('#sky-pv-hooks')?.addEventListener('click', () => {
+      const next = !pv.hooks;
+      world?.skyDirector?.setStagePreview({ flagship: next, hooks: next });
+      renderModeBanner(bannerEl, doc, world, studio);
+    });
+    bannerEl.querySelector('#sky-add-skiff-cine')?.addEventListener('click', () => {
+      studio.history.snapshot(doc, 'Add Skiff Boarding Cutscene');
+      const id = `cine_skiff_${Date.now().toString(36).slice(-4)}`;
+      const created = {
+        id,
+        name: 'Skiff Boarding Wave',
+        allowFastForward: true,
+        steps: [
+          { id: `${id}_1`, type: 'sky_skiff', boatKind: 'cutter', dock: 'mid', count: 4, rank: 'champion', captainId: '', wait: false },
+          { id: `${id}_2`, type: 'cam', mode: 'fit', actors: ['hero', 'skiff'], zoom: 1.25, dur: 1.6, ease: 'out', wait: true },
+          { id: `${id}_3`, type: 'wait', dur: 1.8 },
+          { id: `${id}_4`, type: 'cam', mode: 'return_hero', dur: 0.9, wait: true },
+        ],
+      };
+      doc.cutscenes.push(created);
+      studio.cineEditor.activeCineId = id;
+      studio.state.selectedCineStep = created.steps[0];
+      studio.cineEditor.renderAll();
+      studio.renderInspector();
+      studio.toast('Added "Skiff Boarding Wave" cutscene — click [▶ Play] to preview!');
+    });
+    bannerEl.querySelector('#sky-add-hook-cine')?.addEventListener('click', () => {
+      studio.history.snapshot(doc, 'Add Flagship & Grappling Cutscene');
+      const id = `cine_grapple_${Date.now().toString(36).slice(-4)}`;
+      const created = {
+        id,
+        name: 'Flagship & Grappling Hooks',
+        allowFastForward: true,
+        steps: [
+          { id: `${id}_1`, type: 'sky_flagship', action: 'arrive', dur: 3.0, captainA: 'ap_admiral_veyl', captainB: 'ap_red_gale_corsair', wait: false },
+          { id: `${id}_2`, type: 'cam', mode: 'fit', actors: ['hero', 'flagship'], zoom: 1.0, dur: 1.6, ease: 'out', wait: true },
+          { id: `${id}_3`, type: 'sky_volley', action: 'flagship_volley', count: 4, wait: true },
+          { id: `${id}_4`, type: 'card', title: 'GRAPPLING HOOKS', sub: 'The ships are lashed together', dur: 2.4, block: false },
+          { id: `${id}_5`, type: 'sky_hooks', action: 'throw_and_lash', count: 4, wait: true },
+          { id: `${id}_6`, type: 'sky_volley', action: 'captain_leap', captainId: 'ap_admiral_veyl', castKey: 'admiral_veyl', dz: -1.2, wait: false },
+          { id: `${id}_7`, type: 'sky_volley', action: 'captain_swing', captainId: 'ap_red_gale_corsair', castKey: 'red_gale', dz: 2.4, wait: true },
+          { id: `${id}_8`, type: 'cam', mode: 'return_hero', dur: 0.9, wait: true },
+        ],
+      };
+      doc.cutscenes.push(created);
+      studio.cineEditor.activeCineId = id;
+      studio.state.selectedCineStep = created.steps[4];
+      studio.cineEditor.renderAll();
+      studio.renderInspector();
+      studio.toast('Added "Flagship & Grappling Hooks" cutscene — click [▶ Play] to watch!');
+    });
   } else if (studio.passageMode) {
     bannerEl.hidden = false;
     bannerEl.innerHTML = `
