@@ -269,20 +269,22 @@ export const UI = {
   },
   /** A centred banner; o.top puts it in the band under the boss bar, smaller (a fight's running banners). */
   centerMsg(title, sub = '', dur = 2.6, o = {}) {
+    if (!this.msgEl) return;
     this.msgEl.innerHTML = `${escapeHtml(title)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}`;
     const lu = this.hud && this.hud.lu;
     this.msgEl.classList.toggle('top', !!o.top);
     this.msgEl.classList.toggle('below', !o.top && !!(lu && performance.now() < lu.end));
     this.msgEl.style.opacity = '1';
     clearTimeout(this.msgT);
-    this.msgT = setTimeout(() => { this.msgEl.style.opacity = '0'; }, dur * 1000);
+    this.msgT = setTimeout(() => { if (this.msgEl) this.msgEl.style.opacity = '0'; }, dur * 1000);
   },
 
-  clearCenterMsg() { clearTimeout(this.msgT); this.msgEl.style.opacity = '0'; },
-  clearLog() { this.logEl.innerHTML = ''; },
+  clearCenterMsg() { clearTimeout(this.msgT); if (this.msgEl) this.msgEl.style.opacity = '0'; },
+  clearLog() { if (this.logEl) this.logEl.innerHTML = ''; },
 
   // ------------------------------------------------------------- dialogs
   dialog({ title, html, buttons = [], closable = true, cls = '' }) {
+    if (!this.screensEl) return { close() {}, box: document.createElement('div'), wrap: document.createElement('div') };
     const wrap = el('div', 'screen');
     wrap.style.background = 'rgba(0,0,0,.6)';
     wrap.style.zIndex = 40;

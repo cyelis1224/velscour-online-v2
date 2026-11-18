@@ -170,6 +170,24 @@ function waitHealth(url, timeoutMs = 8000) {
     await page.click('#btn-playtest');
     await page.waitForTimeout(350);
 
+    // 5b. Bake Dungeon Seeds (Standard + Raid Arena) & verify Playtest renders brightly with zero Raid/UI errors
+    for (const vId of ['standard', 'raid_arena']) {
+      const bakedPt = await page.evaluate(async (variantId) => {
+        const st = window.__STUDIO__;
+        await st.bakeSeedScenario({ title: `Baked ${variantId}`, category: 'dungeon', biomeId: 'catacombs', variantId, seed: 4242 });
+        await st.togglePlaytest(true);
+        for (let k = 0; k < 8; k++) st.playtest.update(0.05);
+        await new Promise((r) => requestAnimationFrame(r));
+        const cv = document.getElementById('studio-canvas');
+        const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+        let nonBlack = 0;
+        for (let i = 0; i < d.length; i += 128) if (d[i] + d[i + 1] + d[i + 2] > 15) nonBlack++;
+        await st.togglePlaytest(false);
+        return { nonBlack, spawns: st.doc.entities.spawns.length };
+      }, vId);
+      check(bakedPt.nonBlack > 1000, `Baked ${vId} playtest canvas was dark/blank (${bakedPt.nonBlack})`);
+    }
+
     // 6. Test Save + Delete API round-trip with a temporary scenario ID
     const apiOk = await page.evaluate(async () => {
       const st = window.__STUDIO__;

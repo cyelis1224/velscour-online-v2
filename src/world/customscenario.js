@@ -127,7 +127,7 @@ export async function loadCustomScenarioArt(doc) {
   } else if (cat === '3d_tower') {
     jobs.push(loadTower3D());
   } else if (cat === '3d_alpine') {
-    jobs.push(loadBiomeArt(resolveBiome('snowy_summit')), loadAlpine3D());
+    jobs.push(loadBiomeArt(resolveBiome('dark_forest')), loadBiomeArt(resolveBiome('snowy_summit')), loadAlpine3D());
   } else if (cat === '3d_dunes') {
     jobs.push(loadDunes3D());
   } else if (cat === 'naval') {
@@ -143,7 +143,14 @@ export async function loadCustomScenarioArt(doc) {
   if (folkIds.length) jobs.push(preloadTownSheets(folkIds));
 
   const artIds = (doc.entities?.spawns || []).map((s) => s.art).filter(Boolean);
-  if (artIds.length) jobs.push(loadArtFor(artIds));
+  for (const s of doc.entities?.spawns || []) {
+    if (s.rank === 'raid') {
+      const tpl = RAID_BOSSES.find((b) => b.id === s.arch);
+      if (tpl?.art) artIds.push(...tpl.art);
+      else artIds.push(...RAID_BOSSES.flatMap((b) => b.art || []));
+    }
+  }
+  if (artIds.length) jobs.push(loadArtFor([...new Set(artIds)]));
 
   await Promise.all(jobs);
 }
@@ -550,7 +557,7 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
   const worldKind = cat === 'town_arena' && doc.meta?.variantId !== 'pvp_arena' ? 'town' : 'dungeon';
   const props = [];
   for (const pr of doc.entities?.props || []) {
-    if (pr.caveProp) {
+    if (pr.caveProp || pr.kind === 'decor') {
       props.push({ ...pr });
       continue;
     }
@@ -854,8 +861,13 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
       hooks: [],
       shots: [],
       bolts: [],
+      ropes: [],
+      blades: [],
       flash: 0,
+      gateColor: '#ff5020',
       gateFlash: 0,
+      windK: 1,
+      fogR: 1,
       through: 0,
     };
     warmSky(world);
@@ -947,15 +959,38 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
     const s = doc.entities.spawns[si];
     if (s.rank === 'raid') {
       const tpl = RAID_BOSSES.find((b) => b.id === s.arch) || RAID_BOSSES[0];
-      const m = makeRaidBoss(world, { mx: s.x, my: s.y, x: s.x - 10, y: s.y - 10, w: 20, h: 20 }, depth, lvl + 3, { tpl });
+      const bakedArena = doc.architecture?.raidArena;
+      const arena = bakedArena && bakedArena.gate
+        ? structuredClone(bakedArena)
+        : {
+            type: 'arena',
+            x: s.x - 12,
+            y: s.y - 10,
+            w: 24,
+            h: 20,
+            cx: s.x - 4,
+            cy: s.y,
+            mx: s.x - 4,
+            my: s.y,
+            pillars: [],
+            gate: { x: Math.max(2, Math.round(s.x - 12)), y0: Math.round(s.y - 1), y1: Math.round(s.y + 1) },
+          };
+      const m = makeRaidBoss(world, arena, depth, lvl + 3, {
+        tpl,
+        art: s.art || undefined,
+        court: !(bakedArena && bakedArena.gate),
+        rnd: () => rng.next(),
+      });
       if (m) {
         m.x = s.x; m.y = s.y;
         m.netId = `c_raid_${si}`;
         m.idx = seq++;
         if (s.castKey) m.castKey = s.castKey;
         if (s.name) m.name = s.name;
+        if (opts.freezeAI) m.awake = false;
         world.add(m);
         world.boss = m;
+        if (bakedArena) world.raid = arena;
       }
       continue;
     }

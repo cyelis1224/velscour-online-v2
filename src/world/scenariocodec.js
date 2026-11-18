@@ -356,11 +356,11 @@ export function createBlankScenarioDoc(opts = {}) {
   let [w, h] = opts.w && opts.h ? [opts.w | 0, opts.h | 0] : cat.defaultSize.slice();
   let towerSpec = null;
   if (category === '3d_tower') {
-    const tv = TOWER_VARIANTS.find((v) => v.id === variantId) || TOWER_VARIANTS[0];
+    const tv = opts.towerSpec || TOWER_VARIANTS.find((v) => v.id === variantId) || TOWER_VARIANTS[0];
     const g = towerGeo(tv);
-    w = g.GW; h = g.GH;
+    if (!opts.w || !opts.h) { w = g.GW; h = g.GH; }
     towerSpec = { ...tv };
-  } else if (category === 'town_arena' && variantId === 'pvp_arena') {
+  } else if (category === 'town_arena' && variantId === 'pvp_arena' && (!opts.w || !opts.h)) {
     w = 32; h = 32;
   }
 
@@ -830,6 +830,7 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
     biomeId,
     mixBiomeId: opts.mixBiomeId || null,
     variantId: opts.variantId || gen.variant?.id || 'default',
+    towerSpec: category === '3d_tower' ? gen.variant : null,
     w,
     h,
   });
@@ -861,13 +862,21 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
   base.grid.traversal.walkStep = map.walkStep ?? base.grid.traversal.walkStep;
   if (gen.tower) base.grid.tower = { ...(gen.variant || TOWER_VARIANTS[0]) };
 
-  if (Array.isArray(gen.start)) base.entities.start = [gen.start[0], gen.start[1]];
-  const tp = gen.townPortal || gen.portal || [base.entities.start[0] + 1.6, base.entities.start[1] - 0.6];
-  base.entities.townPortal = [tp[0], tp[1]];
-  if (Array.isArray(gen.exit)) {
+  const toXY = (pt) => {
+    if (!pt) return null;
+    if (Array.isArray(pt) && typeof pt[0] === 'number' && typeof pt[1] === 'number') return [pt[0], pt[1]];
+    if (typeof pt === 'object' && typeof pt.x === 'number' && typeof pt.y === 'number') return [pt.x, pt.y];
+    return null;
+  };
+  const sXY = toXY(gen.start);
+  if (sXY) base.entities.start = sXY;
+  const tpXY = toXY(gen.townPortal) || toXY(gen.portal) || [base.entities.start[0] + 1.6, base.entities.start[1] - 0.6];
+  base.entities.townPortal = tpXY;
+  const exXY = toXY(gen.exit);
+  if (exXY) {
     base.entities.exit = {
-      x: gen.exit[0],
-      y: gen.exit[1],
+      x: exXY[0],
+      y: exXY[1],
       sealed: category !== 'town_arena',
       unsealOn: (gen.spawns || []).some((s) => s.rank === 'boss' || s.rank === 'raid') ? 'boss_killed' : 'objective_complete',
       continueToBiome: biomeId === 'mountainside' ? 'snowy_summit' : null,
@@ -883,6 +892,16 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
     title: r.title || '',
     theme: r.theme || null,
   }));
+
+  if (gen.raid) {
+    base.architecture.raidArena = structuredClone(gen.raid);
+    if (gen.raid.arch) {
+      base.architecture.openings.push({
+        id: 'op_raid_gate',
+        ...structuredClone(gen.raid.arch),
+      });
+    }
+  }
 
   base.architecture.torches = (gen.torches || []).map((tc) => ({
     x: tc.x,
@@ -916,7 +935,9 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
   base.entities.props = (gen.props || []).slice(0, 2500).map((p, idx) => ({
     id: `pr_${idx + 1}`,
     kind: p.kind || (p.caveProp ? 'caveProp' : 'scatter'),
-    name: p.spr?.name || p.name || p.caveProp || 'prop',
+    name: p.spr?.name || p.name || p.caveProp || p.sprite || 'prop',
+    sprite: p.sprite || null,
+    seed: p.seed ?? 0,
     caveProp: p.caveProp || null,
     m: p.m ?? 0,
     x: Math.round(p.x * 100) / 100,
@@ -934,7 +955,7 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
     castKey: (s.rank === 'boss' || s.rank === 'raid') ? `boss_${idx + 1}` : '',
     x: Math.round(s.x * 100) / 100,
     y: Math.round(s.y * 100) / 100,
-    arch: s.arch || 'skeleton',
+    arch: s.arch || (s.rank === 'raid' ? 'malphas' : 'skeleton'),
     rank: s.rank || 'normal',
     n: s.n || 1,
     art: s.look?.art || s.art || null,

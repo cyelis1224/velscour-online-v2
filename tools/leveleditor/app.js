@@ -613,23 +613,24 @@ class VelscourStudio {
   }
 
   async bakeSeedScenario({ title, category, biomeId, variantId, seed }) {
-    this.toast(`Baking ${biomeId} (seed ${seed})…`);
-    const biome = resolveBiome(biomeId);
-    const dummyDoc = createBlankScenarioDoc({ category, biomeId, variantId });
+    const resolvedBiomeId = biomeId || CATEGORY_BY_ID[category]?.biomes?.[0] || 'catacombs';
+    this.toast(`Baking ${resolvedBiomeId} (seed ${seed})…`);
+    const biome = resolveBiome(resolvedBiomeId);
+    const dummyDoc = createBlankScenarioDoc({ category, biomeId: resolvedBiomeId, variantId });
     await loadCustomScenarioArt(dummyDoc);
     const ts = biomeTileSet(biome.overworld && !biome.packArt ? TOWN_BIOME : biome);
 
     let gen;
     if (category === 'town_arena') {
-      gen = biomeId === 'act2_town' || variantId === 'town_act2' ? generateAct2Town(ts, seed) : generateTown(ts, seed);
+      gen = resolvedBiomeId === 'act2_town' || variantId === 'town_act2' ? generateAct2Town(ts, seed) : generateTown(ts, seed);
     } else if (category === '3d_caverns') {
       gen = generateCaverns(12, biome, seed);
     } else if (category === '3d_tower') {
       gen = generateTower(18, biome, seed);
     } else if (category === '3d_alpine') {
-      gen = biomeId === 'snowy_summit' ? generateSummit(24, biome, seed) : generateMountain(20, biome, seed);
+      gen = resolvedBiomeId === 'snowy_summit' ? generateSummit(24, biome, seed) : generateMountain(20, biome, seed);
     } else if (category === '3d_dunes') {
-      gen = generateDunes(22, biome, seed, biomeId === 'scorpion_king_pyramid' ? 1 : null);
+      gen = generateDunes(22, biome, seed, resolvedBiomeId === 'scorpion_king_pyramid' ? 1 : null);
     } else if (category === 'airship') {
       const baked = await loadBaked('assets/tiles/skyship/').catch(() => null);
       gen = generateSkyship(16, biome, seed, baked);
@@ -640,21 +641,24 @@ class VelscourStudio {
     } else if (category === 'breach') {
       gen = generateBreach(1, biome, ts, ts, seed);
     } else if (category === 'overworld') {
-      if (biomeId === 'castle') gen = generateCastle(15, biome, seed, variantId);
-      else if (biomeId === 'dark_forest') gen = generateDarkForest(14, biome, ts, seed);
-      else if (biomeId === 'endless_siege') gen = generateSiege(16, biome, seed, variantId);
-      else if (biomeId === 'deep_mines') gen = generateMines(14, biome, seed);
-      else if (biomeId === 'great_hunt') gen = generateHunt(14, biome, seed, variantId);
+      if (resolvedBiomeId === 'castle') gen = generateCastle(15, biome, seed, variantId);
+      else if (resolvedBiomeId === 'dark_forest') gen = generateDarkForest(14, biome, ts, seed);
+      else if (resolvedBiomeId === 'endless_siege') gen = generateSiege(16, biome, seed, variantId);
+      else if (resolvedBiomeId === 'deep_mines') gen = generateMines(14, biome, seed);
+      else if (resolvedBiomeId === 'great_hunt') gen = generateHunt(14, biome, seed, variantId);
       else gen = generateOverworld(10, biome, seed);
     } else {
-      gen = generateDungeon(10, biome, ts, seed, variantId === 'castle_keep_layout' ? { castleKeep: true } : {});
+      const dDepth = variantId === 'raid_arena' ? 10 : variantId === 'throne_gauntlet' ? 500 : 7;
+      const dBiome = variantId === 'throne_gauntlet' ? resolveBiome('throne') : biome;
+      const dTs = variantId === 'throne_gauntlet' ? biomeTileSet(dBiome) : ts;
+      gen = generateDungeon(dDepth, dBiome, dTs, seed, variantId === 'castle_keep_layout' ? { castleKeep: true } : {});
     }
 
     const doc = bakeGeneratedToDoc(gen, {
       id: slugifyId(title),
       name: title,
       category,
-      biomeId,
+      biomeId: resolvedBiomeId,
       variantId,
       seed,
     });
@@ -1965,6 +1969,7 @@ class VelscourStudio {
   }
 
   frame(now) {
+    requestAnimationFrame((t) => this.frame(t));
     const dt = Math.min(0.05, Math.max(0.001, (now - this._lastT) / 1000));
     this._lastT = now;
     this.fps = this.fps * 0.9 + (1 / dt) * 0.1;
@@ -1972,48 +1977,52 @@ class VelscourStudio {
     G.time = (G.time || 0) + dt;
     G.frame = (G.frame || 0) + 1;
 
-    if (G.frame % 20 === 0) {
-      const fpsEl = document.getElementById('st-fps');
-      if (fpsEl) fpsEl.textContent = `${Math.round(this.fps)} FPS`;
-      this.drawStudioMinimap();
-    }
+    try {
+      if (G.frame % 20 === 0) {
+        const fpsEl = document.getElementById('st-fps');
+        if (fpsEl) fpsEl.textContent = `${Math.round(this.fps)} FPS`;
+        this.drawStudioMinimap();
+      }
 
-    if (this.vpMode !== 'live') {
-      this.planView.render(this.doc, this.world, this.state);
-    }
+      if (this.vpMode !== 'live') {
+        this.planView.render(this.doc, this.world, this.state);
+      }
 
-    if (this.vpMode !== 'plan' && this.world) {
-      this.resizeCanvases();
+      if (this.vpMode !== 'plan' && this.world) {
+        this.resizeCanvases();
 
-      if (this.playtest.active) {
-        this.playtest.update(dt);
-        renderWorld(this.ctx, this.world);
-        this.playtest.drawPlaytestHud(this.ctx);
-      } else {
-        // Editor preview tick (lights, torches, 3D water/flames, and optional Cine preview)
-        lights.length = 0;
-        this.world.ambientLights();
-        if (this.state.showLighting) {
-          const [cx, cy] = camera.screenToTile(G.W / 2, G.H / 2);
-          addLight(cx, cy, 11, '#ffe4c0', 0.85, 28);
-        }
-        Cine.update(dt);
-        camera.update(dt);
-        if (G.cine) this.world.customDirector?.tickScripted(dt);
-        updateVfx(dt);
-        this.world.cave?.frame?.(dt);
-        this.world.tower?.frame?.(dt);
+        if (this.playtest.active) {
+          this.playtest.update(dt);
+          renderWorld(this.ctx, this.world);
+          this.playtest.drawPlaytestHud(this.ctx);
+        } else {
+          // Editor preview tick (lights, torches, 3D water/flames, and optional Cine preview)
+          lights.length = 0;
+          this.world.ambientLights();
+          if (this.state.showLighting) {
+            const [cx, cy] = camera.screenToTile(G.W / 2, G.H / 2);
+            addLight(cx, cy, 11, '#ffe4c0', 0.85, 28);
+          }
+          Cine.update(dt);
+          camera.update(dt);
+          if (G.cine) this.world.customDirector?.tickScripted(dt);
+          updateVfx(dt);
+          this.world.cave?.frame?.(dt);
+          this.world.tower?.frame?.(dt);
 
-        renderWorld(this.ctx, this.world);
+          renderWorld(this.ctx, this.world);
 
-        if (!G.cine) {
-          if (this.state.showHeatmap) drawWalkabilityHeatmap(this.ctx, this.doc);
-          drawEditorOverlays(this.ctx, this.doc, this.world, this.state);
+          if (!G.cine) {
+            if (this.state.showHeatmap) drawWalkabilityHeatmap(this.ctx, this.doc);
+            drawEditorOverlays(this.ctx, this.doc, this.world, this.state);
+          }
         }
       }
+    } catch (err) {
+      if ((this._errLogCnt = (this._errLogCnt || 0) + 1) <= 5) {
+        console.error('[Studio Frame Error]', err);
+      }
     }
-
-    requestAnimationFrame((t) => this.frame(t));
   }
 }
 
