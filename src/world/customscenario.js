@@ -27,7 +27,7 @@ import { depthLevel } from '../data/depth.js';
 import { rollTreasureChest } from '../data/treasurechests.js';
 import { dropChest } from '../game/loot.js';
 import { sfx } from '../core/audio.js';
-import { sparkle, floatText } from '../gfx/vfx.js';
+import { sparkle, floatText, addLight, addEffect, Column, burst } from '../gfx/vfx.js';
 import { deserializeScenarioDoc, resolveBiome } from './scenariocodec.js';
 import { createScenarioDirector } from '../game/cutscenerunner.js';
 
@@ -40,7 +40,7 @@ import { buildField, fieldLevels, LV as ALP_LV } from './alpine.js';
 import { loadAlpine3D, disposeAlpine3D } from '../gfx/alpine3d.js';
 import { alpineHook } from '../game/alpine.js';
 import { DUNE_VARIANTS } from '../data/dunes.js';
-import { loadDunes3D, buildDunes3D, drawDunes3D, tickDunes3D, disposeDunes3D, duneSprite } from '../gfx/dunes3d.js';
+import { loadDunes3D, buildDunes3D, drawDunes3D, tickDunes3D, disposeDunes3D, duneSprite, openSeal } from '../gfx/dunes3d.js';
 import { applyDeck, joinDecks, mapChanged as seaMapChanged, SEA_LV } from './seaship.js';
 import { loadSea3D, loadFleet, buildSea3D, spawnShip as spawnSeaShip, bakeDeck, seaPlank, tickSea3D, drawSea3D, disposeSea3D } from '../gfx/seabattle3d.js';
 import { SKY_VARIANTS } from '../data/skybattle.js';
@@ -274,48 +274,72 @@ export function compileCaveFieldFromDoc(doc) {
   };
 
   const wf = (doc.grid?.heightfield?.waterfalls || [])[0] || { x: W / 2, y: H / 3, top: 3.2, base: 0.2, w: 4 };
-  const torches3d = (doc.architecture?.torches || []).map((tc) => ({
-    x: tc.x,
-    y: tc.y,
-    h: H2(tc.x, tc.y) + 1.1,
-    nx: 0.7,
-    ny: 0.7,
-    stand: true,
-  }));
+  const cm = doc.grid?.heightfield?.caveMeta || null;
+  const baked3dTorches = doc.grid?.heightfield?.torches3d || [];
+  const torches3d = [
+    ...baked3dTorches.map((tc) => ({
+      x: tc.x,
+      y: tc.y,
+      h: tc.h ?? (H2(tc.x, tc.y) + 1.1),
+      nx: tc.nx ?? 0.7,
+      ny: tc.ny ?? 0.7,
+      stand: !!tc.stand,
+    })),
+    ...(doc.architecture?.torches || []).map((tc) => ({
+      x: tc.x,
+      y: tc.y,
+      h: H2(tc.x, tc.y) + 1.1,
+      nx: 0.7,
+      ny: 0.7,
+      stand: true,
+    })),
+  ];
 
   return {
     W, H, VW, VH, hv, ceil, mat, vd, cls, surf, lvl, H2,
     v,
-    seed: 1337,
-    wallStal: [],
+    seed: cm?.seed || 1337,
+    wallStal: cm?.wallStal || [],
     torches: torches3d,
-    river: [[wf.x - 2, wf.y - 2], [wf.x, wf.y]],
-    plunge: [wf.x + 1, wf.y + 1],
+    river: cm?.river?.length ? cm.river : [[wf.x - 2, wf.y - 2], [wf.x, wf.y]],
+    plunge: wf.plunge || [wf.x + 1, wf.y + 1],
     lip: [wf.x, wf.y],
     HP: wf.top ?? 3.2,
     WL: wf.base ?? 0.2,
-    lake: { x: wf.x + 2, y: wf.y + 4, A: 6 },
-    shaft: { x: -200, y: -200, pool: 0 },
+    lake: cm?.lake || { x: wf.x + 2, y: wf.y + 4, A: 6 },
+    shaft: cm?.shaft || { x: -200, y: -200, pool: 0 },
     notchIn: [-200, -200],
-    mouth: [-200, -200],
-    mouthDir: [1, 0],
-    mouthH: 0,
+    mouth: cm?.mouth || [-200, -200],
+    mouthDir: cm?.mouthDir || [1, 0],
+    mouthH: cm?.mouthH || 0,
   };
 }
 
-/** Compile a Dunes3D field (`dv`) directly from `doc.grid` layers. */
+/** Compile a Dunes3D field (`dv`) directly from `doc.grid` layers (preserving 3D Pyramid, LOS tomb masonry & seals). */
 export function compileDunesFieldFromDoc(doc) {
-  const { w: W, h: H, layers, dunes } = doc.grid;
+  const { w: W, h: H, layers, dunes, traversal } = doc.grid;
   const v = DUNE_VARIANTS.find((q) => q.id === doc.meta?.variantId) || DUNE_VARIANTS[0];
   const E = dunes?.extW || Math.min(W, 172);
   const OXI = dunes?.oxi || Math.min(W - 32, E + 26);
   const S = CAVE_S;
   const VW = W * S + 1, VH = H * S + 1, NV = VW * VH;
   const LV = VZ / 4;
+  const KS = 16 / VZ;
+  const seed = dunes?.seed || 1337;
+  const ns = (seed % 997) + 11;
+
+  const pyRaw = dunes?.pyramid || { pc: 41, half: v.pyramid?.half || 26, base: 0, steps: v.pyramid?.steps || 0 };
+  const pc = pyRaw.pc ?? pyRaw.cx ?? 41;
+  const pyHalf = pyRaw.half ?? v.pyramid?.half ?? 26;
+  const pyBase = pyRaw.base ?? 0;
+  const pyTop = pyRaw.top ?? (pyHalf * (v.pyramid?.rise || 1.25));
+  const pyDoorStep = pyRaw.doorStep || [pc + 0.5, pc + pyHalf + 3.5];
+
   const hv = new Float32Array(NV);
-  const ceil = new Float32Array(NV).fill(12);
+  const ceil = new Float32Array(NV).fill(200);
   const mat = new Uint8Array(NV * 4);
   const vd = new Float32Array(NV).fill(1e9);
+  const nh = new Float32Array(NV);
   const vin = new Uint8Array(NV);
   const cls = new Uint8Array(NV);
   const surf = new Float32Array(NV).fill(NaN);
@@ -324,26 +348,115 @@ export function compileDunesFieldFromDoc(doc) {
   for (let i = 0; i < W * H; i++) {
     if (layers.wet[i]) lvl[i] = layers.waterLevel[i] || (layers.hgt[i] / LV + 0.25);
   }
+
+  const isOpen = (tx, ty) => tx >= 0 && ty >= 0 && tx < W && ty < H && (layers.t[ty * W + tx] === 1 || layers.wet[ty * W + tx] > 0);
+  const inPyr = (tx, ty) => tx < OXI - 2 && Math.abs(tx - pc) <= pyHalf && Math.abs(ty - pc) <= pyHalf;
+  const tileH = (tx, ty) => {
+    const cx = clamp(tx, 0, W - 1), cy = clamp(ty, 0, H - 1);
+    return layers.hgt[cy * W + cx] / LV;
+  };
+  const sm = Math.max(1.2, (traversal?.smoothMax ?? 4) / LV);
+
   for (let j = 0; j < VH; j++) {
     for (let i = 0; i < VW; i++) {
       const u = i / S, vv = j / S, k = j * VW + i;
       const tx = clamp(Math.floor(u), 0, W - 1), ty = clamp(Math.floor(vv), 0, H - 1), ti = ty * W + tx;
       vin[k] = u >= OXI - 2 ? 1 : 0;
-      const open = layers.t[ti] === 1 || layers.wet[ti] > 0;
-      cls[k] = open ? 1 : 0;
-      hv[k] = layers.hgt[ti] / LV + (vin[k] ? (open ? 0 : 4.2) : (open ? 0 : 2.2 + vnoise(u * 0.12, vv * 0.12, 9) * 2.5));
-      if (open) vd[k] = 0;
-      ceil[k] = hv[k] + (vin[k] ? 6.0 : 40);
-      if (layers.wet[ti]) surf[k] = lvl[ti];
-      mat[k * 4] = (layers.v[ti] % 2) * 255;
-      mat[k * 4 + 1] = layers.v[ti] === 2 ? 255 : 0;
-      mat[k * 4 + 2] = layers.v[ti] >= 3 ? 255 : 0;
-      mat[k * 4 + 3] = 235;
+      const open = isOpen(tx, ty) || (vin[k] && isOpen(Math.floor(u - 0.01), Math.floor(vv - 0.01)));
+      if (open) {
+        cls[k] = layers.wet[ti] === 2 ? 2 : 1;
+        const h0 = tileH(tx, ty);
+        const cx = Math.floor(u - 0.5), cy = Math.floor(vv - 0.5), fx = u - 0.5 - cx, fy = vv - 0.5 - cy;
+        const val = (x, y) => {
+          if (!isOpen(x, y)) return h0;
+          const th = tileH(x, y);
+          return Math.abs(th - h0) <= sm ? th : h0;
+        };
+        hv[k] = (val(cx, cy) * (1 - fx) + val(cx + 1, cy) * fx) * (1 - fy) + (val(cx, cy + 1) * (1 - fx) + val(cx + 1, cy + 1) * fx) * fy;
+        if (layers.wet[ti]) surf[k] = lvl[ti];
+        vd[k] = 0;
+        nh[k] = hv[k];
+      } else if (inPyr(tx, ty)) {
+        hv[k] = pyBase;
+        nh[k] = pyBase;
+      }
     }
   }
-  const da = 1 / S;
-  for (let j = 0; j < VH; j++) for (let i = 1; i < VW; i++) vd[j * VW + i] = Math.min(vd[j * VW + i], vd[j * VW + i - 1] + da);
-  for (let j = VH - 1; j >= 0; j--) for (let i = VW - 2; i >= 0; i--) vd[j * VW + i] = Math.min(vd[j * VW + i], vd[j * VW + i + 1] + da);
+
+  // Full 8-neighbor chamfer distance & nearest-floor height propagation (strictly separated across Exterior vs Tomb)
+  const da = 1 / S, db = Math.SQRT2 / S;
+  const relax = (k, n, c) => {
+    if (vin[k] !== vin[n]) return;
+    if (vd[n] + c < vd[k]) { vd[k] = vd[n] + c; nh[k] = nh[n]; }
+  };
+  for (let j = 0; j < VH; j++) for (let i = 0; i < VW; i++) {
+    const k = j * VW + i;
+    if (i > 0) relax(k, k - 1, da);
+    if (j > 0) { relax(k, k - VW, da); if (i > 0) relax(k, k - VW - 1, db); if (i < VW - 1) relax(k, k - VW + 1, db); }
+  }
+  for (let j = VH - 1; j >= 0; j--) for (let i = VW - 1; i >= 0; i--) {
+    const k = j * VW + i;
+    if (i < VW - 1) relax(k, k + 1, da);
+    if (j < VH - 1) { relax(k, k + VW, da); if (i < VW - 1) relax(k, k + VW + 1, db); if (i > 0) relax(k, k + VW - 1, db); }
+  }
+
+  for (let k = 0; k < NV; k++) {
+    const i = k % VW, j = (k / VW) | 0, u = i / S, vv = j / S;
+    const tx = clamp(Math.floor(u), 0, W - 1), ty = clamp(Math.floor(vv), 0, H - 1), ti = ty * W + tx;
+    const d = vd[k] > 1e8 ? 8 : vd[k];
+    if (vin[k]) {
+      if (!cls[k]) {
+        const wallRise = Math.min(5.4, 1.4 + d * 2.8);
+        hv[k] = (nh[k] || 0) + wallRise;
+      }
+      ceil[k] = (nh[k] || hv[k]) + 6.4;
+      mat[k * 4] = Math.round(255 * clamp((vnoise(i * 0.04, j * 0.04, ns + 71) - 0.35) / 0.3, 0, 1));
+      mat[k * 4 + 1] = Math.round(255 * clamp((vnoise(i * 0.06, j * 0.06, ns + 73) - 0.4) / 0.2, 0, 1));
+      mat[k * 4 + 2] = 0;
+      mat[k * 4 + 3] = cls[k] === 1 ? 235 : Math.round(clamp(225 - d * 24, 110, 225));
+    } else {
+      if (!cls[k]) {
+        if (inPyr(tx, ty)) {
+          hv[k] = pyBase;
+        } else {
+          const rawH = tileH(tx, ty);
+          const ridge = Math.max(1.4, rawH - (nh[k] || 0));
+          const q = Math.min(1, d / 5.5);
+          hv[k] = (nh[k] || 0) + ridge * (1 - (1 - q) * (1 - q)) + (vnoise(i * 0.11, j * 0.11, ns + 41) - 0.5) * 0.45 * q;
+        }
+      }
+      ceil[k] = hv[k] + 200;
+      mat[k * 4] = (layers.v[ti] % 2) * 255;
+      mat[k * 4 + 1] = layers.v[ti] === 2 ? 255 : 0;
+      mat[k * 4 + 2] = layers.wet[ti] ? 255 : (layers.v[ti] >= 3 ? 220 : 0);
+      mat[k * 4 + 3] = 238;
+    }
+  }
+
+  // Tomb LOS masonry cap: foreground tomb walls smoothly step down so they never hide deep spiraling halls behind them
+  if (traversal?.losCap !== false) {
+    const NC = VW + VH, M = new Float32Array(NC).fill(1e9);
+    for (let dsum = 0; dsum < VW + VH - 1; dsum++) {
+      const iA = Math.max(0, dsum - (VH - 1)), iB = Math.min(VW - 1, dsum), dTile = dsum / S;
+      for (let i = iA; i <= iB; i++) {
+        const j = dsum - i, k = j * VW + i;
+        if (cls[k] || !vin[k]) continue;
+        const c = i - j + VH;
+        let m = 1e9;
+        for (let o = -2; o <= 2; o++) { const qq = c + o; if (qq >= 0 && qq < NC && M[qq] < m) m = M[qq]; }
+        if (m < 1e8) {
+          const cap = m + (dTile - 0.5) * KS;
+          if (hv[k] > cap) hv[k] = Math.max(cap, (nh[k] || 0) - 0.3);
+        }
+      }
+      for (let i = iA; i <= iB; i++) {
+        const j = dsum - i, k = j * VW + i;
+        if (!cls[k] || !vin[k]) continue;
+        const c = i - j + VH, val = hv[k] - dTile * KS;
+        if (val < M[c]) M[c] = val;
+      }
+    }
+  }
 
   const H2 = (x, y) => {
     const fx = clamp(x * S, 0, VW - 1.001), fy = clamp(y * S, 0, VH - 1.001);
@@ -351,17 +464,45 @@ export function compileDunesFieldFromDoc(doc) {
     return (hv[k] * (1 - u) + hv[k + 1] * u) * (1 - t) + (hv[k + VW] * (1 - u) + hv[k + VW + 1] * u) * t;
   };
 
-  const py = dunes?.pyramid || { cx: 39, cy: 39, half: 26 };
+  const baked3dTorches = dunes?.torches3d || [];
+  const torches = [
+    ...baked3dTorches.map((tc) => ({
+      x: tc.x,
+      y: tc.y,
+      h: tc.h ?? (H2(tc.x, tc.y) + 1.2),
+      inside: tc.x >= OXI - 2,
+      stand: !!tc.stand,
+      nx: tc.nx ?? 0.7,
+      ny: tc.ny ?? 0.7,
+    })),
+    ...(doc.architecture?.torches || []).map((tc) => ({
+      x: tc.x,
+      y: tc.y,
+      h: H2(tc.x, tc.y) + 1.2,
+      inside: tc.x >= OXI - 2,
+      stand: true,
+      nx: 0.7,
+      ny: 0.7,
+    })),
+  ];
+
   return {
     W, H, E, OXI, VW, VH, hv, ceil, mat, vd, vin, cls, surf, lvl, H2,
     v,
-    seed: 1337,
-    pyramid: { pc: py.cx ?? 39, half: py.half ?? 26, base: 0, top: 28, steps: v.pyramid?.steps || 0 },
-    pyrBox: [py.cx - py.half, py.cy - py.half, py.cx + py.half, py.cy + py.half, 0],
-    seals: [],
-    torches: (doc.architecture?.torches || []).map((tc) => ({
-      x: tc.x, y: tc.y, h: H2(tc.x, tc.y) + 1.2, inside: tc.x >= OXI - 2, stand: true, nx: 0.7, ny: 0.7,
-    })),
+    seed,
+    pyramid: {
+      pc,
+      half: pyHalf,
+      base: pyBase,
+      top: pyTop,
+      door: pyRaw.door || [pc + 0.5, pc + pyHalf + 1],
+      doorStep: pyDoorStep,
+      plaza: pyRaw.plaza || null,
+      steps: pyRaw.steps ?? v.pyramid?.steps ?? 0,
+    },
+    pyrBox: [pc - pyHalf, pc - pyHalf, pc + pyHalf, pc + pyHalf, pyBase],
+    seals: (dunes?.seals || []).map((s) => ({ ...s })),
+    torches,
     inside: (x) => x >= OXI - 2,
   };
 }
@@ -438,7 +579,7 @@ function resolvePropSprite(pr, tileset, biomeId) {
     if (co) return co;
   }
   if (biomeId === 'sea_of_sand' || biomeId === 'scorpion_king_pyramid') {
-    const so = seaOfSandObject(name);
+    const so = pr.tree ? (seaOfSandObject(name, 'tree') || seaOfSandObject(name)) : (seaOfSandObject(name) || seaOfSandObject(name, 'tree'));
     if (so) return so;
   }
   const ow = overworldObject(name);
@@ -557,8 +698,13 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
   const worldKind = cat === 'town_arena' && doc.meta?.variantId !== 'pvp_arena' ? 'town' : 'dungeon';
   const props = [];
   for (const pr of doc.entities?.props || []) {
+    if (pr.caveProp === 'sprite') {
+      const spr = resolvePropSprite(pr, tileset, biomeId);
+      if (spr) props.push({ ...pr, spr });
+      continue;
+    }
     if (pr.caveProp || pr.kind === 'decor') {
-      props.push({ ...pr });
+      props.push({ ...pr, k: pr.k || 1 });
       continue;
     }
     const spr = resolvePropSprite(pr, tileset, biomeId);
@@ -591,7 +737,7 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
     depth,
     props,
     buildings,
-    torches: structuredClone(doc.architecture?.torches || []),
+    torches: (cat === '3d_caverns' || cat === '3d_dunes') ? [] : structuredClone(doc.architecture?.torches || []),
     wallHangings: structuredClone(doc.architecture?.wallHangings || []),
     townTiles,
     looks,
@@ -606,13 +752,52 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
     if (doc.meta.lighting.fog) world.ambientFog = doc.meta.lighting.fog;
   }
 
+  // Shared 3D Heightfield Raycaster (Walkable-floor-first in Auto Z; Plane-locked in Editor Depth Lock!)
+  const makeHeightfieldPick = ({ lo, hi, lvPerUnit, groundFn, inRegionFn }) => (wx, wy) => {
+    const at = (hh) => {
+      const yy = wy + hh * VZ;
+      return [(wx / HW + yy / HH) / 2, (yy / HH - wx / HW) / 2];
+    };
+    const ed = !world.player ? world.cave?.editor : null;
+    if (ed?.lockDepth) {
+      const hLock = ed.depthLv / lvPerUnit;
+      const band = Math.max(1.0, ((ed.sliceBand || 24) / lvPerUnit) * 0.4);
+      for (let hh = hLock + band; hh >= hLock - band; hh -= 0.08) {
+        const [x, y] = at(hh);
+        if (x < 0 || y < 0 || x >= w || y >= h) continue;
+        if (inRegionFn && !inRegionFn(x)) continue;
+        const ti = Math.floor(y) * w + Math.floor(x);
+        if ((map.t[ti] === 1 || (map.wet && map.wet[ti] > 0)) && groundFn(x, y) >= hh) return [x, y];
+      }
+      return at(hLock);
+    }
+
+    let firstRock = null;
+    let inRock = false;
+    for (let hh = hi; hh >= lo; hh -= 0.08) {
+      const [x, y] = at(hh);
+      if (x < 0 || y < 0 || x >= w || y >= h || (inRegionFn && !inRegionFn(x)) || groundFn(x, y) < hh) {
+        inRock = false;
+        continue;
+      }
+      const ti = Math.floor(y) * w + Math.floor(x);
+      const isOpen = map.t[ti] === 1 || (map.wet && map.wet[ti] > 0);
+      if (isOpen) return [x, y];
+      if (!inRock && !firstRock) firstRock = [x, y];
+      inRock = true;
+    }
+    if (firstRock) return firstRock;
+    const refH = ed ? groundFn(ed.focusTile[0], ed.focusTile[1]) : 0;
+    return at(refH);
+  };
+
   // Bind 3D / 2.5D Viewport & Scene Hooks
   if (cat === '3d_caverns') {
     const cv = compileCaveFieldFromDoc(doc);
     map.smoothField = true;
     await buildCave3D(cv);
-    const LV = VZ / 4, K = HH / VZ;
-    const floorLo = (map.minLevel || 0) / LV - 2, floorHi = (map.maxLevel || 32) / LV + 4;
+    const LV = VZ / 4;
+    const floorLo = (map.minLevel || 0) / LV - 3, floorHi = (map.maxLevel || 32) / LV + 6;
     const groundT = (x, y) => {
       const ti = map.tileIdx(x, y);
       const s = map.wet && map.wet[ti] ? cv.lvl[ti] : NaN;
@@ -622,18 +807,19 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
     const cr = (world.cave = {
       cv,
       v: cv.v,
+      lvPerUnit: LV,
+      editor: {
+        focusTile: [doc.entities.start[0], doc.entities.start[1]],
+        lockDepth: false,
+        depthLv: Math.round(groundT(...doc.entities.start) * LV),
+        sliceMode: false,
+        sliceBand: 24,
+      },
       focus: [doc.entities.start[0], groundT(...doc.entities.start), doc.entities.start[1]],
       cut: true,
       elev: (x, y) => groundT(x, y) * VZ,
       cutAt: () => false,
-      pick(wx, wy) {
-        const at = (hh) => { const yy = wy + hh * VZ; return [(wx / HW + yy / HH) / 2, (yy / HH - wx / HW) / 2]; };
-        for (let hh = floorHi + 4; hh >= floorLo; hh -= 0.08) {
-          const [x, y] = at(hh);
-          if (x >= 0 && y >= 0 && x < w && y < h && groundT(x, y) >= hh) return [x, y];
-        }
-        return [(wx / HW + wy / HH) / 2, (wy / HH - wx / HW) / 2];
-      },
+      pick: makeHeightfieldPick({ lo: floorLo, hi: floorHi, lvPerUnit: LV, groundFn: groundT, inRegionFn: null }),
       horizon(o) {
         if (o === world.player) return null;
         const x = o.x, y = o.y, h0 = groundT(x, y), fy = (x + y) * HH - h0 * VZ - (o.z || 0);
@@ -655,7 +841,23 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
       },
       frame(dt) {
         const p = world.player;
-        if (p) { cr.focus[0] = p.x; cr.focus[1] = groundT(p.x, p.y); cr.focus[2] = p.y; }
+        if (p) {
+          cr.focus[0] = p.x; cr.focus[1] = groundT(p.x, p.y); cr.focus[2] = p.y;
+        } else if (cr.editor) {
+          const [fx, fy] = cr.editor.focusTile;
+          cr.focus[0] = fx;
+          cr.focus[1] = cr.editor.lockDepth ? (cr.editor.depthLv / LV) : groundT(fx, fy);
+          cr.focus[2] = fy;
+        }
+        const vr = camera.viewRect(80);
+        const torchCol = cv.v?.torch || '#ffb060';
+        for (const t of cv.torches || []) {
+          const px = isoX(t.x, t.y), py = isoY(t.x, t.y);
+          if (px < vr.x0 || px > vr.x1 || py < vr.y0 - 80 || py > vr.y1 + 80) continue;
+          const z = (t.h - groundT(t.x, t.y)) * VZ + 16;
+          addLight(t.x, t.y, 6.2, 0.9, z, torchCol);
+        }
+        if (cv.plunge) addLight(cv.plunge[0], cv.plunge[1], 8.5, 0.75, 24, cv.v?.hi || '#7fd0ff');
         if (dt) tickCave3D(dt, cr);
       },
       draw(ctx) { drawCave3D(ctx, cr); },
@@ -694,7 +896,8 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
           const yy = wy + g.roofZ * VZ;
           return [g.AX + (wx / HW + yy / HH) / 2, g.AY + (yy / HH - wx / HW) / 2];
         }
-        let x = clamp(world.player ? world.player.x : doc.entities.start[0], g.XT, g.XB), y = g.YR + g.w / 2;
+        const curS = clamp(tw.curNorm ?? 0.05, 0, 1) * g.L;
+        let x = clamp(world.player ? world.player.x : (g.X1 - curS), g.XT, g.XB), y = g.YR + g.w / 2;
         const a = [0, 0], b = [0, 0], c = [0, 0];
         for (let k = 0; k < 6; k++) {
           tw.raw(x, y, a, false);
@@ -718,8 +921,10 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
           return;
         }
         tw.roof = false;
-        const s = clamp(norm01, 0, 1) * g.L;
-        const tx = g.X1 - s, ty = g.YR + g.w / 2;
+        const norm = clamp(norm01, 0, 1);
+        tw.curNorm = norm;
+        const s = norm * g.L;
+        const ty = g.YR + g.w / 2;
         tw.alpha = g.theta(s) + Math.PI / 2;
         const t = g.theta0 - s / g.rc - tw.alpha, r = g.r(ty);
         tw.focus = [r * Math.cos(t), g.z(s), r * Math.sin(t)];
@@ -732,6 +937,7 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
           if (tw.roof) tw.alpha = g.alphaTop;
           else {
             const s = g.s(p.x);
+            tw.curNorm = clamp(s / g.L, 0, 1);
             tw.alpha = g.theta(s) + Math.PI / 2;
             const t = g.theta0 - s / g.rc - tw.alpha, r = g.r(p.y);
             tw.focus[0] = r * Math.cos(t); tw.focus[1] = g.z(s); tw.focus[2] = r * Math.sin(t);
@@ -764,6 +970,34 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
     for (let i = 0; i < N; i++) { lo = Math.min(lo, map.hgt[i]); hi = Math.max(hi, map.hgt[i]); }
     map.minLevel = lo; map.maxLevel = hi;
     const cr = alpineHook(world, av, { zoom: 1 });
+    cr.lvPerUnit = ALP_LV;
+    cr.editor = {
+      focusTile: [doc.entities.start[0], doc.entities.start[1]],
+      lockDepth: false,
+      depthLv: Math.round(av.F.H2(...doc.entities.start) * ALP_LV),
+      sliceMode: false,
+      sliceBand: 28,
+    };
+    const origPick = cr.pick.bind(cr);
+    cr.pick = (wx, wy) => {
+      if (!world.player && cr.editor?.lockDepth) {
+        const hLock = cr.editor.depthLv / ALP_LV;
+        const yy = wy + hLock * VZ;
+        return [(wx / HW + yy / HH) / 2, (yy / HH - wx / HW) / 2];
+      }
+      return origPick(wx, wy);
+    };
+    const origFrame = cr.frame.bind(cr);
+    cr.frame = (dt, snap = false) => {
+      if (world.player) {
+        origFrame(dt, snap);
+      } else if (cr.editor) {
+        const [fx, fy] = cr.editor.focusTile;
+        cr.focus[0] = fx;
+        cr.focus[1] = cr.editor.lockDepth ? (cr.editor.depthLv / ALP_LV) : av.F.H2(fx, fy);
+        cr.focus[2] = fy;
+      }
+    };
     cr.dispose = disposeAlpine3D;
     setElevation(cr.elev, cr.pick);
   } else if (cat === '3d_dunes') {
@@ -771,36 +1005,89 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
     map.smoothField = true;
     await buildDunes3D(dv);
     const LV = VZ / 4;
-    const floorLo = (map.minLevel || -30) / LV - 2, floorHi = (map.maxLevel || 20) / LV + 8;
-    const groundT = (x, y) => dv.H2(x, y);
+    const floorLo = (map.minLevel || -200) / LV - 4, floorHi = (map.maxLevel || 40) / LV + 10;
+    const groundT = (x, y) => {
+      const ti = map.tileIdx(x, y);
+      const s = map.wet && map.wet[ti] ? dv.lvl[ti] : NaN;
+      const h0 = dv.H2(x, y);
+      return !Number.isNaN(s) && s > h0 ? s : h0;
+    };
+    if (opts.isEditor && !world.player) {
+      openSeal('door');
+    }
     const cr = (world.cave = {
       dv,
       v: dv.v,
+      lvPerUnit: LV,
+      editor: {
+        focusTile: [doc.entities.start[0], doc.entities.start[1]],
+        lockDepth: false,
+        depthLv: Math.round(groundT(...doc.entities.start) * LV),
+        sliceMode: false,
+        sliceBand: 24,
+      },
       focus: [doc.entities.start[0], groundT(...doc.entities.start), doc.entities.start[1]],
       cut: true,
       inside: dv.inside(doc.entities.start[0]),
       inRegion: (x) => dv.inside(x) === cr.inside,
       elev: (x, y) => groundT(x, y) * VZ,
-      pick(wx, wy) {
-        const at = (hh) => { const yy = wy + hh * VZ; return [(wx / HW + yy / HH) / 2, (yy / HH - wx / HW) / 2]; };
-        for (let hh = floorHi; hh >= floorLo; hh -= 0.08) {
-          const [x, y] = at(hh);
-          if (x >= 0 && y >= 0 && x < w && y < h && cr.inRegion(x) && groundT(x, y) >= hh) return [x, y];
-        }
-        return [(wx / HW + wy / HH) / 2, (wy / HH - wx / HW) / 2];
-      },
-      horizon: () => null,
+      pick: makeHeightfieldPick({
+        lo: floorLo,
+        hi: floorHi,
+        lvPerUnit: LV,
+        groundFn: groundT,
+        inRegionFn: (x) => dv.inside(x) === cr.inside,
+      }),
+      horizon: (o) => (!cr.inRegion(o.x) ? -Infinity : null),
       drawProp(ctx, o) {
-        const spr = duneSprite(o.caveProp, o.m || 0);
+        if (!cr.inRegion(o.x)) return;
+        const spr = o.caveProp === 'sprite' ? o.spr : duneSprite(o.caveProp, o.m || 0);
         if (!spr) return;
-        const sc = o.k || o.s || 1, sx = isoX(o.x, o.y), sy = isoY(o.x, o.y) - (o.z || 0);
-        ctx.drawImage(spr.img, 0, 0, spr.w, spr.h, sx + spr.ox * sc, sy + spr.oy * sc, spr.w * sc, spr.h * sc);
+        const sc = o.caveProp === 'sprite' ? (o.k || 0.4) : (o.k || o.s || 1);
+        const sx = isoX(o.x, o.y), sy = isoY(o.x, o.y) - (o.z || 0);
+        const rx = sx + (o.flip ? -spr.ox - spr.w : spr.ox) * sc, ry = sy + spr.oy * sc;
+        const rw = spr.w * sc, rh = spr.h * sc;
+        if (o.flip) {
+          ctx.save();
+          ctx.translate(sx, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(spr.img, spr.sx || 0, spr.sy || 0, spr.w, spr.h, spr.ox * sc, ry, rw, rh);
+          ctx.restore();
+        } else {
+          ctx.drawImage(spr.img, spr.sx || 0, spr.sy || 0, spr.w, spr.h, rx, ry, rw, rh);
+        }
       },
       frame(dt) {
         const p = world.player;
         if (p) {
           cr.inside = dv.inside(p.x);
           cr.focus[0] = p.x; cr.focus[1] = groundT(p.x, p.y); cr.focus[2] = p.y;
+          // Smoothly lower Pyramid door & tomb stone seals as the hero approaches cleared thresholds
+          if (!cr.inside && dv.pyramid?.doorStep && Math.hypot(p.x - dv.pyramid.doorStep[0], p.y - dv.pyramid.doorStep[1]) < 9) {
+            openSeal('door');
+          }
+          for (const sl of dv.seals || []) {
+            if (!sl._opened && Math.hypot(p.x - sl.x, p.y - sl.y) < 5.5) {
+              const nearFoe = world.creatures.some((c) => c.team === 'enemy' && !c.dead && c.awake && Math.hypot(c.x - p.x, c.y - p.y) < 12);
+              if (!nearFoe) { sl._opened = true; openSeal(sl.k); }
+            }
+          }
+        } else if (cr.editor) {
+          const [fx, fy] = cr.editor.focusTile;
+          cr.focus[0] = fx;
+          cr.focus[1] = cr.editor.lockDepth ? (cr.editor.depthLv / LV) : groundT(fx, fy);
+          cr.focus[2] = fy;
+        }
+        const vr = camera.viewRect(80);
+        const torchCol = cr.inside ? (dv.v?.pyramid?.torch || '#ffb060') : '#ffb050';
+        for (const t of dv.torches || []) {
+          if (dv.inside(t.x) !== cr.inside) continue;
+          const px = isoX(t.x, t.y), py = isoY(t.x, t.y);
+          if (px < vr.x0 || px > vr.x1 || py < vr.y0 - 80 || py > vr.y1 + 80) continue;
+          if (cr.inside || dv.v?.sky?.night || world.night) {
+            const z = (t.h - groundT(t.x, t.y)) * VZ + (t.stand ? 60 : 16);
+            addLight(t.x, t.y, t.stand ? 7 : 6, 0.92, z, torchCol);
+          }
         }
         if (dt) tickDunes3D(dt, cr);
       },
@@ -951,8 +1238,10 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
     world.npcs.push(folk);
   }
 
-  // Spawn Monsters & Bosses
+  // Spawn Monsters & Bosses (including Multi-Stage 3D Raid & Hall Bosses)
   const lvl = depthLevel(depth);
+  const isOpen3D = ['3d_dunes', '3d_caverns', '3d_tower', '3d_alpine', 'overworld', 'breach'].includes(cat);
+  const raidBossList = [];
   world._generatingDungeon = true;
   let seq = 1;
   for (let si = 0; si < (doc.entities?.spawns || []).length; si++) {
@@ -960,37 +1249,58 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
     if (s.rank === 'raid') {
       const tpl = RAID_BOSSES.find((b) => b.id === s.arch) || RAID_BOSSES[0];
       const bakedArena = doc.architecture?.raidArena;
-      const arena = bakedArena && bakedArena.gate
+      const roomBox = s.arenaRect || (doc.architecture?.rooms || []).find((r) => s.x >= r.x && s.y >= r.y && s.x <= r.x + r.w && s.y <= r.y + r.h);
+      const arena = bakedArena && bakedArena.gate && !s.arenaRect
         ? structuredClone(bakedArena)
-        : {
-            type: 'arena',
-            x: s.x - 12,
-            y: s.y - 10,
-            w: 24,
-            h: 20,
-            cx: s.x - 4,
-            cy: s.y,
-            mx: s.x - 4,
-            my: s.y,
-            pillars: [],
-            gate: { x: Math.max(2, Math.round(s.x - 12)), y0: Math.round(s.y - 1), y1: Math.round(s.y + 1) },
-          };
+        : roomBox
+          ? {
+              type: 'arena',
+              x: roomBox.x,
+              y: roomBox.y,
+              w: roomBox.w,
+              h: roomBox.h,
+              cx: roomBox.cx ?? (roomBox.x + roomBox.w / 2),
+              cy: roomBox.cy ?? (roomBox.y + roomBox.h / 2),
+              mx: roomBox.cx ?? (roomBox.x + roomBox.w / 2),
+              my: roomBox.cy ?? (roomBox.y + roomBox.h / 2),
+              pillars: [],
+              gate: { x: -40, y0: -40, y1: -39 },
+            }
+          : {
+              type: 'arena',
+              x: s.x - 12,
+              y: s.y - 10,
+              w: 24,
+              h: 20,
+              cx: s.x - 4,
+              cy: s.y,
+              mx: s.x - 4,
+              my: s.y,
+              pillars: [],
+              gate: isOpen3D
+                ? { x: -40, y0: -40, y1: -39 }
+                : { x: Math.max(2, Math.round(s.x - 12)), y0: Math.round(s.y - 1), y1: Math.round(s.y + 1) },
+            };
       const m = makeRaidBoss(world, arena, depth, lvl + 3, {
         tpl,
         art: s.art || undefined,
-        court: !(bakedArena && bakedArena.gate),
+        court: !isOpen3D && !(bakedArena && bakedArena.gate),
         rnd: () => rng.next(),
       });
       if (m) {
         m.x = s.x; m.y = s.y;
         m.netId = `c_raid_${si}`;
         m.idx = seq++;
+        if (s.scale) m.scale = s.scale;
+        if (s.hpK) { m.maxHp *= s.hpK; m.hp = m.maxHp; }
+        if (isOpen3D && m.raid) m.raid.execT = Infinity;
         if (s.castKey) m.castKey = s.castKey;
         if (s.name) m.name = s.name;
         if (opts.freezeAI) m.awake = false;
         world.add(m);
         world.boss = m;
-        if (bakedArena) world.raid = arena;
+        raidBossList.push(m);
+        if (bakedArena && !isOpen3D) world.raid = m.raid || arena;
       }
       continue;
     }
@@ -1003,6 +1313,7 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
       if (!m) continue;
       m.netId = `c_m_${si}_${i}`;
       m.idx = seq++;
+      if (s.scale && i === 0) m.scale = s.scale;
       if (i === 0 && s.castKey) m.castKey = s.castKey;
       if (i === 0 && s.name) m.name = s.name;
       if (rk === 'boss') world.boss = m;
@@ -1012,7 +1323,7 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
   }
   world._generatingDungeon = false;
 
-  // Portals (Town Portal + Exit)
+  // Portals (Town Portal + Exit + Intra-Map 3D Passages)
   const tp = doc.entities?.townPortal || [doc.entities.start[0] + 1.6, doc.entities.start[1] - 0.6];
   const exSpec = doc.entities?.exit || { x: doc.entities.start[0], y: Math.max(4, doc.entities.start[1] - 10), sealed: false };
   const initiallyActive = !exSpec.sealed || worldKind === 'town';
@@ -1052,6 +1363,98 @@ export async function buildCustomScenarioWorld(doc, opts = {}) {
     },
     exitPortal,
   ];
+
+  // Intra-map Passage / Door Teleports (Pyramid Door <-> Tomb, Cavern Notch <-> Spiral Shaft, Tower Stairhead <-> Roof)
+  let passageCooldown = 0;
+  const teleportHeroTo = (destX, destY, labelText, colorHex = '#ffd060') => {
+    const p = world.player;
+    if (!p || p.dead) return;
+    passageCooldown = 1.6;
+    sfx('door', 0.75);
+    const [nx, ny] = map.nudge(destX, destY, p.r || 0.35);
+    p.x = nx; p.y = ny;
+    p.path = null; p.moveTarget = null; p.attackTarget = null;
+    for (const c of world.creatures) {
+      if (c !== p && c.team === 'player' && !c.dead) {
+        [c.x, c.y] = map.randomNear(nx, ny, 1.6);
+        c.aggro = null; c.foe = null;
+      }
+    }
+    map.flowFrom = [-9, -9];
+    map.reveal(nx, ny, 16);
+    if (world.cave) world.cave.frame?.(0, true);
+    if (world.tower) world.tower.frame?.(0);
+    camera.follow(nx, ny, 1, true);
+    addEffect(new Column(nx, ny, colorHex, 0.85, 28, 220));
+    burst(nx, ny, 18, 'arcane', 16, 3.5);
+    if (labelText) floatText(nx, ny, 56, labelText, colorHex, 13);
+  };
+
+  const passageEndpoints = [];
+  for (const psg of doc.entities?.passages || []) {
+    if (!Array.isArray(psg.from) || !Array.isArray(psg.to)) continue;
+    const col = psg.color || '#ffd060';
+    const fwdLabel = psg.name || 'Passage';
+    const mkEndpoint = (fx, fy, tx, ty, lbl) => {
+      const ep = {
+        x: fx,
+        y: fy,
+        type: 'passage',
+        active: true,
+        color: col,
+        reach: 1.8,
+        label: lbl,
+        use: () => {
+          if (psg.lockUntil === 'combat_clear') {
+            const nearFoe = world.creatures.some((c) => c.team === 'enemy' && !c.dead && c.awake && Math.hypot(c.x - fx, c.y - fy) < 16);
+            if (nearFoe) {
+              floatText(fx, fy, 48, 'Defeat nearby foes first!', '#ff8a70', 12);
+              return;
+            }
+          }
+          teleportHeroTo(tx, ty, lbl, col);
+        },
+      };
+      world.portals.push(ep);
+      passageEndpoints.push(ep);
+    };
+    mkEndpoint(psg.from[0], psg.from[1], psg.to[0], psg.to[1], fwdLabel);
+    if (psg.bidirectional) {
+      mkEndpoint(psg.to[0], psg.to[1], psg.from[0], psg.from[1], `Return · ${fwdLabel}`);
+    }
+  }
+
+  // Runtime tick hazard for Multi-Boss Raid HUD switching & walk-on Passage triggers
+  if (passageEndpoints.length || raidBossList.length) {
+    world.addHazard({
+      keep: true,
+      draw() {},
+      update(dt) {
+        if (world !== G.world) return false;
+        const p = world.player;
+        if (!p || p.dead) return true;
+        if (passageCooldown > 0) passageCooldown = Math.max(0, passageCooldown - dt);
+        else {
+          for (const ep of passageEndpoints) {
+            if (Math.hypot(p.x - ep.x, p.y - ep.y) < 1.05) {
+              ep.use();
+              break;
+            }
+          }
+        }
+        if (raidBossList.length) {
+          const activeRaidBoss = raidBossList.find((b) => !b.dead && b.awake && Math.hypot(b.x - p.x, b.y - p.y) < 28);
+          if (activeRaidBoss) {
+            world.boss = activeRaidBoss;
+            world.raid = activeRaidBoss.raid || null;
+          } else if (world.boss && world.boss.dead) {
+            world.raid = null;
+          }
+        }
+        return true;
+      },
+    });
+  }
 
   map.stepMask();
   propReach(world);

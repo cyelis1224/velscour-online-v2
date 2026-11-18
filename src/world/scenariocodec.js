@@ -2,8 +2,10 @@
 // procedural seed-to-document baker, and reachability/cutscene validator. Pure ES module (runs in Browser and Node).
 import { BIOMES, BETA_BIOMES, BREACH_BIOME, SCORPION_KING_PYRAMID_BIOME, TOWN_BIOME, ACT2_TOWN_BIOME, BIOME_BY_ID } from '../data/biomes.js';
 import { TOWER_VARIANTS, towerGeo } from './tower.js';
-import { CAVE_VARIANTS } from './caverns.js';
-import { DUNE_VARIANTS } from '../data/dunes.js';
+import { CAVE_VARIANTS, VZ, CAVE_ROSTER } from './caverns.js';
+import { DUNE_VARIANTS, DUNE_ROSTER } from '../data/dunes.js';
+import { DEPTHS_EDGE, DEPTHS_EDGE_BOSSES } from '../data/depthsedge.js';
+import { ART_BY_ID } from '../data/bestiary.js';
 import { CASTLE_VARIANTS } from '../data/castles.js';
 import { SIEGE_VARIANTS } from './siege.js';
 import { HUNT_LANDS } from '../data/huntlands.js';
@@ -402,6 +404,8 @@ export function createBlankScenarioDoc(opts = {}) {
   const spawns = [];
   const props = [];
   const torches = [];
+  const torches3d = [];
+  const passages = [];
   const waterfalls = [];
   let trainCars = null;
   let dunesMeta = null;
@@ -522,17 +526,25 @@ export function createBlankScenarioDoc(opts = {}) {
     for (let y = 41; y <= 51; y++) for (let x = 47; x <= 57; x++) {
       if ((x - 52) ** 2 + (y - 46) ** 2 <= 25) { wet[y * w + x] = 1; waterLevel[y * w + x] = 0.45; }
     }
-    // Ramp climbing to upper plateau
-    for (let s = 0; s <= 36; s++) {
-      const k = s / 36;
-      carveDisk(58 + k * 14, 44 - k * 22, 3.2, 0, Math.round(4 + k * 28));
+    // Ramp climbing around the falls cliff to the upper plateau
+    for (let s = 0; s <= 40; s++) {
+      const k = s / 40;
+      carveDisk(58 + Math.sin(k * Math.PI) * 8, 44 - k * 23, 3.4, 0, Math.round(4 + k * 28));
     }
     carveDisk(54, 20, 11, 0, 32);
     waterfalls.push({ x: 52, y: 32, top: 3.2, base: 0.4, w: 4.5 });
+    for (const [tx, ty, th] of [[24, 70, 0.8], [30, 70, 0.8], [46, 44, 1.2], [58, 44, 1.2], [50, 22, 4.1], [58, 22, 4.1]]) {
+      torches3d.push({ x: tx, y: ty, h: th, nx: 0.7, ny: 0.7, stand: true });
+    }
+    rooms.push(
+      { id: 'r_cave_entry', x: 18, y: 66, w: 16, h: 16, title: 'Cavern Mouth', theme: null, floorLv: 0 },
+      { id: 'r_cave_lake', x: 42, y: 36, w: 20, h: 20, title: 'Silt Plunge Pool', theme: null, floorLv: 4 },
+      { id: 'r_cave_summit', x: 44, y: 10, w: 20, h: 20, title: 'Top of the Falls', theme: null, floorLv: 32 }
+    );
     start = [26.5, 76.5];
     townPortal = [28.5, 76.0];
     exit = { x: 54.5, y: 15.5, sealed: true, unsealOn: 'boss_killed', continueToBiome: null };
-    spawns.push({ id: 'sp_cave_boss', castKey: 'falls_warden', x: 54.5, y: 21.5, arch: 'spider', rank: 'boss', n: 1, art: 'de_widow', swap: null, name: 'Matriarch of the Falls' });
+    spawns.push({ id: 'sp_cave_boss', castKey: 'falls_warden', x: 54.5, y: 21.5, arch: 'golem', rank: 'boss', n: 1, art: 'de_mother_of_closed_doors', swap: null, name: 'Mother of Closed Doors' });
   } else if (category === '3d_tower') {
     const tv = towerSpec || TOWER_VARIANTS[0];
     const g = towerGeo(tv);
@@ -553,6 +565,19 @@ export function createBlankScenarioDoc(opts = {}) {
     start = [g.XB - 3.5, g.YR + g.w / 2];
     townPortal = [g.XB - 2.0, g.YR + g.w / 2];
     exit = { x: g.AX, y: g.AY, sealed: true, unsealOn: 'boss_killed', continueToBiome: null };
+    passages.push({
+      id: 'psg_stairhead',
+      name: 'Stairhead Arch → Rooftop Arena',
+      from: [Math.round((g.XT + 2.5) * 10) / 10, Math.round((g.YR + g.w / 2) * 10) / 10],
+      to: [Math.round(g.AX * 10) / 10, Math.round((g.AY + g.RT * 0.65) * 10) / 10],
+      bidirectional: true,
+      lockUntil: 'none',
+      color: '#ffe2a0',
+    });
+    rooms.push(
+      { id: 'r_tw_base', x: Math.floor(g.XB - 12), y: g.YR, w: 12, h: g.w, title: 'Tower Base', theme: null, floorLv: 0 },
+      { id: 'r_tw_roof', x: Math.floor(g.AX - g.RT), y: Math.floor(g.AY - g.RT), w: Math.round(g.RT * 2), h: Math.round(g.RT * 2), title: 'Rooftop Arena', theme: null, floorLv: Math.round(g.roofZ * (VZ / 4)) }
+    );
     spawns.push({ id: 'sp_roof_boss', castKey: 'sky_admiral', x: g.AX, y: g.AY + 4, arch: 'knight', rank: 'boss', n: 1, art: null, swap: null, name: 'Tower Sovereign' });
   } else if (category === '3d_alpine') {
     // Switchback mountain climb
@@ -567,26 +592,61 @@ export function createBlankScenarioDoc(opts = {}) {
       carveDisk(56 - k * 22, 56 - k * 34, 3.8, 0, Math.round(16 + k * 20));
     }
     carveDisk(34, 22, 11, 1, 36);
+    rooms.push(
+      { id: 'r_alp_base', x: 14, y: 72, w: 16, h: 16, title: 'Trailhead Camp', theme: null, floorLv: 0 },
+      { id: 'r_alp_mid', x: 48, y: 48, w: 16, h: 16, title: 'Midway Shelf', theme: null, floorLv: 16 },
+      { id: 'r_alp_peak', x: 24, y: 12, w: 20, h: 20, title: 'Summit Plateau', theme: null, floorLv: 36 }
+    );
     start = [22.5, 82.5];
     townPortal = [24.5, 82.0];
     exit = { x: 34.5, y: 17.5, sealed: true, unsealOn: 'boss_killed', continueToBiome: null };
     spawns.push({ id: 'sp_peak_boss', castKey: 'peak_warden', x: 34.5, y: 23.5, arch: 'golem', rank: 'boss', n: 1, art: null, swap: null, name: 'The Summit Warden' });
   } else if (category === '3d_dunes') {
     const E = 172, OXI = E + 26;
-    dunesMeta = { extW: E, oxi: OXI, tombSize: 112, pyramid: { cx: 39, cy: 39, half: 26 } };
+    const pc = 41, half = 26, doorStep = [pc + 0.5, pc + half + 3.5];
     // Exterior desert plaza & camp trail
     carveDisk(140, 140, 14, 0, 0);
     for (let s = 0; s <= 60; s++) {
       const k = s / 60;
-      carveDisk(140 - k * 90, 140 - k * 66, 6, 0, Math.round(Math.sin(k * Math.PI * 2) * 3));
+      carveDisk(140 - k * 95, 140 - k * 66, 6, 0, Math.round(Math.sin(k * Math.PI * 2) * 3));
     }
-    carveRect(28, 66, 24, 16, 0, 0);
+    carveRect(pc - 14, pc + half + 1, 29, 14, 3, 0);
     // Interior tomb chamber at x >= OXI
     carveRect(OXI + 40, 50, 32, 32, 0, -20);
+    const tombTorches = [
+      { x: doorStep[0] - 3, y: doorStep[1] - 1.5, h: 0.2, stand: true, nx: 0, ny: 1 },
+      { x: doorStep[0] + 3, y: doorStep[1] - 1.5, h: 0.2, stand: true, nx: 0, ny: 1 },
+      { x: OXI + 44, y: 54, h: -20 / (VZ / 4), stand: true, nx: 0, ny: 1 },
+      { x: OXI + 68, y: 54, h: -20 / (VZ / 4), stand: true, nx: 0, ny: 1 },
+      { x: OXI + 44, y: 78, h: -20 / (VZ / 4), stand: true, nx: 0, ny: 1 },
+      { x: OXI + 68, y: 78, h: -20 / (VZ / 4), stand: true, nx: 0, ny: 1 },
+    ];
+    dunesMeta = {
+      extW: E,
+      oxi: OXI,
+      tombSize: 112,
+      pyramid: { pc, cx: pc, cy: pc, half, base: 0, top: 32, door: [pc + 0.5, pc + half + 1], doorStep, steps: 0 },
+      seals: [],
+      torches3d: tombTorches,
+    };
+    passages.push({
+      id: 'psg_pyramid_door',
+      name: 'Pyramid Entrance → Tomb Chamber',
+      from: doorStep,
+      to: [OXI + 56, 78],
+      bidirectional: true,
+      lockUntil: 'none',
+      color: '#ffd060',
+    });
+    rooms.push(
+      { id: 'r_dn_start', x: 128, y: 128, w: 24, h: 24, title: 'Caravan Arrival', theme: null, floorLv: 0 },
+      { id: 'r_dn_plaza', x: pc - 14, y: pc + half + 1, w: 29, h: 14, title: 'Pyramid Forecourt', theme: null, floorLv: 0 },
+      { id: 'r_dn_chamber', x: OXI + 40, y: 50, w: 32, h: 32, title: 'The Burial Chamber', theme: null, floorLv: -20 }
+    );
     start = [140.5, 140.5];
     townPortal = [142.5, 140.0];
-    exit = { x: OXI + 56, y: 60, sealed: true, unsealOn: 'boss_killed', continueToBiome: null };
-    spawns.push({ id: 'sp_pharaoh', castKey: 'pharaoh', x: OXI + 56, y: 66, arch: 'knight', rank: 'boss', n: 1, art: null, swap: null, name: 'The Sunless Pharaoh' });
+    exit = { x: OXI + 56, y: 58, sealed: true, unsealOn: 'boss_killed', continueToBiome: null };
+    spawns.push({ id: 'sp_pharaoh', castKey: 'pharaoh', x: OXI + 56, y: 66, arch: 'knight', rank: 'boss', n: 1, art: 'ss_boss_the_salt_pharaoh', swap: null, name: 'The Sunless Pharaoh' });
   } else if (category === '3d_train') {
     const cars = trainLayout();
     trainCars = cars.map((c) => ({ kind: c.kind, len: c.x1 - c.x0 }));
@@ -664,6 +724,7 @@ export function createBlankScenarioDoc(opts = {}) {
       heightfield: {
         subdiv: category === '3d_alpine' ? 4 : 2,
         waterfalls,
+        torches3d,
         snowLine: biomeId === 'snowy_summit' ? 0 : 28,
         cloudSeaY: -6,
       },
@@ -685,6 +746,7 @@ export function createBlankScenarioDoc(opts = {}) {
       start,
       townPortal,
       exit,
+      passages,
       props,
       spawns,
       npcs: [],
@@ -698,6 +760,7 @@ export function createBlankScenarioDoc(opts = {}) {
           y: Math.max(2, Math.floor(exit.y - 4)),
           w: 12,
           h: 10,
+          floorLv: hgt[Math.min(w * h - 1, Math.max(0, Math.floor(exit.y) * w + Math.floor(exit.x)))] || 0,
           color: '#ff9a40',
         },
       ],
@@ -735,6 +798,71 @@ export function createBlankScenarioDoc(opts = {}) {
       },
     ],
   };
+}
+
+/** Compute median walkable floor elevation (`lv`) inside a tile rectangle `[rx..rx+rw, ry..ry+rh]`. */
+export function computeRectFloorLv(layers, w, h, rx, ry, rw, rh) {
+  if (!layers?.hgt) return 0;
+  const x0 = Math.max(0, Math.floor(rx)), x1 = Math.min(w - 1, Math.ceil(rx + rw) - 1);
+  const y0 = Math.max(0, Math.floor(ry)), y1 = Math.min(h - 1, Math.ceil(ry + rh) - 1);
+  const vals = [];
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const i = y * w + x;
+      if (layers.t?.[i] === 1 && !layers.block?.[i]) vals.push(layers.hgt[i]);
+    }
+  }
+  if (!vals.length) {
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const i = y * w + x;
+        if (layers.t?.[i] === 1 || layers.wet?.[i] > 0) vals.push(layers.hgt[i]);
+      }
+    }
+  }
+  if (!vals.length) {
+    const cx = Math.max(0, Math.min(w - 1, Math.floor(rx + rw / 2)));
+    const cy = Math.max(0, Math.min(h - 1, Math.floor(ry + rh / 2)));
+    return layers.hgt[cy * w + cx] || 0;
+  }
+  vals.sort((a, b) => a - b);
+  return vals[vals.length >> 1];
+}
+
+function findNearestWalkable(layers, w, h, cx, cy, maxR = 8, dryOnly = false) {
+  const round2 = (n) => Math.round(n * 100) / 100;
+  const ok = (tx, ty) => {
+    if (tx < 0 || ty < 0 || tx >= w || ty >= h) return false;
+    const i = ty * w + tx;
+    if (layers.t[i] !== 1 || layers.block[i]) return false;
+    if (dryOnly && layers.wet?.[i]) return false;
+    return true;
+  };
+  const bx = Math.floor(cx), by = Math.floor(cy);
+  if (ok(bx, by)) return [round2(cx), round2(cy)];
+  let best = null, bestD = Infinity;
+  for (let r = 1; r <= maxR; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const tx = bx + dx, ty = by + dy;
+        if (!ok(tx, ty)) continue;
+        const d = (tx + 0.5 - cx) ** 2 + (ty + 0.5 - cy) ** 2;
+        if (d < bestD) { bestD = d; best = [tx + 0.5, ty + 0.5]; }
+      }
+    }
+    if (best) return best;
+  }
+  return [round2(Math.max(1, Math.min(w - 2, cx))), round2(Math.max(1, Math.min(h - 2, cy)))];
+}
+
+function prettyArtName(artId) {
+  if (!artId) return '';
+  if (ART_BY_ID[artId]?.name) return ART_BY_ID[artId].name;
+  return String(artId)
+    .replace(/^(ss_boss_|ss_|de_|ap_|eb_|hv_)/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // ------------------------------------------------------------------ Serialize / Deserialize (.velscen.json <-> Live Doc)
@@ -798,13 +926,17 @@ export function deserializeScenarioDoc(raw) {
     flags: decodeTypedArray(L.flags, Uint8Array, N),
     deck: decodeTypedArray(L.deck, Uint8Array, N),
   };
+  doc.grid.heightfield ||= { subdiv: 2, waterfalls: [], torches3d: [], snowLine: 28, cloudSeaY: -6 };
+  doc.grid.heightfield.waterfalls ||= [];
+  doc.grid.heightfield.torches3d ||= [];
   doc.architecture ||= { rooms: [], openings: [], torches: [], wallHangings: [], buildings: [] };
   doc.architecture.rooms ||= [];
   doc.architecture.openings ||= [];
   doc.architecture.torches ||= [];
   doc.architecture.wallHangings ||= [];
   doc.architecture.buildings ||= [];
-  doc.entities ||= { start: [w / 2, h / 2], townPortal: [w / 2 + 1.5, h / 2], exit: { x: w / 2, y: 6, sealed: true, unsealOn: 'objective_complete' }, props: [], spawns: [], npcs: [], interactables: [], zones: [], marks: [] };
+  doc.entities ||= { start: [w / 2, h / 2], townPortal: [w / 2 + 1.5, h / 2], exit: { x: w / 2, y: 6, sealed: true, unsealOn: 'objective_complete' }, passages: [], props: [], spawns: [], npcs: [], interactables: [], zones: [], marks: [] };
+  doc.entities.passages ||= [];
   doc.entities.props ||= [];
   doc.entities.spawns ||= [];
   doc.entities.npcs ||= [];
@@ -819,12 +951,16 @@ export function deserializeScenarioDoc(raw) {
 
 // ------------------------------------------------------------------ Bake Procedural Generator Output -> Editable Doc
 export function bakeGeneratedToDoc(gen, opts = {}) {
+  const round2 = (n) => Math.round(n * 100) / 100;
   const map = gen.map;
   const w = map.w, h = map.h, N = w * h;
   const biomeId = opts.biomeId || gen.biome?.id || 'catacombs';
   const category = opts.category || inferCategoryForBiome(biomeId, { dunes: !!gen.dunes, kind: opts.kind });
+  const seed = Number(opts.seed || gen.seed || 1337);
+  const bossCount = Math.max(1, Math.min(3, Number(opts.bossCount) || 2));
+
   const base = createBlankScenarioDoc({
-    id: opts.id || `${biomeId}_seed_${opts.seed || gen.seed || 1}`,
+    id: opts.id || `${biomeId}_seed_${seed}`,
     name: opts.name || `${gen.variant?.name || resolveBiome(biomeId).name} (Baked)`,
     category,
     biomeId,
@@ -834,6 +970,10 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
     w,
     h,
   });
+
+  // Reset blank template's placeholder passages/zones/rooms before filling from generator
+  base.entities.passages = [];
+  base.grid.heightfield.torches3d = [];
 
   const L = base.grid.layers;
   L.t.set(map.t.subarray(0, N));
@@ -869,14 +1009,15 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
     return null;
   };
   const sXY = toXY(gen.start);
-  if (sXY) base.entities.start = sXY;
-  const tpXY = toXY(gen.townPortal) || toXY(gen.portal) || [base.entities.start[0] + 1.6, base.entities.start[1] - 0.6];
-  base.entities.townPortal = tpXY;
+  if (sXY) base.entities.start = findNearestWalkable(L, w, h, sXY[0], sXY[1], 4);
+  const tpRaw = toXY(gen.townPortal) || toXY(gen.portal) || [base.entities.start[0] + 1.6, base.entities.start[1] - 0.6];
+  base.entities.townPortal = findNearestWalkable(L, w, h, tpRaw[0], tpRaw[1], 4);
   const exXY = toXY(gen.exit);
   if (exXY) {
+    const [ex, ey] = findNearestWalkable(L, w, h, exXY[0], exXY[1], 6, true);
     base.entities.exit = {
-      x: exXY[0],
-      y: exXY[1],
+      x: ex,
+      y: ey,
       sealed: category !== 'town_arena',
       unsealOn: (gen.spawns || []).some((s) => s.rank === 'boss' || s.rank === 'raid') ? 'boss_killed' : 'objective_complete',
       continueToBiome: biomeId === 'mountainside' ? 'snowy_summit' : null,
@@ -891,6 +1032,7 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
     h: r.h,
     title: r.title || '',
     theme: r.theme || null,
+    floorLv: computeRectFloorLv(L, w, h, r.x, r.y, r.w, r.h),
   }));
 
   if (gen.raid) {
@@ -940,21 +1082,21 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
     seed: p.seed ?? 0,
     caveProp: p.caveProp || null,
     m: p.m ?? 0,
-    x: Math.round(p.x * 100) / 100,
-    y: Math.round(p.y * 100) / 100,
+    x: round2(p.x),
+    y: round2(p.y),
     z: p.z || 0,
-    k: p.k || p.s || 0.4,
+    k: p.k || p.s || (p.caveProp ? 1 : 0.4),
     flip: !!p.flip,
     light: p.light || 0,
-    tree: !!p.tree,
+    tree: !!p.tree || !!p.spr?.tree,
     throne: !!p.throne,
   }));
 
   base.entities.spawns = (gen.spawns || []).map((s, idx) => ({
     id: `sp_${idx + 1}`,
     castKey: (s.rank === 'boss' || s.rank === 'raid') ? `boss_${idx + 1}` : '',
-    x: Math.round(s.x * 100) / 100,
-    y: Math.round(s.y * 100) / 100,
+    x: round2(s.x),
+    y: round2(s.y),
     arch: s.arch || (s.rank === 'raid' ? 'malphas' : 'skeleton'),
     rank: s.rank || 'normal',
     n: s.n || 1,
@@ -966,9 +1108,9 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
   base.entities.interactables = (gen.chests || []).map((ch, idx) => ({
     id: `ch_${idx + 1}`,
     kind: ch.worldObjId ? 'worldobject' : 'chest',
-    subType: ch.worldObjId || (ch.rare ? 'rare' : 'standard'),
-    x: Math.round(ch.x * 100) / 100,
-    y: Math.round(ch.y * 100) / 100,
+    subType: ch.worldObjId || (ch.rare || ch.rich ? 'rare' : 'standard'),
+    x: round2(ch.x),
+    y: round2(ch.y),
     label: ch.label || '',
   }));
 
@@ -979,22 +1121,759 @@ export function bakeGeneratedToDoc(gen, opts = {}) {
       role: n.vendorId || n.role || 'villager',
       spriteId: n.townsfolkSpriteId || n.spriteId || '01_blacksmith_apprentice',
       name: n.name || 'Villager',
-      x: Math.round(n.x * 100) / 100,
-      y: Math.round(n.y * 100) / 100,
+      x: round2(n.x),
+      y: round2(n.y),
       lines: Array.isArray(n.storyLines) ? n.storyLines.slice() : [],
     }));
+  }
+
+  // ------------------------------------------------------------------ Specialized 3D Architecture, Multi-Boss & Encounter Materialization
+  const LV = VZ / 4;
+  let bossZoneSet = false;
+  const setBossZone = (rx, ry, rw, rh, zName = 'Boss Approach Zone') => {
+    const zx = Math.max(1, Math.round(rx)), zy = Math.max(1, Math.round(ry));
+    const zw = Math.max(4, Math.min(w - zx - 1, Math.round(rw)));
+    const zh = Math.max(4, Math.min(h - zy - 1, Math.round(rh)));
+    base.entities.zones = [{
+      id: 'z_boss_approach',
+      name: zName,
+      shape: 'rect',
+      x: zx,
+      y: zy,
+      w: zw,
+      h: zh,
+      floorLv: computeRectFloorLv(L, w, h, zx, zy, zw, zh),
+      color: '#ff9a40',
+    }];
+    bossZoneSet = true;
+  };
+
+  const pushSpawn = (spec) => {
+    const [wx, wy] = findNearestWalkable(L, w, h, spec.x, spec.y, spec.maxR ?? 6, !!spec.dry);
+    const id = spec.id || `sp_${base.entities.spawns.length + 1}`;
+    base.entities.spawns.push({
+      id,
+      castKey: spec.castKey || '',
+      x: wx,
+      y: wy,
+      arch: spec.arch || 'skeleton',
+      rank: spec.rank || 'normal',
+      n: spec.n || 1,
+      art: spec.art || null,
+      swap: spec.swap || null,
+      name: spec.name || '',
+      scale: spec.scale || undefined,
+      hpK: spec.hpK || undefined,
+      arenaRect: spec.arenaRect || undefined,
+    });
+  };
+
+  // 1. SEA OF SAND & PYRAMID (3D Dunes + Downward-Spiraling Multi-Boss Tomb)
+  if (gen.dunes) {
+    const dv = gen.dunes;
+    const v = dv.v || DUNE_VARIANTS[0];
+    base.meta.variantId = v.id;
+    const P = dv.pyramid;
+    base.grid.dunes = {
+      extW: dv.E,
+      oxi: dv.OXI,
+      oyi: dv.OYI,
+      tombSize: dv.IS,
+      seed: dv.seed,
+      pyramid: {
+        pc: P.pc,
+        cx: P.pc,
+        cy: P.pc,
+        half: P.half,
+        top: round2(P.top),
+        base: round2(P.base),
+        door: [round2(P.door[0]), round2(P.door[1])],
+        doorStep: [round2(P.doorStep[0]), round2(P.doorStep[1])],
+        plaza: P.plaza ? { ...P.plaza } : null,
+        steps: P.steps || 0,
+      },
+      seals: (dv.seals || []).map((s) => ({
+        k: s.k,
+        x: round2(s.x),
+        y: round2(s.y),
+        h: round2(s.h),
+        axis: s.axis,
+        tiles: Array.from(s.tiles || []),
+      })),
+      torches3d: (dv.torches || []).map((tc) => ({
+        x: round2(tc.x),
+        y: round2(tc.y),
+        h: round2(tc.h),
+        stand: !!tc.stand,
+        nx: round2(tc.nx ?? 0),
+        ny: round2(tc.ny ?? 1),
+      })),
+    };
+
+    // Passage linking Exterior Pyramid Door <-> Interior Entrance Hall
+    if (P?.doorStep && dv.arrive) {
+      base.entities.passages.push({
+        id: 'psg_pyramid_door',
+        name: `${v.pyramid?.name || 'Pyramid'} Entrance ↔ Entrance Hall`,
+        from: findNearestWalkable(L, w, h, P.doorStep[0], P.doorStep[1], 4),
+        to: findNearestWalkable(L, w, h, dv.arrive[0], dv.arrive[1], 4),
+        bidirectional: true,
+        lockUntil: 'none',
+        color: '#ffd060',
+      });
+    }
+
+    // Exterior Rooms: Caravan Start, Waystone Camps (with Captains & Guards), and Pyramid Plaza
+    const [sx, sy] = base.entities.start;
+    base.architecture.rooms.push({
+      id: 'r_dunes_start',
+      x: Math.max(2, Math.round(sx - 8)),
+      y: Math.max(2, Math.round(sy - 8)),
+      w: 16,
+      h: 16,
+      title: 'Caravan Arrival',
+      theme: null,
+      floorLv: computeRectFloorLv(L, w, h, sx - 8, sy - 8, 16, 16),
+    });
+
+    const campNames = v.camps || [];
+    const pickArt = (arch, k = 0) => {
+      const list = v.roster?.[arch] || [];
+      return list.length ? list[(seed + k) % list.length] : (gen.looks?.pick?.(arch)?.art || null);
+    };
+
+    (dv.camps || []).forEach((c, idx) => {
+      const cTitle = campNames[(seed + idx * 3) % Math.max(1, campNames.length)] || `Waystone Camp ${idx + 1}`;
+      const cr = Math.max(6, Math.round(c.r || 8));
+      const rx = Math.max(2, Math.round(c.x - cr)), ry = Math.max(2, Math.round(c.y - cr));
+      const flv = computeRectFloorLv(L, w, h, rx, ry, cr * 2, cr * 2);
+      base.architecture.rooms.push({
+        id: `r_camp_${idx + 1}`,
+        x: rx,
+        y: ry,
+        w: cr * 2,
+        h: cr * 2,
+        title: `Waystone ${idx + 1}: ${cTitle}`,
+        theme: null,
+        floorLv: flv,
+      });
+      // Materialize Camp Captain / Champion + Guard Pack
+      const capArch = ['knight', 'golem', 'scorpion', 'cultist'][idx % 4];
+      pushSpawn({
+        id: `sp_camp_capt_${idx + 1}`,
+        castKey: `waystone_captain_${idx + 1}`,
+        x: c.x + 1.2,
+        y: c.y + 1.0,
+        arch: capArch,
+        rank: 'unique',
+        n: 1,
+        art: pickArt(capArch, idx),
+        name: `${v.tint || 'Sand'} Warden of ${cTitle.replace(/^The /, '')}`,
+      });
+      const packArch = DUNE_ROSTER[(seed + idx * 5) % DUNE_ROSTER.length];
+      pushSpawn({
+        id: `sp_camp_pack_${idx + 1}`,
+        x: c.x - 2.0,
+        y: c.y + 1.8,
+        arch: packArch,
+        rank: idx === (dv.camps.length - 1) ? 'champion' : 'normal',
+        n: 4,
+        art: pickArt(packArch, idx + 7),
+      });
+    });
+
+    if (P?.plaza) {
+      const pz = P.plaza;
+      base.architecture.rooms.push({
+        id: 'r_pyramid_plaza',
+        x: pz.x0,
+        y: pz.y0,
+        w: pz.x1 - pz.x0 + 1,
+        h: pz.y1 - pz.y0 + 1,
+        title: `${v.pyramid?.name || 'Pyramid'} Forecourt`,
+        theme: null,
+        floorLv: Math.round(P.base * LV),
+      });
+    }
+
+    // Interior Spiraling Tomb Cells (k = 0..11), Mid-Tomb Boss at k=6, Treasury, and Burial Chamber Final Boss
+    const roomTitles = v.rooms || [];
+    let hallSeq = 0;
+    (dv.rooms || []).forEach((rm, k) => {
+      const rw = rm.x1 - rm.x0 + 1, rh = rm.y1 - rm.y0 + 1;
+      const flv = Math.round(rm.h * LV);
+      let rTitle = '';
+      if (k === 0) rTitle = 'Tomb Entrance Hall';
+      else if (k === 6 && rm.room) rTitle = `Warden's Hall (Mid-Boss)`;
+      else if (rm.room) {
+        rTitle = roomTitles[(seed + hallSeq * 2) % Math.max(1, roomTitles.length)] || `Tomb Hall ${k}`;
+        hallSeq++;
+      } else {
+        rTitle = `Spiral Landing ${k}`;
+      }
+      base.architecture.rooms.push({
+        id: `r_tomb_${k}`,
+        x: rm.x0,
+        y: rm.y0,
+        w: rw,
+        h: rh,
+        title: rTitle,
+        theme: null,
+        floorLv: flv,
+      });
+
+      // Populate Tomb Fighting Halls (generateDunes left rm.room === true empty for runtime director!)
+      if (rm.room && k > 0) {
+        if (k === 6) {
+          // Mid-Tomb Boss (v.bosses[1]) + 2 Honor Guards
+          const [bArt, bTpl, bSub] = v.bosses?.[1] || v.bosses?.[0] || ['ss_boss_the_salt_pharaoh', 'pontiff', 'Warden of the Sealed Stair'];
+          const bName = prettyArtName(bArt);
+          pushSpawn({
+            id: 'sp_tomb_midboss',
+            castKey: 'tomb_warden',
+            x: rm.cx + 0.5,
+            y: rm.cy + 0.5,
+            arch: bTpl || 'pontiff',
+            rank: 'raid',
+            n: 1,
+            art: bArt,
+            scale: 2.0,
+            hpK: 0.55,
+            name: bSub ? `${bName}, ${bSub}` : bName,
+            arenaRect: { x: rm.x0, y: rm.y0, w: rw, h: rh, cx: rm.cx, cy: rm.cy },
+          });
+          pushSpawn({
+            id: 'sp_tomb_midboss_guards',
+            x: rm.cx - 2.5,
+            y: rm.cy + 2.0,
+            arch: 'knight',
+            rank: 'champion',
+            n: 2,
+            art: pickArt('knight', k),
+          });
+        } else {
+          // Fighting Hall encounter: Champion Statues / High Priests + Risen Tomb Pack
+          const leadArch = ['golem', 'cultist', 'knight', 'scorpion', 'wraith'][k % 5];
+          const mobArch = ['zombie', 'beetle', 'skeleton', 'archer', 'hound'][k % 5];
+          pushSpawn({
+            id: `sp_tomb_hall_lead_${k}`,
+            x: rm.cx,
+            y: rm.cy - 1.5,
+            arch: leadArch,
+            rank: 'champion',
+            n: 2,
+            art: pickArt(leadArch, k),
+          });
+          pushSpawn({
+            id: `sp_tomb_hall_pack_${k}`,
+            x: rm.cx + 1.5,
+            y: rm.cy + 1.8,
+            arch: mobArch,
+            rank: 'normal',
+            n: 4,
+            art: pickArt(mobArch, k + 3),
+          });
+        }
+      }
+    });
+
+    // The Treasury (off k=7)
+    if (dv.treasury) {
+      const T = dv.treasury;
+      base.architecture.rooms.push({
+        id: 'r_tomb_treasury',
+        x: T.x0,
+        y: T.y0,
+        w: T.x1 - T.x0 + 1,
+        h: T.y1 - T.y0 + 1,
+        title: 'The Royal Treasury',
+        theme: 'vault',
+        floorLv: Math.round(T.h * LV),
+      });
+      pushSpawn({
+        id: 'sp_treasury_guards',
+        x: T.cx,
+        y: T.cy + 1.2,
+        arch: 'golem',
+        rank: 'champion',
+        n: 2,
+        art: pickArt('golem', 99),
+        name: 'Treasury Guardian',
+      });
+    }
+
+    // The Burial Chamber (Heart of the Pyramid at -189 lv)
+    if (dv.chamber) {
+      const ch = dv.chamber;
+      const cw = ch.x1 - ch.x0 + 1, chH = ch.y1 - ch.y0 + 1;
+      const chLv = Math.round(ch.h * LV);
+      base.architecture.rooms.push({
+        id: 'r_burial_chamber',
+        x: ch.x0,
+        y: ch.y0,
+        w: cw,
+        h: chH,
+        title: 'The Burial Chamber',
+        theme: 'shrine',
+        floorLv: chLv,
+      });
+      setBossZone(ch.x0 + 2, ch.y0 + 2, cw - 4, chH - 4, 'Burial Chamber Boss Arena');
+
+      const [fArt, fTpl, fSub] = v.bosses?.[0] || ['sandstone_scarab_emperor', 'scarab', 'Lord of the Burial Chamber'];
+      const fName = prettyArtName(fArt);
+      pushSpawn({
+        id: 'sp_burial_boss',
+        castKey: 'pyramid_pharaoh',
+        x: ch.cx + 0.5,
+        y: ch.cy + 3.2,
+        arch: fTpl || 'scarab',
+        rank: 'raid',
+        n: 1,
+        art: fArt,
+        scale: 2.6,
+        name: fSub ? `${fName}, ${fSub}` : fName,
+        arenaRect: { x: ch.x0, y: ch.y0, w: cw, h: chH, cx: ch.cx, cy: ch.cy },
+      });
+      // Additional Pharaoh / Co-Ruler if bossCount >= 3
+      if (bossCount >= 3 && v.bosses?.[1]) {
+        const [b2Art, b2Tpl, b2Sub] = v.bosses[1];
+        pushSpawn({
+          id: 'sp_burial_consort',
+          castKey: 'pyramid_consort',
+          x: ch.cx - 3.5,
+          y: ch.cy + 2.5,
+          arch: b2Tpl || 'pontiff',
+          rank: 'boss',
+          n: 1,
+          art: b2Art,
+          name: `${prettyArtName(b2Art)}${b2Sub ? `, ${b2Sub}` : ''}`,
+        });
+      }
+      pushSpawn({
+        id: 'sp_burial_adds_w',
+        x: ch.cx - 5.5,
+        y: ch.cy - 2.5,
+        arch: 'zombie',
+        rank: 'normal',
+        n: 3,
+        art: pickArt('zombie', 11),
+      });
+      pushSpawn({
+        id: 'sp_burial_adds_e',
+        x: ch.cx + 5.5,
+        y: ch.cy - 2.5,
+        arch: 'skeleton',
+        rank: 'normal',
+        n: 3,
+        art: pickArt('skeleton', 13),
+      });
+
+      // 3 Rich Sarcophagus Reward Chests + Walkable Burial Chamber Exit Portal
+      for (let k = -1; k <= 1; k++) {
+        const [cx, cy] = findNearestWalkable(L, w, h, ch.cx + k * 4, ch.cy - 4.5, 4);
+        base.entities.interactables.push({
+          id: `ch_burial_${k + 2}`,
+          kind: 'chest',
+          subType: 'rare',
+          x: cx,
+          y: cy,
+          label: 'Royal Burial Coffer',
+        });
+      }
+      const [ex, ey] = findNearestWalkable(L, w, h, ch.cx + 0.5, ch.cy + 5.5, 5);
+      base.entities.exit = {
+        x: ex,
+        y: ey,
+        sealed: true,
+        unsealOn: 'boss_killed',
+        continueToBiome: null,
+      };
+    }
+  }
+
+  // 2. DEPTH'S EDGE CAVERNS (Delve -> Falls Notch Passage -> Spiral Shaft -> 1-3 Waterfall Summit Bosses)
+  if (gen.cave) {
+    const cv = gen.cave;
+    base.meta.variantId = cv.v?.id || base.meta.variantId;
+    base.grid.heightfield.waterfalls = [{
+      x: round2(cv.lip[0]),
+      y: round2(cv.lip[1]),
+      plunge: [round2(cv.plunge[0]), round2(cv.plunge[1])],
+      top: round2(cv.HP),
+      base: round2(cv.WL),
+      w: 4.5,
+    }];
+    base.grid.heightfield.torches3d = (cv.torches || []).map((tc) => ({
+      x: round2(tc.x),
+      y: round2(tc.y),
+      h: round2(tc.h),
+      stand: !!tc.stand,
+      nx: round2(tc.nx ?? 0.7),
+      ny: round2(tc.ny ?? 0.7),
+    }));
+    base.grid.heightfield.caveMeta = {
+      seed: cv.seed,
+      mouth: cv.mouth ? [round2(cv.mouth[0]), round2(cv.mouth[1])] : null,
+      mouthH: round2(cv.mouthH || 0),
+      mouthDir: cv.mouthDir ? [round2(cv.mouthDir[0]), round2(cv.mouthDir[1])] : [1, 0],
+      lake: cv.lake ? { x: round2(cv.lake.x), y: round2(cv.lake.y), A: round2(cv.lake.A), B: round2(cv.lake.B || cv.lake.A) } : null,
+      shaft: cv.shaft ? { ...cv.shaft, x: round2(cv.shaft.x), y: round2(cv.shaft.y) } : null,
+      plateau: cv.plateau ? { x: round2(cv.plateau.x), y: round2(cv.plateau.y), r: round2(cv.plateau.r) } : null,
+      river: (cv.river || []).filter((_, idx) => idx % 2 === 0).map(([rx, ry]) => [round2(rx), round2(ry)]),
+      wallStal: (cv.wallStal || []).slice(0, 320).map((ws) => ({
+        x: round2(ws.x), y: round2(ws.y), z: round2(ws.z), len: round2(ws.len), r: round2(ws.r), seed: ws.seed,
+      })),
+    };
+
+    if (cv.notchIn && cv.arrive) {
+      base.entities.passages.push({
+        id: 'psg_falls_shaft',
+        name: 'Falls Cliff Notch ↔ Spiral Shaft Foot',
+        from: findNearestWalkable(L, w, h, cv.notchIn[0], cv.notchIn[1], 4, true),
+        to: findNearestWalkable(L, w, h, cv.arrive[0], cv.arrive[1], 4, true),
+        bidirectional: true,
+        lockUntil: 'none',
+        color: '#4fcdb9',
+      });
+    }
+
+    (cv.caverns || []).forEach((c, idx) => {
+      const cr = Math.max(5, Math.round(c.R || 8));
+      base.architecture.rooms.push({
+        id: `r_cavern_${idx + 1}`,
+        x: Math.max(1, Math.round(c.x - cr)),
+        y: Math.max(1, Math.round(c.y - cr)),
+        w: cr * 2,
+        h: cr * 2,
+        title: c.name || `Cavern Chamber ${idx + 1}`,
+        theme: null,
+        floorLv: computeRectFloorLv(L, w, h, c.x - cr, c.y - cr, cr * 2, cr * 2),
+      });
+    });
+
+    if (cv.lakeCave) {
+      const lc = cv.lakeCave;
+      base.architecture.rooms.push({
+        id: 'r_cavern_lake',
+        x: Math.max(1, Math.round(lc.x - lc.A)),
+        y: Math.max(1, Math.round(lc.y - lc.B)),
+        w: Math.round(lc.A * 2),
+        h: Math.round(lc.B * 2),
+        title: 'Underground Lake & Plunge Pool',
+        theme: null,
+        floorLv: Math.round(cv.WL * LV),
+      });
+    }
+
+    if (cv.shaft) {
+      const sh = cv.shaft, sr = Math.round(sh.rRim || 14);
+      base.architecture.rooms.push({
+        id: 'r_spiral_shaft',
+        x: Math.max(1, Math.round(sh.x - sr)),
+        y: Math.max(1, Math.round(sh.y - sr)),
+        w: sr * 2,
+        h: sr * 2,
+        title: 'The Great Spiral Shaft',
+        theme: null,
+        floorLv: Math.round((sh.h0 || 0) * LV),
+      });
+    }
+
+    if (cv.plateau) {
+      const P = cv.plateau, pr = Math.max(6, Math.round(P.r || 10));
+      base.architecture.rooms.push({
+        id: 'r_falls_summit',
+        x: Math.max(1, Math.round(P.x - pr)),
+        y: Math.max(1, Math.round(P.y - pr)),
+        w: pr * 2,
+        h: pr * 2,
+        title: 'Top of the Falls (Boss Plateau)',
+        theme: null,
+        floorLv: Math.round(cv.HP * LV),
+      });
+      setBossZone(P.x - pr + 1, P.y - pr + 1, pr * 2 - 2, pr * 2 - 2, 'Waterfall Summit Boss Arena');
+
+      const deBosses = DEPTHS_EDGE.filter((a) => a.boss);
+      for (let bi = 0; bi < bossCount && deBosses.length; bi++) {
+        const pickB = deBosses[(seed + bi * 3) % deBosses.length];
+        const [tplId, title] = DEPTHS_EDGE_BOSSES[pickB.id] || ['colossus', 'Guardian of the Falls'];
+        const ang = (bi / Math.max(1, bossCount)) * Math.PI * 2 + 0.6;
+        const distR = bossCount === 1 ? 1.5 : 3.2;
+        pushSpawn({
+          id: `sp_falls_boss_${bi + 1}`,
+          castKey: bi === 0 ? 'falls_warden' : `falls_warden_${bi + 1}`,
+          x: P.x + Math.cos(ang) * distR,
+          y: P.y + Math.sin(ang) * distR,
+          arch: tplId,
+          rank: bi === bossCount - 1 ? 'raid' : 'boss',
+          n: 1,
+          art: pickB.id,
+          scale: bi === bossCount - 1 ? 2.5 : 2.0,
+          hpK: bossCount === 1 ? 0.85 : 0.55,
+          name: title ? `${pickB.name}, ${title}` : pickB.name,
+          arenaRect: { x: P.x - pr, y: P.y - pr, w: pr * 2, h: pr * 2, cx: P.x, cy: P.y },
+          dry: true,
+        });
+      }
+      const addArch = CAVE_ROSTER[seed % CAVE_ROSTER.length];
+      pushSpawn({
+        id: 'sp_falls_adds',
+        x: P.x - 3.5,
+        y: P.y + 3.0,
+        arch: addArch,
+        rank: 'normal',
+        n: 3,
+        art: gen.looks?.pick?.(addArch)?.art || null,
+        dry: true,
+      });
+      const [ex, ey] = findNearestWalkable(L, w, h, P.x, P.y - 2.5, 5, true);
+      base.entities.exit = { x: ex, y: ey, sealed: true, unsealOn: 'boss_killed', continueToBiome: null };
+    }
+  }
+
+  // 3. SERPENTINE TOWER (Helix Stair Strip -> Stairhead Passage -> Rooftop Multi-Boss & Pirate Raid)
+  if (category === '3d_tower' && base.grid.tower) {
+    const g = towerGeo(base.grid.tower);
+    base.entities.passages.push({
+      id: 'psg_tower_roof',
+      name: 'Stairhead Arch ↔ Rooftop Arena',
+      from: findNearestWalkable(L, w, h, g.XT + 2.5, g.YR + g.w / 2, 4),
+      to: findNearestWalkable(L, w, h, g.AX, g.AY + g.RT * 0.65, 4),
+      bidirectional: true,
+      lockUntil: 'none',
+      color: '#ffe2a0',
+    });
+
+    const roofLv = Math.round(g.roofZ * LV);
+    for (const [frac, label] of [[0.04, 'Tower Base'], [0.35, 'Lower Helix Turn'], [0.68, 'Upper Helix Turn'], [0.95, 'Stairhead Arch']]) {
+      const rx = Math.round(g.X1 - frac * g.L) - 5;
+      base.architecture.rooms.push({
+        id: `r_tower_${Math.round(frac * 100)}`,
+        x: Math.max(g.XR + 2, rx),
+        y: g.YR,
+        w: 10,
+        h: g.w,
+        title: label,
+        theme: null,
+        floorLv: Math.round(g.z(frac * g.L) * LV),
+      });
+    }
+    const rr = Math.round(g.RT);
+    base.architecture.rooms.push({
+      id: 'r_tower_roof',
+      x: Math.max(1, Math.round(g.AX - rr)),
+      y: Math.max(1, Math.round(g.AY - rr)),
+      w: rr * 2,
+      h: rr * 2,
+      title: 'Circular Rooftop Arena',
+      theme: null,
+      floorLv: roofLv,
+    });
+    setBossZone(g.AX - rr + 2, g.AY - rr + 2, rr * 2 - 4, rr * 2 - 4, 'Rooftop Boss Arena');
+
+    for (let bi = 0; bi < bossCount; bi++) {
+      const bLook = gen.looks?.boss?.() || {};
+      const ang = (bi / Math.max(1, bossCount)) * Math.PI * 2 - 0.8;
+      pushSpawn({
+        id: `sp_roof_boss_${bi + 1}`,
+        castKey: bi === 0 ? 'tower_sovereign' : `tower_ward_${bi + 1}`,
+        x: g.AX + Math.cos(ang) * 4.2,
+        y: g.AY + Math.sin(ang) * 4.2,
+        arch: bLook.arch || 'knight',
+        rank: 'boss',
+        n: 1,
+        art: bLook.art || null,
+        name: bi === 0 ? 'Sovereign of the Spire' : `Spire Wing-Warden ${bi + 1}`,
+      });
+    }
+    pushSpawn({
+      id: 'sp_roof_pirate_captain',
+      castKey: 'sky_raid_captain',
+      x: g.AX + g.RT * 0.55,
+      y: g.AY - g.RT * 0.35,
+      arch: 'knight',
+      rank: 'unique',
+      n: 1,
+      art: ART_BY_ID.ap_sky_captain ? 'ap_sky_captain' : null,
+      name: 'Sky-Skiff Raid Captain',
+    });
+    const [ex, ey] = findNearestWalkable(L, w, h, g.AX, g.AY - 3.5, 5);
+    base.entities.exit = { x: ex, y: ey, sealed: true, unsealOn: 'boss_killed', continueToBiome: null };
+  }
+
+  // 4. 3D ALPINE (Mountainside Trail & Snowy Summit Multi-Boss Peak)
+  if (category === '3d_alpine') {
+    if (gen.map?.mountain) {
+      const mt = gen.map.mountain;
+      (mt.camps || []).forEach((c, idx) => {
+        base.architecture.rooms.push({
+          id: `r_mtn_camp_${idx + 1}`,
+          x: Math.max(1, Math.round(c[0] - 5)),
+          y: Math.max(1, Math.round(c[1] - 5)),
+          w: 10,
+          h: 10,
+          title: `Climbers' Camp ${idx + 1}`,
+          theme: null,
+          floorLv: computeRectFloorLv(L, w, h, c[0] - 5, c[1] - 5, 10, 10),
+        });
+      });
+      if (mt.summit) {
+        const [sx, sy] = mt.summit;
+        base.architecture.rooms.push({
+          id: 'r_mtn_summit',
+          x: Math.max(1, Math.round(sx - 9)),
+          y: Math.max(1, Math.round(sy - 9)),
+          w: 18,
+          h: 18,
+          title: 'Slate Pass Summit',
+          theme: null,
+          floorLv: computeRectFloorLv(L, w, h, sx - 9, sy - 9, 18, 18),
+        });
+        setBossZone(sx - 8, sy - 7, 16, 16, 'Mountainside Warden Arena');
+      }
+    } else if (gen.map?.summit) {
+      const sm = gen.map.summit;
+      (sm.nodes || []).forEach((nd, idx) => {
+        const nr = Math.max(4, Math.round(nd.r || 6));
+        const label = idx === 0 ? 'Arrival Ridge Camp' : nd.kind === 'peak' ? 'Summit Shrine Peak' : nd.kind === 'plateau' ? `Gated Plateau ${idx}` : `Ridge Saddle ${idx}`;
+        base.architecture.rooms.push({
+          id: `r_sum_node_${idx}`,
+          x: Math.max(1, Math.round(nd.x - nr)),
+          y: Math.max(1, Math.round(nd.y - nr)),
+          w: nr * 2,
+          h: nr * 2,
+          title: label,
+          theme: null,
+          floorLv: computeRectFloorLv(L, w, h, nd.x - nr, nd.y - nr, nr * 2, nr * 2),
+        });
+      });
+      if (sm.peak) {
+        const pk = sm.peak, pr = Math.max(7, Math.round(pk.r || 9));
+        setBossZone(pk.x - pr + 1, pk.y - pr + 1, pr * 2 - 2, pr * 2 - 2, 'Summit Shrine Boss Arena');
+        const bossPool = gen.bosses || [];
+        for (let bi = 0; bi < Math.min(bossCount, Math.max(1, bossPool.length)); bi++) {
+          const b = bossPool[(seed + bi * 2) % bossPool.length] || { art: null, tpl: 'rimehydra', title: 'Crown of the Glacier' };
+          const bName = prettyArtName(b.art) || 'Summit Guardian';
+          pushSpawn({
+            id: `sp_summit_boss_${bi + 1}`,
+            castKey: bi === 0 ? 'summit_warden' : `summit_warden_${bi + 1}`,
+            x: pk.x + (bi === 0 ? 0 : (bi % 2 ? -3.2 : 3.2)),
+            y: pk.y - 1.5 + bi * 1.5,
+            arch: b.tpl || 'rimehydra',
+            rank: bi === 0 ? 'raid' : 'boss',
+            n: 1,
+            art: b.art || null,
+            swap: 'frost',
+            scale: bi === 0 ? 2.3 : 1.9,
+            hpK: bossCount === 1 ? 0.85 : 0.6,
+            name: b.title ? `${bName}, ${b.title}` : bName,
+            arenaRect: { x: pk.x - pr, y: pk.y - pr, w: pr * 2, h: pr * 2, cx: pk.x, cy: pk.y },
+          });
+        }
+      }
+    }
+  }
+
+  // Fit default Boss Approach Zone to actual baked Raid Arena or Exit Portal on all other map types
+  if (!bossZoneSet) {
+    if (gen.raid && gen.raid.w && gen.raid.h) {
+      setBossZone(gen.raid.x, gen.raid.y, gen.raid.w, gen.raid.h, 'Raid Boss Arena');
+    } else if (base.entities.exit) {
+      setBossZone(base.entities.exit.x - 6, base.entities.exit.y - 5, 12, 10, 'Boss Approach Zone');
+    }
+  }
+
+  // Refresh Objectives to match materialized Bosses
+  const bossSpawns = base.entities.spawns.filter((s) => s.rank === 'boss' || s.rank === 'raid');
+  if (bossSpawns.length) {
+    base.entities.exit.unsealOn = 'boss_killed';
+    const mainBoss = bossSpawns[bossSpawns.length - 1];
+    base.objectives = [{
+      id: 'obj_slay_boss',
+      kind: 'kill_bosses',
+      text: bossSpawns.length > 1
+        ? `Defeat all ${bossSpawns.length} Stage Bosses (final: ${mainBoss.name || mainBoss.arch})`
+        : `Defeat ${mainBoss.name || 'the Guardian'}`,
+    }];
+  }
+
+  // Ensure arrival cutscene mark sits near actual baked start
+  if (base.entities.marks?.[0]) {
+    base.entities.marks[0].x = round2(base.entities.start[0]);
+    base.entities.marks[0].y = round2(Math.max(2, base.entities.start[1] - 2));
   }
 
   return base;
 }
 
 // ------------------------------------------------------------------ Reachability & Scenario Diagnostics
+export function computeReachabilityMask(doc) {
+  const { w, h, layers, traversal } = doc.grid || {};
+  const reach = new Uint8Array((w || 0) * (h || 0));
+  if (!w || !h || !layers?.t) return reach;
+  const [sx, sy] = doc.entities?.start || [0, 0];
+  const tx = Math.floor(sx), ty = Math.floor(sy);
+  if (tx < 0 || ty < 0 || tx >= w || ty >= h) return reach;
+  const startIdx = ty * w + tx;
+  if (layers.t[startIdx] !== 1 || layers.block[startIdx]) return reach;
+
+  const climb = traversal?.climb ?? 4, drop = traversal?.drop ?? 10;
+  const hasHgt = layers.hgt && layers.hgt.some((v) => v !== 0);
+
+  // Build spatial lookup for intra-map Passage teleports
+  const links = [];
+  for (const psg of doc.entities?.passages || []) {
+    if (Array.isArray(psg.from) && Array.isArray(psg.to)) {
+      links.push({ ax: psg.from[0], ay: psg.from[1], bx: psg.to[0], by: psg.to[1], used: false });
+      if (psg.bidirectional) {
+        links.push({ ax: psg.to[0], ay: psg.to[1], bx: psg.from[0], by: psg.from[1], used: false });
+      }
+    }
+  }
+
+  const enqueueLanding = (lx, ly, q) => {
+    const [nx, ny] = findNearestWalkable(layers, w, h, lx, ly, 3);
+    const ix = Math.floor(nx), iy = Math.floor(ny);
+    if (ix < 0 || iy < 0 || ix >= w || iy >= h) return;
+    const ni = iy * w + ix;
+    if (!reach[ni] && layers.t[ni] === 1 && !layers.block[ni]) {
+      reach[ni] = 1;
+      q.push(ni);
+    }
+  };
+
+  const q = [startIdx];
+  reach[startIdx] = 1;
+  for (let qi = 0; qi < q.length; qi++) {
+    const cur = q[qi], cx = cur % w, cy = (cur / w) | 0;
+    for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = cx + ox, ny = cy + oy;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+      const ni = ny * w + nx;
+      if (reach[ni] || layers.t[ni] !== 1 || layers.block[ni]) continue;
+      if (hasHgt) {
+        const d = layers.hgt[ni] - layers.hgt[cur];
+        if (d > climb || -d > drop) continue;
+      }
+      reach[ni] = 1;
+      q.push(ni);
+    }
+    for (const lk of links) {
+      if (!lk.used && Math.hypot(cx + 0.5 - lk.ax, cy + 0.5 - lk.ay) <= 2.4) {
+        lk.used = true;
+        enqueueLanding(lk.bx, lk.by, q);
+      }
+    }
+  }
+  return reach;
+}
+
 export function validateScenarioDoc(doc) {
   const issues = [];
   if (!doc || doc.format !== SCENARIO_FORMAT) {
     return [{ level: 'error', code: 'FORMAT', msg: 'Invalid scenario document format.' }];
   }
-  const { w, h, layers, traversal } = doc.grid || {};
+  const { w, h, layers } = doc.grid || {};
   if (!w || !h || !layers?.t || layers.t.length !== w * h) {
     issues.push({ level: 'error', code: 'GRID', msg: 'Grid dimensions or floor layer buffer mismatch.' });
     return issues;
@@ -1017,37 +1896,14 @@ export function validateScenarioDoc(doc) {
     issues.push({ level: 'warn', code: 'EXIT_BLOCKED', msg: `Exit Portal (${ex.x.toFixed(1)}, ${ex.y.toFixed(1)}) is on a blocked or void tile.`, at: [ex.x, ex.y] });
   }
 
-  // BFS reachability from start under climb/drop rules
-  const reach = new Uint8Array(w * h);
+  // BFS reachability from start (traversing climb/drop steps AND intra-map Passage teleports!)
   if (walkable(sx, sy)) {
-    const climb = traversal?.climb ?? 4;
-    const drop = traversal?.drop ?? 10;
-    const hasHgt = layers.hgt && layers.hgt.some((v) => v !== 0);
-    const startIdx = Math.floor(sy) * w + Math.floor(sx);
-    const q = [startIdx];
-    reach[startIdx] = 1;
-    for (let qi = 0; qi < q.length; qi++) {
-      const cur = q[qi], cx = cur % w, cy = (cur / w) | 0;
-      for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = cx + ox, ny = cy + oy;
-        if (!inb(nx, ny)) continue;
-        const ni = ny * w + nx;
-        if (reach[ni] || layers.t[ni] !== 1 || layers.block[ni]) continue;
-        if (hasHgt) {
-          const d = layers.hgt[ni] - layers.hgt[cur];
-          if (d > climb || -d > drop) continue;
-        }
-        reach[ni] = 1;
-        q.push(ni);
-      }
-    }
-
-    // Disconnected multi-region modes (Serpentine Tower roof, Dunes interior tomb, Mines shafts) link by teleports/doors
-    const multiRegion = ['3d_tower', '3d_dunes', 'naval'].includes(doc.meta?.category) || doc.meta?.biomeId === 'deep_mines';
-    if (ex && walkable(ex.x, ex.y) && !multiRegion) {
+    const reach = computeReachabilityMask(doc);
+    const skipReach = doc.meta?.category === 'naval' || doc.meta?.biomeId === 'deep_mines';
+    if (ex && walkable(ex.x, ex.y) && !skipReach) {
       const ei = Math.floor(ex.y) * w + Math.floor(ex.x);
       if (!reach[ei]) {
-        issues.push({ level: 'warn', code: 'EXIT_UNREACHABLE', msg: 'Exit Portal cannot be reached by walking/hopping from Player Start (check cliffs or walls).', at: [ex.x, ex.y] });
+        issues.push({ level: 'warn', code: 'EXIT_UNREACHABLE', msg: 'Exit Portal cannot be reached by walking/hopping or Passage Links from Player Start.', at: [ex.x, ex.y] });
       }
     }
   }
@@ -1089,31 +1945,4 @@ export function validateScenarioDoc(doc) {
   }
 
   return issues;
-}
-
-export function computeReachabilityMask(doc) {
-  const { w, h, layers, traversal } = doc.grid;
-  const reach = new Uint8Array(w * h);
-  const [sx, sy] = doc.entities?.start || [0, 0];
-  const tx = Math.floor(sx), ty = Math.floor(sy);
-  if (tx < 0 || ty < 0 || tx >= w || ty >= h) return reach;
-  const startIdx = ty * w + tx;
-  if (layers.t[startIdx] !== 1 || layers.block[startIdx]) return reach;
-  const climb = traversal?.climb ?? 4, drop = traversal?.drop ?? 10;
-  const q = [startIdx];
-  reach[startIdx] = 1;
-  for (let qi = 0; qi < q.length; qi++) {
-    const cur = q[qi], cx = cur % w, cy = (cur / w) | 0;
-    for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const nx = cx + ox, ny = cy + oy;
-      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
-      const ni = ny * w + nx;
-      if (reach[ni] || layers.t[ni] !== 1 || layers.block[ni]) continue;
-      const d = layers.hgt[ni] - layers.hgt[cur];
-      if (d > climb || -d > drop) continue;
-      reach[ni] = 1;
-      q.push(ni);
-    }
-  }
-  return reach;
 }

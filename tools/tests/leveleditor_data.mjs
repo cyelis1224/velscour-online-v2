@@ -67,10 +67,17 @@ const bakedTests = [
 
 for (const [catId, biomeId, fn] of bakedTests) {
   const gen = fn();
-  const doc = bakeGeneratedToDoc(gen, { category: catId, biomeId, seed: 4242 });
+  const doc = bakeGeneratedToDoc(gen, { category: catId, biomeId, seed: 4242, bossCount: 2 });
   const rt = deserializeScenarioDoc(JSON.parse(JSON.stringify(serializeScenarioDoc(doc))));
-  const errs = validateScenarioDoc(rt).filter((i) => i.level === 'error');
+  const issues = validateScenarioDoc(rt);
+  const errs = issues.filter((i) => i.level === 'error');
   assert.equal(errs.length, 0, `Baked ${catId} had errors: ${JSON.stringify(errs)}`);
+  if (catId === '3d_caverns' || catId === '3d_tower') {
+    assert.ok(rt.entities.passages.length >= 1, `Expected intra-map passage link on ${catId}`);
+    const bosses = rt.entities.spawns.filter((s) => s.rank === 'boss' || s.rank === 'raid');
+    assert.ok(bosses.length >= 2, `Expected >=2 materialized bosses on ${catId}, got ${bosses.length}`);
+    assert.ok(!issues.some((i) => i.code === 'EXIT_UNREACHABLE'), `Passage BFS should reach exit on ${catId}: ${JSON.stringify(issues)}`);
+  }
 }
 
 // 4. Scenario Index builder

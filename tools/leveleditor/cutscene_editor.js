@@ -25,6 +25,77 @@ const OBJECTIVE_KINDS = [
   { id: 'reach_zone', label: 'Reach Spatial Zone' },
 ];
 
+const STEP_TYPE_OPTIONS = [
+  ['cam', '🎥 Camera Shot / Framing'],
+  ['say', '💬 Dialogue Line & Voice'],
+  ['card', '🪧 Title / Chapter Card'],
+  ['walk', '🚶 Actor Walk / Move'],
+  ['vfx', '✨ Visual Effect (Ring / Column / Sparkle)'],
+  ['shake', '📳 Camera Screen Shake'],
+  ['door', '🚪 Open Door / Unseal Exit'],
+  ['spawn', '⚔️ Spawn Ambush Pack'],
+  ['emote', '😠 Overhead Actor Emote'],
+  ['sfx', '🔊 Sound Effect'],
+  ['music', '🎵 Change Music Track'],
+  ['wait', '⏱️ Timed Pause (Wait)'],
+  ['until_arrived', '⏳ Wait Until Walks Finish'],
+  ['until_cleared', '⏳ Wait Until Hostiles Cleared'],
+];
+
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function describeStepKeyframe(st) {
+  const type = st?.type || 'wait';
+  if (type === 'cam') {
+    const modeTitle = st.mode === 'return_hero'
+      ? 'Return Hero'
+      : st.mode === 'actor'
+        ? `@${st.who || 'hero'} (${st.zoom ?? 1.4}×)`
+        : st.mode === 'fit'
+          ? `Fit ${(st.actors || ['hero']).join(',')}`
+          : st.markId ? `📍 ${st.markId}` : `(${st.x ?? 0}, ${st.y ?? 0})`;
+    const dur = Number(st.dur ?? 1.2) || 1.2;
+    return { cls: 'cam', icon: '🎥', title: modeTitle, sub: `${dur.toFixed(1)}s · ${st.ease || 'io'}`, dur, blocks: st.wait !== false };
+  }
+  if (type === 'say') {
+    const raw = (st.text || '…').trim();
+    const est = Math.max(1.4, Math.min(5.2, raw.length * 0.045));
+    return { cls: 'say', icon: '💬', title: st.customName || `@${st.who || 'hero'}`, sub: raw, dur: est, blocks: true };
+  }
+  if (type === 'card') {
+    const dur = Number(st.dur ?? 2.6) || 2.6;
+    return { cls: 'card', icon: '🪧', title: st.title || 'TITLE CARD', sub: `${st.sub ? `${st.sub} · ` : ''}${dur.toFixed(1)}s`, dur, blocks: !!st.block };
+  }
+  if (type === 'walk') {
+    const dur = Number(st.dur ?? 1.4) || 1.4;
+    const dest = st.markId ? `📍${st.markId}` : `(${st.x ?? 0},${st.y ?? 0})`;
+    return { cls: 'walk', icon: '🚶', title: `@${st.who || 'hero'}`, sub: `→ ${dest} · ${dur.toFixed(1)}s`, dur, blocks: st.wait !== false };
+  }
+  if (type === 'wait' || type === 'until_arrived' || type === 'until_cleared') {
+    const dur = type === 'wait' ? (Number(st.dur ?? 1.0) || 1.0) : 0.8;
+    const title = type === 'wait' ? 'Wait' : type === 'until_arrived' ? 'Until Arrived' : 'Until Cleared';
+    const sub = type === 'wait' ? `${dur.toFixed(1)}s pause` : 'Hold sequence';
+    return { cls: 'wait', icon: type === 'wait' ? '⏱️' : '⏳', title, sub, dur, blocks: true };
+  }
+  const actMap = {
+    vfx: ['✨', `VFX: ${st.vfx || 'ring'}`, st.who ? `@${st.who}` : `(${st.x ?? 0},${st.y ?? 0})`],
+    shake: ['📳', 'Screen Shake', `${st.px ?? 7}px`],
+    sfx: ['🔊', `SFX: ${st.sound || 'boss'}`, 'Audio cue'],
+    music: ['🎵', `Music: ${st.music || 'boss'}`, 'Switch BGM'],
+    door: ['🚪', st.target === 'exit' ? 'Unseal Exit' : `Door #${st.doorIndex ?? 0}`, 'Portal / Gate'],
+    spawn: ['⚔️', `Spawn ${st.n ?? 3}× ${st.arch || 'foe'}`, `(${st.x ?? 0},${st.y ?? 0})`],
+    emote: ['😠', `Emote: ${st.emotion || 'alert'}`, `@${st.who || 'hero'}`],
+  };
+  const [icon, title, sub] = actMap[type] || ['🎭', type, 'Stage cue'];
+  return { cls: 'act', icon, title, sub, dur: Number(st.dur ?? 0.4) || 0.4, blocks: false };
+}
+
 function collectCastOptions(doc) {
   const out = [{ key: 'hero', label: 'Hero (Player Paperdoll)' }];
   for (const s of doc.entities?.spawns || []) {
@@ -53,6 +124,15 @@ export class CutsceneEditorController {
       this.activeCineId = c.id;
     }
     return c;
+  }
+
+  syncSelectedStepRef(cine) {
+    const cur = this.studio.state.selectedCineStep;
+    if (!cur || !cine?.steps?.length) return null;
+    if (cine.steps.includes(cur)) return cur;
+    const match = cur.id ? cine.steps.find((s) => s.id === cur.id) : null;
+    this.studio.state.selectedCineStep = match || null;
+    return this.studio.state.selectedCineStep;
   }
 
   bindToolbar() {
@@ -101,10 +181,6 @@ export class CutsceneEditorController {
       studio.refreshValidation();
     });
 
-    document.querySelectorAll('[data-addstep]').forEach((btn) => {
-      btn.addEventListener('click', () => this.addStep(btn.dataset.addstep));
-    });
-
     document.getElementById('btn-cine-play')?.addEventListener('click', () => this.playPreview());
     document.getElementById('btn-preview-cine')?.addEventListener('click', () => this.playPreview());
     document.getElementById('btn-cine-stop')?.addEventListener('click', () => this.stopPreview());
@@ -113,7 +189,7 @@ export class CutsceneEditorController {
   addStep(kind) {
     const doc = this.studio.doc;
     let cine = this.currentCutscene(doc);
-    this.studio.history.snapshot(doc, `Add ${kind} Step`);
+    this.studio.history.snapshot(doc, `Add ${kind} Keyframe`);
     if (!cine) {
       cine = { id: 'cine_main', name: 'Main Cutscene', allowFastForward: true, steps: [] };
       doc.cutscenes.push(cine);
@@ -136,12 +212,20 @@ export class CutsceneEditorController {
     } else {
       step = { id, type: 'wait', dur: 1.0 };
     }
-    cine.steps.push(step);
+
+    const curIdx = cine.steps.indexOf(this.studio.state.selectedCineStep);
+    if (curIdx >= 0) cine.steps.splice(curIdx + 1, 0, step);
+    else cine.steps.push(step);
+
     this.studio.state.selected = null;
     this.studio.state.selectedCineStep = step;
     this.renderAll();
     this.studio.renderInspector();
     this.studio.refreshValidation();
+
+    const newIdx = cine.steps.indexOf(step);
+    const nodeEl = document.querySelector(`#cine-tracks .ckf-node[data-stepidx="${newIdx}"]`);
+    nodeEl?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
   }
 
   playPreview() {
@@ -233,49 +317,207 @@ export class CutsceneEditorController {
       return;
     }
 
-    const camClips = [];
-    const sayClips = [];
-    const actClips = [];
-
-    (cine.steps || []).forEach((st, idx) => {
+    const steps = cine.steps || [];
+    this.syncSelectedStepRef(cine);
+    let cursorSec = 0;
+    let totalEst = 0;
+    const kfHtml = steps.map((st, idx) => {
+      const info = describeStepKeyframe(st);
+      const tStart = cursorSec;
+      totalEst = Math.max(totalEst, tStart + info.dur);
+      if (info.blocks) cursorSec += info.dur;
       const active = this.studio.state.selectedCineStep === st ? 'active' : '';
-      const badge = `#${idx + 1}`;
-      if (st.type === 'cam') {
-        const sub = st.mode === 'return_hero' ? 'Return to Hero' : st.mode === 'actor' ? `@${st.who || 'hero'} (${st.zoom || 1.4}×)` : st.mode === 'fit' ? `Fit ${(st.actors || []).join(', ')}` : `Tile (${st.x ?? 0}, ${st.y ?? 0})`;
-        camClips.push(`<div class="cclip cam ${active}" data-stepidx="${idx}"><b>${badge} 🎥 Camera</b><span>${sub}</span><span class="cdur">${st.dur ?? 1.2}s · ${st.ease || 'io'}</span></div>`);
-      } else if (st.type === 'say') {
-        sayClips.push(`<div class="cclip say ${active}" data-stepidx="${idx}"><b>${badge} 💬 @${st.who || 'hero'}</b><span>${st.text || '…'}</span><span class="cdur">${st.voice?.wave || 'square'} · ${(st.voice?.pitch || 1).toFixed(2)}x</span></div>`);
-      } else if (st.type === 'card') {
-        sayClips.push(`<div class="cclip card ${active}" data-stepidx="${idx}"><b>${badge} 🪧 ${st.title || 'CARD'}</b><span>${st.sub || ''}</span><span class="cdur">${st.dur ?? 2.6}s</span></div>`);
-      } else {
-        const labelMap = { walk: '🚶 Walk', emote: '😠 Emote', shake: '📳 Shake', sfx: '🔊 SFX', music: '🎵 Music', vfx: '✨ VFX', door: '🚪 Door/Exit', spawn: '⚔️ Spawn', wait: '⏱️ Wait', until_arrived: '⏳ Until Arrived', until_cleared: '⏳ Until Cleared' };
-        const sub = st.type === 'walk' ? `@${st.who || 'hero'} → ${st.markId || `(${st.x},${st.y})`}` : st.type === 'door' ? (st.target === 'exit' ? 'Unseal Exit' : `Door #${st.doorIndex ?? 0}`) : st.type === 'vfx' ? `${st.vfx || 'ring'} (${st.color || '#ffb060'})` : `${st.dur ?? ''}s`;
-        actClips.push(`<div class="cclip act ${active}" data-stepidx="${idx}"><b>${badge} ${labelMap[st.type] || st.type}</b><span>${sub}</span></div>`);
-      }
-    });
+      const flowFlag = info.blocks ? '' : ' title="Non-blocking (runs concurrently with next keyframe)"';
+      return `
+        <div class="ckf-node ${info.cls} ${active}" data-stepidx="${idx}" tabindex="0" role="button" aria-label="Keyframe #${idx + 1} ${escapeHtml(info.title)}">
+          <div class="ckf-top"${flowFlag}>
+            <span class="ckf-stepnum">#${idx + 1}</span>
+            <span>${tStart.toFixed(1)}s${info.blocks ? '' : '⚡'}</span>
+          </div>
+          <div class="ckf-pin-row">
+            <div class="ckf-diamond"></div>
+          </div>
+          <div class="ckf-tag">
+            <b>${info.icon} ${escapeHtml(info.title)}</b>
+            <span>${escapeHtml(info.sub)}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
 
     host.innerHTML = `
-      <div class="ctrack">
-        <div class="ctrack-lbl">🎥 Camera</div>
-        <div class="ctrack-lane">${camClips.join('') || '<span class="dim-lbl">Click [+ 🎥 Cam] to add framing, pan, or zoom shots</span>'}</div>
+      <div class="ckf-meta-bar">
+        <div class="ckf-add-bar">
+          <span class="dim-lbl">+ Keyframe:</span>
+          <button class="mini-btn" data-addstep="cam">🎥 Cam</button>
+          <button class="mini-btn" data-addstep="say">💬 Say</button>
+          <button class="mini-btn" data-addstep="card">🪧 Card</button>
+          <button class="mini-btn" data-addstep="walk">🚶 Walk</button>
+          <button class="mini-btn" data-addstep="vfx">✨ FX / Door / Spawn</button>
+          <button class="mini-btn" data-addstep="wait">⏱️ Wait</button>
+        </div>
+        <span class="dim-lbl">${steps.length} keyframe${steps.length === 1 ? '' : 's'} (~${totalEst.toFixed(1)}s) · Click ◆ to inspect · Drag ◆ to reorder</span>
       </div>
-      <div class="ctrack">
-        <div class="ctrack-lbl">💬 Dialogue</div>
-        <div class="ctrack-lane">${sayClips.join('') || '<span class="dim-lbl">Click [+ 💬 Say] or [+ 🪧 Card] for portraits, blip voices &amp; title cards</span>'}</div>
-      </div>
-      <div class="ctrack">
-        <div class="ctrack-lbl">🎭 Stage &amp; FX</div>
-        <div class="ctrack-lane">${actClips.join('') || '<span class="dim-lbl">Click [+ 🚶 Walk], [+ ✨ FX/Door/Spawn] or [+ ⏱️ Wait]</span>'}</div>
+      <div class="ckf-timeline" id="ckf-scroll">
+        <div class="ckf-rail-track" id="ckf-rail">
+          ${kfHtml || '<span class="dim-lbl" style="padding:22px 12px;z-index:1">Timeline is empty — click a [+ Keyframe] button above to add events.</span>'}
+          <div class="ckf-drop-line" id="ckf-drop-line" hidden></div>
+        </div>
       </div>
     `;
 
-    host.querySelectorAll('[data-stepidx]').forEach((el) => {
-      el.addEventListener('click', () => {
-        const st = cine.steps[Number(el.dataset.stepidx)];
-        this.studio.state.selected = null;
-        this.studio.state.selectedCineStep = st;
-        this.renderTracks(cine);
-        this.studio.renderInspector();
+    host.querySelectorAll('[data-addstep]').forEach((btn) => {
+      btn.addEventListener('click', () => this.addStep(btn.dataset.addstep));
+    });
+
+    const scrollEl = host.querySelector('#ckf-scroll');
+    const railEl = host.querySelector('#ckf-rail');
+    const dropLine = host.querySelector('#ckf-drop-line');
+    const nodeEls = Array.from(host.querySelectorAll('.ckf-node[data-stepidx]'));
+
+    const getLiveSteps = () => {
+      const lc = this.currentCutscene(this.studio.doc);
+      return { lc, ls: lc?.steps || [] };
+    };
+
+    const selectKeyframeAt = (idx, resetScroll = true) => {
+      const { ls } = getLiveSteps();
+      const st = ls[idx];
+      if (!st) return;
+      const changed = this.studio.state.selectedCineStep !== st;
+      this.studio.state.selected = null;
+      this.studio.state.selectedCineStep = st;
+      nodeEls.forEach((n, i) => n.classList.toggle('active', i === idx));
+      this.studio.renderInspector();
+      if (changed && resetScroll) {
+        const inspBody = document.getElementById('insp-body');
+        if (inspBody) inspBody.scrollTop = 0;
+      }
+    };
+
+    const computeDropSlot = (clientX) => {
+      for (let i = 0; i < nodeEls.length; i++) {
+        const r = nodeEls[i].getBoundingClientRect();
+        if (clientX < r.left + r.width * 0.5) return i;
+      }
+      return nodeEls.length;
+    };
+
+    const positionDropLine = (slot) => {
+      if (!railEl || !dropLine || !nodeEls.length) return;
+      const railRect = railEl.getBoundingClientRect();
+      let xPx;
+      if (slot <= 0) {
+        xPx = nodeEls[0].getBoundingClientRect().left - railRect.left - 4;
+      } else if (slot >= nodeEls.length) {
+        xPx = nodeEls[nodeEls.length - 1].getBoundingClientRect().right - railRect.left + 4;
+      } else {
+        const prevR = nodeEls[slot - 1].getBoundingClientRect();
+        const nextR = nodeEls[slot].getBoundingClientRect();
+        xPx = ((prevR.right + nextR.left) * 0.5) - railRect.left;
+      }
+      dropLine.style.left = `${Math.round(xPx)}px`;
+      dropLine.hidden = false;
+    };
+
+    nodeEls.forEach((el) => {
+      const idx = Number(el.dataset.stepidx);
+
+      el.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        el.focus({ preventScroll: true });
+        selectKeyframeAt(idx, true);
+
+        const startX = e.clientX;
+        let dragging = false;
+        let dropSlot = idx;
+
+        const onMove = (ev) => {
+          const { ls } = getLiveSteps();
+          if (!dragging && Math.abs(ev.clientX - startX) >= 6 && ls.length > 1) {
+            dragging = true;
+            el.classList.add('is-dragging');
+            railEl?.classList.add('reordering');
+          }
+          if (!dragging) return;
+
+          if (scrollEl) {
+            const sr = scrollEl.getBoundingClientRect();
+            if (ev.clientX < sr.left + 36) scrollEl.scrollLeft -= 14;
+            else if (ev.clientX > sr.right - 36) scrollEl.scrollLeft += 14;
+          }
+          dropSlot = computeDropSlot(ev.clientX);
+          positionDropLine(dropSlot);
+        };
+
+        const finishDrag = (cancelled) => {
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('pointercancel', onCancel);
+          el.classList.remove('is-dragging');
+          railEl?.classList.remove('reordering');
+          if (dropLine) dropLine.hidden = true;
+
+          if (!dragging || cancelled) return;
+          const { lc, ls } = getLiveSteps();
+          const toIdx = dropSlot > idx ? dropSlot - 1 : dropSlot;
+          if (lc && toIdx !== idx && toIdx >= 0 && toIdx < ls.length) {
+            this.studio.history.snapshot(this.studio.doc, 'Reorder Cutscene Keyframe');
+            const [moved] = ls.splice(idx, 1);
+            ls.splice(toIdx, 0, moved);
+            this.studio.state.selectedCineStep = moved;
+            this.renderTracks(lc);
+            this.studio.renderInspector();
+            this.studio.refreshValidation();
+            host.querySelector(`.ckf-node[data-stepidx="${toIdx}"]`)?.focus({ preventScroll: true });
+          }
+        };
+        const onUp = () => finishDrag(false);
+        const onCancel = () => finishDrag(true);
+
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('pointercancel', onCancel);
+      });
+
+      el.addEventListener('keydown', (e) => {
+        const { lc, ls } = getLiveSteps();
+        if (!lc) return;
+        if (e.key === 'ArrowLeft' && idx > 0) {
+          e.preventDefault();
+          if (e.altKey) {
+            this.studio.history.snapshot(this.studio.doc, 'Move Keyframe Earlier');
+            [ls[idx - 1], ls[idx]] = [ls[idx], ls[idx - 1]];
+            this.renderTracks(lc);
+            this.studio.renderInspector();
+            host.querySelector(`.ckf-node[data-stepidx="${idx - 1}"]`)?.focus();
+          } else {
+            selectKeyframeAt(idx - 1, true);
+            nodeEls[idx - 1]?.focus();
+          }
+        } else if (e.key === 'ArrowRight' && idx < ls.length - 1) {
+          e.preventDefault();
+          if (e.altKey) {
+            this.studio.history.snapshot(this.studio.doc, 'Move Keyframe Later');
+            [ls[idx + 1], ls[idx]] = [ls[idx], ls[idx + 1]];
+            this.renderTracks(lc);
+            this.studio.renderInspector();
+            host.querySelector(`.ckf-node[data-stepidx="${idx + 1}"]`)?.focus();
+          } else {
+            selectKeyframeAt(idx + 1, true);
+            nodeEls[idx + 1]?.focus();
+          }
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          this.studio.history.snapshot(this.studio.doc, 'Delete Cutscene Keyframe');
+          ls.splice(idx, 1);
+          this.studio.state.selectedCineStep = ls[Math.max(0, idx - 1)] || null;
+          this.renderAll();
+          this.studio.renderInspector();
+          this.studio.refreshValidation();
+        }
       });
     });
   }
@@ -415,29 +657,39 @@ export class CutsceneEditorController {
     bindField('data-objtxt', (i, el) => { doc.objectives[i].text = el.value; });
   }
 
-  /** Render Right-Dock Inspector when a Cutscene Step is selected. */
+  /** Render Right-Dock Inspector when a Cutscene Keyframe is selected. */
   renderStepInspector(container, titleEl, doc, step) {
     const cine = this.currentCutscene(doc);
-    if (!cine || !step) return false;
+    if (!cine) return false;
+    const resolved = this.syncSelectedStepRef(cine) || step;
+    if (!resolved) return false;
+    step = resolved;
     const idx = cine.steps.indexOf(step);
     if (idx < 0) return false;
 
-    titleEl.textContent = `Cutscene Step #${idx + 1} (${step.type.toUpperCase()})`;
+    const kfInfo = describeStepKeyframe(step);
+    titleEl.textContent = `${kfInfo.icon} Keyframe #${idx + 1} (${step.type.toUpperCase()})`;
     const castOpts = collectCastOptions(doc);
     const markOpts = `<option value="">(Use X, Y Coords)</option>` + (doc.entities.marks || []).map((m) => `<option value="${m.id}" ${step.markId === m.id ? 'selected' : ''}>📍 ${m.name || m.id} (${m.x.toFixed(0)}, ${m.y.toFixed(0)})</option>`).join('');
 
     let bodyHtml = `
       <div class="fg">
         <label>Cutscene Title</label>
-        <input id="ci-cinename" type="text" value="${cine.name || ''}">
+        <input id="ci-cinename" type="text" value="${escapeHtml(cine.name || '')}">
       </div>
       <div style="display:flex;gap:4px;flex-wrap:wrap">
         <button id="ci-prev" class="mini-btn" ${idx === 0 ? 'disabled' : ''}>◀ Earlier</button>
         <button id="ci-next" class="mini-btn" ${idx >= cine.steps.length - 1 ? 'disabled' : ''}>Later ▶</button>
         <button id="ci-dup" class="mini-btn">⧉ Duplicate</button>
-        <button id="ci-del" class="mini-btn danger">✕ Delete Step</button>
+        <button id="ci-del" class="mini-btn danger">✕ Delete</button>
       </div>
-      <div class="insp-sec">Step Properties</div>
+      <div class="insp-sec">Event Parameters</div>
+      <div class="fg">
+        <label>Event Type</label>
+        <select id="ci-steptype">
+          ${STEP_TYPE_OPTIONS.map(([k, lbl]) => `<option value="${k}" ${step.type === k ? 'selected' : ''}>${lbl}</option>`).join('')}
+        </select>
+      </div>
     `;
 
     if (step.type === 'cam') {
@@ -460,7 +712,7 @@ export class CutsceneEditorController {
         ${step.mode === 'fit' ? `
           <div class="fg">
             <label>Actors to Fit (comma-separated)</label>
-            <input id="ci-fitactors" type="text" value="${(step.actors || ['hero']).join(', ')}">
+            <input id="ci-fitactors" type="text" value="${escapeHtml((step.actors || ['hero']).join(', '))}">
           </div>
         ` : ''}
         ${step.mode === 'tile' ? `
@@ -500,14 +752,14 @@ export class CutsceneEditorController {
         </div>
         <div class="fg">
           <label>Custom Display Name Override (optional)</label>
-          <input id="ci-cname" type="text" placeholder="Leave blank for actor's name" value="${step.customName || ''}">
+          <input id="ci-cname" type="text" placeholder="Leave blank for actor's name" value="${escapeHtml(step.customName || '')}">
         </div>
         <div class="fg">
           <label style="display:flex;justify-content:space-between">
             <span>Dialogue Text</span>
             <span id="ci-charcnt" style="color:${len > 150 ? 'var(--amber)' : 'var(--faint)'}">${len} / 150 chars</span>
           </label>
-          <textarea id="ci-text">${step.text || ''}</textarea>
+          <textarea id="ci-text">${escapeHtml(step.text || '')}</textarea>
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">
             <button class="mini-btn" data-tok="{hero}">+ {hero}</button>
             <button class="mini-btn" data-tok="{class}">+ {class}</button>
@@ -528,15 +780,15 @@ export class CutsceneEditorController {
         </div>
         <button id="ci-testvoice" class="sbtn gold" style="justify-content:center">🔊 Test Procedural Blip Voice</button>
         <div class="fg-row">
-          <div class="fg"><label>Highlight Word</label><input id="ci-mword" type="text" placeholder="e.g. Velscour" value="${step.markWord || ''}"></div>
-          <div class="fg"><label>Name/Border Color</label><input id="ci-color" type="text" placeholder="#ffd9a0" value="${step.color || ''}"></div>
+          <div class="fg"><label>Highlight Word</label><input id="ci-mword" type="text" placeholder="e.g. Velscour" value="${escapeHtml(step.markWord || '')}"></div>
+          <div class="fg"><label>Name/Border Color</label><input id="ci-color" type="text" placeholder="#ffd9a0" value="${escapeHtml(step.color || '')}"></div>
         </div>
         <label class="chk-line"><input id="ci-autoframe" type="checkbox" ${step.autoFrame !== false ? 'checked' : ''}> Auto-frame camera onto speaker</label>
       `;
     } else if (step.type === 'card') {
       bodyHtml += `
-        <div class="fg"><label>Card Main Title</label><input id="ci-title" type="text" value="${step.title || ''}"></div>
-        <div class="fg"><label>Subtitle Plate</label><input id="ci-sub" type="text" value="${step.sub || ''}"></div>
+        <div class="fg"><label>Card Main Title</label><input id="ci-title" type="text" value="${escapeHtml(step.title || '')}"></div>
+        <div class="fg"><label>Subtitle Plate</label><input id="ci-sub" type="text" value="${escapeHtml(step.sub || '')}"></div>
         <div class="fg"><label>Display Duration (s)</label><input id="ci-dur" type="number" step="0.2" min="0.8" max="10" value="${step.dur ?? 2.6}"></div>
         <label class="chk-line"><input id="ci-block" type="checkbox" ${step.block ? 'checked' : ''}> Block next step until card finishes</label>
       `;
@@ -551,69 +803,78 @@ export class CutsceneEditorController {
           <div class="fg"><label>Dest X</label><input id="ci-x" type="number" step="0.5" value="${step.x ?? 28}"></div>
           <div class="fg"><label>Dest Y</label><input id="ci-y" type="number" step="0.5" value="${step.y ?? 28}"></div>
         </div>
-        <div class="fg"><label>Duration / Speed</label><input id="ci-dur" type="number" step="0.1" min="0.2" max="15" value="${step.dur ?? 1.4}"></div>
+        <button id="ci-capcam" class="mini-btn gold">🎯 Pick Current Viewport Center</button>
+        <div class="fg"><label>Duration / Speed (s)</label><input id="ci-dur" type="number" step="0.1" min="0.2" max="15" value="${step.dur ?? 1.4}"></div>
         <label class="chk-line"><input id="ci-path" type="checkbox" ${step.pathfind ? 'checked' : ''}> Use A* Pathfinding around obstacles</label>
         <label class="chk-line"><input id="ci-wait" type="checkbox" ${step.wait !== false ? 'checked' : ''}> Wait until actor reaches target</label>
       `;
-    } else {
+    } else if (step.type === 'vfx') {
       bodyHtml += `
-        <div class="fg">
-          <label>Stage / FX Action Kind</label>
-          <select id="ci-subtype">
-            ${[
-              ['vfx', '✨ Visual Effect (Ring / Column / Sparkle)'],
-              ['shake', '📳 Camera Screen Shake'],
-              ['sfx', '🔊 Sound Effect'],
-              ['music', '🎵 Change Music / Ambience'],
-              ['door', '🚪 Open Door / Unseal Exit Portal'],
-              ['spawn', '⚔️ Spawn Ambush Pack / Wake Boss'],
-              ['emote', '😠 Overhead Actor Emote'],
-              ['wait', '⏱️ Timed Pause (Wait)'],
-              ['until_arrived', '⏳ Wait Until All Walks Finish'],
-              ['until_cleared', '⏳ Wait Until Awake Enemies Cleared'],
-            ].map(([k, lbl]) => `<option value="${k}" ${step.type === k ? 'selected' : ''}>${lbl}</option>`).join('')}
-          </select>
-        </div>
-        ${step.type === 'vfx' ? `
-          <div class="fg-row">
-            <div class="fg">
-              <label>VFX Style</label>
-              <select id="ci-vfxkind">
-                ${['ring', 'column', 'sparkle', 'text'].map((k) => `<option value="${k}" ${(step.vfx || 'ring') === k ? 'selected' : ''}>${k}</option>`).join('')}
-              </select>
-            </div>
-            <div class="fg"><label>Color</label><input id="ci-color" type="text" value="${step.color || '#ffb060'}"></div>
-          </div>
-          <div class="fg"><label>At Actor</label><select id="ci-who"><option value="">(Use Tile X/Y)</option>${castOpts.map((o) => `<option value="${o.key}" ${step.who === o.key ? 'selected' : ''}>${o.label}</option>`).join('')}</select></div>
-        ` : ''}
-        ${step.type === 'shake' ? `<div class="fg"><label>Shake Intensity (px)</label><input id="ci-px" type="number" min="1" max="18" value="${step.px ?? 7}"></div>` : ''}
-        ${step.type === 'sfx' ? `<div class="fg"><label>SFX Name (boss, gate, chest, door, hit)</label><input id="ci-sfx" type="text" value="${step.sound || 'boss'}"></div>` : ''}
-        ${step.type === 'music' ? `<div class="fg"><label>Music Track (town, wilds, boss, victory)</label><input id="ci-music" type="text" value="${step.music || 'boss'}"></div>` : ''}
-        ${step.type === 'door' ? `
+        <div class="fg-row">
           <div class="fg">
-            <label>Target</label>
-            <select id="ci-doortgt">
-              <option value="exit" ${step.target === 'exit' ? 'selected' : ''}>Unseal Scenario Exit Portal</option>
-              <option value="door" ${step.target !== 'exit' ? 'selected' : ''}>Toggle Dungeon Door #0</option>
+            <label>VFX Style</label>
+            <select id="ci-vfxkind">
+              ${['ring', 'column', 'sparkle', 'text'].map((k) => `<option value="${k}" ${(step.vfx || 'ring') === k ? 'selected' : ''}>${k}</option>`).join('')}
             </select>
           </div>
-        ` : ''}
-        ${step.type === 'spawn' ? `
-          <div class="fg-row">
-            <div class="fg"><label>Archetype</label><input id="ci-arch" type="text" value="${step.arch || 'skeleton'}"></div>
-            <div class="fg"><label>Count</label><input id="ci-n" type="number" min="1" max="12" value="${step.n ?? 3}"></div>
-          </div>
-          <div class="fg-row">
-            <div class="fg"><label>Tile X</label><input id="ci-x" type="number" step="0.5" value="${step.x ?? 28}"></div>
-            <div class="fg"><label>Tile Y</label><input id="ci-y" type="number" step="0.5" value="${step.y ?? 28}"></div>
-          </div>
-        ` : ''}
-        ${step.type === 'emote' ? `
-          <div class="fg"><label>Actor</label><select id="ci-who">${castOpts.map((o) => `<option value="${o.key}" ${step.who === o.key ? 'selected' : ''}>${o.label}</option>`).join('')}</select></div>
-          <div class="fg"><label>Emotion (angry, shock, happy, alert)</label><input id="ci-emo" type="text" value="${step.emotion || 'alert'}"></div>
-        ` : ''}
-        ${step.type === 'wait' ? `<div class="fg"><label>Wait Seconds</label><input id="ci-dur" type="number" step="0.1" min="0.1" max="30" value="${step.dur ?? 1.0}"></div>` : ''}
+          <div class="fg"><label>Color</label><input id="ci-color" type="text" value="${escapeHtml(step.color || '#ffb060')}"></div>
+        </div>
+        <div class="fg"><label>Anchor Actor</label><select id="ci-who"><option value="" ${!step.who ? 'selected' : ''}>(Use Tile X/Y)</option>${castOpts.map((o) => `<option value="${o.key}" ${step.who === o.key ? 'selected' : ''}>${o.label}</option>`).join('')}</select></div>
+        <div class="fg-row">
+          <div class="fg"><label>Tile X</label><input id="ci-x" type="number" step="0.5" value="${step.x ?? 28}"></div>
+          <div class="fg"><label>Tile Y</label><input id="ci-y" type="number" step="0.5" value="${step.y ?? 28}"></div>
+        </div>
+        <button id="ci-capcam" class="mini-btn">🎯 Pick Current Viewport Center</button>
+        <div class="fg-row">
+          <div class="fg"><label>Radius</label><input id="ci-rad" type="number" step="0.5" min="0.5" max="20" value="${step.radius ?? 3.5}"></div>
+          <div class="fg"><label>Duration (s)</label><input id="ci-dur" type="number" step="0.1" min="0.1" max="10" value="${step.dur ?? 0.9}"></div>
+        </div>
+        ${step.vfx === 'text' ? `<div class="fg"><label>Floating Text</label><input id="ci-vfxtxt" type="text" value="${escapeHtml(step.text || '')}"></div>` : ''}
       `;
+    } else if (step.type === 'shake') {
+      bodyHtml += `<div class="fg"><label>Shake Intensity (px)</label><input id="ci-px" type="number" min="1" max="18" value="${step.px ?? 7}"></div>`;
+    } else if (step.type === 'sfx') {
+      bodyHtml += `<div class="fg"><label>SFX Name (boss, gate, chest, door, hit)</label><input id="ci-sfx" type="text" value="${escapeHtml(step.sound || 'boss')}"></div>`;
+    } else if (step.type === 'music') {
+      bodyHtml += `<div class="fg"><label>Music Track (town, wilds, boss, victory)</label><input id="ci-music" type="text" value="${escapeHtml(step.music || 'boss')}"></div>`;
+    } else if (step.type === 'door') {
+      bodyHtml += `
+        <div class="fg">
+          <label>Target</label>
+          <select id="ci-doortgt">
+            <option value="exit" ${step.target === 'exit' ? 'selected' : ''}>Unseal Scenario Exit Portal</option>
+            <option value="door" ${step.target !== 'exit' ? 'selected' : ''}>Toggle Dungeon Door</option>
+          </select>
+        </div>
+        ${step.target !== 'exit' ? `<div class="fg"><label>Door Index (#)</label><input id="ci-dooridx" type="number" min="0" max="50" value="${step.doorIndex ?? 0}"></div>` : ''}
+      `;
+    } else if (step.type === 'spawn') {
+      bodyHtml += `
+        <div class="fg-row">
+          <div class="fg"><label>Archetype</label><input id="ci-arch" type="text" value="${escapeHtml(step.arch || 'skeleton')}"></div>
+          <div class="fg">
+            <label>Rank</label>
+            <select id="ci-srank">
+              ${['normal', 'champion', 'unique', 'boss'].map((r) => `<option value="${r}" ${(step.rank || 'normal') === r ? 'selected' : ''}>${r}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="fg-row">
+          <div class="fg"><label>Count</label><input id="ci-n" type="number" min="1" max="12" value="${step.n ?? 3}"></div>
+          <div class="fg"><label>Tile X</label><input id="ci-x" type="number" step="0.5" value="${step.x ?? 28}"></div>
+        </div>
+        <div class="fg"><label>Tile Y</label><input id="ci-y" type="number" step="0.5" value="${step.y ?? 28}"></div>
+        <button id="ci-capcam" class="mini-btn">🎯 Pick Current Viewport Center</button>
+      `;
+    } else if (step.type === 'emote') {
+      bodyHtml += `
+        <div class="fg"><label>Actor</label><select id="ci-who">${castOpts.map((o) => `<option value="${o.key}" ${step.who === o.key ? 'selected' : ''}>${o.label}</option>`).join('')}</select></div>
+        <div class="fg"><label>Emotion (angry, shock, happy, alert)</label><input id="ci-emo" type="text" value="${escapeHtml(step.emotion || 'alert')}"></div>
+      `;
+    } else if (step.type === 'wait') {
+      bodyHtml += `<div class="fg"><label>Wait Seconds</label><input id="ci-dur" type="number" step="0.1" min="0.1" max="30" value="${step.dur ?? 1.0}"></div>`;
+    } else {
+      bodyHtml += `<div class="dim-lbl">Holds timeline progression until ${step.type === 'until_arrived' ? 'all scripted actor walks complete' : 'all awake hostiles are defeated'}.</div>`;
     }
 
     container.innerHTML = `<div class="form-stack">${bodyHtml}</div>`;
@@ -626,15 +887,18 @@ export class CutsceneEditorController {
     container.querySelector('#ci-cinename')?.addEventListener('change', (e) => { cine.name = e.target.value; refresh(); });
     container.querySelector('#ci-prev')?.addEventListener('click', () => {
       if (idx <= 0) return;
+      this.studio.history.snapshot(doc, 'Move Keyframe Earlier');
       [cine.steps[idx - 1], cine.steps[idx]] = [cine.steps[idx], cine.steps[idx - 1]];
       refresh(); this.studio.renderInspector();
     });
     container.querySelector('#ci-next')?.addEventListener('click', () => {
       if (idx >= cine.steps.length - 1) return;
+      this.studio.history.snapshot(doc, 'Move Keyframe Later');
       [cine.steps[idx + 1], cine.steps[idx]] = [cine.steps[idx], cine.steps[idx + 1]];
       refresh(); this.studio.renderInspector();
     });
     container.querySelector('#ci-dup')?.addEventListener('click', () => {
+      this.studio.history.snapshot(doc, 'Duplicate Keyframe');
       const copy = structuredClone(step);
       copy.id = `st_${Date.now().toString(36)}`;
       cine.steps.splice(idx + 1, 0, copy);
@@ -642,13 +906,27 @@ export class CutsceneEditorController {
       refresh(); this.studio.renderInspector();
     });
     container.querySelector('#ci-del')?.addEventListener('click', () => {
+      this.studio.history.snapshot(doc, 'Delete Keyframe');
       cine.steps.splice(idx, 1);
       this.studio.state.selectedCineStep = cine.steps[Math.max(0, idx - 1)] || null;
       refresh(); this.studio.renderInspector();
     });
 
+    container.querySelector('#ci-steptype')?.addEventListener('change', (e) => {
+      const nt = e.target.value;
+      this.studio.history.snapshot(doc, 'Change Keyframe Event Type');
+      const [sx, sy] = doc.entities.start || [28, 28];
+      step.type = nt;
+      if (nt === 'cam') { step.mode ||= 'actor'; step.who ||= 'hero'; step.zoom ??= 1.8; step.dur ??= 1.1; step.ease ||= 'io'; }
+      else if (nt === 'say') { step.who ||= 'hero'; step.text ||= 'Stand ready.'; step.voice ||= { pitch: 1.0, wave: 'square' }; }
+      else if (nt === 'card') { step.title ||= doc.meta.name.toUpperCase(); step.dur ??= 2.6; }
+      else if (nt === 'walk') { step.who ||= 'hero'; step.x ??= Math.round(sx); step.y ??= Math.round(sy - 3); step.dur ??= 1.4; }
+      else if (nt === 'vfx') { step.vfx ||= 'ring'; step.color ||= '#ffb060'; step.x ??= Math.round(sx); step.y ??= Math.round(sy); step.radius ??= 3.5; step.dur ??= 0.9; }
+      else if (nt === 'wait') { step.dur ??= 1.0; }
+      refresh(); this.studio.renderInspector();
+    });
+
     container.querySelector('#ci-cammode')?.addEventListener('change', (e) => { step.mode = e.target.value; refresh(); this.studio.renderInspector(); });
-    container.querySelector('#ci-subtype')?.addEventListener('change', (e) => { step.type = e.target.value; refresh(); this.studio.renderInspector(); });
     container.querySelector('#ci-who')?.addEventListener('change', (e) => { step.who = e.target.value; refresh(); });
     container.querySelector('#ci-fitactors')?.addEventListener('change', (e) => { step.actors = e.target.value.split(',').map((s) => s.trim()).filter(Boolean); refresh(); });
     container.querySelector('#ci-mark')?.addEventListener('change', (e) => { step.markId = e.target.value; refresh(); });
@@ -658,7 +936,8 @@ export class CutsceneEditorController {
       const [tx, ty] = camera.screenToTile(G.W / 2, G.H / 2);
       step.x = Math.round(tx * 10) / 10;
       step.y = Math.round(ty * 10) / 10;
-      step.markId = '';
+      if ('markId' in step) step.markId = '';
+      if (step.type === 'vfx') step.who = '';
       refresh(); this.studio.renderInspector();
     });
     container.querySelector('#ci-zoom')?.addEventListener('change', (e) => { step.zoom = Number(e.target.value); refresh(); });
@@ -691,7 +970,7 @@ export class CutsceneEditorController {
     container.querySelector('#ci-pitch')?.addEventListener('change', (e) => {
       step.voice ||= { pitch: 1, wave: 'square' };
       step.voice.pitch = Number(e.target.value) || 1;
-      refresh();
+      refresh(); this.studio.renderInspector();
     });
     container.querySelector('#ci-wave')?.addEventListener('change', (e) => {
       step.voice ||= { pitch: 1, wave: 'square' };
@@ -708,12 +987,16 @@ export class CutsceneEditorController {
     container.querySelector('#ci-sub')?.addEventListener('change', (e) => { step.sub = e.target.value; refresh(); });
     container.querySelector('#ci-block')?.addEventListener('change', (e) => { step.block = e.target.checked; refresh(); });
     container.querySelector('#ci-path')?.addEventListener('change', (e) => { step.pathfind = e.target.checked; refresh(); });
-    container.querySelector('#ci-vfxkind')?.addEventListener('change', (e) => { step.vfx = e.target.value; refresh(); });
+    container.querySelector('#ci-vfxkind')?.addEventListener('change', (e) => { step.vfx = e.target.value; refresh(); this.studio.renderInspector(); });
+    container.querySelector('#ci-rad')?.addEventListener('change', (e) => { step.radius = Number(e.target.value) || 3.5; refresh(); });
+    container.querySelector('#ci-vfxtxt')?.addEventListener('change', (e) => { step.text = e.target.value; refresh(); });
     container.querySelector('#ci-px')?.addEventListener('change', (e) => { step.px = Number(e.target.value); refresh(); });
     container.querySelector('#ci-sfx')?.addEventListener('change', (e) => { step.sound = e.target.value.trim(); refresh(); });
     container.querySelector('#ci-music')?.addEventListener('change', (e) => { step.music = e.target.value.trim(); refresh(); });
-    container.querySelector('#ci-doortgt')?.addEventListener('change', (e) => { step.target = e.target.value; refresh(); });
+    container.querySelector('#ci-doortgt')?.addEventListener('change', (e) => { step.target = e.target.value; refresh(); this.studio.renderInspector(); });
+    container.querySelector('#ci-dooridx')?.addEventListener('change', (e) => { step.doorIndex = Number(e.target.value) || 0; refresh(); });
     container.querySelector('#ci-arch')?.addEventListener('change', (e) => { step.arch = e.target.value.trim(); refresh(); });
+    container.querySelector('#ci-srank')?.addEventListener('change', (e) => { step.rank = e.target.value; refresh(); });
     container.querySelector('#ci-n')?.addEventListener('change', (e) => { step.n = Number(e.target.value) || 3; refresh(); });
     container.querySelector('#ci-emo')?.addEventListener('change', (e) => { step.emotion = e.target.value.trim(); refresh(); });
 

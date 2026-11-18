@@ -25,6 +25,7 @@ import {
   deserializeScenarioDoc,
   bakeGeneratedToDoc,
   validateScenarioDoc,
+  computeRectFloorLv,
 } from '../../src/world/scenariocodec.js';
 import {
   loadScenarioIndex,
@@ -84,7 +85,7 @@ import {
   Plan2DView,
   Orbit3DController,
 } from './tools3d.js';
-import { renderModeBanner, appendSpecialModeSettings, bakeAllNavalDecks } from './tower_vehicles.js';
+import { renderModeBanner, appendSpecialModeSettings, bakeAllNavalDecks, buildStageLandmarks } from './tower_vehicles.js';
 import { CutsceneEditorController } from './cutscene_editor.js';
 import { PlaytestController } from './playtest.js';
 
@@ -113,6 +114,9 @@ class VelscourStudio {
     this.vpMode = 'live'; // 'live' | 'plan' | 'split'
     this.plankMode = false;
     this.plankStart = null;
+    this.passageMode = false;
+    this.passageStart = null;
+    this.activeLandmarkIdx = 0;
     this.rampAnchor = null;
     this._rebuildTimer = null;
 
@@ -124,6 +128,11 @@ class VelscourStudio {
       sculptStrength: 2,
       sculptTargetLv: 12,
       waterDepth: 1,
+      lockDepth: false,
+      depthLv: 0,
+      sliceMode: false,
+      sliceBand: 24,
+      camFocusTile: null,
       splineWidth: 3,
       splinePts: [],
       showGrid: true,
@@ -231,6 +240,11 @@ class VelscourStudio {
     this.state.selected = null;
     this.state.selectedCineStep = doc.cutscenes?.[0]?.steps?.[0] || null;
     this.cineEditor.activeCineId = doc.cutscenes?.[0]?.id || null;
+    this.passageMode = false;
+    this.passageStart = null;
+    this.activeLandmarkIdx = 0;
+    this.state.lockDepth = false;
+    this.state.sliceMode = false;
 
     // Auto-enable Split 2D+3D view on Serpentine Tower so creator sees both unrolled strip & 3D helix
     if (doc.meta.category === '3d_tower' && this.vpMode === 'live') {
@@ -306,14 +320,107 @@ class VelscourStudio {
     if (!this.doc) return;
     this.resizeCanvases();
     const [sx, sy] = this.doc.entities.start || [this.doc.grid.w / 2, this.doc.grid.h / 2];
-    if (this.world?.tower) {
-      const g = this.world.tower.g;
-      if (sx < g.XR) this.world.tower.setClimbTurn('roof');
-      else this.world.tower.setClimbTurn(clamp(g.s(sx) / g.L, 0, 1));
-    }
     camera.zoom = 1.35;
-    camera.x = isoX(sx, sy);
-    camera.y = isoY(sx, sy) - 18;
+    this.focusCameraAtTile(sx, sy, { lock: false, slice: false });
+  }
+
+  /** Sync Studio's active camera tile, working depth (`lv`), and slice state into the live Three.js 3D controller. */
+  syncEditor3DFocus(tx = null, ty = null) {
+    const ed = this.world?.cave?.editor;
+    if (!ed) return;
+    if (tx !== null && ty !== null) ed.focusTile = [tx, ty];
+    else if (this.state.camFocusTile) ed.focusTile = [...this.state.camFocusTile];
+    ed.lockDepth = !!this.state.lockDepth;
+    ed.depthLv = this.state.depthLv || 0;
+    ed.sliceMode = !!this.state.sliceMode;
+    ed.sliceBand = this.state.sliceBand || 24;
+  }
+
+  /**
+   * Pan & frame the editor camera onto `(tx, ty)`, automatically switching multi-region 3D scenes
+   * (Exterior Dunes <-> Interior Spiraling Tomb, or Tower Stair <-> Rooftop) and elevation offset.
+   */
+  focusCameraAtTile(tx, ty, { lv = null, lock = undefined, slice = undefined } = {}) {
+    if (!this.doc) return;
+    const { w, h, layers } = this.doc.grid;
+    const cx = clamp(tx, 0, w - 0.5), cy = clamp(ty, 0, h - 0.5);
+
+    if (this.world?.cave?.dv) {
+      this.world.cave.inside = this.world.cave.dv.inside(cx);
+    }
+    if (this.world?.tower?.g) {
+      const g = this.world.tower.g;
+      if (cx < g.XR) {
+        this.world.tower.setClimbTurn('roof');
+      } else {
+        const norm = clamp(g.s(cx) / g.L, 0, 1);
+        this.towerTurnNorm = norm;
+        this.world.tower.setClimbTurn(norm);
+      }
+    }
+
+    const tileLv = layers.hgt?.[Math.floor(cy) * w + Math.floor(cx)] || 0;
+    const targetLv = lv !== null && lv !== undefined ? Math.round(lv) : tileLv;
+    this.state.depthLv = targetLv;
+    this.state.sculptTargetLv = targetLv;
+    if (lock !== undefined) this.state.lockDepth = !!lock;
+    if (slice !== undefined) this.state.sliceMode = !!slice;
+    this.state.camFocusTile = [cx, cy];
+    this.syncEditor3DFocus(cx, cy);
+    this.world?.cave?.frame?.(0);
+
+    if (this.world?.tower) {
+      camera.x = isoX(cx, cy);
+      camera.y = isoY(cx, cy) - 18;
+    } else if (this.state.lockDepth) {
+      camera.x = (cx - cy) * 32;
+      camera.y = (cx + cy) * 16 - targetLv * 4 - 16;
+    } else {
+      camera.x = isoX(cx, cy);
+      camera.y = isoY(cx, cy) - 16;
+    }
+    this.refreshBanner();
+  }
+
+  /** Set the 3D Camera Height / Working Depth (`lv`) and optionally re-frame camera vertically on current tile. */
+  setEditorDepth(lv, { lock = true, slice = undefined, keepTile = false, quietBanner = false } = {}) {
+    if (!this.doc) return;
+    const nextLv = clamp(Math.round(Number(lv) || 0), -260, 240);
+    const [cx, cy] = this.state.camFocusTile || camera.screenToTile(G.W / 2, G.H / 2);
+    this.state.depthLv = nextLv;
+    this.state.sculptTargetLv = nextLv;
+    this.state.lockDepth = !!lock;
+    if (slice !== undefined) this.state.sliceMode = !!slice;
+    this.syncEditor3DFocus(cx, cy);
+    this.world?.cave?.frame?.(0);
+
+    if (keepTile && !this.world?.tower) {
+      if (this.state.lockDepth) {
+        camera.x = (cx - cy) * 32;
+        camera.y = (cx + cy) * 16 - nextLv * 4 - 16;
+      } else {
+        camera.x = isoX(cx, cy);
+        camera.y = isoY(cx, cy) - 16;
+      }
+    }
+    if (this.state.tool === 'sculpt') this.renderToolOptions();
+    if (!quietBanner) this.refreshBanner();
+  }
+
+  jumpToLandmark(lm) {
+    if (!lm) return;
+    const lock = lm.autoSlice ? true : false;
+    const slice = lm.autoSlice ? true : false;
+    this.focusCameraAtTile(lm.x, lm.y, { lv: lm.lv, lock, slice });
+  }
+
+  stepLandmark(delta) {
+    if (!this.doc) return;
+    const lms = buildStageLandmarks(this.doc, this.world);
+    if (!lms.length) return;
+    this.activeLandmarkIdx = ((this.activeLandmarkIdx || 0) + delta + lms.length) % lms.length;
+    this.jumpToLandmark(lms[this.activeLandmarkIdx]);
+    this.toast(`Stage: ${lms[this.activeLandmarkIdx].label}`);
   }
 
   refreshBanner() {
@@ -531,6 +638,7 @@ class VelscourStudio {
     let selBiomeId = this.doc?.meta?.biomeId || 'catacombs';
     let selVarId = 'default';
     let seed = Math.floor(Math.random() * 900000) + 100000;
+    let bossCount = 2;
 
     this.openModal('Create New Scenario or Bake Procedural Seed', (body) => {
       const redraw = () => {
@@ -539,6 +647,7 @@ class VelscourStudio {
         const vars = variantsFor(cat.id, selBiomeId);
         if (!vars.some((v) => v.id === selVarId)) selVarId = vars[0]?.id || 'default';
         const biomeName = resolveBiome(selBiomeId).name;
+        const multiBoss3D = mode === 'bake' && ['3d_dunes', '3d_caverns', '3d_tower', '3d_alpine'].includes(selCatId);
 
         body.innerHTML = `
           <div style="display:flex;gap:8px;margin-bottom:10px">
@@ -554,7 +663,7 @@ class VelscourStudio {
               </button>
             `).join('')}
           </div>
-          <div class="fg-row" style="grid-template-columns: 1.2fr 1fr 1fr ${mode === 'bake' ? '0.8fr' : ''}">
+          <div class="fg-row" style="grid-template-columns: 1.2fr 1fr 1fr ${mode === 'bake' ? '0.8fr' : ''} ${multiBoss3D ? '0.9fr' : ''}">
             <div class="fg">
               <label>Scenario Title</label>
               <input id="nw-name" type="text" value="${mode === 'bake' ? `${biomeName} (Seed ${seed})` : `Custom ${biomeName}`}">
@@ -577,6 +686,16 @@ class VelscourStudio {
                 <input id="nw-seed" type="number" value="${seed}">
               </div>
             ` : ''}
+            ${multiBoss3D ? `
+              <div class="fg">
+                <label>Stage Boss Count</label>
+                <select id="nw-bosscnt">
+                  <option value="1" ${bossCount === 1 ? 'selected' : ''}>1 Boss (Finale)</option>
+                  <option value="2" ${bossCount === 2 ? 'selected' : ''}>2 Bosses (Mid + Finale)</option>
+                  <option value="3" ${bossCount === 3 ? 'selected' : ''}>3 Bosses (Full Gauntlet)</option>
+                </select>
+              </div>
+            ` : ''}
           </div>
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
             <button id="nw-cancel" class="sbtn quiet">Cancel</button>
@@ -589,10 +708,12 @@ class VelscourStudio {
         body.querySelector('#nw-biome')?.addEventListener('change', (e) => { selBiomeId = e.target.value; redraw(); });
         body.querySelector('#nw-var')?.addEventListener('change', (e) => { selVarId = e.target.value; });
         body.querySelector('#nw-seed')?.addEventListener('change', (e) => { seed = Number(e.target.value) || 1337; });
+        body.querySelector('#nw-bosscnt')?.addEventListener('change', (e) => { bossCount = Number(e.target.value) || 2; });
         body.querySelector('#nw-cancel')?.addEventListener('click', () => this.closeModal());
         body.querySelector('#nw-go')?.addEventListener('click', async () => {
           const title = body.querySelector('#nw-name')?.value?.trim() || `Custom ${biomeName}`;
           const sVal = Number(body.querySelector('#nw-seed')?.value) || seed;
+          const bCnt = Number(body.querySelector('#nw-bosscnt')?.value) || bossCount;
           this.closeModal();
           if (mode === 'blank') {
             const doc = createBlankScenarioDoc({
@@ -604,7 +725,7 @@ class VelscourStudio {
             });
             await this.loadDocument(doc, { center: true });
           } else {
-            await this.bakeSeedScenario({ title, category: selCatId, biomeId: selBiomeId, variantId: selVarId, seed: sVal });
+            await this.bakeSeedScenario({ title, category: selCatId, biomeId: selBiomeId, variantId: selVarId, seed: sVal, bossCount: bCnt });
           }
         });
       };
@@ -612,7 +733,7 @@ class VelscourStudio {
     });
   }
 
-  async bakeSeedScenario({ title, category, biomeId, variantId, seed }) {
+  async bakeSeedScenario({ title, category, biomeId, variantId, seed, bossCount = 2 }) {
     const resolvedBiomeId = biomeId || CATEGORY_BY_ID[category]?.biomes?.[0] || 'catacombs';
     this.toast(`Baking ${resolvedBiomeId} (seed ${seed})…`);
     const biome = resolveBiome(resolvedBiomeId);
@@ -620,17 +741,21 @@ class VelscourStudio {
     await loadCustomScenarioArt(dummyDoc);
     const ts = biomeTileSet(biome.overworld && !biome.packArt ? TOWN_BIOME : biome);
 
+    const catVars = CATEGORY_BY_ID[category]?.variants || [];
+    const varIdx = catVars.findIndex((v) => v.id === variantId);
+    const forceVar = varIdx >= 0 ? varIdx : null;
+
     let gen;
     if (category === 'town_arena') {
       gen = resolvedBiomeId === 'act2_town' || variantId === 'town_act2' ? generateAct2Town(ts, seed) : generateTown(ts, seed);
     } else if (category === '3d_caverns') {
-      gen = generateCaverns(12, biome, seed);
+      gen = generateCaverns(12, biome, seed, forceVar);
     } else if (category === '3d_tower') {
-      gen = generateTower(18, biome, seed);
+      gen = generateTower(18, biome, seed, forceVar);
     } else if (category === '3d_alpine') {
       gen = resolvedBiomeId === 'snowy_summit' ? generateSummit(24, biome, seed) : generateMountain(20, biome, seed);
     } else if (category === '3d_dunes') {
-      gen = generateDunes(22, biome, seed, resolvedBiomeId === 'scorpion_king_pyramid' ? 1 : null);
+      gen = generateDunes(22, biome, seed, forceVar ?? (resolvedBiomeId === 'scorpion_king_pyramid' ? 1 : null));
     } else if (category === 'airship') {
       const baked = await loadBaked('assets/tiles/skyship/').catch(() => null);
       gen = generateSkyship(16, biome, seed, baked);
@@ -661,6 +786,7 @@ class VelscourStudio {
       biomeId: resolvedBiomeId,
       variantId,
       seed,
+      bossCount,
     });
     await this.loadDocument(doc, { center: true });
     this.toast(`Baked "${title}" (${doc.grid.w}×${doc.grid.h}, ${doc.entities.spawns.length} spawns).`);
@@ -744,16 +870,15 @@ class VelscourStudio {
     document.getElementById('btn-frame-start')?.addEventListener('click', () => this.centerCameraOnStart());
     document.getElementById('btn-fit-map')?.addEventListener('click', () => this.centerCameraOnStart());
 
-    // Minimap click-to-pan
+    // Minimap click-to-pan (switches 3D region & depth cleanly)
     this.minimap?.addEventListener('pointerdown', (e) => {
       if (!this.doc) return;
       const rect = this.minimap.getBoundingClientRect();
       const nx = (e.clientX - rect.left) / rect.width;
       const ny = (e.clientY - rect.top) / rect.height;
-      const tx = clamp(nx * this.doc.grid.w, 0, this.doc.grid.w);
-      const ty = clamp(ny * this.doc.grid.h, 0, this.doc.grid.h);
-      camera.x = isoX(tx, ty);
-      camera.y = isoY(tx, ty);
+      const tx = clamp(nx * this.doc.grid.w, 0, this.doc.grid.w - 0.5);
+      const ty = clamp(ny * this.doc.grid.h, 0, this.doc.grid.h - 0.5);
+      this.focusCameraAtTile(tx, ty);
     });
   }
 
@@ -826,6 +951,11 @@ class VelscourStudio {
         gridEl.querySelectorAll('.pitem').forEach((x) => x.classList.toggle('active', x === card));
         if (it.kind === 'room_recipe') {
           this.setTool('roomstamp');
+        } else if (it.kind === 'marker_passage') {
+          this.passageMode = true;
+          this.passageStart = null;
+          this.refreshBanner();
+          this.toast('Passage Link: click Entrance tile first, then click Destination tile.');
         } else if (it.kind === 'autopave' || it.kind === 'floor') {
           this.state.autoPave = it.kind === 'autopave';
           if (!['brush', 'rect', 'ellipse', 'fill', 'spline'].includes(this.state.tool)) this.setTool('brush');
@@ -859,6 +989,7 @@ class VelscourStudio {
       mkRow('start', 0, '🟢 Player Start', doc.entities.start[0], doc.entities.start[1]),
       ...(doc.entities.exit ? [mkRow('exit', 0, '🔵 Exit Portal', doc.entities.exit.x, doc.entities.exit.y)] : []),
       ...(doc.entities.townPortal ? [mkRow('townPortal', 0, '🌀 Town Portal', doc.entities.townPortal[0], doc.entities.townPortal[1])] : []),
+      ...(doc.entities.passages || []).map((p, i) => mkRow('passage', i, `🚪 ${p.name || p.id}`, p.from[0], p.from[1])),
     ]);
 
     pushGroup('Monsters & Bosses', (doc.entities.spawns || []).map((s, i) =>
@@ -868,11 +999,11 @@ class VelscourStudio {
       mkRow('npc', i, `🧑 ${n.name} (@${n.castKey || n.id})`, n.x, n.y)
     ));
     pushGroup('Trigger Zones & Marks', [
-      ...(doc.entities.zones || []).map((z, i) => mkRow('zone', i, `⚡ ${z.name || z.id}`, z.x, z.y)),
+      ...(doc.entities.zones || []).map((z, i) => mkRow('zone', i, `⚡ ${z.name || z.id}`, z.x + (z.w || 6) / 2, z.y + (z.h || 6) / 2)),
       ...(doc.entities.marks || []).map((m, i) => mkRow('mark', i, `📍 ${m.name || m.id}`, m.x, m.y)),
     ]);
     pushGroup('Rooms', (doc.architecture.rooms || []).map((r, i) =>
-      mkRow('room', i, `🏛️ ${r.title || r.theme || r.id}`, r.x + r.w / 2, r.y + r.h / 2)
+      mkRow('room', i, `🏛️ ${r.title || r.theme || r.id}${typeof r.floorLv === 'number' ? ` (${r.floorLv} lv)` : ''}`, r.x + r.w / 2, r.y + r.h / 2)
     ));
 
     listEl.innerHTML = rows.join('');
@@ -885,6 +1016,7 @@ class VelscourStudio {
         if (type === 'start') obj = doc.entities.start;
         else if (type === 'exit') obj = doc.entities.exit;
         else if (type === 'townPortal') obj = doc.entities.townPortal;
+        else if (type === 'passage') obj = doc.entities.passages[idx];
         else if (type === 'spawn') obj = doc.entities.spawns[idx];
         else if (type === 'npc') obj = doc.entities.npcs[idx];
         else if (type === 'zone') obj = doc.entities.zones[idx];
@@ -892,9 +1024,9 @@ class VelscourStudio {
         else if (type === 'room') obj = doc.architecture.rooms[idx];
         if (obj) {
           this.state.selectedCineStep = null;
-          this.state.selected = { type, obj, _idx: idx };
-          camera.x = isoX(ox, oy);
-          camera.y = isoY(ox, oy) - 16;
+          this.state.selected = { type, obj, _idx: idx, end: type === 'passage' ? 'from' : undefined };
+          const explicitLv = (type === 'room' || type === 'zone') && typeof obj.floorLv === 'number' ? obj.floorLv : null;
+          this.focusCameraAtTile(ox, oy, { lv: explicitLv });
           this.renderOutliner();
           this.renderInspector();
         }
@@ -1134,11 +1266,63 @@ class VelscourStudio {
         this.renderOutliner();
         this.renderInspector();
       });
-    } else if (type === 'zone' || type === 'room') {
-      const isZone = type === 'zone';
+    } else if (type === 'passage') {
       body.innerHTML = `
         <div class="form-stack">
-          <div class="fg"><label>${isZone ? 'Zone ID' : 'Room Title'}</label><input id="in-title" type="text" value="${(isZone ? obj.name || obj.id : obj.title) || ''}"></div>
+          <div class="fg"><label>Passage / Door Label</label><input id="ps-name" type="text" value="${obj.name || ''}"></div>
+          <div class="fg-row">
+            <div class="fg"><label>Entrance X</label><input id="ps-fx" type="number" step="0.5" value="${obj.from?.[0] ?? 0}"></div>
+            <div class="fg"><label>Entrance Y</label><input id="ps-fy" type="number" step="0.5" value="${obj.from?.[1] ?? 0}"></div>
+          </div>
+          <div class="fg-row">
+            <div class="fg"><label>Destination X</label><input id="ps-tx" type="number" step="0.5" value="${obj.to?.[0] ?? 0}"></div>
+            <div class="fg"><label>Destination Y</label><input id="ps-ty" type="number" step="0.5" value="${obj.to?.[1] ?? 0}"></div>
+          </div>
+          <label class="chk-line"><input id="ps-bi" type="checkbox" ${obj.bidirectional !== false ? 'checked' : ''}> Bidirectional (Return Portal at Destination)</label>
+          <div class="fg">
+            <label>Unlock Condition</label>
+            <select id="ps-lock">
+              <option value="none" ${(obj.lockUntil || 'none') === 'none' ? 'selected' : ''}>Always Open</option>
+              <option value="combat_clear" ${obj.lockUntil === 'combat_clear' ? 'selected' : ''}>Require Nearby Foes Slain</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button id="ps-go-from" class="mini-btn">⌖ Frame Entrance</button>
+            <button id="ps-go-to" class="mini-btn gold">⌖ Frame Destination</button>
+          </div>
+          <button id="in-del" class="mini-btn danger">✕ Delete Passage Link</button>
+        </div>
+      `;
+      const applyPsg = async () => {
+        obj.name = body.querySelector('#ps-name').value.trim() || 'Passage';
+        obj.from = [Number(body.querySelector('#ps-fx').value), Number(body.querySelector('#ps-fy').value)];
+        obj.to = [Number(body.querySelector('#ps-tx').value), Number(body.querySelector('#ps-ty').value)];
+        obj.bidirectional = body.querySelector('#ps-bi').checked;
+        obj.lockUntil = body.querySelector('#ps-lock').value;
+        await this.rebuildWorld({ keepCamera: true });
+        this.renderOutliner();
+        this.refreshValidation();
+      };
+      body.querySelectorAll('input, select').forEach((el) => el.addEventListener('change', applyPsg));
+      body.querySelector('#ps-go-from')?.addEventListener('click', () => this.focusCameraAtTile(obj.from[0], obj.from[1]));
+      body.querySelector('#ps-go-to')?.addEventListener('click', () => this.focusCameraAtTile(obj.to[0], obj.to[1]));
+      body.querySelector('#in-del')?.addEventListener('click', async () => {
+        this.history.snapshot(this.doc, 'Delete Passage');
+        const idx = this.doc.entities.passages.indexOf(obj);
+        if (idx >= 0) this.doc.entities.passages.splice(idx, 1);
+        this.state.selected = null;
+        await this.rebuildWorld({ keepCamera: true });
+        this.renderOutliner();
+        this.renderInspector();
+        this.refreshValidation();
+      });
+    } else if (type === 'zone' || type === 'room') {
+      const isZone = type === 'zone';
+      const { w, h, layers } = this.doc.grid;
+      const curFlv = obj.floorLv ?? computeRectFloorLv(layers, w, h, obj.x, obj.y, obj.w || 6, obj.h || 6);
+      body.innerHTML = `
+        <div class="form-stack">
+          <div class="fg"><label>${isZone ? 'Zone Name' : 'Room Title'}</label><input id="in-title" type="text" value="${(isZone ? obj.name || obj.id : obj.title) || ''}"></div>
           <div class="fg-row">
             <div class="fg"><label>X</label><input id="in-x" type="number" value="${obj.x}"></div>
             <div class="fg"><label>Y</label><input id="in-y" type="number" value="${obj.y}"></div>
@@ -1146,6 +1330,10 @@ class VelscourStudio {
           <div class="fg-row">
             <div class="fg"><label>Width</label><input id="in-w" type="number" min="1" value="${obj.w || 6}"></div>
             <div class="fg"><label>Height</label><input id="in-h" type="number" min="1" value="${obj.h || 6}"></div>
+          </div>
+          <div class="fg-row">
+            <div class="fg"><label>Floor Depth (lv)</label><input id="in-flv" type="number" value="${curFlv}"></div>
+            <div class="fg" style="justify-content:flex-end"><button id="in-fit-lv" class="mini-btn" style="height:28px">↻ Auto-Fit Lv</button></div>
           </div>
           <button id="in-del" class="mini-btn danger">✕ Delete ${isZone ? 'Zone' : 'Room'}</button>
         </div>
@@ -1157,8 +1345,18 @@ class VelscourStudio {
         obj.y = Number(body.querySelector('#in-y').value);
         obj.w = Math.max(1, Number(body.querySelector('#in-w').value));
         obj.h = Math.max(1, Number(body.querySelector('#in-h').value));
+        obj.floorLv = Math.round(Number(body.querySelector('#in-flv').value) || 0);
         this.cineEditor.renderAll();
+        this.renderOutliner();
+        this.refreshBanner();
       }));
+      body.querySelector('#in-fit-lv')?.addEventListener('click', () => {
+        obj.floorLv = computeRectFloorLv(layers, w, h, obj.x, obj.y, obj.w || 6, obj.h || 6);
+        const inp = body.querySelector('#in-flv');
+        if (inp) inp.value = String(obj.floorLv);
+        this.renderOutliner();
+        this.refreshBanner();
+      });
       body.querySelector('#in-del')?.addEventListener('click', () => {
         const arr = isZone ? this.doc.entities.zones : this.doc.architecture.rooms;
         const idx = arr.indexOf(obj);
@@ -1166,6 +1364,7 @@ class VelscourStudio {
         this.state.selected = null;
         this.renderOutliner();
         this.renderInspector();
+        this.refreshBanner();
       });
     } else if (type === 'mark') {
       body.innerHTML = `
@@ -1278,7 +1477,7 @@ class VelscourStudio {
 
       panel.querySelectorAll('[data-goto]').forEach((b) => b.addEventListener('click', () => {
         const at = issues[Number(b.dataset.goto)]?.at;
-        if (at) { camera.x = isoX(at[0], at[1]); camera.y = isoY(at[0], at[1]); }
+        if (at) this.focusCameraAtTile(at[0], at[1]);
       }));
     }
   }
@@ -1360,7 +1559,7 @@ class VelscourStudio {
         </select>
         <label>Radius <input id="to-bsize" type="number" min="1" max="20" value="${Math.max(2, this.state.brushSize)}" style="width:48px"></label>
         <label>Power <input id="to-spow" type="number" min="1" max="12" value="${this.state.sculptStrength}" style="width:46px"></label>
-        <label>Lv <input id="to-slv" type="number" min="-80" max="160" value="${this.state.sculptTargetLv}" style="width:52px"></label>
+        <label>Lv <input id="to-slv" type="number" min="-260" max="240" value="${this.state.sculptTargetLv}" style="width:56px"></label>
       `;
       el.querySelector('#to-smode')?.addEventListener('change', (e) => { this.state.sculptMode = e.target.value; this.rampAnchor = null; });
       el.querySelector('#to-bsize')?.addEventListener('change', (e) => { this.state.brushSize = Number(e.target.value) || 4; });
@@ -1389,6 +1588,7 @@ class VelscourStudio {
       width: this.state.splineWidth,
       variant: this.activePaletteItem?.variant || 0,
       autoPave: this.state.autoPave,
+      targetLv: this.state.lockDepth ? this.state.depthLv : null,
     });
     this.state.splinePts = [];
     this.syncFastMapEdit({ rebuildWalls: true, schedule3D: true });
@@ -1445,6 +1645,17 @@ class VelscourStudio {
         }
 
         if (e.button !== 0 || !this.doc) return;
+
+        // Alt + Left-Click: 3D Height / Depth Eyedropper
+        if (e.altKey) {
+          const { w, h, layers } = this.doc.grid;
+          const ix = clamp(Math.floor(tx), 0, w - 1), iy = clamp(Math.floor(ty), 0, h - 1);
+          const sampledLv = layers.hgt?.[iy * w + ix] || 0;
+          this.setEditorDepth(sampledLv, { lock: true, keepTile: false });
+          this.toast(`🎯 Picked & Locked Camera Depth: ${sampledLv} lv`);
+          return;
+        }
+
         cv.setPointerCapture(e.pointerId);
         this.handleToolDown(tx, ty);
       });
@@ -1533,8 +1744,40 @@ class VelscourStudio {
       return;
     }
 
+    // 2-Click Intra-Map Passage / Door Link mode
+    if (this.passageMode) {
+      const pt = [Math.round(tx * 2) / 2, Math.round(ty * 2) / 2];
+      if (!this.passageStart) {
+        this.passageStart = pt;
+        this.refreshBanner();
+        this.toast('Passage Entrance anchored — switch region/room if needed and click Destination tile.');
+      } else {
+        this.history.snapshot(doc, 'Add Passage Link');
+        doc.entities.passages ||= [];
+        const psg = {
+          id: `psg_${Date.now().toString(36)}`,
+          name: `Passage #${doc.entities.passages.length + 1}`,
+          from: this.passageStart,
+          to: pt,
+          bidirectional: true,
+          lockUntil: 'none',
+          color: '#ffd060',
+        };
+        doc.entities.passages.push(psg);
+        this.passageMode = false;
+        this.passageStart = null;
+        this.state.selected = { type: 'passage', obj: psg, end: 'to' };
+        this.rebuildWorld({ keepCamera: true });
+        this.renderOutliner();
+        this.renderInspector();
+        this.refreshValidation();
+        this.toast('Passage / Teleport Link created!');
+      }
+      return;
+    }
+
     if (t === 'select') {
-      const hit = pickSceneObjectAt(doc, tx, ty);
+      const hit = pickSceneObjectAt(doc, tx, ty, 1.6, this.world);
       this.state.selectedCineStep = null;
       this.state.selected = hit;
       this.state.draggingObject = !!hit;
@@ -1624,6 +1867,7 @@ class VelscourStudio {
           radius: this.state.brushSize,
           variant: it?.variant || 0,
           autoPave: it ? it.kind === 'autopave' || this.state.autoPave : true,
+          targetLv: this.state.lockDepth ? this.state.depthLv : null,
         })) {
           this.syncFastMapEdit({ rebuildWalls: true, schedule3D: true });
         }
@@ -1748,11 +1992,18 @@ class VelscourStudio {
     if (!doc) return;
 
     if (this.state.draggingObject && this.state.selected) {
-      const { type, obj } = this.state.selected;
+      const { type, obj, end } = this.state.selected;
       const rx = Math.round(tx * 2) / 2, ry = Math.round(ty * 2) / 2;
       if (type === 'start' || type === 'townPortal') { obj[0] = rx; obj[1] = ry; }
-      else if (type === 'zone' || type === 'room') { obj.x = Math.floor(tx - (obj.w || 4) / 2); obj.y = Math.floor(ty - (obj.h || 4) / 2); }
-      else if (obj && typeof obj.x === 'number') { obj.x = rx; obj.y = ry; }
+      else if (type === 'passage') {
+        const pt = end === 'to' ? obj.to : obj.from;
+        if (pt) { pt[0] = rx; pt[1] = ry; }
+      } else if (type === 'zone' || type === 'room') {
+        obj.x = Math.floor(tx - (obj.w || 4) / 2);
+        obj.y = Math.floor(ty - (obj.h || 4) / 2);
+      } else if (obj && typeof obj.x === 'number') {
+        obj.x = rx; obj.y = ry;
+      }
       return;
     }
 
@@ -1764,6 +2015,7 @@ class VelscourStudio {
         radius: this.state.brushSize,
         variant: it?.variant || 0,
         autoPave: it ? it.kind === 'autopave' || this.state.autoPave : true,
+        targetLv: this.state.lockDepth ? this.state.depthLv : null,
       })) {
         this.syncFastMapEdit({ rebuildWalls: true });
       }
@@ -1818,6 +2070,7 @@ class VelscourStudio {
           ellipse: t === 'ellipse',
           variant: this.activePaletteItem?.variant || 0,
           autoPave: this.state.autoPave,
+          targetLv: this.state.lockDepth ? this.state.depthLv : null,
         });
         this.syncFastMapEdit({ rebuildWalls: true, schedule3D: true });
       } else if (t === 'roomstamp') {
@@ -1825,13 +2078,18 @@ class VelscourStudio {
         stampThemedRoom(this.doc, this.world, { x: x0, y: y0, w: Math.max(5, rw), h: Math.max(5, rh) }, {
           theme: this.activePaletteItem?.theme || 'chapel',
           title: this.activePaletteItem?.roomTitle || 'Sanctum Chamber',
+          targetLv: this.state.lockDepth ? this.state.depthLv : null,
         });
         await this.rebuildWorld({ keepCamera: true });
         this.renderOutliner();
+        this.refreshBanner();
       } else if (t === 'zone') {
         this.history.snapshot(this.doc, 'Create Trigger Zone');
         const idx = (this.doc.entities.zones?.length || 0) + 1;
-        const z = { id: `z_zone_${idx}`, name: `Trigger Zone #${idx}`, shape: 'rect', x: x0, y: y0, w: Math.max(2, rw), h: Math.max(2, rh), color: '#ff9a40' };
+        const { w, h, layers } = this.doc.grid;
+        const zw = Math.max(2, rw), zh = Math.max(2, rh);
+        const zLv = this.state.lockDepth ? this.state.depthLv : computeRectFloorLv(layers, w, h, x0, y0, zw, zh);
+        const z = { id: `z_zone_${idx}`, name: `Trigger Zone #${idx}`, shape: 'rect', x: x0, y: y0, w: zw, h: zh, floorLv: zLv, color: '#ff9a40' };
         this.doc.entities.zones.push(z);
         this.state.selected = { type: 'zone', obj: z };
         this.cineEditor.renderAll();
@@ -1880,12 +2138,15 @@ class VelscourStudio {
       if (e.key === 'Enter' && this.state.tool === 'spline') { this.commitSpline(); return; }
       if (e.key === 'Escape') {
         this.plankMode = false; this.plankStart = null; this.rampAnchor = null;
+        this.passageMode = false; this.passageStart = null;
         this.state.splinePts = [];
         this.cineEditor.stopPreview();
         this.closeModal();
         this.refreshBanner();
         return;
       }
+      if (e.key === '[') { e.preventDefault(); this.stepLandmark(-1); return; }
+      if (e.key === ']') { e.preventDefault(); this.stepLandmark(1); return; }
 
       const keyTool = {
         v: 'select', b: 'brush', e: 'erase', r: 'rect', o: 'ellipse',
@@ -1958,11 +2219,24 @@ class VelscourStudio {
       c.arc(tx * sx, ty * sy, r, 0, Math.PI * 2);
       c.fill();
     };
-    for (const s of doc.entities.spawns) dot(s.x, s.y, s.rank === 'boss' ? '#ff9a2e' : '#e04030', s.rank === 'boss' ? 3.2 : 2);
+    for (const s of doc.entities.spawns) dot(s.x, s.y, s.rank === 'boss' || s.rank === 'raid' ? '#ff9a2e' : '#e04030', s.rank === 'boss' || s.rank === 'raid' ? 3.4 : 2);
+    for (const psg of doc.entities.passages || []) {
+      if (psg.from && psg.to) {
+        c.save();
+        c.strokeStyle = psg.color || '#ffd060';
+        c.lineWidth = 1;
+        c.setLineDash([2, 2]);
+        c.beginPath();
+        c.moveTo(psg.from[0] * sx, psg.from[1] * sy);
+        c.lineTo(psg.to[0] * sx, psg.to[1] * sy);
+        c.stroke();
+        c.restore();
+      }
+    }
     dot(doc.entities.start[0], doc.entities.start[1], '#7fd36a', 3.5);
     if (doc.entities.exit) dot(doc.entities.exit.x, doc.entities.exit.y, '#40a0ff', 3.5);
 
-    const [cx, cy] = camera.screenToTile(G.W / 2, G.H / 2);
+    const [cx, cy] = this.state.camFocusTile || camera.screenToTile(G.W / 2, G.H / 2);
     c.strokeStyle = '#ffe2a0';
     c.lineWidth = 1.2;
     c.strokeRect(cx * sx - 10, cy * sy - 7, 20, 14);
@@ -1996,14 +2270,38 @@ class VelscourStudio {
           renderWorld(this.ctx, this.world);
           this.playtest.drawPlaytestHud(this.ctx);
         } else {
-          // Editor preview tick (lights, torches, 3D water/flames, and optional Cine preview)
+          // Editor preview tick: live 3D camera focus tracking, depth slice dimming, torches & Cine preview
           G.hurtFlash = 0;
           if (G.flash > 0) G.flash = Math.max(0, G.flash - dt * 3.5);
+
+          const [cx, cy] = camera.screenToTile(G.W / 2, G.H / 2);
+          this.state.camFocusTile = [cx, cy];
+          if (!this.state.lockDepth && this.doc?.grid?.layers?.hgt) {
+            const { w, h, layers } = this.doc.grid;
+            const ix = clamp(Math.floor(cx), 0, w - 1), iy = clamp(Math.floor(cy), 0, h - 1);
+            if (layers.t[iy * w + ix] || layers.wet[iy * w + ix]) {
+              this.state.depthLv = layers.hgt[iy * w + ix];
+            }
+          }
+          this.syncEditor3DFocus(cx, cy);
+
+          // Apply 3D Depth Slice dimming to out-of-band creatures while editing multi-level stages
+          if (this.doc?.grid?.layers?.hgt) {
+            const { w, h, layers } = this.doc.grid;
+            const sliceOn = !!this.state.sliceMode;
+            const dLv = this.state.depthLv || 0;
+            const band = this.state.sliceBand || 24;
+            for (const cr of this.world.creatures || []) {
+              if (!sliceOn) { cr.alpha = 1; continue; }
+              const ti = clamp(Math.floor(cr.y), 0, h - 1) * w + clamp(Math.floor(cr.x), 0, w - 1);
+              cr.alpha = Math.abs((layers.hgt[ti] || 0) - dLv) <= band ? 1 : 0.14;
+            }
+          }
+
           lights.length = 0;
           this.world.ambientLights();
           if (this.state.showLighting) {
-            const [cx, cy] = camera.screenToTile(G.W / 2, G.H / 2);
-            addLight(cx, cy, 11, '#ffe4c0', 0.85, 28);
+            addLight(cx, cy, 11, 0.85, 28, '#ffe4c0');
           }
           Cine.update(dt);
           camera.update(dt);
@@ -2015,7 +2313,7 @@ class VelscourStudio {
           renderWorld(this.ctx, this.world);
 
           if (!G.cine) {
-            if (this.state.showHeatmap) drawWalkabilityHeatmap(this.ctx, this.doc);
+            if (this.state.showHeatmap) drawWalkabilityHeatmap(this.ctx, this.doc, this.world, this.state);
             drawEditorOverlays(this.ctx, this.doc, this.world, this.state);
           }
         }

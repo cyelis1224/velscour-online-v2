@@ -7,6 +7,8 @@
 import { G } from '../../src/state.js';
 import { camera, isoX, isoY } from '../../src/core/view.js';
 import { CLASSES } from '../../src/data/classes.js';
+import { clamp } from '../../src/core/util.js';
+import { computeRectFloorLv } from '../../src/world/scenariocodec.js';
 import { bakeDeck, seaPlank } from '../../src/gfx/seabattle3d.js';
 import { applyDeck, joinDecks, mapChanged as seaMapChanged, SEA_LV, DAWNWAKE } from '../../src/world/seaship.js';
 import { trainCutaway } from '../../src/gfx/ghosttrain3d.js';
@@ -64,6 +66,184 @@ export function bakeAllNavalDecks(doc, world, toast) {
   return bakedCount;
 }
 
+/** Build an ordered list of navigable Stages / Rooms / Landmarks with exact floor elevations (`lv`). */
+export function buildStageLandmarks(doc, world) {
+  if (!doc) return [];
+  const { w, h, layers } = doc.grid;
+  const cat = doc.meta.category;
+  const oxi = doc.grid.dunes?.oxi || 198;
+  const lvAt = (tx, ty) => {
+    const ix = clamp(Math.floor(tx), 0, w - 1), iy = clamp(Math.floor(ty), 0, h - 1);
+    return layers.hgt?.[iy * w + ix] || 0;
+  };
+
+  const out = [];
+  const [sx, sy] = doc.entities.start || [w / 2, h / 2];
+  const rooms = doc.architecture?.rooms || [];
+
+  const startCovered = rooms.some((r) => sx >= r.x && sy >= r.y && sx <= r.x + r.w && sy <= r.y + r.h);
+  if (!startCovered) {
+    out.push({
+      id: 'lm_start',
+      label: `🟢 Player Start (${lvAt(sx, sy)} lv)`,
+      x: sx,
+      y: sy,
+      lv: lvAt(sx, sy),
+      inside: cat === '3d_dunes' ? sx >= oxi - 2 : false,
+      autoSlice: false,
+    });
+  }
+
+  rooms.forEach((r, idx) => {
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+    const flv = r.floorLv ?? computeRectFloorLv(layers, w, h, r.x, r.y, r.w, r.h);
+    const isTomb = cat === '3d_dunes' && cx >= oxi - 2;
+    const isRoof = cat === '3d_tower' && world?.tower?.g ? cx < world.tower.g.XR : false;
+    const icon = isTomb ? (r.id?.includes('burial') || r.title?.includes('Mid-Boss') ? '👑' : '⚱️')
+      : cat === '3d_dunes' ? '🏜️'
+      : isRoof ? '☁️'
+      : r.title?.toLowerCase().includes('boss') || r.title?.toLowerCase().includes('summit') ? '👑'
+      : '🏛️';
+    out.push({
+      id: r.id || `lm_r_${idx}`,
+      label: `${icon} ${r.title || r.id} (${flv >= 0 ? `+${flv}` : flv} lv)`,
+      x: cx,
+      y: cy,
+      lv: flv,
+      inside: isTomb,
+      roof: isRoof,
+      autoSlice: isTomb || (cat === '3d_caverns' && Math.abs(flv) >= 12),
+    });
+  });
+
+  if (doc.entities.exit) {
+    const ex = doc.entities.exit;
+    const exitCovered = rooms.some((r) => ex.x >= r.x && ex.y >= r.y && ex.x <= r.x + r.w && ex.y <= r.y + r.h);
+    if (!exitCovered) {
+      const elv = lvAt(ex.x, ex.y);
+      out.push({
+        id: 'lm_exit',
+        label: `🔵 Exit Portal (${elv >= 0 ? `+${elv}` : elv} lv)`,
+        x: ex.x,
+        y: ex.y,
+        lv: elv,
+        inside: cat === '3d_dunes' ? ex.x >= oxi - 2 : false,
+        roof: cat === '3d_tower' && world?.tower?.g ? ex.x < world.tower.g.XR : false,
+        autoSlice: cat === '3d_dunes' && ex.x >= oxi - 2,
+      });
+    }
+  }
+  return out;
+}
+
+function getElevationRange(doc) {
+  const { w, h, layers } = doc.grid;
+  let lo = 0, hi = 0;
+  for (let i = 0; i < w * h; i++) {
+    if (!layers.t[i] && !layers.wet[i]) continue;
+    const v = layers.hgt[i];
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  return [Math.min(-40, lo - 12), Math.max(48, hi + 16)];
+}
+
+function bindDepthBarEvents(bannerEl, doc, world, studio, landmarks) {
+  bannerEl.querySelector('#dp-stage-sel')?.addEventListener('change', (e) => {
+    const idx = Number(e.target.value);
+    if (Number.isFinite(idx) && landmarks[idx]) {
+      studio.activeLandmarkIdx = idx;
+      studio.jumpToLandmark(landmarks[idx]);
+    }
+  });
+  bannerEl.querySelector('#dp-stage-prev')?.addEventListener('click', () => studio.stepLandmark(-1));
+  bannerEl.querySelector('#dp-stage-next')?.addEventListener('click', () => studio.stepLandmark(1));
+
+  bannerEl.querySelector('#dp-auto')?.addEventListener('click', () => {
+    studio.setEditorDepth(studio.state.depthLv, { lock: false, slice: false });
+  });
+  bannerEl.querySelector('#dp-lock')?.addEventListener('click', () => {
+    const nextLock = !studio.state.lockDepth;
+    studio.setEditorDepth(studio.state.depthLv, { lock: nextLock, keepTile: true });
+  });
+  bannerEl.querySelector('#dp-scrub')?.addEventListener('input', (e) => {
+    const lv = Number(e.target.value) || 0;
+    studio.setEditorDepth(lv, { lock: true, keepTile: true, quietBanner: true });
+    const numEl = bannerEl.querySelector('#dp-num');
+    if (numEl) numEl.value = String(lv);
+    const autoBtn = bannerEl.querySelector('#dp-auto');
+    const lockBtn = bannerEl.querySelector('#dp-lock');
+    autoBtn?.classList.remove('gold');
+    lockBtn?.classList.add('gold');
+  });
+  bannerEl.querySelector('#dp-num')?.addEventListener('change', (e) => {
+    const lv = Number(e.target.value) || 0;
+    studio.setEditorDepth(lv, { lock: true, keepTile: true });
+  });
+  bannerEl.querySelector('#dp-slice')?.addEventListener('click', () => {
+    const nextSlice = !studio.state.sliceMode;
+    studio.state.sliceMode = nextSlice;
+    if (nextSlice && !studio.state.lockDepth) {
+      studio.setEditorDepth(studio.state.depthLv, { lock: true, slice: true, keepTile: true });
+    } else {
+      renderModeBanner(bannerEl, doc, world, studio);
+    }
+  });
+  bannerEl.querySelector('#dp-band')?.addEventListener('change', (e) => {
+    studio.state.sliceBand = Math.max(8, Number(e.target.value) || 24);
+    renderModeBanner(bannerEl, doc, world, studio);
+  });
+  bannerEl.querySelector('#psg-cancel')?.addEventListener('click', () => {
+    studio.passageMode = false;
+    studio.passageStart = null;
+    renderModeBanner(bannerEl, doc, world, studio);
+  });
+}
+
+function renderDepthControlsHtml(doc, studio, landmarks) {
+  const [minLv, maxLv] = getElevationRange(doc);
+  const curLv = Math.round(studio.state.depthLv || 0);
+  const locked = !!studio.state.lockDepth;
+  const sliced = !!studio.state.sliceMode;
+  const band = studio.state.sliceBand || 24;
+  const lmIdx = clamp(studio.activeLandmarkIdx ?? 0, 0, Math.max(0, landmarks.length - 1));
+
+  const stageHtml = landmarks.length ? `
+    <span class="dp-group">
+      <span class="dp-lbl">Stage:</span>
+      <button id="dp-stage-prev" class="mini-btn icon-only" title="Previous Stage / Room ([)">◀</button>
+      <select id="dp-stage-sel" class="mini-sel stage-sel" title="Jump Camera & Working Depth to Stage / Room">
+        ${landmarks.map((lm, i) => `<option value="${i}" ${i === lmIdx ? 'selected' : ''}>${lm.label}</option>`).join('')}
+      </select>
+      <button id="dp-stage-next" class="mini-btn icon-only" title="Next Stage / Room (])">▶</button>
+    </span>
+  ` : '';
+
+  const psgBanner = studio.passageMode ? `
+    <span class="psg-pill">🚪 ${studio.passageStart ? 'Click Destination Tile…' : 'Click Entrance Tile…'} <button id="psg-cancel" class="mini-btn danger">Esc</button></span>
+  ` : '';
+
+  return `
+    ${stageHtml}
+    <span class="dp-sep"></span>
+    <span class="dp-group" title="Camera & Mouse Raycast Height Plane (Alt+Click any tile on canvas to sample its height)">
+      <span class="dp-lbl">Camera Depth:</span>
+      <button id="dp-auto" class="mini-btn ${!locked ? 'gold' : ''}" title="Auto-follow ground elevation under camera">Auto Z</button>
+      <button id="dp-lock" class="mini-btn ${locked ? 'gold' : ''}" title="Lock camera & mouse picking to a fixed Lv plane (prevents tall walls hijacking clicks)">🔒 Lock Lv</button>
+      <input id="dp-scrub" type="range" min="${minLv}" max="${maxLv}" value="${clamp(curLv, minLv, maxLv)}" class="dp-range" title="Scrub Camera Height / Depth (${minLv}..${maxLv} lv)">
+      <input id="dp-num" type="number" min="-260" max="240" value="${curLv}" class="dp-num" title="Working Elevation (lv)">
+      <span class="dp-unit">lv</span>
+    </span>
+    <span class="dp-group">
+      <button id="dp-slice" class="mini-btn ${sliced ? 'teal' : ''}" title="Dim grid, zones & spawns above/below working depth band">🔪 Slice</button>
+      <select id="dp-band" class="mini-sel" title="Depth Slice Visibility Band (±lv)">
+        ${[14, 24, 40, 64].map((b) => `<option value="${b}" ${band === b ? 'selected' : ''}>±${b} lv</option>`).join('')}
+      </select>
+    </span>
+    ${psgBanner}
+  `;
+}
+
 /** Render the `#mode-banner` above the viewport whenever Playtest or a specialized 3D/Vehicle mode is active. */
 export function renderModeBanner(bannerEl, doc, world, studio) {
   if (!bannerEl || !doc) return;
@@ -78,7 +258,7 @@ export function renderModeBanner(bannerEl, doc, world, studio) {
       .join('');
     bannerEl.innerHTML = `
       <b>🎮 LIVE PLAYTEST</b>
-      <span>WASD / Click Move · 1–4 / Right-Click Skills · E / Click Use Portal/NPC</span>
+      <span>WASD / Click Move · 1–4 / Right-Click Skills · E / Click Use Portal/Door/NPC</span>
       <span class="tool-spacer"></span>
       <label class="chk-line">Class <select id="pt-class" class="mini-sel">${clsOpts}</select></label>
       <label class="chk-line">Lv <input id="pt-level" type="number" min="1" max="100" value="${pt.level}" style="width:52px;height:24px;background:#09140b;border:1px solid #3f844e;color:#fff;border-radius:4px;padding:0 4px"></label>
@@ -104,6 +284,9 @@ export function renderModeBanner(bannerEl, doc, world, studio) {
 
   bannerEl.className = 'mode-banner';
   const cat = doc.meta.category;
+  const landmarks = buildStageLandmarks(doc, world);
+  const has3DDepth = ['3d_dunes', '3d_caverns', '3d_alpine', 'breach'].includes(cat) ||
+    (cat === 'overworld' && doc.grid.layers?.hgt?.some((v) => v !== 0));
 
   if (cat === '3d_tower' && world?.tower) {
     bannerEl.hidden = false;
@@ -112,16 +295,22 @@ export function renderModeBanner(bannerEl, doc, world, studio) {
     bannerEl.innerHTML = `
       <b>🗼 Serpentine 3D Helix</b>
       <label style="display:inline-flex;align-items:center;gap:6px">
-        <span>Climb Scrubber:</span>
-        <input id="tw-scrub" type="range" min="0" max="100" value="${Math.round(curVal * 100)}" style="width:140px;accent-color:var(--gold)">
+        <span>Climb:</span>
+        <input id="tw-scrub" type="range" min="0" max="100" value="${Math.round(curVal * 100)}" style="width:120px;accent-color:var(--gold)">
         <span id="tw-pct">${tw.roof ? 'ROOF' : `${Math.round(curVal * 100)}%`}</span>
       </label>
       <button class="mini-btn ${!tw.roof && curVal < 0.2 ? 'gold' : ''}" data-twjump="0.04">Base</button>
       <button class="mini-btn ${!tw.roof && curVal >= 0.4 && curVal <= 0.6 ? 'gold' : ''}" data-twjump="0.5">Mid Stair</button>
       <button class="mini-btn ${!tw.roof && curVal > 0.85 ? 'gold' : ''}" data-twjump="0.94">Stairhead</button>
       <button class="mini-btn ${tw.roof ? 'gold' : ''}" data-twjump="roof">☁️ Rooftop Arena</button>
+      ${landmarks.length ? `
+        <span class="dp-sep"></span>
+        <select id="dp-stage-sel" class="mini-sel stage-sel">
+          ${landmarks.map((lm, i) => `<option value="${i}" ${i === (studio.activeLandmarkIdx || 0) ? 'selected' : ''}>${lm.label}</option>`).join('')}
+        </select>
+      ` : ''}
       <span class="tool-spacer"></span>
-      <small style="color:var(--dim)">Tip: Switch to <b>Split 2D+3D</b> to paint on the unrolled strip while watching the 3D tower turn</small>
+      <small style="color:var(--dim)">Use <b>Split 2D+3D</b> to paint unrolled strip + live 3D helix</small>
     `;
     const scrubTo = (norm) => {
       if (norm === 'roof') {
@@ -147,31 +336,50 @@ export function renderModeBanner(bannerEl, doc, world, studio) {
         renderModeBanner(bannerEl, doc, world, studio);
       });
     });
+    bindDepthBarEvents(bannerEl, doc, world, studio, landmarks);
   } else if (cat === '3d_dunes' && world?.cave) {
     bannerEl.hidden = false;
     const inside = !!world.cave.inside;
     const oxi = doc.grid.dunes?.oxi || 198;
     bannerEl.innerHTML = `
-      <b>🏜️ Sea of Sand Dual 3D Scene</b>
-      <button id="dn-ext" class="mini-btn ${!inside ? 'gold' : ''}">🏜️ Exterior Dunes &amp; 3D Pyramid</button>
-      <button id="dn-int" class="mini-btn ${inside ? 'gold' : ''}">⚱️ Interior Spiraling Tomb</button>
+      <b>🏜️ Dunes &amp; Pyramid</b>
+      <button id="dn-ext" class="mini-btn ${!inside ? 'gold' : ''}" title="Switch to Exterior Dunes & 3D Pyramid">🏜️ Exterior</button>
+      <button id="dn-int" class="mini-btn ${inside ? 'gold' : ''}" title="Switch to Interior Spiraling Tomb">⚱️ Tomb</button>
+      <span class="dp-sep"></span>
+      ${renderDepthControlsHtml(doc, studio, landmarks)}
       <span class="tool-spacer"></span>
-      <small style="color:var(--dim)">Exterior: <code>x &lt; ${doc.grid.dunes?.extW || 172}</code> · Tomb Interior: <code>x ≥ ${oxi}</code></small>
+      <small class="dp-hint">Alt+Click tile = Pick Depth · [ / ] Step Rooms</small>
     `;
     bannerEl.querySelector('#dn-ext')?.addEventListener('click', () => {
-      world.cave.inside = false;
-      const [sx, sy] = doc.entities.start[0] < oxi ? doc.entities.start : [86, 96];
-      world.cave.focus = [sx, world.cave.dv.H2(sx, sy), sy];
-      camera.x = isoX(sx, sy); camera.y = isoY(sx, sy);
-      renderModeBanner(bannerEl, doc, world, studio);
+      const extLm = landmarks.find((l) => !l.inside);
+      if (extLm) {
+        studio.activeLandmarkIdx = landmarks.indexOf(extLm);
+        studio.jumpToLandmark(extLm);
+      } else {
+        const [sx, sy] = doc.entities.start[0] < oxi ? doc.entities.start : [86, 96];
+        studio.focusCameraAtTile(sx, sy, { lock: false, slice: false });
+      }
     });
     bannerEl.querySelector('#dn-int')?.addEventListener('click', () => {
-      world.cave.inside = true;
-      const tx = oxi + 56, ty = 64;
-      world.cave.focus = [tx, world.cave.dv.H2(tx, ty), ty];
-      camera.x = isoX(tx, ty); camera.y = isoY(tx, ty);
-      renderModeBanner(bannerEl, doc, world, studio);
+      const intLm = landmarks.find((l) => l.inside && l.id?.includes('burial')) || landmarks.find((l) => l.inside);
+      if (intLm) {
+        studio.activeLandmarkIdx = landmarks.indexOf(intLm);
+        studio.jumpToLandmark(intLm);
+      } else {
+        studio.focusCameraAtTile(oxi + 56, 64, { lv: -20, lock: true, slice: true });
+      }
     });
+    bindDepthBarEvents(bannerEl, doc, world, studio, landmarks);
+  } else if (has3DDepth) {
+    bannerEl.hidden = false;
+    const modeTitle = cat === '3d_caverns' ? '🕯️ 3D Caverns' : cat === '3d_alpine' ? '🏔️ 3D Alpine' : cat === 'breach' ? '🌌 2.5D Breach' : '🗺️ Elevated Wilds';
+    bannerEl.innerHTML = `
+      <b>${modeTitle}</b>
+      ${renderDepthControlsHtml(doc, studio, landmarks)}
+      <span class="tool-spacer"></span>
+      <small class="dp-hint">Alt+Click = Pick Depth · [ / ] Step Stages</small>
+    `;
+    bindDepthBarEvents(bannerEl, doc, world, studio, landmarks);
   } else if (cat === 'naval') {
     bannerEl.hidden = false;
     const ships = doc.grid?.naval?.ships?.length || 0;
@@ -237,6 +445,13 @@ export function renderModeBanner(bannerEl, doc, world, studio) {
       <span class="tool-spacer"></span>
       <small style="color:var(--dim)">Author arrival cards, Sky-Knight banter &amp; boarding camera shots in the <b>Cutscene Director</b> below</small>
     `;
+  } else if (studio.passageMode) {
+    bannerEl.hidden = false;
+    bannerEl.innerHTML = `
+      <b>🚪 Passage / Teleport Linker</b>
+      <span class="psg-pill">${studio.passageStart ? 'Click Destination Tile…' : 'Click Entrance Tile…'} <button id="psg-cancel" class="mini-btn danger">Cancel (Esc)</button></span>
+    `;
+    bindDepthBarEvents(bannerEl, doc, world, studio, landmarks);
   } else {
     bannerEl.hidden = true;
     bannerEl.innerHTML = '';

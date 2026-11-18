@@ -7,6 +7,7 @@ import { torchAtWallSegment } from '../../src/world/dungeon.js';
 import { wallHangingAtWallSegment } from '../../src/gfx/wallhangings.js';
 import { camera, isoX, isoY, HW, HH } from '../../src/core/view.js';
 import { clamp, dist } from '../../src/core/util.js';
+import { computeRectFloorLv } from '../../src/world/scenariocodec.js';
 
 export class CommandStack {
   constructor(limit = 60, onChange = null) {
@@ -118,12 +119,37 @@ export function pickAutoPaveVariant(world, tx, ty) {
   return base;
 }
 
+/** Infer a sensible floor `lv` when carving new walkable floor into void rock on elevated/3D maps. */
+export function inferCarveFloorLv(doc, cx, cy, targetLv = null) {
+  if (typeof targetLv === 'number' && Number.isFinite(targetLv)) return Math.round(targetLv);
+  const { w, h, layers } = doc.grid;
+  if (!layers?.hgt) return 0;
+  const bx = clamp(Math.floor(cx), 0, w - 1), by = clamp(Math.floor(cy), 0, h - 1);
+  if (layers.t[by * w + bx] === 1) return layers.hgt[by * w + bx];
+  for (let r = 1; r <= 6; r++) {
+    let sum = 0, cnt = 0;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const nx = bx + dx, ny = by + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const ni = ny * w + nx;
+        if (layers.t[ni] === 1) { sum += layers.hgt[ni]; cnt++; }
+      }
+    }
+    if (cnt > 0) return Math.round(sum / cnt);
+  }
+  return 0;
+}
+
 /** Paint floor/void tiles inside brush footprint `(cx, cy)` with radius `r`. */
-export function paintFloorBrush(doc, world, cx, cy, { radius = 1, shape = 'circle', erase = false, variant = 0, autoPave = true }) {
+export function paintFloorBrush(doc, world, cx, cy, { radius = 1, shape = 'circle', erase = false, variant = 0, autoPave = true, targetLv = null }) {
   const { w, h, layers } = doc.grid;
   const rad = Math.max(0.5, radius / 2);
   const x0 = Math.max(1, Math.floor(cx - rad)), x1 = Math.min(w - 2, Math.ceil(cx + rad - 0.01));
   const y0 = Math.max(1, Math.floor(cy - rad)), y1 = Math.min(h - 2, Math.ceil(cy + rad - 0.01));
+  const hasElev = !!(world?.cave || doc.meta?.category === 'breach' || layers.hgt?.some((v) => v !== 0));
+  const carveLv = !erase && hasElev ? inferCarveFloorLv(doc, cx, cy, targetLv) : null;
   let changed = false;
 
   for (let y = y0; y <= y1; y++) {
@@ -138,9 +164,17 @@ export function paintFloorBrush(doc, world, cx, cy, { radius = 1, shape = 'circl
         }
       } else {
         const fv = autoPave ? pickAutoPaveVariant(world, x, y) : variant;
-        if (layers.t[i] !== 1 || layers.v[i] !== fv) {
+        const wasVoid = layers.t[i] === 0 && !layers.wet[i];
+        if (layers.t[i] !== 1 || layers.v[i] !== fv || (wasVoid && carveLv !== null && layers.hgt[i] !== carveLv)) {
           layers.t[i] = 1;
           layers.v[i] = fv;
+          if (wasVoid && carveLv !== null) {
+            layers.hgt[i] = carveLv;
+            if (doc.meta?.category === 'breach') {
+              layers.under[i] = carveLv - 14;
+              layers.flags[i] |= 1;
+            }
+          }
           changed = true;
         }
       }
@@ -150,7 +184,7 @@ export function paintFloorBrush(doc, world, cx, cy, { radius = 1, shape = 'circl
 }
 
 /** Paint a rectangle or ellipse region between `p0` and `p1`. */
-export function paintShapeRegion(doc, world, p0, p1, { ellipse = false, erase = false, variant = 0, autoPave = true }) {
+export function paintShapeRegion(doc, world, p0, p1, { ellipse = false, erase = false, variant = 0, autoPave = true, targetLv = null }) {
   const { w, h, layers } = doc.grid;
   const x0 = clamp(Math.floor(Math.min(p0[0], p1[0])), 1, w - 2);
   const x1 = clamp(Math.floor(Math.max(p0[0], p1[0])), 1, w - 2);
@@ -158,6 +192,8 @@ export function paintShapeRegion(doc, world, p0, p1, { ellipse = false, erase = 
   const y1 = clamp(Math.floor(Math.max(p0[1], p1[1])), 1, h - 2);
   const cx = (x0 + x1 + 1) / 2, cy = (y0 + y1 + 1) / 2;
   const rx = Math.max(0.6, (x1 - x0 + 1) / 2), ry = Math.max(0.6, (y1 - y0 + 1) / 2);
+  const hasElev = !!(world?.cave || doc.meta?.category === 'breach' || layers.hgt?.some((v) => v !== 0));
+  const carveLv = !erase && hasElev ? inferCarveFloorLv(doc, p0[0], p0[1], targetLv) : null;
 
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
@@ -167,8 +203,16 @@ export function paintShapeRegion(doc, world, p0, p1, { ellipse = false, erase = 
         layers.t[i] = 0;
         layers.block[i] = 0;
       } else {
+        const wasVoid = layers.t[i] === 0 && !layers.wet[i];
         layers.t[i] = 1;
         layers.v[i] = autoPave ? pickAutoPaveVariant(world, x, y) : variant;
+        if (wasVoid && carveLv !== null) {
+          layers.hgt[i] = carveLv;
+          if (doc.meta?.category === 'breach') {
+            layers.under[i] = carveLv - 14;
+            layers.flags[i] |= 1;
+          }
+        }
       }
     }
   }
@@ -212,9 +256,9 @@ export function floodFillTiles(doc, world, startX, startY, { erase = false, vari
 }
 
 /** Stamp a themed Room Recipe (`BIOME_ROOMS` / `THEMES`) across rectangle `rect`. */
-export function stampThemedRoom(doc, world, rect, { theme = 'chapel', title = 'Sanctum Chamber' }) {
-  const { w, layers } = doc.grid;
-  const r = paintShapeRegion(doc, world, [rect.x, rect.y], [rect.x + rect.w - 1, rect.y + rect.h - 1], { autoPave: true });
+export function stampThemedRoom(doc, world, rect, { theme = 'chapel', title = 'Sanctum Chamber', targetLv = null }) {
+  const { w, h, layers } = doc.grid;
+  const r = paintShapeRegion(doc, world, [rect.x, rect.y], [rect.x + rect.w - 1, rect.y + rect.h - 1], { autoPave: true, targetLv });
   const roomObj = {
     id: `r_${Date.now().toString(36)}`,
     x: r.x,
@@ -223,6 +267,7 @@ export function stampThemedRoom(doc, world, rect, { theme = 'chapel', title = 'S
     h: r.h,
     title: title || '',
     theme,
+    floorLv: computeRectFloorLv(layers, w, h, r.x, r.y, r.w, r.h),
   };
   doc.architecture.rooms.push(roomObj);
 
@@ -302,7 +347,7 @@ export function stampThemedRoom(doc, world, rect, { theme = 'chapel', title = 'S
 }
 
 /** Carve a Catmull-Rom polyline path/corridor/road through `pts`. */
-export function paintSplinePath(doc, world, pts, { width = 3, variant = 0, autoPave = true, kind = 'corridor' }) {
+export function paintSplinePath(doc, world, pts, { width = 3, variant = 0, autoPave = true, kind = 'corridor', targetLv = null }) {
   if (!pts || pts.length < 2) return false;
   const P = [pts[0], ...pts, pts[pts.length - 1]];
   const cm = (a, b, c, d, t) => 0.5 * (2 * b + (c - a) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (3 * b - a - 3 * c + d) * t * t * t);
@@ -313,7 +358,7 @@ export function paintSplinePath(doc, world, pts, { width = 3, variant = 0, autoP
       const t = k / steps;
       const x = cm(P[s - 1][0], P[s][0], P[s + 1][0], P[s + 2][0], t);
       const y = cm(P[s - 1][1], P[s][1], P[s + 1][1], P[s + 2][1], t);
-      paintFloorBrush(doc, world, x, y, { radius: width, shape: 'circle', variant, autoPave });
+      paintFloorBrush(doc, world, x, y, { radius: width, shape: 'circle', variant, autoPave, targetLv });
     }
   }
   doc.grid.splines.push({
@@ -363,18 +408,31 @@ export function placeOpeningAt(doc, tx, ty, item) {
   return opening;
 }
 
+/** Check whether tile `(x, y)` belongs to the currently visible 3D sub-region (Dunes Exterior vs Tomb, Tower Stair vs Roof). */
+export function inActiveEditorRegion(world, x) {
+  if (world?.cave?.inRegion) return world.cave.inRegion(x);
+  if (world?.tower?.g) return world.tower.roof ? x < world.tower.g.XR : x >= world.tower.g.XR;
+  return true;
+}
+
 /** Find topmost selectable object near tile `(tx, ty)`. */
-export function pickSceneObjectAt(doc, tx, ty, maxDist = 1.6) {
+export function pickSceneObjectAt(doc, tx, ty, maxDist = 1.6, world = null) {
   const candidates = [];
-  const check = (type, obj, x, y, r = maxDist) => {
+  const check = (type, obj, x, y, r = maxDist, extra = null) => {
+    if (world && !inActiveEditorRegion(world, x)) return;
     const d = dist(tx, ty, x, y);
-    if (d <= r) candidates.push({ type, obj, d });
+    if (d <= r) candidates.push({ type, obj, d, ...(extra || {}) });
   };
 
   const [sx, sy] = doc.entities.start || [0, 0];
   check('start', doc.entities.start, sx, sy, 1.3);
   if (doc.entities.townPortal) check('townPortal', doc.entities.townPortal, doc.entities.townPortal[0], doc.entities.townPortal[1], 1.3);
   if (doc.entities.exit) check('exit', doc.entities.exit, doc.entities.exit.x, doc.entities.exit.y, 1.4);
+
+  for (const psg of doc.entities.passages || []) {
+    if (Array.isArray(psg.from)) check('passage', psg, psg.from[0], psg.from[1], 1.6, { end: 'from' });
+    if (Array.isArray(psg.to)) check('passage', psg, psg.to[0], psg.to[1], 1.6, { end: 'to' });
+  }
 
   for (const sp of doc.entities.spawns || []) check('spawn', sp, sp.x, sp.y, 1.5);
   for (const np of doc.entities.npcs || []) check('npc', np, np.x, np.y, 1.5);
@@ -390,11 +448,13 @@ export function pickSceneObjectAt(doc, tx, ty, maxDist = 1.6) {
   }
 
   for (const z of doc.entities.zones || []) {
+    if (world && !inActiveEditorRegion(world, z.x + (z.w || 6) / 2)) continue;
     if (tx >= z.x && ty >= z.y && tx <= z.x + z.w && ty <= z.y + z.h) {
       return { type: 'zone', obj: z, d: 0 };
     }
   }
   for (const r of doc.architecture.rooms || []) {
+    if (world && !inActiveEditorRegion(world, r.x + (r.w || 6) / 2)) continue;
     if (tx >= r.x && ty >= r.y && tx <= r.x + r.w && ty <= r.y + r.h) {
       return { type: 'room', obj: r, d: 0 };
     }
@@ -404,77 +464,293 @@ export function pickSceneObjectAt(doc, tx, ty, maxDist = 1.6) {
 
 // ------------------------------------------------------------------ Viewport Overlay & Gizmo Renderer
 export function drawEditorOverlays(ctx, doc, world, state) {
-  const { w, h } = doc.grid;
+  const { w, h, layers, traversal } = doc.grid;
+  const isWarped = !!world?.tower;
+  const isElevated = !isWarped && !!(world?.cave || layers.hgt?.some((v) => v !== 0));
+  const sliceActive = !!(state.sliceMode && (isElevated || isWarped));
+  const depthLv = state.depthLv ?? 0;
+  const sliceBand = state.sliceBand ?? 24;
+
+  // Project `(x, y)` anchored cleanly to an explicit `lv` plane (4 world px per lv across all 2.5D/3D modes)
+  const projAtLv = (x, y, lv) => {
+    if (isWarped) return [isoX(x, y), isoY(x, y)];
+    if (!isElevated) return [(x - y) * HW, (x + y) * HH];
+    return [(x - y) * HW, (x + y) * HH - (lv || 0) * 4];
+  };
+
+  // Compute walkable-floor corner `lv` at grid vertex `(vx, vy)` without blending adjacent wall rock spikes
+  const walkableCornerLv = (vx, vy, fallbackLv) => {
+    let sum = 0, cnt = 0;
+    for (const [ox, oy] of [[-1, -1], [0, -1], [-1, 0], [0, 0]]) {
+      const tx = vx + ox, ty = vy + oy;
+      if (tx < 0 || ty < 0 || tx >= w || ty >= h) continue;
+      if (!inActiveEditorRegion(world, tx + 0.5)) continue;
+      const ti = ty * w + tx;
+      if (layers.t[ti] === 1 || layers.wet[ti] > 0) {
+        const lv = layers.hgt[ti];
+        if (Math.abs(lv - fallbackLv) <= 10) {
+          sum += lv;
+          cnt++;
+        }
+      }
+    }
+    return cnt > 0 ? sum / cnt : fallbackLv;
+  };
+
+  const sliceAlphaForLv = (lv) => {
+    if (!sliceActive) return 1;
+    const d = Math.abs((lv ?? 0) - depthLv);
+    if (d <= sliceBand) return 1;
+    if (d <= sliceBand + 12) return 0.35;
+    return 0.10;
+  };
+
   ctx.save();
   camera.apply(ctx);
 
-  // 1. Isometric Tile Grid (visible window around camera)
+  const [cx, cy] = state.camFocusTile || camera.screenToTile(ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight / 2);
+
+  // 1. Isometric Tile Grid (Flat fast lines on 2D; Walkable-floor-conforming per-tile quads on 3D/Elevated!)
   if (state.showGrid) {
-    const [cx, cy] = camera.screenToTile(ctx.canvas.clientWidth / 2, ctx.canvas.clientHeight / 2);
-    const span = Math.min(48, Math.ceil(900 / Math.max(0.4, camera.zoom) / 32));
+    const span = Math.min(44, Math.ceil(880 / Math.max(0.4, camera.zoom) / 32));
     const x0 = Math.max(0, Math.floor(cx - span)), x1 = Math.min(w, Math.ceil(cx + span));
     const y0 = Math.max(0, Math.floor(cy - span)), y1 = Math.min(h, Math.ceil(cy + span));
-    ctx.strokeStyle = 'rgba(216, 178, 106, 0.13)';
-    ctx.lineWidth = 1 / Math.max(0.5, camera.zoom);
-    ctx.beginPath();
-    for (let x = x0; x <= x1; x++) {
-      ctx.moveTo(isoX(x, y0), isoY(x, y0));
-      ctx.lineTo(isoX(x, y1), isoY(x, y1));
+    const lw = 1 / Math.max(0.5, camera.zoom);
+
+    if (!isElevated && !isWarped) {
+      ctx.strokeStyle = 'rgba(216, 178, 106, 0.13)';
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      for (let x = x0; x <= x1; x++) {
+        ctx.moveTo(isoX(x, y0), isoY(x, y0));
+        ctx.lineTo(isoX(x, y1), isoY(x, y1));
+      }
+      for (let y = y0; y <= y1; y++) {
+        ctx.moveTo(isoX(x0, y), isoY(x0, y));
+        ctx.lineTo(isoX(x1, y), isoY(x1, y));
+      }
+      ctx.stroke();
+    } else {
+      const climb = traversal?.climb ?? 4;
+      ctx.lineWidth = lw;
+      const inBandPath = new Path2D();
+      const dimBandPath = new Path2D();
+      const cliffPath = new Path2D();
+      let hasIn = false, hasDim = false, hasCliff = false;
+
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          if (!inActiveEditorRegion(world, x + 0.5)) continue;
+          const ti = y * w + x;
+          if (!layers.t[ti] && !layers.wet[ti]) continue;
+          const flv = layers.hgt[ti];
+          const a = sliceAlphaForLv(flv);
+          if (a <= 0.12 && sliceActive && Math.abs(flv - depthLv) > sliceBand + 30) continue;
+
+          let p0, p1, p2, p3;
+          if (isWarped) {
+            p0 = [isoX(x, y), isoY(x, y)];
+            p1 = [isoX(x + 1, y), isoY(x + 1, y)];
+            p2 = [isoX(x + 1, y + 1), isoY(x + 1, y + 1)];
+            p3 = [isoX(x, y + 1), isoY(x, y + 1)];
+            if (Math.abs(p0[0]) > 1e6 || Math.abs(p1[0]) > 1e6 || Math.abs(p2[0]) > 1e6 || Math.abs(p3[0]) > 1e6) continue;
+          } else {
+            p0 = projAtLv(x, y, walkableCornerLv(x, y, flv));
+            p1 = projAtLv(x + 1, y, walkableCornerLv(x + 1, y, flv));
+            p2 = projAtLv(x + 1, y + 1, walkableCornerLv(x + 1, y + 1, flv));
+            p3 = projAtLv(x, y + 1, walkableCornerLv(x, y + 1, flv));
+          }
+
+          const target = a >= 0.9 ? inBandPath : dimBandPath;
+          if (a >= 0.9) hasIn = true; else hasDim = true;
+          target.moveTo(p0[0], p0[1]);
+          target.lineTo(p1[0], p1[1]);
+          target.lineTo(p2[0], p2[1]);
+          target.lineTo(p3[0], p3[1]);
+          target.closePath();
+
+          // Highlight cliff / ledge drop edges where step exceeds walkable climb
+          if (a >= 0.9 && !isWarped) {
+            if (x + 1 < w && layers.t[ti + 1] && Math.abs(layers.hgt[ti + 1] - flv) > climb) {
+              cliffPath.moveTo(p1[0], p1[1]); cliffPath.lineTo(p2[0], p2[1]); hasCliff = true;
+            }
+            if (y + 1 < h && layers.t[ti + w] && Math.abs(layers.hgt[ti + w] - flv) > climb) {
+              cliffPath.moveTo(p3[0], p3[1]); cliffPath.lineTo(p2[0], p2[1]); hasCliff = true;
+            }
+          }
+        }
+      }
+
+      if (hasDim) {
+        ctx.strokeStyle = 'rgba(216, 178, 106, 0.045)';
+        ctx.stroke(dimBandPath);
+      }
+      if (hasIn) {
+        ctx.strokeStyle = 'rgba(216, 178, 106, 0.16)';
+        ctx.stroke(inBandPath);
+      }
+      if (hasCliff) {
+        ctx.strokeStyle = 'rgba(255, 162, 74, 0.42)';
+        ctx.lineWidth = lw * 1.35;
+        ctx.stroke(cliffPath);
+      }
+
+      // Local Working-Plane Reference Grid around cursor when Depth Lock is on or painting over void
+      if (!isWarped && state.hoverTile && (state.lockDepth || ['brush', 'rect', 'ellipse', 'roomstamp', 'sculpt', 'zone'].includes(state.tool))) {
+        const [hx, hy] = state.hoverTile;
+        const bx = Math.floor(hx), by = Math.floor(hy);
+        const ti = clamp(by, 0, h - 1) * w + clamp(bx, 0, w - 1);
+        const onVoid = !layers.t[ti] && !layers.wet[ti];
+        if (state.lockDepth || onVoid) {
+          const refLv = state.lockDepth ? depthLv : inferCarveFloorLv(doc, hx, hy, null);
+          const R = 4;
+          ctx.save();
+          ctx.strokeStyle = state.lockDepth ? 'rgba(79, 205, 185, 0.28)' : 'rgba(255, 226, 160, 0.22)';
+          ctx.lineWidth = lw;
+          ctx.beginPath();
+          for (let gx = bx - R; gx <= bx + R + 1; gx++) {
+            const a0 = projAtLv(gx, by - R, refLv), a1 = projAtLv(gx, by + R + 1, refLv);
+            ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]);
+          }
+          for (let gy = by - R; gy <= by + R + 1; gy++) {
+            const b0 = projAtLv(bx - R, gy, refLv), b1 = projAtLv(bx + R + 1, gy, refLv);
+            ctx.moveTo(b0[0], b0[1]); ctx.lineTo(b1[0], b1[1]);
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
     }
-    for (let y = y0; y <= y1; y++) {
-      ctx.moveTo(isoX(x0, y), isoY(x0, y));
-      ctx.lineTo(isoX(x1, y), isoY(x1, y));
-    }
-    ctx.stroke();
   }
 
-  // Helper to draw an iso quad on ground plane
-  const drawIsoRect = (rx, ry, rw, rh, stroke, fill = null, dash = null) => {
-    const p0 = [isoX(rx, ry), isoY(rx, ry)];
-    const p1 = [isoX(rx + rw, ry), isoY(rx + rw, ry)];
-    const p2 = [isoX(rx + rw, ry + rh), isoY(rx + rw, ry + rh)];
-    const p3 = [isoX(rx, ry + rh), isoY(rx, ry + rh)];
+  // Helper to draw a terrain-flush, non-skewing iso rectangle at `floorLv`
+  const drawIsoRect = (rx, ry, rw, rh, stroke, fill = null, dash = null, explicitFloorLv = null, alpha = 1) => {
+    const baseLv = explicitFloorLv !== null && explicitFloorLv !== undefined
+      ? explicitFloorLv
+      : (isElevated ? computeRectFloorLv(layers, w, h, rx, ry, rw, rh) : 0);
+
+    const samplePerimeterPt = (px, py) => {
+      if (isWarped) return [isoX(px, py), isoY(px, py)];
+      if (!isElevated) return [(px - py) * HW, (px + py) * HH];
+      const tx = clamp(Math.floor(px), 0, w - 1), ty = clamp(Math.floor(py), 0, h - 1);
+      const ti = ty * w + tx;
+      let lv = baseLv;
+      if ((layers.t[ti] === 1 || layers.wet[ti] > 0) && Math.abs(layers.hgt[ti] - baseLv) <= 8) {
+        lv = walkableCornerLv(Math.round(px), Math.round(py), baseLv);
+      }
+      return projAtLv(px, py, lv);
+    };
+
+    const pts = [];
+    const stepsX = Math.max(1, Math.min(24, Math.round(rw)));
+    const stepsY = Math.max(1, Math.min(24, Math.round(rh)));
+    for (let i = 0; i < stepsX; i++) pts.push(samplePerimeterPt(rx + (rw * i) / stepsX, ry));
+    for (let i = 0; i < stepsY; i++) pts.push(samplePerimeterPt(rx + rw, ry + (rh * i) / stepsY));
+    for (let i = 0; i < stepsX; i++) pts.push(samplePerimeterPt(rx + rw - (rw * i) / stepsX, ry + rh));
+    for (let i = 0; i < stepsY; i++) pts.push(samplePerimeterPt(rx, ry + rh - (rh * i) / stepsY));
+    if (pts.some((p) => Math.abs(p[0]) > 1e6 || Math.abs(p[1]) > 1e6)) return null;
+
     ctx.save();
+    ctx.globalAlpha *= alpha;
     if (dash) ctx.setLineDash(dash);
     ctx.beginPath();
-    ctx.moveTo(p0[0], p0[1]);
-    ctx.lineTo(p1[0], p1[1]);
-    ctx.lineTo(p2[0], p2[1]);
-    ctx.lineTo(p3[0], p3[1]);
+    pts.forEach((p, idx) => (idx === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])));
     ctx.closePath();
     if (fill) { ctx.fillStyle = fill; ctx.fill(); }
     ctx.strokeStyle = stroke;
     ctx.lineWidth = 1.6 / Math.max(0.5, camera.zoom);
     ctx.stroke();
     ctx.restore();
+    return baseLv;
   };
 
-  // 2. Named Rooms & Spatial Trigger Zones
+  // 2. Named Rooms, Spatial Trigger Zones, Passage Teleports & Marks
   if (state.layers.cutscenes !== false) {
     for (const r of doc.architecture.rooms || []) {
-      drawIsoRect(r.x, r.y, r.w, r.h, 'rgba(216, 178, 106, 0.45)', null, [4, 4]);
-      if (r.title) {
-        const mx = isoX(r.x + r.w / 2, r.y + r.h / 2), my = isoY(r.x + r.w / 2, r.y + r.h / 2);
-        ctx.font = 'bold 11px "Cinzel", serif';
-        ctx.fillStyle = '#ffe2a0';
-        ctx.textAlign = 'center';
-        ctx.fillText(r.title, mx, my - 6);
+      const rcx = r.x + r.w / 2, rcy = r.y + r.h / 2;
+      if (!inActiveEditorRegion(world, rcx)) continue;
+      const flv = r.floorLv ?? (isElevated ? computeRectFloorLv(layers, w, h, r.x, r.y, r.w, r.h) : 0);
+      const a = sliceAlphaForLv(flv);
+      if (a <= 0.12) continue;
+      const usedLv = drawIsoRect(r.x, r.y, r.w, r.h, 'rgba(216, 178, 106, 0.45)', null, [4, 4], flv, a);
+      if (r.title && usedLv !== null) {
+        const [mx, my] = projAtLv(rcx, rcy, flv);
+        if (Math.abs(mx) < 1e6) {
+          ctx.save();
+          ctx.globalAlpha *= a;
+          ctx.font = 'bold 11px "Cinzel", serif';
+          ctx.fillStyle = '#ffe2a0';
+          ctx.textAlign = 'center';
+          ctx.fillText(isElevated ? `${r.title} (${flv} lv)` : r.title, mx, my - 6);
+          ctx.restore();
+        }
       }
     }
+
     for (const z of doc.entities.zones || []) {
+      const zw = z.w || 6, zh = z.h || 6;
+      const zcx = z.x + zw / 2, zcy = z.y + zh / 2;
+      if (!inActiveEditorRegion(world, zcx)) continue;
+      const flv = z.floorLv ?? (isElevated ? computeRectFloorLv(layers, w, h, z.x, z.y, zw, zh) : 0);
+      const a = sliceAlphaForLv(flv);
+      if (a <= 0.12) continue;
       const col = z.color || '#ff9a40';
-      drawIsoRect(z.x, z.y, z.w || 6, z.h || 6, col, 'rgba(255, 154, 64, 0.14)', [5, 3]);
-      const mx = isoX(z.x + (z.w || 6) / 2, z.y + (z.h || 6) / 2);
-      const my = isoY(z.x + (z.w || 6) / 2, z.y + (z.h || 6) / 2);
-      ctx.font = 'bold 11px "Alegreya Sans", sans-serif';
-      ctx.fillStyle = col;
-      ctx.textAlign = 'center';
-      ctx.fillText(`⚡ ${z.name || z.id}`, mx, my);
+      const usedLv = drawIsoRect(z.x, z.y, zw, zh, col, 'rgba(255, 154, 64, 0.14)', [5, 3], flv, a);
+      if (usedLv !== null) {
+        const [mx, my] = projAtLv(zcx, zcy, flv);
+        if (Math.abs(mx) < 1e6) {
+          ctx.save();
+          ctx.globalAlpha *= a;
+          ctx.font = 'bold 11px "Alegreya Sans", sans-serif';
+          ctx.fillStyle = col;
+          ctx.textAlign = 'center';
+          ctx.fillText(`⚡ ${z.name || z.id}`, mx, my);
+          ctx.restore();
+        }
+      }
+    }
+
+    // Intra-map Passage / Door Links
+    for (const psg of doc.entities.passages || []) {
+      const col = psg.color || '#ffd060';
+      const drawEndpoint = (pt, tag) => {
+        if (!Array.isArray(pt) || !inActiveEditorRegion(world, pt[0])) return null;
+        const mx = isoX(pt[0], pt[1]), my = isoY(pt[0], pt[1]);
+        if (Math.abs(mx) > 1e6) return null;
+        ctx.save();
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 2 / Math.max(0.5, camera.zoom);
+        ctx.beginPath();
+        ctx.ellipse(mx, my, 18, 9, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.font = 'bold 10.5px "Alegreya Sans", sans-serif';
+        ctx.fillStyle = col;
+        ctx.textAlign = 'center';
+        ctx.fillText(`🚪 ${psg.name || psg.id} [${tag}]`, mx, my - 14);
+        ctx.restore();
+        return [mx, my];
+      };
+      const pA = drawEndpoint(psg.from, 'IN');
+      const pB = drawEndpoint(psg.to, psg.bidirectional ? 'OUT/IN' : 'OUT');
+      if (pA && pB) {
+        ctx.save();
+        ctx.strokeStyle = col;
+        ctx.globalAlpha = 0.45;
+        ctx.lineWidth = 1.4 / Math.max(0.5, camera.zoom);
+        ctx.setLineDash([6, 5]);
+        ctx.beginPath();
+        ctx.moveTo(pA[0], pA[1]);
+        ctx.lineTo(pB[0], pB[1]);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     // Cutscene Waypoint Marks
     for (const mk of doc.entities.marks || []) {
+      if (!inActiveEditorRegion(world, mk.x)) continue;
       const mx = isoX(mk.x, mk.y), my = isoY(mk.x, mk.y);
+      if (Math.abs(mx) > 1e6) continue;
       ctx.fillStyle = '#b694ff';
       ctx.beginPath();
       ctx.arc(mx, my, 5, 0, Math.PI * 2);
@@ -488,65 +764,111 @@ export function drawEditorOverlays(ctx, doc, world, state) {
       ctx.fillText(`📍 ${mk.name || mk.id}`, mx, my - 10);
     }
 
-    // Active Cutscene Camera Frustum Gizmo
-    if (state.selectedCineStep && state.selectedCineStep.type === 'cam') {
+    // Active Cutscene Keyframe Gizmo (Camera Frustum / Walk Target / Actor Halo)
+    if (state.selectedCineStep) {
       const st = state.selectedCineStep;
-      let fx = camera.x, fy = camera.y;
-      if (st.mode === 'tile') {
-        fx = isoX(st.x || 0, st.y || 0);
-        fy = isoY(st.x || 0, st.y || 0) - 24;
-      } else if (st.mode === 'actor') {
-        const who = String(st.who || 'hero').replace(/^@/, '');
-        if (who === 'hero') {
-          fx = isoX(...doc.entities.start); fy = isoY(...doc.entities.start) - 32;
-        } else {
-          const sp = (doc.entities.spawns || []).find((q) => q.castKey === who) || (doc.entities.npcs || []).find((q) => q.castKey === who);
-          if (sp) { fx = isoX(sp.x, sp.y); fy = isoY(sp.x, sp.y) - 32; }
+      const resolveActorTile = (whoRaw) => {
+        const who = String(whoRaw || 'hero').replace(/^@/, '');
+        if (who === 'hero') return doc.entities.start || [0, 0];
+        const sp = (doc.entities.spawns || []).find((q) => q.castKey === who) || (doc.entities.npcs || []).find((q) => q.castKey === who);
+        return sp ? [sp.x, sp.y] : null;
+      };
+      const resolveMarkOrTile = (s) => {
+        if (s.markId) {
+          const mk = (doc.entities.marks || []).find((m) => m.id === s.markId);
+          if (mk) return [mk.x, mk.y];
+        }
+        return Number.isFinite(s.x) && Number.isFinite(s.y) ? [s.x, s.y] : null;
+      };
+
+      if (st.type === 'cam') {
+        let fx = camera.x, fy = camera.y;
+        if (st.mode === 'tile') {
+          const pt = resolveMarkOrTile(st);
+          if (pt) { fx = isoX(pt[0], pt[1]); fy = isoY(pt[0], pt[1]) - 24; }
+        } else if (st.mode === 'actor' || st.mode === 'return_hero') {
+          const pt = resolveActorTile(st.mode === 'return_hero' ? 'hero' : st.who);
+          if (pt) { fx = isoX(pt[0], pt[1]); fy = isoY(pt[0], pt[1]) - 32; }
+        }
+        if (Math.abs(fx) < 1e6) {
+          const zm = st.mode === 'return_hero' ? 1.0 : Math.max(0.35, Number(st.zoom) || 1.4);
+          const fw = 640 / zm, fh = 360 / zm;
+          ctx.save();
+          ctx.strokeStyle = '#4fcdb9';
+          ctx.lineWidth = 2 / Math.max(0.5, camera.zoom);
+          ctx.setLineDash([6, 4]);
+          ctx.strokeRect(fx - fw / 2, fy - fh / 2, fw, fh);
+          ctx.fillStyle = 'rgba(79, 205, 185, 0.08)';
+          ctx.fillRect(fx - fw / 2, fy - fh / 2, fw, fh);
+          ctx.font = 'bold 11px monospace';
+          ctx.fillStyle = '#4fcdb9';
+          ctx.textAlign = 'left';
+          ctx.fillText(`🎥 CAM (${zm.toFixed(1)}x)`, fx - fw / 2 + 6, fy - fh / 2 + 14);
+          ctx.restore();
+        }
+      } else if (st.type === 'walk' || st.type === 'spawn' || st.type === 'vfx') {
+        const pt = st.type === 'vfx' && st.who ? resolveActorTile(st.who) : resolveMarkOrTile(st);
+        if (pt && inActiveEditorRegion(world, pt[0])) {
+          const gx = isoX(pt[0], pt[1]), gy = isoY(pt[0], pt[1]);
+          ctx.save();
+          ctx.strokeStyle = st.type === 'walk' ? '#7fd36a' : '#ee9442';
+          ctx.lineWidth = 2 / Math.max(0.5, camera.zoom);
+          ctx.setLineDash([4, 3]);
+          ctx.beginPath();
+          ctx.ellipse(gx, gy, 24, 12, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          if (st.type === 'walk') {
+            const fromPt = resolveActorTile(st.who);
+            if (fromPt && inActiveEditorRegion(world, fromPt[0])) {
+              const ax = isoX(fromPt[0], fromPt[1]), ay = isoY(fromPt[0], fromPt[1]);
+              ctx.beginPath();
+              ctx.moveTo(ax, ay);
+              ctx.lineTo(gx, gy);
+              ctx.stroke();
+            }
+          }
+          ctx.restore();
         }
       }
-      const zm = Math.max(0.35, Number(st.zoom) || 1.4);
-      const fw = 640 / zm, fh = 360 / zm;
-      ctx.save();
-      ctx.strokeStyle = '#4fcdb9';
-      ctx.lineWidth = 2 / Math.max(0.5, camera.zoom);
-      ctx.setLineDash([6, 4]);
-      ctx.strokeRect(fx - fw / 2, fy - fh / 2, fw, fh);
-      ctx.fillStyle = 'rgba(79, 205, 185, 0.08)';
-      ctx.fillRect(fx - fw / 2, fy - fh / 2, fw, fh);
-      ctx.font = 'bold 11px monospace';
-      ctx.fillStyle = '#4fcdb9';
-      ctx.textAlign = 'left';
-      ctx.fillText(`🎥 CAM (${zm.toFixed(1)}x)`, fx - fw / 2 + 6, fy - fh / 2 + 14);
-      ctx.restore();
     }
   }
 
-  // 3. Player Start & @castKey Badges
+  // 3. Player Start & @castKey Badges (Region-Clipped)
   const [sx, sy] = doc.entities.start || [0, 0];
-  {
+  if (inActiveEditorRegion(world, sx)) {
     const px = isoX(sx, sy), py = isoY(sx, sy);
-    ctx.strokeStyle = '#7fd36a';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(px, py, 16, 8, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.font = 'bold 10px "Cinzel", serif';
-    ctx.fillStyle = '#a9f5b6';
-    ctx.textAlign = 'center';
-    ctx.fillText('START', px, py - 14);
+    if (Math.abs(px) < 1e6) {
+      ctx.strokeStyle = '#7fd36a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(px, py, 16, 8, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.font = 'bold 10px "Cinzel", serif';
+      ctx.fillStyle = '#a9f5b6';
+      ctx.textAlign = 'center';
+      ctx.fillText('START', px, py - 14);
+    }
   }
 
   for (const sp of doc.entities.spawns || []) {
-    if (!sp.castKey) continue;
+    if (!sp.castKey || !inActiveEditorRegion(world, sp.x)) continue;
+    const spTi = clamp(Math.floor(sp.y), 0, h - 1) * w + clamp(Math.floor(sp.x), 0, w - 1);
+    const a = sliceAlphaForLv(layers.hgt[spTi]);
+    if (a <= 0.15) continue;
     const px = isoX(sp.x, sp.y), py = isoY(sp.x, sp.y);
+    if (Math.abs(px) > 1e6) continue;
+    ctx.save();
+    ctx.globalAlpha *= a;
     ctx.font = 'bold 10px monospace';
-    ctx.fillStyle = '#ffd860';
+    ctx.fillStyle = sp.rank === 'raid' || sp.rank === 'boss' ? '#ffb347' : '#ffd860';
     ctx.textAlign = 'center';
-    ctx.fillText(`@${sp.castKey}`, px, py - 54);
+    ctx.fillText(`${sp.rank === 'raid' || sp.rank === 'boss' ? '👑 ' : ''}@${sp.castKey}`, px, py - 54);
+    ctx.restore();
   }
   for (const np of doc.entities.npcs || []) {
-    if (!np.castKey) continue;
+    if (!np.castKey || !inActiveEditorRegion(world, np.x)) continue;
     const px = isoX(np.x, np.y), py = isoY(np.x, np.y);
+    if (Math.abs(px) > 1e6) continue;
     ctx.font = 'bold 10px monospace';
     ctx.fillStyle = '#9fd0ff';
     ctx.textAlign = 'center';
@@ -558,16 +880,23 @@ export function drawEditorOverlays(ctx, doc, world, state) {
     const sel = state.selected;
     let ox = null, oy = null;
     if (sel.type === 'start' || sel.type === 'townPortal') { ox = sel.obj[0]; oy = sel.obj[1]; }
-    else if (sel.obj && typeof sel.obj.x === 'number' && sel.type !== 'zone' && sel.type !== 'room') { ox = sel.obj.x; oy = sel.obj.y; }
-    if (ox !== null) {
+    else if (sel.type === 'passage') {
+      const pt = sel.end === 'to' ? sel.obj.to : sel.obj.from;
+      if (pt) { ox = pt[0]; oy = pt[1]; }
+    } else if (sel.obj && typeof sel.obj.x === 'number' && sel.type !== 'zone' && sel.type !== 'room') {
+      ox = sel.obj.x; oy = sel.obj.y;
+    }
+    if (ox !== null && inActiveEditorRegion(world, ox)) {
       const px = isoX(ox, oy), py = isoY(ox, oy);
-      ctx.strokeStyle = '#ffe2a0';
-      ctx.lineWidth = 2.5 / Math.max(0.5, camera.zoom);
-      ctx.beginPath();
-      ctx.ellipse(px, py, 22, 11, 0, 0, Math.PI * 2);
-      ctx.stroke();
+      if (Math.abs(px) < 1e6) {
+        ctx.strokeStyle = '#ffe2a0';
+        ctx.lineWidth = 2.5 / Math.max(0.5, camera.zoom);
+        ctx.beginPath();
+        ctx.ellipse(px, py, 22, 11, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     } else if (sel.type === 'zone' || sel.type === 'room') {
-      drawIsoRect(sel.obj.x, sel.obj.y, sel.obj.w || 4, sel.obj.h || 4, '#ffe2a0', 'rgba(255, 226, 160, 0.1)');
+      drawIsoRect(sel.obj.x, sel.obj.y, sel.obj.w || 4, sel.obj.h || 4, '#ffe2a0', 'rgba(255, 226, 160, 0.1)', null, sel.obj.floorLv ?? null);
     }
   }
 
@@ -577,7 +906,8 @@ export function drawEditorOverlays(ctx, doc, world, state) {
     const y0 = Math.floor(Math.min(state.dragStart[1], state.hoverTile[1]));
     const rw = Math.max(1, Math.ceil(Math.max(state.dragStart[0], state.hoverTile[0])) - x0);
     const rh = Math.max(1, Math.ceil(Math.max(state.dragStart[1], state.hoverTile[1])) - y0);
-    drawIsoRect(x0, y0, rw, rh, '#ffe2a0', 'rgba(216, 178, 106, 0.18)');
+    const prevLv = state.lockDepth ? depthLv : inferCarveFloorLv(doc, state.dragStart[0], state.dragStart[1], null);
+    drawIsoRect(x0, y0, rw, rh, '#ffe2a0', 'rgba(216, 178, 106, 0.18)', null, prevLv);
   }
   if (state.splinePts?.length) {
     ctx.strokeStyle = '#4fcdb9';
@@ -595,14 +925,14 @@ export function drawEditorOverlays(ctx, doc, world, state) {
   if (state.hoverTile) {
     const [hx, hy] = state.hoverTile;
     const tx = Math.floor(hx), ty = Math.floor(hy);
+    const curLv = state.lockDepth ? depthLv : inferCarveFloorLv(doc, hx, hy, null);
     if (['brush', 'erase', 'sculpt'].includes(state.tool) && state.brushSize > 1) {
       const r = state.brushSize / 2;
-      drawIsoRect(Math.floor(hx - r), Math.floor(hy - r), state.brushSize, state.brushSize, state.tool === 'erase' ? '#ff5d4d' : '#d8b26a', 'rgba(216, 178, 106, 0.1)');
+      drawIsoRect(Math.floor(hx - r), Math.floor(hy - r), state.brushSize, state.brushSize, state.tool === 'erase' ? '#ff5d4d' : '#d8b26a', 'rgba(216, 178, 106, 0.1)', null, curLv);
     } else {
-      drawIsoRect(tx, ty, 1, 1, '#ffe2a0', 'rgba(255, 226, 160, 0.15)');
+      drawIsoRect(tx, ty, 1, 1, '#ffe2a0', 'rgba(255, 226, 160, 0.15)', null, curLv);
     }
   }
 
   ctx.restore();
-  void HW; void HH; void world;
 }

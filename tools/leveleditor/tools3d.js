@@ -4,6 +4,7 @@ import { G } from '../../src/state.js';
 import { camera, isoX, isoY, HW, HH, warpMoved } from '../../src/core/view.js';
 import { clamp } from '../../src/core/util.js';
 import { computeReachabilityMask } from '../../src/world/scenariocodec.js';
+import { inActiveEditorRegion } from './tools2d.js';
 import { VZ } from '../../src/world/caverns.js';
 import { caveScene } from '../../src/gfx/cave3d.js';
 import { dunesScene } from '../../src/gfx/dunes3d.js';
@@ -62,7 +63,7 @@ export function applySculptBrush(doc, cx, cy, {
       if (mode === 'raise' || mode === 'lower') {
         const sign = mode === 'raise' ? 1 : -1;
         const delta = Math.max(1, Math.round(strength * Math.max(0.35, k))) * sign;
-        const next = clamp(layers.hgt[i] + delta, -120, 180);
+        const next = clamp(layers.hgt[i] + delta, -260, 240);
         if (layers.t[i] !== 1 || layers.hgt[i] !== next) {
           layers.t[i] = 1;
           layers.hgt[i] = next;
@@ -73,7 +74,7 @@ export function applySculptBrush(doc, cx, cy, {
           changed = true;
         }
       } else if (mode === 'plateau') {
-        const next = clamp(Math.round(targetLv), -120, 180);
+        const next = clamp(Math.round(targetLv), -260, 240);
         if (layers.t[i] !== 1 || layers.hgt[i] !== next) {
           layers.t[i] = 1;
           layers.hgt[i] = next;
@@ -120,7 +121,7 @@ export function applySculptBrush(doc, cx, cy, {
         if (!layers.t[i]) continue;
         const hash = (((x * 374761393) ^ (y * 668265263) ^ (Date.now() & 0xff)) >>> 0) % 1000;
         const n = ((hash / 500) - 1) * strength * k;
-        const next = clamp(Math.round(layers.hgt[i] + n), -120, 180);
+        const next = clamp(Math.round(layers.hgt[i] + n), -260, 240);
         if (layers.hgt[i] !== next) {
           layers.hgt[i] = next;
           changed = true;
@@ -210,25 +211,47 @@ export function placeWaterfallAt(doc, tx, ty, { width = 4.5 } = {}) {
 }
 
 // ------------------------------------------------------------------ Walkability & BFS Reachability Heatmap
-export function drawWalkabilityHeatmap(ctx, doc) {
+export function drawWalkabilityHeatmap(ctx, doc, world = null, state = null) {
   const { w, h, layers, traversal } = doc.grid;
   const climb = traversal?.climb ?? 4;
   const drop = traversal?.drop ?? 10;
   const walkStep = traversal?.walkStep ?? 3;
   const reach = computeReachabilityMask(doc);
+  const isWarped = !!world?.tower;
+  const isElevated = !isWarped && !!(world?.cave || layers.hgt?.some((v) => v !== 0));
 
-  const [cx, cy] = camera.screenToTile(G.W / 2, G.H / 2);
+  const [cx, cy] = state?.camFocusTile || camera.screenToTile(G.W / 2, G.H / 2);
   const span = Math.min(44, Math.ceil(850 / Math.max(0.4, camera.zoom) / 32));
   const x0 = Math.max(0, Math.floor(cx - span)), x1 = Math.min(w - 1, Math.ceil(cx + span));
   const y0 = Math.max(0, Math.floor(cy - span)), y1 = Math.min(h - 1, Math.ceil(cy + span));
+
+  const projCorner = (vx, vy, flv) => {
+    if (isWarped) return [isoX(vx, vy), isoY(vx, vy)];
+    if (!isElevated) return [(vx - vy) * HW, (vx + vy) * HH];
+    let sum = 0, cnt = 0;
+    for (const [ox, oy] of [[-1, -1], [0, -1], [-1, 0], [0, 0]]) {
+      const tx = vx + ox, ty = vy + oy;
+      if (tx < 0 || ty < 0 || tx >= w || ty >= h) continue;
+      const ti = ty * w + tx;
+      if ((layers.t[ti] === 1 || layers.wet[ti] > 0) && Math.abs(layers.hgt[ti] - flv) <= 10) {
+        sum += layers.hgt[ti]; cnt++;
+      }
+    }
+    const lv = cnt > 0 ? sum / cnt : flv;
+    return [(vx - vy) * HW, (vx + vy) * HH - lv * 4];
+  };
 
   ctx.save();
   camera.apply(ctx);
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
+      if (world && !inActiveEditorRegion(world, x + 0.5)) continue;
       const i = y * w + x;
       if (!layers.t[i] && !layers.wet[i]) continue;
-      let fill = 'rgba(80, 215, 110, 0.20)'; // smooth walkable
+      const flv = layers.hgt[i];
+      if (state?.sliceMode && Math.abs(flv - (state.depthLv ?? 0)) > (state.sliceBand ?? 24)) continue;
+
+      let fill = 'rgba(80, 215, 110, 0.22)'; // smooth walkable
       if (layers.block[i] || layers.wet[i] === 2) {
         fill = 'rgba(220, 60, 50, 0.36)'; // blocked / deep water
       } else if (!reach[i]) {
@@ -240,7 +263,7 @@ export function drawWalkabilityHeatmap(ctx, doc) {
           if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
           const ni = ny * w + nx;
           if (!layers.t[ni]) continue;
-          const d = layers.hgt[ni] - layers.hgt[i];
+          const d = layers.hgt[ni] - flv;
           if (d > maxUp) maxUp = d;
           if (-d > maxDown) maxDown = -d;
         }
@@ -249,10 +272,11 @@ export function drawWalkabilityHeatmap(ctx, doc) {
         else if (maxDown > climb && maxDown <= drop) fill = 'rgba(238, 148, 66, 0.30)';
       }
 
-      const p0x = isoX(x, y), p0y = isoY(x, y);
-      const p1x = isoX(x + 1, y), p1y = isoY(x + 1, y);
-      const p2x = isoX(x + 1, y + 1), p2y = isoY(x + 1, y + 1);
-      const p3x = isoX(x, y + 1), p3y = isoY(x, y + 1);
+      const [p0x, p0y] = projCorner(x, y, flv);
+      const [p1x, p1y] = projCorner(x + 1, y, flv);
+      const [p2x, p2y] = projCorner(x + 1, y + 1, flv);
+      const [p3x, p3y] = projCorner(x, y + 1, flv);
+      if (Math.abs(p0x) > 1e6 || Math.abs(p1x) > 1e6 || Math.abs(p2x) > 1e6 || Math.abs(p3x) > 1e6) continue;
       ctx.fillStyle = fill;
       ctx.beginPath();
       ctx.moveTo(p0x, p0y);
@@ -389,10 +413,29 @@ export class Plan2DView {
     }
 
     // Zones & Rooms
+    for (const r of doc.architecture.rooms || []) {
+      ctx.strokeStyle = 'rgba(216, 178, 106, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(ox + r.x * ppu, oy + r.y * ppu, (r.w || 4) * ppu, (r.h || 4) * ppu);
+    }
     for (const z of doc.entities.zones || []) {
       ctx.strokeStyle = z.color || '#ff9a40';
       ctx.lineWidth = 1.5;
       ctx.strokeRect(ox + z.x * ppu, oy + z.y * ppu, (z.w || 4) * ppu, (z.h || 4) * ppu);
+    }
+
+    // Intra-map Passage connector lines
+    for (const psg of doc.entities.passages || []) {
+      if (!Array.isArray(psg.from) || !Array.isArray(psg.to)) continue;
+      ctx.save();
+      ctx.strokeStyle = psg.color || '#ffd060';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(ox + psg.from[0] * ppu, oy + psg.from[1] * ppu);
+      ctx.lineTo(ox + psg.to[0] * ppu, oy + psg.to[1] * ppu);
+      ctx.stroke();
+      ctx.restore();
     }
 
     // Entities dots
@@ -402,10 +445,14 @@ export class Plan2DView {
       ctx.arc(ox + tx * ppu, oy + ty * ppu, r, 0, Math.PI * 2);
       ctx.fill();
     };
-    for (const sp of doc.entities.spawns || []) dot(sp.x, sp.y, sp.rank === 'boss' || sp.rank === 'raid' ? '#ff9a2e' : '#e04838', sp.rank === 'boss' ? 4.5 : 3);
+    for (const sp of doc.entities.spawns || []) dot(sp.x, sp.y, sp.rank === 'boss' || sp.rank === 'raid' ? '#ff9a2e' : '#e04838', sp.rank === 'boss' || sp.rank === 'raid' ? 5 : 3);
     for (const np of doc.entities.npcs || []) dot(np.x, np.y, '#9fd0ff', 3.5);
+    for (const psg of doc.entities.passages || []) {
+      if (psg.from) dot(psg.from[0], psg.from[1], psg.color || '#ffd060', 4.2);
+      if (psg.to) dot(psg.to[0], psg.to[1], psg.color || '#ffd060', 4.2);
+    }
     if (doc.entities.start) dot(doc.entities.start[0], doc.entities.start[1], '#7fd36a', 5);
-    if (doc.entities.exit) dot(doc.entities.exit.x, doc.entities.exit.y, '#40a0ff', 5);
+    if (doc.entities.exit) dot(doc.entities.exit[0] ?? doc.entities.exit.x, doc.entities.exit[1] ?? doc.entities.exit.y, '#40a0ff', 5);
 
     // Hover cursor
     if (state.hoverTile) {
@@ -439,6 +486,8 @@ export class Orbit3DController {
     for (const fn of [caveScene, dunesScene, seaScene]) {
       const s = fn();
       if (s?.scene) s.scene.rotation.set(0, 0, 0);
+      if (s?.ext?.scene) s.ext.scene.rotation.set(0, 0, 0);
+      if (s?.int?.scene) s.int.scene.rotation.set(0, 0, 0);
     }
     if (world?.tower) warpMoved();
   }
@@ -455,9 +504,11 @@ export class Orbit3DController {
     this.pitch = clamp(this.pitch + dy * 0.005, -0.45, 0.55);
     for (const fn of [caveScene, dunesScene, seaScene]) {
       const s = fn();
-      if (s?.scene) {
-        s.scene.rotation.y = this.yaw;
-        s.scene.rotation.x = this.pitch;
+      for (const sc of [s?.scene, s?.ext?.scene, s?.int?.scene]) {
+        if (sc) {
+          sc.rotation.y = this.yaw;
+          sc.rotation.x = this.pitch;
+        }
       }
     }
   }

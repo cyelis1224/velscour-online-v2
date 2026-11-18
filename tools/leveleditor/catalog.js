@@ -316,6 +316,7 @@ export function getPaletteItems(tabId, { world, doc, biomeOnly = true, query = '
       { uid: 'pt_start', kind: 'marker_start', name: 'Player Start Point', tag: 'START', manifestId: 'ui_icon' },
       { uid: 'pt_exit', kind: 'marker_exit', name: 'Exit / Descent Gate', tag: 'EXIT', manifestId: 'fx_portals' },
       { uid: 'pt_town', kind: 'marker_town', name: 'Town Portal', tag: 'PORTAL', manifestId: 'fx_portals' },
+      { uid: 'pt_passage', kind: 'marker_passage', name: 'Passage / Teleport Link (2-Click)', tag: 'LINK', manifestId: 'fx_portals' },
       { uid: 'ch_std', kind: 'interactable', subType: 'standard', name: 'Treasure Chest', tag: 'CHEST', manifestId: 'chest_closed' },
       { uid: 'ch_rare', kind: 'interactable', subType: 'rare', name: 'Rare Gilded Chest', tag: 'RARE', manifestId: 'chest_rareClosed' },
       { uid: 'ch_shrine', kind: 'interactable', subType: 'shrine', name: 'Interactive Shrine / Plaque', tag: 'USE', manifestId: 'va_crystal' },

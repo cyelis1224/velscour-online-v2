@@ -1,0 +1,256 @@
+{
+  "format": "velscour-scenario",
+  "version": 1,
+  "meta": {
+    "id": "the_sky_lanes_seed_711509",
+    "name": "The Sky Lanes (Seed 711509)",
+    "author": "creator",
+    "blurb": "Hand-crafted Airship Battle (Sky Lanes) scenario in The Sky Lanes.",
+    "category": "airship",
+    "biomeId": "skyship",
+    "mixBiomeId": null,
+    "variantId": "clear",
+    "publish": {
+      "skullPortal": true,
+      "campaignPool": false,
+      "pinnedDepth": null
+    },
+    "lighting": {
+      "dark": 0.04,
+      "light": 14,
+      "fog": "#0a1020",
+      "torch": "#ffb050",
+      "rain": 0,
+      "night": false
+    },
+    "audio": {
+      "music": "wilds",
+      "ambience": "skyship"
+    },
+    "updatedAt": "2026-11-18T01:21:06.454Z"
+  },
+  "grid": {
+    "w": 60,
+    "h": 64,
+    "projection": "sky_25d",
+    "traversal": {
+      "climb": 6,
+      "drop": 10,
+      "walkStep": 6,
+      "smoothMax": 3,
+      "losCap": true
+    },
+    "layers": {
+      "t": "rle1:u8:3840:OQIAAgABOgAAAgABOgAAAgABOgAAAgABOgAAAgABOQAABAABOAAABgABNQAACAABMgAAAQABAQAACAABMwAACAABNAAACQABMgAACgABMgAACgABMQAADAABMAAADAABMAAADQABLgAADgABLgAADgABLgAADgABLgAADgABLgAADwABLQAADwABLQAADwABLQAADwABLQAADwABKQAAAQABAwAADwABAQAAAwABJAAAAwABAgAAEwABJQAAAgABAgAAEwABJQAAAgABAgAADwABAQAAAwABJAAAAwABAgAAEwABJQAAAgABAgAADwABAQAAAwABJQAAAgABAgAAEwABKQAAEwABKQAAEwABKQAAEwABKQAAEgABKgAAEAABLAAAEAABLAAAEAABLAAAEAABLAAAEAABLAAAEAABLAAAEAABKwAAEQABKwAAEQABKwAAEQABKgAAEgABMwAAAQABOgAAAgABOgAAAQABSgEA",
+      "block": "rle1:u8:3840:OQIAAgABOgAAAgABOgAAAgABOgAAAgABOgAAAgABOQAABAABOAAABgABNQAACAABMgAAAQABAQAACAABMwAACAABNAAACQABMgAACgABMgAAAQABAQAAAQABBAAAAQABAQAAAQABMQAABAABBAAABAABMAAAAQABCgAAAQABMAAAAQABCgAAAgABLgAAAgABCgAAAgABLgAAAgABCgAAAgABLgAAAgABCgAAAgABLgAAAgABCgAAAgABLgAAAgABCgAAAwABLQAAAgABCgAAAwABLQAAAgABCgAAAwABLQAAAgABCgAAAwABLQAAAgABCgAAAwABKQAAAQABAwAAAgABCgAAAwABAQAAAwABJAAAAwABAgAAAgABCgAABwABJQAAAgABAgAAAgABCgAABwABJQAAAgABAgAAAgABCgAAAwABAQAAAwABJAAAAwABAgAAAgABCgAABwABJQAAAgABAgAAAgABCgAAAwABAQAAAwABJQAAAgABAgAAAgABCgAABwABKQAAAgABCgAABwABKQAAAgABCgAABwABKQAAAgABCgAABwABKQAAAgABCgAABgABKgAAAgABCgAABAABLAAAAgABCgAABAABLAAAAgABBAAAAgABBAAABAABLAAAAgABBAAAAgABBAAABAABLAAAAgABBAAAAgABBAAABAABLAAABAABBgAABgABLAAABAABBgAABgABKwAABQABBgAABgABKwAAEQABKwAAEQABKgAAEgABMwAAAQABOgAAAgABOgAAAQABSgEA",
+      "hgt": "rle1:i16:3840:ZQMAAAIAKQA5AAAAAQAlAAIAGAABACUANwAAAAEAIgAEABgAAQAiADYAAAABACAABAAYAAEAIAA1AAAAAQAfAAYAGAABAB8ANAAAAAEAHwAGABgAAQAfADMAAAABAB8ACAAYAAEAHwAyAAAAAQAbAAEAFAABABgABAAUAAEAGAABABQAAQAbADEAAAABABAAAwAEAAQAEQADAAQAAQAQADAAAAABAAwAAwAAAAQADAADAAAAAQAMADAAAAABAAwAAwAAAAQABwADAAAAAQAMADAAAAABAAwAAwAAAAQAAgADAAAAAQAMAC8AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAoAAAABAAQAAQAMAC4AAAABAAwAAQAEAAMAAAAEAAMAAwAAAAEABAABAAwALgAAAAEADAABAAQAAwAAAAQACAADAAAAAQAEAAEADAAuAAAAAQAMAAEABAADAAAABAANAAMAAAABAAQAAQAMAC4AAAABABAAAQAEAAMAAAAEABMAAwAAAAEABAABABAALgAAAAEAHQABABkACgAWAAEAGQABAB0ALgAAAAEAIQABABkABAAWAAIAGQAEABYAAQAZAAEAIQAuAAAAAQAhAAEAGQAEABYAAgAZAAQAFgABABkAAQAhAC4AAAABACEAAQAZAAQAFgACABkABAAWAAEAGQABACEALgAAAAEAIQADABkABgAWAAMAGQABACEALgAAAAEAIQADABkABgAWAAMAGQABACEALwAAAAEAIQACABkABgAWAAIAGQABACEAMAAAAAEAIQAKABkAAQAhAHACAAA=",
+      "flags": "rle1:u8:3840:OQIAAgAEOgAAAgAEOgAAAgAEOgAAAgAEOgAAAgAEOQAABAAEOAAABgAENQAACAAEMgAAAQAEAQAACAAEMwAACAAENAAACQAEMgAACgAEMgAAAQAEAQAAAQAEBAAAAQAEAQAAAQAEMQAABAAEBAAABAAEMAAAAQAECgAAAQAEMAAAAQAECgAAAgAELgAAAgAECgAAAgAELgAAAgAECgAAAgAELgAAAgAECgAAAgAELgAAAgAECgAAAgAELgAAAgAECgAAAwAELQAAAgAECgAAAwAELQAAAgAECgAAAwAELQAAAgAECgAAAwAELQAAAgAECgAAAwAEKQAAAQAEAwAAAgAECgAAAwAEAQAAAwAEJAAAAwAEAgAAAgAECgAABwAEJQAAAgAEAgAAAgAECgAABwAEJQAAAgAEAgAAAgAECgAAAwAEAQAAAwAEJAAAAwAEAgAAAgAECgAABwAEJQAAAgAEAgAAAgAECgAAAwAEAQAAAwAEJQAAAgAEAgAAAgAECgAABwAEKQAAAgAECgAABwAEKQAAAgAECgAABwAEKQAAAgAECgAABwAEKQAAAgAECgAABgAEKgAAAgAECgAABAAELAAAAgAECgAABAAELAAAAgAEBAAAAgAEBAAABAAELAAAAgAEBAAAAgAEBAAABAAELAAAAgAEBAAAAgAEBAAABAAELAAABAAEBgAABgAELAAABAAEBgAABgAEKwAABQAEBgAABgAEKwAAEQAEKwAAEQAEKgAAEgAEMwAAAQAEOgAAAgAEOgAAAQAESgEA"
+    },
+    "heightfield": {
+      "subdiv": 2,
+      "waterfalls": [],
+      "snowLine": 28,
+      "cloudSeaY": -6
+    },
+    "tower": null,
+    "dunes": null,
+    "train": null,
+    "naval": null,
+    "airship": {
+      "flagship": "THE BLACK SCOURGE",
+      "flagshipSub": "Pirate Dreadnought",
+      "knights": [],
+      "waves": [],
+      "gauntlet": null
+    },
+    "splines": []
+  },
+  "architecture": {
+    "rooms": [],
+    "openings": [],
+    "torches": [],
+    "wallHangings": [],
+    "buildings": []
+  },
+  "entities": {
+    "start": [
+      30.5,
+      21.5
+    ],
+    "townPortal": [
+      27.5,
+      48.5
+    ],
+    "exit": {
+      "x": 30.5,
+      "y": 21.19,
+      "sealed": true,
+      "unsealOn": "objective_complete",
+      "continueToBiome": null
+    },
+    "props": [],
+    "spawns": [
+      {
+        "id": "sp_mwlfojaj",
+        "castKey": "sovereign_of_the_first_l",
+        "x": 30,
+        "y": 41.5,
+        "arch": "demon",
+        "rank": "boss",
+        "n": 1,
+        "art": "hv_throne_5",
+        "swap": null,
+        "name": "Sovereign of the First Light"
+      }
+    ],
+    "npcs": [],
+    "interactables": [],
+    "zones": [
+      {
+        "id": "z_boss_approach",
+        "name": "Boss Approach Zone",
+        "shape": "rect",
+        "x": 24,
+        "y": 33,
+        "w": 12,
+        "h": 10,
+        "color": "#ff9a40"
+      }
+    ],
+    "marks": [
+      {
+        "id": "mk_arrival",
+        "name": "Arrival Look",
+        "x": 30.5,
+        "y": 19.5
+      },
+      {
+        "id": "marker2",
+        "name": "Mark 2",
+        "x": 29.5,
+        "y": 27
+      }
+    ]
+  },
+  "objectives": [],
+  "triggers": [
+    {
+      "id": "trig_arrival",
+      "name": "Arrival Intro Card",
+      "enabled": true,
+      "event": "onArrival",
+      "once": true,
+      "requireCombatClear": false,
+      "zoneId": null,
+      "targetKey": null,
+      "hpPct": 50,
+      "runCutscene": "cine_arrival"
+    },
+    {
+      "id": "trig_mwlfp45n",
+      "name": "Zone Cutscene Trigger",
+      "enabled": true,
+      "event": "onEnterZone",
+      "once": true,
+      "requireCombatClear": true,
+      "zoneId": "z_boss_approach",
+      "targetKey": "",
+      "hpPct": 50,
+      "runCutscene": "cine_scene_2_vez",
+      "unsealExit": true
+    }
+  ],
+  "cutscenes": [
+    {
+      "id": "cine_arrival",
+      "name": "Scenario Arrival",
+      "allowFastForward": true,
+      "steps": [
+        {
+          "id": "st_1",
+          "type": "card",
+          "title": "THE SKY LANES (SEED 711509)",
+          "sub": "The Sky Lanes",
+          "dur": 2.6,
+          "block": false
+        },
+        {
+          "id": "st_2",
+          "type": "cam",
+          "mode": "actor",
+          "who": "hero",
+          "zoom": 1.8,
+          "dur": 1.1,
+          "ease": "out",
+          "push": 0.02,
+          "wait": true
+        },
+        {
+          "id": "st_mwlfkzgj_5",
+          "type": "walk",
+          "who": "hero",
+          "markId": "marker2",
+          "x": 31,
+          "y": 19,
+          "dur": 1.4,
+          "pathfind": true,
+          "wait": true
+        },
+        {
+          "id": "st_mwlfmdcr_5",
+          "type": "say",
+          "who": "hero",
+          "text": "Stand ready — something stirs ahead...",
+          "autoFrame": true,
+          "voice": {
+            "pitch": 1,
+            "wave": "square"
+          }
+        },
+        {
+          "id": "st_3",
+          "type": "cam",
+          "mode": "return_hero",
+          "dur": 0.7,
+          "wait": true
+        }
+      ]
+    },
+    {
+      "id": "cine_scene_2_vez",
+      "name": "Cutscene #2",
+      "allowFastForward": true,
+      "steps": [
+        {
+          "id": "st_1794964789259_1",
+          "type": "cam",
+          "mode": "actor",
+          "who": "sovereign_of_the_first_l",
+          "zoom": 2,
+          "dur": 1.1,
+          "ease": "io",
+          "push": 0.02,
+          "wait": true
+        },
+        {
+          "id": "st_1794964789259_2",
+          "type": "say",
+          "who": "sovereign_of_the_first_l",
+          "text": "You dare cross into my domain, {hero}?",
+          "autoFrame": true,
+          "voice": {
+            "pitch": 0.72,
+            "wave": "sawtooth"
+          }
+        },
+        {
+          "id": "st_1794964789259_3",
+          "type": "cam",
+          "mode": "return_hero",
+          "dur": 0.8,
+          "wait": true
+        }
+      ]
+    }
+  ]
+}

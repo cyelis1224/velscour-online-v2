@@ -103,9 +103,35 @@ function waitHealth(url, timeoutMs = 8000) {
     });
     check(undoOk, 'Brush paint + Undo did not restore original tile state');
 
+    // 2. Single-Track Keyframe Timeline: Click-to-Inspect & Drag-to-Reorder + Live Preview
+    const kfCheck = await page.evaluate(() => {
+      const nodes = document.querySelectorAll('#cine-tracks .ckf-node');
+      const oldLanes = document.querySelectorAll('#cine-tracks .ctrack');
+      return { count: nodes.length, oldLanes: oldLanes.length };
+    });
+    check(kfCheck.count >= 3 && kfCheck.oldLanes === 0, `Expected single-track keyframe nodes (>=3, 0 old lanes), got ${JSON.stringify(kfCheck)}`);
+
+    // Click Keyframe #2 -> verify Right Sidebar opens Keyframe #2 parameters
+    await page.click('#cine-tracks .ckf-node[data-stepidx="1"]');
+    const inspTitle2 = await page.textContent('#insp-title');
+    check(inspTitle2 && inspTitle2.includes('Keyframe #2'), `Expected Right Inspector to open Keyframe #2, got "${inspTitle2}"`);
+
+    // Drag Keyframe #1 past Keyframe #2 to reorder -> verify order flips and Undo restores
+    const beforeIds = await page.evaluate(() => window.__STUDIO__.cineEditor.currentCutscene(window.__STUDIO__.doc).steps.map((s) => s.id));
+    const box0 = await page.locator('#cine-tracks .ckf-node[data-stepidx="0"]').boundingBox();
+    const box1 = await page.locator('#cine-tracks .ckf-node[data-stepidx="1"]').boundingBox();
+    await page.mouse.move(box0.x + box0.width / 2, box0.y + box0.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box1.x + box1.width * 0.85, box1.y + box1.height / 2, { steps: 8 });
+    await page.mouse.up();
+    const afterIds = await page.evaluate(() => window.__STUDIO__.cineEditor.currentCutscene(window.__STUDIO__.doc).steps.map((s) => s.id));
+    check(afterIds[0] === beforeIds[1] && afterIds[1] === beforeIds[0], `Expected keyframe drag-reorder to swap #1 & #2: before=${beforeIds} after=${afterIds}`);
+    await page.click('#btn-undo');
+    const restoredIds = await page.evaluate(() => window.__STUDIO__.cineEditor.currentCutscene(window.__STUDIO__.doc).steps.map((s) => s.id));
+    check(restoredIds[0] === beforeIds[0] && restoredIds[1] === beforeIds[1], 'Undo did not restore keyframe order');
+
     await page.screenshot({ path: path.join(OUT, 'leveleditor_dungeon_overview.png') });
 
-    // 2. Cutscene Director Live Preview
     await page.click('#btn-cine-play');
     await page.waitForTimeout(750);
     const cineActive = await page.evaluate(() => !!window.__STUDIO__.cineEditor.previewing);
@@ -144,9 +170,97 @@ function waitHealth(url, timeoutMs = 8000) {
     await page.waitForTimeout(350);
     await page.screenshot({ path: path.join(OUT, 'leveleditor_3d_tower_split.png') });
 
-    // 4b. Verify 3D Dunes & Naval Fleet load cleanly without WebGL/scene errors
-    await page.selectOption('#sel-category', '3d_dunes');
-    await page.waitForFunction(() => window.__STUDIO__.doc.meta.category === '3d_dunes' && !!window.__STUDIO__.world?.cave, null, { timeout: 15000 });
+    // 4b. Bake 3D Sea of Sand & Pyramid -> verify multi-boss tomb encounters, 3D torches, Stage Jumper, Depth Slice & Passage Teleport!
+    const dunesReport = await page.evaluate(async () => {
+      const st = window.__STUDIO__;
+      st.setViewportMode('live');
+      await st.bakeSeedScenario({
+        title: 'Baked Golden Pyramid',
+        category: '3d_dunes',
+        biomeId: 'sea_of_sand',
+        variantId: 'golden',
+        seed: 4242,
+        bossCount: 2,
+      });
+      const doc = st.doc;
+      const midBoss = doc.entities.spawns.find((s) => s.castKey === 'tomb_warden');
+      const finalBoss = doc.entities.spawns.find((s) => s.castKey === 'pyramid_pharaoh');
+      const chamberRoom = doc.architecture.rooms.find((r) => r.id === 'r_burial_chamber');
+      const bossZone = doc.entities.zones.find((z) => z.id === 'z_boss_approach');
+      const plazaRoom = doc.architecture.rooms.find((r) => r.id === 'r_pyramid_plaza');
+      if (plazaRoom) st.focusCameraAtTile(plazaRoom.x + plazaRoom.w / 2, plazaRoom.y + plazaRoom.h / 2, { lv: plazaRoom.floorLv });
+      return {
+        spawns: doc.entities.spawns.length,
+        rooms: doc.architecture.rooms.length,
+        torches3d: doc.grid.dunes?.torches3d?.length || 0,
+        passages: doc.entities.passages.length,
+        hasMidBoss: !!midBoss && midBoss.rank === 'raid',
+        hasFinalBoss: !!finalBoss && finalBoss.rank === 'raid',
+        zoneFitsChamber: !!(chamberRoom && bossZone && bossZone.x >= chamberRoom.x && bossZone.y >= chamberRoom.y && bossZone.floorLv === chamberRoom.floorLv),
+      };
+    });
+    check(dunesReport.spawns >= 35, `Expected full Pyramid & Camp spawns (>=35), got ${dunesReport.spawns}`);
+    check(dunesReport.torches3d >= 20, `Expected 3D Tomb/Plaza torches (>=20), got ${dunesReport.torches3d}`);
+    check(dunesReport.passages >= 1, `Expected Pyramid Door <-> Tomb passage link`);
+    check(dunesReport.hasMidBoss && dunesReport.hasFinalBoss, `Expected both Mid-Tomb Warden & Burial Chamber Final Boss: ${JSON.stringify(dunesReport)}`);
+    check(dunesReport.zoneFitsChamber, `Expected Boss Zone anchored flush inside Burial Chamber: ${JSON.stringify(dunesReport)}`);
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: path.join(OUT, 'leveleditor_3d_dunes_exterior.png') });
+
+    // Jump via Stage Jumper to Mid-Tomb Warden's Hall & Burial Chamber (-189 lv) with Depth Lock + Slice
+    const tombNav = await page.evaluate(async () => {
+      const st = window.__STUDIO__;
+      const sel = document.getElementById('dp-stage-sel');
+      const opts = Array.from(sel?.options || []);
+      const midIdx = opts.findIndex((o) => o.textContent.includes('Mid-Boss'));
+      if (midIdx >= 0) {
+        sel.value = String(midIdx);
+        sel.dispatchEvent(new Event('change'));
+      }
+      return {
+        inside: !!st.world?.cave?.inside,
+        lockDepth: !!st.state.lockDepth,
+        sliceMode: !!st.state.sliceMode,
+        depthLv: st.state.depthLv,
+      };
+    });
+    check(tombNav.inside && tombNav.lockDepth && tombNav.sliceMode, `Stage Jumper to Tomb Mid-Boss did not activate Tomb + Depth Lock + Slice: ${JSON.stringify(tombNav)}`);
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: path.join(OUT, 'leveleditor_3d_dunes_midboss.png') });
+
+    const chamberNav = await page.evaluate(async () => {
+      const st = window.__STUDIO__;
+      const sel = document.getElementById('dp-stage-sel');
+      const opts = Array.from(sel?.options || []);
+      const chIdx = opts.findIndex((o) => o.textContent.includes('Burial Chamber'));
+      if (chIdx >= 0) {
+        sel.value = String(chIdx);
+        sel.dispatchEvent(new Event('change'));
+      }
+      return { inside: !!st.world?.cave?.inside, depthLv: st.state.depthLv };
+    });
+    check(chamberNav.inside && chamberNav.depthLv < -100, `Burial Chamber jump expected deep negative lv, got ${JSON.stringify(chamberNav)}`);
+    await page.waitForTimeout(450);
+    await page.screenshot({ path: path.join(OUT, 'leveleditor_3d_dunes_burial_chamber.png') });
+
+    // Test Playtest Passage teleport through Pyramid Door -> Entrance Hall!
+    const pyramidPlaytestOk = await page.evaluate(async () => {
+      const st = window.__STUDIO__;
+      await st.togglePlaytest(true);
+      const p = st.world?.player;
+      const psg = st.doc.entities.passages[0];
+      if (p && psg) {
+        p.x = psg.from[0];
+        p.y = psg.from[1];
+        for (let k = 0; k < 6; k++) st.playtest.update(0.05);
+      }
+      const arrivedInside = !!(st.world?.cave?.inside && p && p.x >= (st.doc.grid.dunes?.oxi || 198) - 2);
+      await st.togglePlaytest(false);
+      return arrivedInside;
+    });
+    check(pyramidPlaytestOk, 'Stepping onto Pyramid Door passage during Playtest did not teleport Hero into the Interior Tomb');
+
+    // Verify Naval Fleet 3D scene still loads cleanly
     await page.selectOption('#sel-category', 'naval');
     await page.waitForFunction(() => window.__STUDIO__.doc.meta.category === 'naval' && !!window.__STUDIO__.world?.cave?.sea, null, { timeout: 15000 });
     await page.waitForTimeout(350);

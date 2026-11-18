@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-18T00:33:43.225Z",
+  "updatedAt": "2026-11-18T03:19:59.483Z",
   "scenarios": [
     {
       "id": "sanctum_of_echoes",
@@ -24,6 +24,29 @@
         "pinnedDepth": null
       },
       "updatedAt": null
+    },
+    {
+      "id": "the_sky_lanes_seed_711509",
+      "file": "assets/scenarios/the_sky_lanes_seed_711509.velscen.json",
+      "name": "The Sky Lanes (Seed 711509)",
+      "author": "creator",
+      "blurb": "Hand-crafted Airship Battle (Sky Lanes) scenario in The Sky Lanes.",
+      "category": "airship",
+      "biomeId": "skyship",
+      "mixBiomeId": null,
+      "variantId": "clear",
+      "size": [
+        60,
+        64
+      ],
+      "cutsceneCount": 2,
+      "triggerCount": 2,
+      "publish": {
+        "skullPortal": true,
+        "campaignPool": false,
+        "pinnedDepth": null
+      },
+      "updatedAt": "2026-11-18T01:21:06.454Z"
     }
   ]
 }
