@@ -203,6 +203,57 @@ export class CutsceneEditorController {
       studio.refreshValidation();
     });
 
+    const selEl = document.getElementById('sel-cutscene');
+    const renInp = document.getElementById('inp-rename-cine');
+    const renBtn = document.getElementById('btn-rename-cine');
+    let renamingCine = false;
+
+    const finishRename = (commit) => {
+      if (!renamingCine) return;
+      renamingCine = false;
+      const cine = this.currentCutscene(studio.doc);
+      if (commit && cine && renInp) {
+        const nextName = renInp.value.trim();
+        if (nextName && nextName !== cine.name) {
+          studio.history.snapshot(studio.doc, 'Rename Cutscene');
+          cine.name = nextName;
+          this.renderAll();
+          studio.renderInspector();
+        }
+      }
+      if (renInp) renInp.hidden = true;
+      if (selEl) selEl.hidden = false;
+      if (renBtn) {
+        renBtn.textContent = '✎ Rename';
+        renBtn.classList.remove('gold');
+      }
+    };
+
+    renBtn?.addEventListener('mousedown', (e) => {
+      if (renamingCine) e.preventDefault(); // prevent input blur before click commits
+    });
+    renBtn?.addEventListener('click', () => {
+      if (renamingCine) {
+        finishRename(true);
+        return;
+      }
+      const cine = this.currentCutscene(studio.doc);
+      if (!cine || !renInp || !selEl) return;
+      renamingCine = true;
+      selEl.hidden = true;
+      renInp.hidden = false;
+      renInp.value = cine.name || '';
+      renBtn.textContent = '✓ Save';
+      renBtn.classList.add('gold');
+      renInp.focus();
+      renInp.select();
+    });
+    renInp?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); finishRename(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); finishRename(false); }
+    });
+    renInp?.addEventListener('blur', () => finishRename(true));
+
     document.getElementById('btn-del-cine')?.addEventListener('click', () => {
       const doc = studio.doc;
       if (!doc.cutscenes?.length) return;

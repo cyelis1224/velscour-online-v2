@@ -942,6 +942,18 @@ button:disabled {
   max-width: 170px;
 }
 
+.mini-inp {
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 5px;
+  border: 1px solid var(--gold);
+  background: var(--bg-deep);
+  color: var(--gold-b);
+  font-size: 12px;
+  width: 168px;
+  outline: none;
+}
+
 .dim-lbl {
   font-size: 11.5px;
   color: var(--faint);
