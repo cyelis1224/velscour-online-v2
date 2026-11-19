@@ -4,6 +4,25 @@ All notable changes to Velscour Online are documented in this file.
 
 ---
 
+## [0.2.9] - 2026-11-18
+
+### Added
+- **New Playable Class — The Rogue (18th Class)**:
+  - Dual-dagger dexterous assassin (`Assassination`, `Subtlety`, `Knives`, `Crimson Tempest`) with Combo Point builders and scaling bloody finishers, Stealth & Ambush guaranteed criticals, 3D thrown/raining/earth-bursting daggers, **Bloodletting** signature, and **Night's Verdict** ultimate.
+- **New Playable Class — The Ninja (19th Class)**:
+  - Katana and physics-driven belt-nunchaku shinobi (`Way of the Blade`, `Shadow Arts`, `Tools of War`, `Dragon Ninpo`) with mid-air somersault slashes (`Creature.acro`), strike-repeating Mirror Shadows, 1–5 target Grappling Hook, shuriken & caltrops, **Zanshin** signature, and **Moonless Night** ultimate.
+- **Monk 48-Armor Sprite Overhaul & 3D Martial Arsenal**:
+  - Expanded Monk, Rogue, and Ninja onto 48 Grim Nocturne armor designs each (8 per rarity, preserving existing Monk save tiers 1–26) and added 200 new 3D held weapon designs across `katanas`, `nunchakus`, `stilettos`, and `offstilettos` (684 total skills, 456 talent nodes).
+  - Full co-op `RemotePlayer` replication for Ninja live 3D katana sweeps, belt nunchaku physics, somersault acrobatics, and Mirror Shadow ghost rendering.
+- **Official Velscour Online Wiki & Compendium**:
+  - Live-synced Wiki suite (`wiki.html`, `classes.html`, `skills.html`, `talents.html`, `gear.html`, `world.html`, `lore.html`, `bestiary.html`) with global Omni-Search, interactive 5-tier Talent Calculator, Title Screen Wiki launch button, and `/wiki` server routing.
+
+### Fixed & Improved
+- **Auto-Play & Level Studio Polish**:
+  - Fixed zero-delta frame `NaN` hurt-rate bug in Auto-play, improved ring-projectile cast positioning, and added inline cutscene renaming (`✎ Rename`) in the Velscour Level & Cutscene Studio.
+
+---
+
 ## [0.2.8] - 2026-11-18
 
 ### Fixed

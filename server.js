@@ -1054,14 +1054,12 @@ const server = http.createServer((req, res) => {
       serverTime: Date.now(),
       buildTime: latestBuild,
       changelog: [
-        "Single-Player Save Isolation Fix: Fixed a bug where playing Single Player while logged into an Online account misflagged local heroes as online characters, preventing local saves and redirecting Save & Quit to the Online Character Select screen.",
-        "Browser-Close & Tab-Exit Save Protection: Closing the browser window/tab or backgrounding on mobile now synchronously flushes online character and reliquary state via both WebSocket frames (supporting >64 KB stashes) and navigator.sendBeacon / keepalive HTTP saves.",
-        "Loot Pickup & Smart Periodic Autosaves: Immediate character saves on Abyssal Keys and Epic/Legendary/Mythic/Sealed pickups, 1.5s coalesced saves on backpack/gem loot drops, and change-aware 30s/60s periodic timers that skip redundant idle writes.",
-        "WebSocket Save Fallback Fix: Exposed live NetworkManager handle so HTTP save fallbacks reliably route over active WebSocket sessions in both game rooms and the Battle.net lobby.",
-        "Velscour Level & Cutscene Studio: Added full 2D/3D scenario and cutscene authoring suite with 3D camera depth/slice controls, single-track keyframe timeline, multi-boss & passage baking, and instant Playtest across all 11 world categories.",
-        "Custom 3D Worlds & Fleet Boarding Choreography: Added Mountainside forested switchbacks, Snowy Summit multi-boss peaks, 3D Airship & Naval boarding skiff grappling hook encounters, and multiplayer cutscene trigger synchronization.",
-        "Mobile HUD Quest Tracker Toggle: Added collapsible quest tracker toggle on mobile HUD and cleared residual screen flashes/VFX when exiting Playtest or God Mode.",
-        "Town, Altar & Reliquary Polish: Aligned Act 2 Altar of Heresy collision to base point, fixed auto-play town destination dialog dismissal, and capped Ancestral Reliquary random gem selection to 5 choices with auto-play support."
+        "New Playable Class — The Rogue: Dual-wielding dagger assassin featuring Combo Point builders and finishers, Stealth & Ambush guaranteed criticals, 3D sky-falling and earth-bursting daggers, the Bloodletting signature, and the Night's Verdict ultimate.",
+        "New Playable Class — The Ninja: Agile katana and belt-nunchaku shinobi featuring mid-air somersault slashes, strike-repeating Mirror Shadows, multi-target Grappling Hook pulls, shuriken & caltrops, the Zanshin signature, and the Moonless Night ultimate.",
+        "Monk 48-Armor Redesign & 3D Martial Arsenal: Upgraded Monk onto a full 48-armor Grim Nocturne sprite set (preserving saved hero tiers) alongside 48 Rogue and 48 Ninja armors, plus four 50-design 3D held sets (katanas, nunchakus, stilettos, off-hand stilettos).",
+        "19-Class Roster & Multiplayer Replication: Expanded Velscour Online to 19 playable classes, 76 skill trees, 684 active skills, and 456 talent/morph nodes with full co-op rendering for live 3D Ninja weapons, somersaults, and Mirror Shadows.",
+        "Official Velscour Online Wiki & Compendium: Added a live-synced Wiki & global Omni-Search accessible from the Title Screen — browse all 19 classes, interactive Skill & 5-Tier Talent calculators, 1,090+ Bestiary monsters, 20-tier Gear & Relics, World Acts, and Lore.",
+        "Auto-Play & Studio Polish: Fixed zero-length frame NaN hurt-rate stalls in Auto-play, improved ring-projectile positioning, and added inline cutscene renaming to the Velscour Level & Cutscene Studio."
       ],
       downloads: {
         android: {

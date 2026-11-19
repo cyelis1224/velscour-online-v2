@@ -2,7 +2,7 @@
 import { UI } from './ui.js';
 import { sfx } from '../core/audio.js';
 
-export const CURRENT_BUILD_VERSION = '0.2.8';
+export const CURRENT_BUILD_VERSION = '0.2.9';
 
 const STORAGE_VERSION_KEY = 'Velscour_installed_version';
 const STORAGE_MANIFEST_HASH_KEY = 'Velscour_installed_manifest_hash';
@@ -340,12 +340,12 @@ export async function checkForUpdates({ force = false } = {}) {
           version: forceTestUpdate ? '0.2.0' : currentVer,
           inGameUpdateSupported: true,
           changelog: [
-            'Single-Player Save Isolation Fix: Fixed Single Player heroes being misflagged as online characters when signed into an Online account, ensuring local Single Player saves persist cleanly and Save & Quit returns to the title screen',
-            'Browser-Close Character Save Protection: Closing the browser tab or window now flushes online character & reliquary progress via synchronous WebSocket frames and sendBeacon/keepalive HTTP saves',
-            'Loot Pickup & Smart Periodic Autosaves: Immediate saves on Abyssal Keys and Epic+ drops, 1.5s debounced saves on bag pickups, and change-aware 30s/60s periodic autosaves',
-            'Velscour Level & Cutscene Studio: Visual 2D/3D scenario & cutscene editor with 3D camera depth/slice controls, single-track keyframe timeline, and live Playtest across all 11 world categories',
-            'Custom 3D Worlds & Fleet Battles: Authored Mountainside switchback trails, Snowy Summit peaks, and 3D Airship/Naval boarding skiff choreography with multiplayer cutscene sync',
-            'Mobile HUD & Gameplay Fixes: Collapsible mobile quest tracker toggle, Act 2 Altar of Heresy collision alignment, and Ancestral Reliquary 5-choice random gem selection with auto-play support',
+            'New Playable Class — The Rogue: Dual-dagger assassin with Combo Point builders & bloody finishers, Stealth & Ambush sure-crits, 3D thrown/raining daggers, Bloodletting signature, and Night\'s Verdict ultimate',
+            'New Playable Class — The Ninja: Katana & physics-driven belt nunchaku warrior with mid-air somersault cuts, strike-repeating Mirror Shadows, 1–5 target Grappling Hook, shuriken & caltrops, Zanshin signature, and Moonless Night ultimate',
+            'Monk & Martial Gear Overhaul: 144 new Grim Nocturne armor sprites (48 per class across Monk, Rogue, and Ninja) plus 200 new 3D held weapons across katanas, nunchakus, and main/off-hand stilettos',
+            'Expanded 19-Class Skill & Talent Compendium: Roster expanded to 19 playable classes, 76 specialization trees, 684 active skills, and 456 passive talent & morph nodes with full co-op multiplayer sync',
+            'Official Velscour Online Wiki & Omni-Search: New in-browser Wiki accessible directly from the Title Screen covering all 19 classes, interactive Skill & Talent calculators, 1,090+ Bestiary fiends, 20-tier Gear/Relics, World Acts, and Lore',
+            'Level & Cutscene Studio Enhancements: Added inline cutscene renaming in the Cutscene Director toolbar alongside scenario and autoplay refinements',
           ],
           downloads: {
             android: { available: true, url: '/download/android', filename: 'VelscourOnline.apk', sizeFormatted: '346 MB' },
