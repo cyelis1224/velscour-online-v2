@@ -1,0 +1,2143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090706">
+  <title>VELSCOUR WIKI — The World of Velscour: Acts, Biomes, Endgame &amp; Dungeon Affixes</title>
+  <meta name="description" content="Explore the complete World of Velscour Online: the 6 Campaign Acts across 500 Depths, interactive Depth Explorer, 36 Biomes &amp; Overworld Expeditions, Altar of Heresy Simulator, Abyssal Rifts Calculator, Eternal Breach, and all 257 Dungeon Affixes.">
+  <link rel="icon" type="image/x-icon" href="assets/ui/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Alegreya+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/wiki.css">
+  <style>
+    /* ==========================================================================
+       WORLD & ACTS PAGE — CUSTOM COMPONENTS & INTERACTIVE SIMULATORS
+       ========================================================================== */
+    .world-tab-panel {
+      display: none;
+      animation: wikiFadeIn 0.2s ease-out;
+    }
+    .world-tab-panel.active {
+      display: block;
+    }
+    @keyframes wikiFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Depth Explorer Panel */
+    .depth-explorer {
+      background: linear-gradient(180deg, #1b120d 0%, #110b08 100%);
+      border: 1px solid var(--border-highlight);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 28px;
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 215, 130, 0.08);
+    }
+    .depth-explorer-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .depth-explorer-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .depth-explorer-title h2 {
+      font-family: var(--font-title);
+      font-size: 19px;
+      font-weight: 900;
+      letter-spacing: 1.4px;
+      color: var(--gold-bright);
+      text-transform: uppercase;
+    }
+    .depth-explorer-title p {
+      font-size: 13.5px;
+      color: var(--text-dim);
+    }
+    .depth-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .depth-step-btn {
+      background: #18100c;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-title);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .depth-step-btn:hover {
+      border-color: var(--gold);
+      color: var(--gold-bright);
+      background: #251811;
+    }
+    .depth-num-input {
+      width: 76px;
+      background: #0d0806;
+      border: 1px solid var(--gold-dim);
+      border-radius: 4px;
+      color: var(--gold-bright);
+      font-family: var(--font-title);
+      font-size: 15px;
+      font-weight: 900;
+      text-align: center;
+      padding: 5px 8px;
+      outline: none;
+    }
+    .depth-num-input:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+    }
+    .depth-range-wrap {
+      margin: 10px 0 14px;
+    }
+    .depth-range-slider {
+      width: 100%;
+      height: 8px;
+      accent-color: var(--gold);
+      cursor: pointer;
+    }
+    .depth-quick-jumps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 18px;
+    }
+    .depth-jump-pill {
+      background: #140d0a;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .depth-jump-pill:hover,
+    .depth-jump-pill.active {
+      border-color: var(--gold);
+      color: var(--gold-bright);
+      background: #271911;
+    }
+    .depth-jump-pill.boss {
+      border-color: rgba(194, 47, 28, 0.55);
+      color: #ff9c8a;
+    }
+    .depth-jump-pill.boss:hover,
+    .depth-jump-pill.boss.active {
+      border-color: var(--crimson-bright);
+      background: rgba(90, 20, 12, 0.55);
+      color: #fff;
+    }
+
+    .depth-metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .depth-metric-card {
+      background: rgba(12, 8, 6, 0.82);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .depth-metric-label {
+      font-family: var(--font-title);
+      font-size: 10.5px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .depth-metric-val {
+      font-family: var(--font-title);
+      font-size: 17px;
+      font-weight: 900;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .depth-metric-sub {
+      font-size: 12.5px;
+      color: var(--text-dim);
+    }
+
+    .depth-biomes-panel {
+      background: rgba(10, 7, 5, 0.78);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .depth-biome-col h4 {
+      font-family: var(--font-title);
+      font-size: 11.5px;
+      letter-spacing: 0.9px;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+    .biome-chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .biome-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      background: #1a110d;
+      border: 1px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+    .biome-chip:hover {
+      border-color: var(--gold);
+      color: var(--gold-bright);
+      background: #261912;
+    }
+    .biome-chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Act Cards */
+    .acts-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .act-card {
+      background: linear-gradient(180deg, #19110d 0%, #120c09 100%);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--gold);
+      border-radius: 7px;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 20px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .act-card:hover {
+      border-color: var(--border-highlight);
+      border-left-color: var(--gold-bright);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65);
+    }
+    .act-card.act-climax {
+      border-left-color: var(--crimson-bright);
+      background: linear-gradient(180deg, #21100d 0%, #120907 100%);
+    }
+    .act-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .act-numeral {
+      font-family: var(--font-title);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      padding: 3px 10px;
+      border-radius: 4px;
+      background: rgba(212, 175, 55, 0.14);
+      border: 1px solid rgba(212, 175, 55, 0.45);
+      color: var(--gold-bright);
+    }
+    .act-card.act-climax .act-numeral {
+      background: rgba(220, 50, 30, 0.2);
+      border-color: rgba(255, 90, 60, 0.55);
+      color: #ff9a88;
+    }
+    .act-title {
+      font-family: var(--font-title);
+      font-size: 22px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: 1px;
+    }
+    .act-lore {
+      color: var(--text-dim);
+      font-size: 14.8px;
+      line-height: 1.55;
+      margin-bottom: 14px;
+    }
+    .act-meta-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .act-realms-group {
+      margin-top: 10px;
+    }
+    .act-realms-group h4 {
+      font-family: var(--font-title);
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .act-bosses-col {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      justify-content: center;
+    }
+    .superboss-mini {
+      background: rgba(10, 6, 5, 0.82);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: border-color 0.18s, background 0.18s;
+    }
+    .superboss-mini:hover {
+      border-color: var(--gold-dim);
+      background: rgba(24, 15, 11, 0.92);
+    }
+    .superboss-mini.finale {
+      border-color: rgba(194, 47, 28, 0.48);
+    }
+    .superboss-stage {
+      width: 88px;
+      height: 88px;
+      background: radial-gradient(circle at 50% 60%, rgba(194, 47, 28, 0.22) 0%, rgba(8, 5, 4, 0.95) 75%);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .superboss-stage canvas {
+      width: 84px;
+      height: 84px;
+      image-rendering: pixelated;
+    }
+    .superboss-placeholder {
+      font-size: 26px;
+      opacity: 0.45;
+    }
+    .superboss-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+      flex: 1;
+    }
+    .superboss-role {
+      font-family: var(--font-title);
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+    .superboss-mini.finale .superboss-role {
+      color: #ff846e;
+    }
+    .superboss-name {
+      font-family: var(--font-title);
+      font-size: 15px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.2;
+    }
+    .superboss-title {
+      font-size: 13px;
+      color: var(--text-dim);
+      font-style: italic;
+    }
+    .superboss-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+      font-size: 12px;
+    }
+    .superboss-links a {
+      font-family: var(--font-title);
+      font-size: 10.5px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 3px;
+      background: #1b120d;
+      border: 1px solid var(--border);
+      color: var(--gold);
+    }
+    .superboss-links a:hover {
+      border-color: var(--gold);
+      color: #fff;
+    }
+
+    /* Biome Cards */
+    .biome-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .biome-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-highlight);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+    }
+    .biome-atmo-strip {
+      height: 8px;
+      width: 100%;
+    }
+    .biome-card-body {
+      padding: 15px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+    }
+    .biome-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .biome-card-title {
+      font-family: var(--font-title);
+      font-size: 16.5px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.25;
+    }
+    .biome-card-sub {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .swatch-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      background: rgba(10, 6, 4, 0.72);
+      border: 1px solid rgba(80, 52, 32, 0.4);
+      border-radius: 5px;
+      padding: 7px 8px;
+    }
+    .swatch-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+    .swatch-box {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      flex-shrink: 0;
+      box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.4);
+    }
+    .swatch-meta {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+      min-width: 0;
+    }
+    .swatch-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+    .swatch-hex {
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .biome-adj-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-items: center;
+    }
+    .biome-adj-tag {
+      font-size: 11.5px;
+      font-style: italic;
+      padding: 1px 7px;
+      border-radius: 3px;
+      background: rgba(212, 175, 55, 0.08);
+      border: 1px solid rgba(212, 175, 55, 0.25);
+      color: var(--gold-bright);
+    }
+    .biome-roster-wrap {
+      margin-top: auto;
+      padding-top: 8px;
+      border-top: 1px solid rgba(80, 52, 32, 0.3);
+    }
+    .biome-roster-label {
+      font-family: var(--font-title);
+      font-size: 10px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .roster-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .roster-tag {
+      font-size: 11.5px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: #120c09;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: border-color 0.14s, color 0.14s;
+    }
+    .roster-tag:hover {
+      border-color: var(--gold);
+      color: #fff;
+    }
+    .roster-more-btn {
+      font-size: 11px;
+      font-family: var(--font-title);
+      padding: 1px 7px;
+      border-radius: 3px;
+      background: #23160f;
+      border: 1px solid var(--border-highlight);
+      color: var(--gold);
+      cursor: pointer;
+    }
+
+    /* Endgame Simulators */
+    .sim-panel {
+      background: linear-gradient(180deg, #19110d 0%, #110b08 100%);
+      border: 1px solid var(--border-highlight);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 26px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65);
+    }
+    .heresy-rank-bar-wrap {
+      background: #0b0705;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin: 14px 0 16px;
+    }
+    .heresy-rank-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .heresy-rank-readout {
+      font-family: var(--font-title);
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--gold-bright);
+    }
+    .heresy-track {
+      position: relative;
+      height: 14px;
+      background: #18100c;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      overflow: hidden;
+    }
+    .heresy-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #b83018 0%, #ff6828 55%, #ffd24c 100%);
+      transition: width 0.22s ease;
+      box-shadow: 0 0 12px rgba(255, 100, 35, 0.6);
+    }
+    .heresy-marker {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: rgba(255, 255, 255, 0.55);
+      pointer-events: none;
+    }
+    .heresy-mods-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .heresy-mod-box {
+      background: rgba(12, 8, 6, 0.86);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 9px 11px;
+      text-align: center;
+    }
+    .heresy-mod-box span {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--text-muted);
+      font-family: var(--font-title);
+    }
+    .heresy-mod-box b {
+      display: block;
+      font-family: var(--font-title);
+      font-size: 17px;
+      color: var(--gold-bright);
+      margin-top: 2px;
+    }
+    .heresy-milestones {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .milestone-card {
+      background: rgba(14, 9, 7, 0.8);
+      border: 1px dashed var(--border-highlight);
+      border-radius: 5px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13.5px;
+      color: var(--text-dim);
+      transition: all 0.2s;
+    }
+    .milestone-card.unlocked {
+      border-style: solid;
+      border-color: var(--emerald);
+      background: rgba(22, 54, 18, 0.35);
+      color: #fff;
+      box-shadow: 0 0 14px rgba(102, 224, 68, 0.16);
+    }
+    .heresy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 12px;
+    }
+    .heresy-toggle-card {
+      background: #150e0b;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.16s ease;
+      user-select: none;
+    }
+    .heresy-toggle-card:hover {
+      border-color: var(--border-highlight);
+      background: #1e140f;
+    }
+    .heresy-toggle-card.on {
+      background: linear-gradient(180deg, rgba(64, 22, 14, 0.72) 0%, rgba(26, 12, 9, 0.92) 100%);
+      border-color: var(--crimson-bright);
+      box-shadow: 0 0 14px rgba(220, 60, 30, 0.28);
+    }
+    .heresy-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .heresy-name-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-title);
+      font-size: 14.5px;
+      font-weight: 800;
+      color: #fff;
+    }
+    .heresy-switch {
+      width: 36px;
+      height: 20px;
+      border-radius: 10px;
+      background: #0b0705;
+      border: 1px solid var(--border-highlight);
+      position: relative;
+      flex-shrink: 0;
+      transition: background 0.18s, border-color 0.18s;
+    }
+    .heresy-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: transform 0.18s, background 0.18s;
+    }
+    .heresy-toggle-card.on .heresy-switch {
+      background: rgba(210, 50, 28, 0.5);
+      border-color: var(--gold);
+    }
+    .heresy-toggle-card.on .heresy-switch::after {
+      transform: translateX(16px);
+      background: var(--gold-bright);
+    }
+
+    /* Rift Instabilities & Pylons */
+    .instability-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .instability-item {
+      background: #120b08;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 10px 12px;
+      opacity: 0.45;
+      transition: all 0.18s;
+    }
+    .instability-item.active {
+      opacity: 1;
+      border-color: var(--violet);
+      background: rgba(44, 18, 68, 0.35);
+      box-shadow: 0 0 12px rgba(176, 102, 255, 0.2);
+    }
+    .pylon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .pylon-card {
+      background: #140d0a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 13px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    /* Affixes Grid */
+    .affix-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 13px 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .affix-card:hover {
+      border-color: var(--border-highlight);
+      background: var(--card-hover);
+    }
+    .affix-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .affix-name {
+      font-family: var(--font-title);
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--gold-bright);
+    }
+    .affix-id {
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .empty-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 36px 20px;
+      text-align: center;
+      color: var(--text-dim);
+    }
+
+    @media (max-width: 900px) {
+      .act-card {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <script src="src/wiki/wiki-boot.js" data-wiki-active="world"></script>
+  <section class="wiki-page-hero">
+    <div class="wiki-page-hero-inner">
+      <span class="wiki-eyebrow">Atlas of the Abyss · Live Campaign &amp; Endgame Data</span>
+      <h1 class="wiki-page-title">THE WORLD OF <span>VELSCOUR</span></h1>
+      <p class="wiki-page-desc">
+        Chart the five-hundred-depth descent from the lantern-lit streets of Herrington Hollow to Demon Lord Velscour's sunken throne — across six thematic campaign acts, atmospheric dungeons, overworld expeditions, the Eternal Breach, Abyssal Rifts, and the Altar of Heresy.
+      </p>
+      <div class="wiki-stats-ribbon" id="world-hero-stats">
+        <span class="wiki-stat-badge">🗺️ <b>6</b> Campaign Acts (Depths 1–500)</span>
+        <span class="wiki-stat-badge">🏰 <b id="stat-biome-count">36</b> Biomes, Towns &amp; Expeditions</span>
+        <span class="wiki-stat-badge">🔥 <b>12</b> Heresies (Max Rank 26)</span>
+        <span class="wiki-stat-badge">🌀 <b>100+</b> Abyssal Rift Tiers &amp; 50 Breach Floors</span>
+        <span class="wiki-stat-badge">⚠️ <b id="stat-affix-count">257</b> Active Dungeon Affixes</span>
+      </div>
+    </div>
+  </section>
+
+  <main class="wiki-main">
+    <!-- Sub-Navigation Tabs -->
+    <div class="wiki-tabs" role="tablist" aria-label="World Compendium Tabs">
+      <button class="wiki-tab-btn active" data-tab="acts" role="tab" aria-selected="true">
+        ⚔️ The 6 Campaign Acts
+      </button>
+      <button class="wiki-tab-btn" data-tab="biomes" role="tab" aria-selected="false">
+        🗺️ Biomes, Overworlds &amp; Expeditions
+      </button>
+      <button class="wiki-tab-btn" data-tab="endgame" role="tab" aria-selected="false">
+        🌀 Endgame: Rifts, Breach &amp; Heresy
+      </button>
+      <button class="wiki-tab-btn" data-tab="affixes" role="tab" aria-selected="false">
+        ⚠️ Dungeon Affixes (<span id="tab-affix-count">257</span>)
+      </button>
+    </div>
+
+    <!-- =====================================================================
+         TAB 1: THE 6 CAMPAIGN ACTS & INTERACTIVE DEPTH EXPLORER
+         ===================================================================== -->
+    <section class="world-tab-panel active" id="panel-acts" role="tabpanel">
+      <div class="depth-explorer">
+        <div class="depth-explorer-top">
+          <div class="depth-explorer-title">
+            <h2>🧭 Interactive Campaign Depth Explorer</h2>
+            <p>Scrub from Depth 1 to Depth 500 to inspect monster level curves, highest ground gear quality, boss encounters, and eligible realm pools.</p>
+          </div>
+          <div class="depth-controls">
+            <button class="depth-step-btn" data-step="-5" title="Back 5 Depths">-5</button>
+            <button class="depth-step-btn" data-step="-1" title="Previous Depth">-1</button>
+            <label for="depth-num" class="wiki-badge gold">Depth</label>
+            <input type="number" id="depth-num" class="depth-num-input" min="1" max="500" value="1">
+            <button class="depth-step-btn" data-step="1" title="Next Depth">+1</button>
+            <button class="depth-step-btn" data-step="5" title="Forward 5 Depths">+5</button>
+          </div>
+        </div>
+
+        <div class="depth-range-wrap">
+          <input type="range" id="depth-slider" class="depth-range-slider" min="1" max="500" value="1" aria-label="Campaign Depth Slider">
+        </div>
+
+        <div class="depth-quick-jumps" id="depth-quick-jumps"></div>
+
+        <div class="depth-metrics-grid" id="depth-metrics-grid"></div>
+
+        <div class="depth-biomes-panel" id="depth-biomes-panel"></div>
+      </div>
+
+      <div class="wiki-section-header">
+        <h2>📜 The Six Acts of the Descent</h2>
+        <span class="wiki-section-sub">Every 5th depth seals into a Raid Boss Room · Mid-Act &amp; Act Finale floors pit heroes against Signature Superbosses</span>
+      </div>
+
+      <div class="acts-stack" id="acts-stack"></div>
+    </section>
+
+    <!-- =====================================================================
+         TAB 2: BIOMES, OVERWORLDS & EXPEDITIONS
+         ===================================================================== -->
+    <section class="world-tab-panel" id="panel-biomes" role="tabpanel">
+      <div class="wiki-toolbar">
+        <div class="wiki-toolbar-row">
+          <div class="wiki-search-field">
+            <input type="search" id="biome-search" placeholder="Search biomes, towns, expeditions, adjectives, or monster archetypes...">
+          </div>
+          <select id="biome-el-filter" class="wiki-select" aria-label="Filter by Elemental Affinity">
+            <option value="all">All Elements</option>
+            <option value="phys">⚔️ Physical</option>
+            <option value="fire">🔥 Fire</option>
+            <option value="cold">❄️ Cold</option>
+            <option value="light">⚡ Lightning</option>
+            <option value="poison">☠️ Poison</option>
+            <option value="shadow">🌑 Shadow</option>
+            <option value="arcane">✨ Arcane</option>
+            <option value="holy">☀️ Holy</option>
+            <option value="blood">🩸 Blood</option>
+          </select>
+          <span class="wiki-section-sub" id="biome-count-label"></span>
+        </div>
+        <div class="wiki-pills" id="biome-cat-pills"></div>
+      </div>
+
+      <div class="wiki-grid-wide" id="biomes-grid"></div>
+    </section>
+
+    <!-- =====================================================================
+         TAB 3: ENDGAME — ALTAR OF HERESY, ABYSSAL RIFTS, BREACH & UNBOUND
+         ===================================================================== -->
+    <section class="world-tab-panel" id="panel-endgame" role="tabpanel">
+      <!-- 1. Altar of Heresy Simulator -->
+      <div class="sim-panel">
+        <div class="wiki-section-header" style="margin-top:0">
+          <h2>🩸 Interactive Altar of Heresy Simulator</h2>
+          <div class="wiki-pills">
+            <button class="wiki-pill" data-heresy-preset="none">Clear All (0)</button>
+            <button class="wiki-pill" data-heresy-preset="keys">Key Hunter (Rank 10+)</button>
+            <button class="wiki-pill" data-heresy-preset="marks">Mark Reaper (Rank 20+)</button>
+            <button class="wiki-pill" data-heresy-preset="max">All 12 Heresies (Rank 26)</button>
+          </div>
+        </div>
+        <p class="wiki-section-sub" style="margin-bottom:10px">
+          Once Demon Lord Velscour falls at Depth 500, the Altar of Heresy awakens in Herrington Hollow. Toggle any combination of the twelve forbidden vows below to calculate your active Heresy Rank and global reward multipliers.
+        </p>
+
+        <div class="heresy-rank-bar-wrap">
+          <div class="heresy-rank-top">
+            <span class="heresy-rank-readout" id="heresy-rank-text">Active Heresy Rank: 0 / 26</span>
+            <span class="wiki-section-sub" id="heresy-active-count">0 of 12 Heresies Sworn</span>
+          </div>
+          <div class="heresy-track">
+            <div class="heresy-fill" id="heresy-rank-fill"></div>
+            <div class="heresy-marker" style="left: 38.46%" title="Rank 10 Milestone"></div>
+            <div class="heresy-marker" style="left: 76.92%" title="Rank 20 Milestone"></div>
+          </div>
+        </div>
+
+        <div class="heresy-mods-strip" id="heresy-mods-strip"></div>
+        <div class="heresy-milestones" id="heresy-milestones"></div>
+        <div class="heresy-grid" id="heresy-grid"></div>
+      </div>
+
+      <!-- 2. Abyssal Rifts Tier Calculator -->
+      <div class="sim-panel">
+        <div class="wiki-section-header" style="margin-top:0">
+          <h2>🌀 Abyssal Rifts Tier Calculator (Tiers 1–100)</h2>
+          <div class="wiki-slider-box">
+            <label for="rift-tier-slider">Rift Tier</label>
+            <input type="range" id="rift-tier-slider" min="1" max="100" value="1">
+            <span class="wiki-slider-val" id="rift-tier-val">T1</span>
+          </div>
+        </div>
+        <p class="wiki-section-sub" style="margin-bottom:12px">
+          Timed level-100 endgame gauntlets against a shared <b style="color:var(--gold-bright)">7:00</b> clock and <b style="color:var(--gold-bright)">60%</b> monster kill-weight quota. Monsters drop zero loot mid-run — hitting 100% quota banishes stragglers and summons the <b>Rift Guardian</b> on the spot for a consolidated Grand Piñata explosion!
+        </p>
+
+        <div class="wiki-pills" id="rift-tier-pills" style="margin-bottom:16px">
+          <button class="wiki-pill active" data-rift-tier="1">Tier 1</button>
+          <button class="wiki-pill" data-rift-tier="10">Tier 10 (Keys Open)</button>
+          <button class="wiki-pill" data-rift-tier="15">Tier 15 (1 Key Guaranteed)</button>
+          <button class="wiki-pill" data-rift-tier="20">Tier 20 (1st Instability)</button>
+          <button class="wiki-pill" data-rift-tier="40">Tier 40 (2 Keys + Sentries)</button>
+          <button class="wiki-pill" data-rift-tier="60">Tier 60 (Guardian Frenzy)</button>
+          <button class="wiki-pill" data-rift-tier="100">Tier 100 (Apex)</button>
+        </div>
+
+        <div class="depth-metrics-grid" id="rift-metrics-grid"></div>
+
+        <h3 style="font-family:var(--font-title);font-size:14px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-top:16px">
+          ⚡ Tier Instabilities &amp; Environmental Hazards
+        </h3>
+        <div class="instability-list" id="rift-instabilities-list"></div>
+
+        <h3 style="font-family:var(--font-title);font-size:14px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-top:20px">
+          🏛️ Tactical Rift Pylons (1–2 Per Floor)
+        </h3>
+        <div class="pylon-grid" id="rift-pylons-grid"></div>
+      </div>
+
+      <!-- 3. Eternal Breach & Velscour Unbound Overview -->
+      <div class="wiki-grid-wide">
+        <div class="wiki-card" style="border-color:rgba(176,102,255,0.45)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <span class="wiki-badge violet">Purple Portal · Parallel Challenge Ladder</span>
+            <span class="wiki-badge gold">Floors 1 – 50</span>
+          </div>
+          <h3 style="font-family:var(--font-title);font-size:20px;color:#fff;letter-spacing:1px">
+            🐉 The Eternal Breach (7×7 + 1 Wyrm Ascension)
+          </h3>
+          <p style="color:var(--text-dim);font-size:14.5px">
+            Behind the purple rift in Herrington Hollow drift fifty unmoored islands of the <b>Veilscar March</b>, inhabited by an exclusive roster of <b>200 Breach monsters</b> and <b>30 Breach bosses</b> that never appear in standard dungeons. Seven Elemental Wyrms stalk the sky across seven escalating cycles (Floors 1–49), culminating at Floor 50 against the 60-segment <b>Apex Ethereal Wyrm</b>.
+          </p>
+
+          <div class="wiki-slider-box" style="width:100%;justify-content:space-between;margin:4px 0">
+            <label for="breach-floor-slider">Inspect Breach Floor</label>
+            <input type="range" id="breach-floor-slider" min="1" max="50" value="1" style="flex:1;max-width:200px">
+            <span class="wiki-slider-val" id="breach-floor-val">Floor 1</span>
+          </div>
+
+          <div id="breach-floor-readout" style="background:rgba(10,6,14,0.75);border:1px solid rgba(176,102,255,0.35);border-radius:6px;padding:12px;font-size:13.5px"></div>
+        </div>
+
+        <div class="wiki-card" style="border-color:rgba(220,60,35,0.5)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <span class="wiki-badge crimson">Pinnacle Hardmode &amp; Rematch</span>
+            <span class="wiki-badge gold">Abyssal Keys</span>
+          </div>
+          <h3 style="font-family:var(--font-title);font-size:20px;color:#fff;letter-spacing:1px">
+            👑 Unbound Exploration &amp; Velscour Unbound
+          </h3>
+          <p style="color:var(--text-dim);font-size:14.5px">
+            Farm <b>Abyssal Keys</b> from Tier 10+ Rift Guardians (or Depth 400+ Boss Rooms at Heresy Rank 10+) to unlock the <b>Unbound Exploration</b> hardmode ladder (Floors 1–100, scaling past Depth 500 to Depth 700) and the ultimate pinnacle rematch: <b>Velscour Unbound</b>.
+          </p>
+          <ul style="padding-left:18px;color:var(--text);font-size:13.8px;display:flex;flex-direction:column;gap:6px">
+            <li><b>Forced Momentum &amp; 10-Floor Sanctuaries:</b> Intermediate Unbound portals descend strictly downward; official Town Checkpoints appear every 10 floors (10, 20 … 100), while your <b>Hearthstone</b> maintains a free two-way recall link.</li>
+            <li><b>The Court of the Abyss:</b> In the Unbound Throne rematch (20:00 execute clock, 2.4× Boss HP), two random Third-Host Signature Raid Lords join Velscour — one at the east guard post when he rises, the second through Phase 3's first hellgate.</li>
+            <li><b>The Abyssal Pact:</b> For 120 seconds after each Courtier steps in, Velscour takes only 40% damage while that Raid Lord lives.</li>
+            <li><b>Exclusive Unbound Heirlooms:</b> Grants 3 Abyssal items, 20 Infernal Marks, and rolls for the five <a href="gear.html?tab=heirlooms&q=Unbound">Unbound Heirlooms</a> — <i>Crown of the Demon Lord</i>, <i>The Abyssal Edge</i>, <i>Mantle of the Unbound</i>, <i>Seal of the Pit</i>, and <i>Heart of the Abyss</i>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         TAB 4: DUNGEON AFFIXES (257 ACTIVE MODIFIERS)
+         ===================================================================== -->
+    <section class="world-tab-panel" id="panel-affixes" role="tabpanel">
+      <div class="wiki-toolbar">
+        <div class="wiki-toolbar-row">
+          <div class="wiki-search-field">
+            <input type="search" id="affix-search" placeholder="Search all 257 dungeon affixes by name, category, or gameplay effect...">
+          </div>
+          <span class="wiki-section-sub" id="affix-count-label"></span>
+        </div>
+        <div class="wiki-section-sub">
+          Dungeon Affixes group by <b>5-depth campaign blocks</b> (every <code id="affix-interval-code">5</code> depths, up to <code id="affix-max-code">5</code> concurrent affixes active at once), reshaping enemy stats, hazards, curses, and world rules.
+        </div>
+        <div class="wiki-pills" id="affix-cat-pills"></div>
+      </div>
+
+      <div class="wiki-grid" id="affixes-grid"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { mountWikiShell, ELEMENT_INFO, escapeHtml, getQueryParam } from './src/wiki/wiki-shell.js';
+    import {
+      FINAL_DEPTH,
+      ACTS,
+      SUPERBOSS_DEPTHS,
+      getActForDepth,
+      isActFinaleDepth,
+      superbossForDepth,
+      depthLevel,
+      isRaidDepth,
+      blockStart,
+      toughness,
+      danger,
+      density,
+      armorDiv,
+    } from './src/data/depth.js';
+    import {
+      BIOMES,
+      BETA_BIOMES,
+      BREACH_BIOME,
+      SCORPION_KING_PYRAMID_BIOME,
+      TOWN_BIOME,
+      ACT2_TOWN_BIOME,
+      BIOME_BY_ID,
+      DEPTH_BIOME_RANGES,
+      DEPTH_DUNGEON_RANGES,
+      biomesForDepth,
+    } from './src/data/biomes.js';
+    import { RARITY, qualityAtDepth } from './src/data/items.js';
+    import {
+      RIFT_TIME,
+      RIFT_QUOTA,
+      riftLevel,
+      riftHpMul,
+      riftDmgMul,
+      PYLONS,
+      RIFT_INSTABILITIES,
+      instabilitiesForTier,
+      riftReward,
+      fmtTime,
+    } from './src/data/rifts.js';
+    import {
+      HERESIES,
+      HERESY_MAX_RANK,
+      heresyRank,
+      heresyMods,
+      HERESY_MILESTONES,
+    } from './src/data/heresies.js';
+    import {
+      breachDepth,
+      breachLevel,
+      breachCycle,
+      wyrmVariant,
+      wyrmStats,
+    } from './src/data/breach.js';
+    import { DUNGEON_AFFIXES, MAX_AFFIX_SECTIONS, AFFIX_DEPTH_INTERVAL } from './src/data/dungeonaffixes.js';
+    import { RAID_BOSSES } from './src/game/raid.js';
+    import { loadArtFor, enemyImage } from './src/core/enemyart.js';
+
+    // Mount Shared Wiki Header, Omni-Search & Footer
+    mountWikiShell({ active: 'world' });
+
+    // Lookup maps
+    const RAID_BY_ID = Object.fromEntries(RAID_BOSSES.map((b) => [b.id, b]));
+    const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'];
+
+    const ACT_LORE = {
+      1: 'Beneath the mossy watchtowers of Herrington Hollow, ancient ossuaries, fetid sewers, drowned crypts, and haunted libraries stir with the restless dead. Expeditions push through the Briar-Bound Dark Forest and besieged Castle walls toward Castle Keep, where fallen paladins and ossuary titans bar the lower seal.',
+      2: 'Beyond Sunscorch Oasis stretches an endless furnace of salt-glass dunes, pharaonic tombs, and resin-choked ruins. Adventurers stalk colossal prey on the Great Hunt, descend the spiral stairs of the Serpentine Tower, and breach the Pyramid of the Scorpion King to confront Pharaoh Sekhmun.',
+      3: 'Howling blizzards lash sheer alpine switchbacks, echoing chalk caverns beneath subterranean waterfalls, and the crystalline halls of the Everfrost Palace. Champions scale the Snowy Summit and hold the battered walls of the Endless Siege against rimebound legions.',
+      4: 'Above the storm-wracked clouds, ironclad airships trade broadsides with Black-Sail sky pirates while the Lampwardens\' Dawnwake battles the Black Tide on open water. The trail ascends into shattered citadels, astral expanses, and the blinding Empyrean Citadel of fallen seraphim.',
+      5: 'Reality fractures into rivers of brimstone, obsidian labyrinths, sanguine halls, and lightless void sanctums. Heroes fight car-to-car aboard the runaway Iron Express and ride branching rails into the Deep Rail Mines before storming Kragmaul\'s hellforged gates.',
+      6: 'The final forty-five strata plunge directly into Demon Lord Velscour\'s personal dominion — black iron, Pit Wardens, Four Elemental Seals, Soul Lanterns in the suffocating dark, and the five-phase battle at Depth 500 against the Archfiend upon his throne.',
+    };
+
+    // Build unified deduplicated Realms list with rich category metadata
+    const SPECIAL_REGION_IDS = new Set(['ghost_train', 'endless_siege', 'deep_mines', 'great_hunt']);
+    const EXPEDITION_IDS = new Set([
+      'overworld',
+      'castle',
+      'castle_keep',
+      'sea_of_sand',
+      'scorpion_king_pyramid',
+      'pirate_seas',
+      'skyship',
+      'mountainside',
+      'snowy_summit',
+      'depths_edge',
+      'serpentine_tower',
+      'dark_forest',
+    ]);
+
+    const REALM_NOTES = {
+      town: 'Primary Sanctuary Hub · 9 Master Artisans, Stash, Altar of Heresy, Abyssal Rift Obelisk & Purple Breach Portal.',
+      act2_town: 'Act II Desert Sanctuary · Oasis refuge serving expeditions into the Scorched Wastes and Sea of Sand.',
+      overworld: 'Outdoor frontier linking Herrington Hollow\'s timber palisades to the wild barrows.',
+      dark_forest: 'Open woodland expedition leading from the southwest treeline to the northeast Forest Guardian.',
+      castle: 'Besieged outer fortress ramparts and stone courtyards swarming with iron-crowned undead.',
+      castle_keep: 'Royal black-iron interior halls, chapel carvings, and underkeep armories.',
+      sea_of_sand: 'Vast desert expedition populated by 60 bespoke dune creatures, salt-pillars, djinn, and mirage wraiths.',
+      scorpion_king_pyramid: 'Monumental buried pyramid housing ancient traps and the Scorpion King\'s royal chamber.',
+      pirate_seas: 'Live 3D ocean boarding battle aboard the Lampwardens\' Dawnwake against the Black Tide armada.',
+      skyship: 'High-altitude ironclad deck battles across 8 dynamic weathers and 30 storied airship chronicles.',
+      serpentine_tower: 'Wide stone watchtower fought downward along a continuous spiral stair to its ground-floor guardian.',
+      depths_edge: '3D subterranean cavern descent to a waterfall lake and spiraling shaft ascent.',
+      mountainside: '3D alpine switchback climb up windswept crags leading toward the high peaks.',
+      snowy_summit: 'Thin ridgelines and snowblind plateaus culminating at the mountain peak against snow-swapped bosses.',
+      ghost_train: 'Special Set-Piece Region · Fight car-to-car along a hijacked steam locomotive to the chief on the tender.',
+      endless_siege: 'Special Set-Piece Region · Hold fortress walls against relentless undead waves, repair gates, and man ballistae.',
+      deep_mines: 'Special Set-Piece Region · Ride minecarts down branching dwarven rail shafts into deeper ore-veined dark.',
+      great_hunt: 'Special Set-Piece Region · Track a single colossal apex beast by its kills and wounds across multiple clashes to its lair.',
+      eternal_breach: '50-Floor Void Island Challenge · 200 exclusive Breach monsters, 30 Breach bosses, and the 7 Elemental Wyrms.',
+      throne: 'Final Campaign Sanctum (Depths 456–500) · Leads directly to Demon Lord Velscour\'s throne arena at Depth 500.',
+    };
+
+    function classifyRealm(b) {
+      if (b.id === 'town' || b.town) return 'sanctuary';
+      if (b.id === 'eternal_breach') return 'breach';
+      if (SPECIAL_REGION_IDS.has(b.id)) return 'special';
+      if (EXPEDITION_IDS.has(b.id) || b.overworld) return 'expedition';
+      return 'dungeon';
+    }
+
+    function depthBandsForBiome(id) {
+      if (id === 'town') return 'Sanctuary Hub (Depth 0)';
+      if (id === 'act2_town') return 'Act II Sanctuary (Depth 96+)';
+      if (id === 'eternal_breach') return 'Purple Portal · Floors 1–50';
+      const bands = [];
+      for (const r of [...DEPTH_BIOME_RANGES, ...DEPTH_DUNGEON_RANGES]) {
+        if (r.ids.includes(id)) bands.push(`Depths ${r.start}–${r.end}`);
+      }
+      if (bands.length) return bands.join(', ');
+      if (SPECIAL_REGION_IDS.has(id)) return 'Velscour Skull Invocation';
+      return 'Random / Endgame Pool';
+    }
+
+    const rawBiomes = [
+      { ...TOWN_BIOME, town: true, el: 'holy', adj: ['Sanctuary', 'Lantern-Lit', 'Warded'], roster: [] },
+      ACT2_TOWN_BIOME,
+      ...BIOMES,
+      ...BETA_BIOMES,
+      SCORPION_KING_PYRAMID_BIOME,
+      BREACH_BIOME,
+    ];
+    const ALL_REALMS = [];
+    const seenRealmIds = new Set();
+    for (const b of rawBiomes) {
+      if (!b || seenRealmIds.has(b.id)) continue;
+      seenRealmIds.add(b.id);
+      ALL_REALMS.push({
+        ...b,
+        category: classifyRealm(b),
+        depthText: depthBandsForBiome(b.id),
+      });
+    }
+
+    // Update Hero Counts
+    document.getElementById('stat-biome-count').textContent = String(ALL_REALMS.length);
+    document.getElementById('stat-affix-count').textContent = String(DUNGEON_AFFIXES.length);
+    document.getElementById('tab-affix-count').textContent = String(DUNGEON_AFFIXES.length);
+    document.getElementById('affix-interval-code').textContent = String(AFFIX_DEPTH_INTERVAL);
+    document.getElementById('affix-max-code').textContent = String(MAX_AFFIX_SECTIONS);
+
+    // =========================================================================
+    // SPRITE RENDERING HELPER (loadArtFor + enemyImage via IntersectionObserver)
+    // =========================================================================
+    function renderSpriteToCanvas(cv, spriteCanvas) {
+      if (!cv || !spriteCanvas) return;
+      const ctx = cv.getContext('2d');
+      const w = cv.width, h = cv.height;
+      ctx.clearRect(0, 0, w, h);
+      const sw = spriteCanvas.width, sh = spriteCanvas.height;
+      const pad = 6;
+      const scale = Math.min((w - pad * 2) / sw, (h - pad * 2) / sh, 2.2);
+      const dw = Math.max(1, Math.round(sw * scale));
+      const dh = Math.max(1, Math.round(sh * scale));
+      const dx = Math.round((w - dw) / 2);
+      const dy = Math.round((h - dh) / 2);
+
+      const shadowY = Math.min(h - 4, dy + dh - 2);
+      const shadowW = Math.max(12, dw * 0.4);
+      const grad = ctx.createRadialGradient(w / 2, shadowY, 0, w / 2, shadowY, shadowW);
+      grad.addColorStop(0, 'rgba(0,0,0,0.72)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(w / 2, shadowY, shadowW, Math.max(4, shadowW * 0.28), 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(spriteCanvas, dx, dy, dw, dh);
+    }
+
+    const spriteObserver = new IntersectionObserver((entries) => {
+      const batch = [];
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          const el = entry.target;
+          spriteObserver.unobserve(el);
+          const artId = el.dataset.art;
+          if (artId) batch.push({ el, artId });
+        }
+      }
+      if (!batch.length) return;
+      loadArtFor(batch.map((b) => b.artId)).then(() => {
+        for (const { el, artId } of batch) {
+          const img = enemyImage(artId);
+          const cv = el.querySelector('canvas');
+          const ph = el.querySelector('.superboss-placeholder');
+          if (img && cv) {
+            renderSpriteToCanvas(cv, img);
+            cv.style.display = 'block';
+            if (ph) ph.style.display = 'none';
+          }
+        }
+      }).catch((err) => console.warn('Sprite load warning:', err));
+    }, { rootMargin: '280px 0px' });
+
+    function resolveBossMeta(bossKey) {
+      if (!bossKey) return null;
+      if (bossKey === 'velscour') {
+        return {
+          id: 'velscour',
+          name: 'Demon Lord Velscour',
+          title: 'Ancient Archfiend of the Abyss',
+          el: 'fire',
+          artId: 'va_Velscour',
+          phases: 5,
+          loreHref: 'lore.html?tab=lords&q=Velscour',
+          bestiaryHref: 'bestiary.html?id=va_Velscour',
+        };
+      }
+      const rb = RAID_BY_ID[bossKey];
+      if (!rb) return null;
+      const artId = rb.art[0];
+      return {
+        id: rb.id,
+        name: rb.name,
+        title: rb.title,
+        el: rb.el || 'phys',
+        artId,
+        phases: rb.phases.length,
+        loreHref: `lore.html?tab=lords&q=${encodeURIComponent(rb.name)}`,
+        bestiaryHref: `bestiary.html?id=${encodeURIComponent(artId)}`,
+      };
+    }
+
+    // =========================================================================
+    // TAB SWITCHING & URL SYNC
+    // =========================================================================
+    const VALID_TABS = ['acts', 'biomes', 'endgame', 'affixes'];
+    let currentTab = 'acts';
+
+    function syncUrl(tab, q = '') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tab);
+      if (q && q.trim()) url.searchParams.set('q', q.trim());
+      else url.searchParams.delete('q');
+      window.history.replaceState({}, '', url);
+    }
+
+    function setActiveTab(tab, updateHistory = true) {
+      if (!VALID_TABS.includes(tab)) tab = 'acts';
+      currentTab = tab;
+      document.querySelectorAll('.wiki-tab-btn').forEach((btn) => {
+        const active = btn.dataset.tab === tab;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      document.querySelectorAll('.world-tab-panel').forEach((panel) => {
+        panel.classList.toggle('active', panel.id === `panel-${tab}`);
+      });
+      if (updateHistory) {
+        const activeSearch = tab === 'biomes'
+          ? document.getElementById('biome-search').value
+          : tab === 'affixes'
+            ? document.getElementById('affix-search').value
+            : '';
+        syncUrl(tab, activeSearch);
+      }
+    }
+
+    document.querySelectorAll('.wiki-tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+    });
+
+    // =========================================================================
+    // TAB 1: DEPTH EXPLORER & THE 6 CAMPAIGN ACTS
+    // =========================================================================
+    const depthSlider = document.getElementById('depth-slider');
+    const depthNum = document.getElementById('depth-num');
+    const depthQuickJumps = document.getElementById('depth-quick-jumps');
+    const depthMetricsGrid = document.getElementById('depth-metrics-grid');
+    const depthBiomesPanel = document.getElementById('depth-biomes-panel');
+
+    const MILESTONE_DEPTHS = [
+      { d: 1, label: 'D1 · Descent Begins', boss: false },
+      { d: 50, label: 'D50 · Ser Valdric', boss: true },
+      { d: 96, label: 'D96 · Ossuarch (Act I)', boss: true },
+      { d: 150, label: 'D150 · Ambrecoil', boss: true },
+      { d: 192, label: 'D192 · Pharaoh Sekhmun (Act II)', boss: true },
+      { d: 250, label: 'D250 · Kaela', boss: true },
+      { d: 288, label: 'D288 · Hollowmere (Act III)', boss: true },
+      { d: 350, label: 'D350 · Ophaniel', boss: true },
+      { d: 360, label: 'D360 · Aurion (Act IV)', boss: true },
+      { d: 456, label: 'D456 · Kragmaul (Act V)', boss: true },
+      { d: 500, label: 'D500 · Demon Lord Velscour', boss: true },
+    ];
+
+    depthQuickJumps.innerHTML = MILESTONE_DEPTHS.map((m) =>
+      `<button class="depth-jump-pill ${m.boss ? 'boss' : ''}" data-jump-depth="${m.d}">${escapeHtml(m.label)}</button>`
+    ).join('');
+
+    function updateDepthExplorer(rawDepth) {
+      const d = Math.max(1, Math.min(FINAL_DEPTH, Math.round(Number(rawDepth) || 1)));
+      depthSlider.value = String(d);
+      depthNum.value = String(d);
+
+      depthQuickJumps.querySelectorAll('.depth-jump-pill').forEach((btn) => {
+        btn.classList.toggle('active', Number(btn.dataset.jumpDepth) === d);
+      });
+
+      const act = getActForDepth(d);
+      const lvl = depthLevel(d);
+      const qIdx = qualityAtDepth(d);
+      const rar = RARITY[qIdx] || RARITY[0];
+      const sbKey = superbossForDepth(d);
+      const sb = resolveBossMeta(sbKey);
+      const raidFloor = isRaidDepth(d);
+      const blkStart = blockStart(d);
+      const blkEnd = Math.min(FINAL_DEPTH, blkStart + 4);
+      const hpMul = toughness(lvl);
+      const dmgMul = danger(lvl);
+      const packDens = density(d);
+      const armDiv = armorDiv(lvl);
+
+      let floorHeadline = '';
+      let floorSub = '';
+      if (d === FINAL_DEPTH) {
+        floorHeadline = `<span class="wiki-badge crimson">👑 Throne Climax</span> Demon Lord Velscour`;
+        floorSub = `5-Phase Campaign Climax (<a href="lore.html?tab=lords&q=Velscour">View Dossier →</a>)`;
+      } else if (sb) {
+        const kind = isActFinaleDepth(d) ? 'Act Finale Superboss' : 'Mid-Act Superboss';
+        floorHeadline = `<span class="wiki-badge crimson">⚔️ ${escapeHtml(kind)}</span> ${escapeHtml(sb.name)}`;
+        floorSub = `${escapeHtml(sb.title)} · <a href="${sb.loreHref}">Tyrant Dossier →</a>`;
+      } else if (raidFloor) {
+        floorHeadline = `<span class="wiki-badge gold">🏛️ Raid Boss Room</span>`;
+        floorSub = `Every 5th depth seals into a 4-phase Boss Arena (Block ${blkStart}–${blkEnd}).`;
+      } else {
+        const nextRaid = Math.min(FINAL_DEPTH, blkEnd);
+        floorHeadline = `<span class="wiki-badge">Standard Campaign Floor</span>`;
+        floorSub = `5-Depth Affix Block ${blkStart}–${blkEnd} · Next Boss Room at Depth ${nextRaid}.`;
+      }
+
+      depthMetricsGrid.innerHTML = `
+        <div class="depth-metric-card">
+          <span class="depth-metric-label">Active Campaign Act</span>
+          <div class="depth-metric-val">
+            <span class="wiki-badge gold">Act ${ROMAN[act.act]}</span>
+            <span>${escapeHtml(act.name)}</span>
+          </div>
+          <span class="depth-metric-sub">Act Span: Depths ${act.start}–${act.end} (Finale D${act.finaleDepth})</span>
+        </div>
+
+        <div class="depth-metric-card">
+          <span class="depth-metric-label">Monster Level &amp; Scaling</span>
+          <div class="depth-metric-val" style="color:var(--gold-bright)">
+            Monster Lv ${lvl}
+          </div>
+          <span class="depth-metric-sub">HP ${hpMul.toFixed(2)}× · DMG ${dmgMul.toFixed(2)}× · Density ${packDens.toFixed(2)}× · Armor Div ${armDiv}</span>
+        </div>
+
+        <div class="depth-metric-card">
+          <span class="depth-metric-label">Highest Ground Gear Quality</span>
+          <div class="depth-metric-val">
+            <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${rar.color};box-shadow:0 0 8px ${rar.color}"></span>
+            <span style="color:${rar.color}">${escapeHtml(rar.name)}</span>
+            <span class="wiki-badge">+${rar.lv.toFixed(rar.lv % 1 ? 1 : 0)} Power Lv</span>
+          </div>
+          <span class="depth-metric-sub">Unlocked at Depth ${rar.minDepth} · Up to ${rar.sockets} Gear / ${rar.ringSockets} Ring Sockets · ${2 + rar.perks} Stat Lines</span>
+        </div>
+
+        <div class="depth-metric-card">
+          <span class="depth-metric-label">Floor Classification</span>
+          <div class="depth-metric-val" style="font-size:14.5px">${floorHeadline}</div>
+          <span class="depth-metric-sub">${floorSub}</span>
+        </div>
+      `;
+
+      const eligibleIds = biomesForDepth(d);
+      const eligibleObjs = eligibleIds.map((id) => BIOME_BY_ID[id]).filter(Boolean);
+      const dungeons = eligibleObjs.filter((b) => !b.overworld && !EXPEDITION_IDS.has(b.id) && !SPECIAL_REGION_IDS.has(b.id));
+      const expeditions = eligibleObjs.filter((b) => b.overworld || EXPEDITION_IDS.has(b.id) || SPECIAL_REGION_IDS.has(b.id));
+
+      const renderChips = (list, emptyMsg) => {
+        if (!list.length) return `<span class="wiki-section-sub">${escapeHtml(emptyMsg)}</span>`;
+        return `<div class="biome-chip-list">${list.map((b) => {
+          const el = ELEMENT_INFO[b.el || 'phys'] || ELEMENT_INFO.phys;
+          return `<button type="button" class="biome-chip" data-goto-biome="${escapeHtml(b.name)}">
+            <span class="biome-chip-dot" style="background:${b.torch || el.color}"></span>
+            <span>${escapeHtml(b.name)}</span>
+            <span style="color:${el.color};font-size:11.5px">${el.icon}</span>
+          </button>`;
+        }).join('')}</div>`;
+      };
+
+      depthBiomesPanel.innerHTML = `
+        <div class="depth-biome-col">
+          <h4>🏰 Eligible Dungeon Pool at Depth ${d} (${dungeons.length})</h4>
+          ${renderChips(dungeons, 'Fixed Set-Piece / Overworld Depth')}
+        </div>
+        <div class="depth-biome-col">
+          <h4>🧭 Eligible Overworlds &amp; Expeditions at Depth ${d} (${expeditions.length})</h4>
+          ${renderChips(expeditions, d === FINAL_DEPTH ? 'Depth 500 leads exclusively to Velscour\'s Throne' : 'No overworld scheduled at this exact depth')}
+          <p class="wiki-section-sub" style="margin-top:6px;font-size:12px">
+            ${d === FINAL_DEPTH
+              ? 'At Depth 500, all portals converge upon Demon Lord Velscour\'s Throne.'
+              : 'Overworld Guarantee: After 3 consecutive underground dungeon visits, the exit portals guarantee an eligible Overworld Expedition.'}
+          </p>
+        </div>
+      `;
+
+      depthBiomesPanel.querySelectorAll('[data-goto-biome]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const name = btn.dataset.gotoBiome;
+          document.getElementById('biome-search').value = name;
+          biomeFilterState.cat = 'all';
+          biomeFilterState.el = 'all';
+          document.getElementById('biome-el-filter').value = 'all';
+          renderBiomes();
+          setActiveTab('biomes');
+          window.scrollTo({ top: 220, behavior: 'smooth' });
+        });
+      });
+    }
+
+    depthSlider.addEventListener('input', () => updateDepthExplorer(depthSlider.value));
+    depthNum.addEventListener('change', () => updateDepthExplorer(depthNum.value));
+    document.querySelectorAll('.depth-step-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const delta = Number(btn.dataset.step) || 0;
+        updateDepthExplorer((Number(depthSlider.value) || 1) + delta);
+      });
+    });
+    depthQuickJumps.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-jump-depth]');
+      if (btn) updateDepthExplorer(btn.dataset.jumpDepth);
+    });
+
+    // Render Act I – VI Cards
+    function renderActCards() {
+      const stack = document.getElementById('acts-stack');
+      const midDepthByBoss = Object.fromEntries(Object.entries(SUPERBOSS_DEPTHS).map(([dep, id]) => [id, Number(dep)]));
+
+      stack.innerHTML = ACTS.map((act) => {
+        const startLv = depthLevel(act.start);
+        const endLv = depthLevel(act.end);
+        const startQ = RARITY[qualityAtDepth(act.start)];
+        const endQ = RARITY[qualityAtDepth(act.end)];
+
+        // Overlapping dungeon & overworld ranges
+        const dungeonIds = new Set();
+        for (const r of DEPTH_DUNGEON_RANGES) {
+          if (r.start < act.end && r.end > act.start) r.ids.forEach((id) => dungeonIds.add(id));
+        }
+        if (act.act === 6) dungeonIds.add('throne');
+
+        const expBands = DEPTH_BIOME_RANGES.filter((r) => r.start >= act.start && r.end <= Math.max(act.end, act.finaleDepth));
+
+        const midMeta = resolveBossMeta(act.midBoss);
+        const finMeta = resolveBossMeta(act.finaleBoss);
+        const midDepth = act.midBoss ? midDepthByBoss[act.midBoss] : null;
+
+        const renderBossBox = (meta, roleLabel, depthNumVal, isFinale) => {
+          if (!meta) return '';
+          const elInfo = ELEMENT_INFO[meta.el] || ELEMENT_INFO.phys;
+          return `
+            <div class="superboss-mini ${isFinale ? 'finale' : ''}">
+              <div class="superboss-stage" data-art="${escapeHtml(meta.artId)}">
+                <canvas width="84" height="84" style="display:none"></canvas>
+                <span class="superboss-placeholder">💀</span>
+              </div>
+              <div class="superboss-info">
+                <span class="superboss-role">${escapeHtml(roleLabel)} · Depth ${depthNumVal}</span>
+                <div class="superboss-name">${escapeHtml(meta.name)}</div>
+                <div class="superboss-title">${escapeHtml(meta.title)}</div>
+                <div style="display:flex;gap:6px;align-items:center;margin-top:2px;font-size:12px">
+                  <span style="color:${elInfo.color}">${elInfo.icon} ${elInfo.name}</span>
+                  <span style="color:var(--text-muted)">·</span>
+                  <span style="color:var(--text-dim)">${meta.phases} Phases</span>
+                </div>
+                <div class="superboss-links">
+                  <a href="${meta.loreHref}">📜 Lore &amp; Phases</a>
+                  <a href="${meta.bestiaryHref}">💀 Bestiary</a>
+                </div>
+              </div>
+            </div>
+          `;
+        };
+
+        return `
+          <article class="act-card ${act.act === 6 ? 'act-climax' : ''}">
+            <div>
+              <div class="act-header">
+                <span class="act-numeral">ACT ${ROMAN[act.act]}</span>
+                <h3 class="act-title">${escapeHtml(act.name)}</h3>
+              </div>
+              <div class="act-meta-strip">
+                <span class="wiki-badge gold">Depths ${act.start} – ${act.end}</span>
+                <span class="wiki-badge crimson">Finale: Depth ${act.finaleDepth}</span>
+                <span class="wiki-badge">Monsters Lv ${startLv}–${endLv}</span>
+                <span class="wiki-badge">Gear: ${escapeHtml(startQ.name)} → ${escapeHtml(endQ.name)}</span>
+              </div>
+              <p class="act-lore">${escapeHtml(ACT_LORE[act.act] || '')}</p>
+
+              <div class="act-realms-group">
+                <h4>🏰 Act Dungeon Pool</h4>
+                <div class="biome-chip-list">
+                  ${[...dungeonIds].map((id) => {
+                    const b = BIOME_BY_ID[id];
+                    if (!b) return '';
+                    const el = ELEMENT_INFO[b.el || 'phys'] || ELEMENT_INFO.phys;
+                    return `<button type="button" class="biome-chip" data-act-biome="${escapeHtml(b.name)}">
+                      <span class="biome-chip-dot" style="background:${b.torch || el.color}"></span>
+                      <span>${escapeHtml(b.name)}</span>
+                    </button>`;
+                  }).join('')}
+                </div>
+              </div>
+
+              ${expBands.length ? `
+                <div class="act-realms-group">
+                  <h4>🧭 Scheduled Overworld Expeditions &amp; Set-Pieces</h4>
+                  <div class="biome-chip-list">
+                    ${expBands.map((r) => {
+                      const b = BIOME_BY_ID[r.ids[0]];
+                      if (!b) return '';
+                      return `<button type="button" class="biome-chip" data-act-biome="${escapeHtml(b.name)}">
+                        <span class="wiki-badge" style="padding:1px 5px;font-size:9.5px">D${r.start}–${r.end}</span>
+                        <span>${escapeHtml(b.name)}</span>
+                      </button>`;
+                    }).join('')}
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="act-bosses-col">
+              ${midMeta ? renderBossBox(midMeta, 'Mid-Act Superboss', midDepth, false) : ''}
+              ${finMeta ? renderBossBox(finMeta, act.act === 6 ? 'Campaign Climax' : `Act ${ROMAN[act.act]} Finale Boss`, act.finaleDepth, true) : ''}
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      stack.querySelectorAll('[data-art]').forEach((stage) => spriteObserver.observe(stage));
+      stack.querySelectorAll('[data-act-biome]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.getElementById('biome-search').value = btn.dataset.actBiome;
+          biomeFilterState.cat = 'all';
+          renderBiomes();
+          setActiveTab('biomes');
+          window.scrollTo({ top: 220, behavior: 'smooth' });
+        });
+      });
+    }
+
+    // =========================================================================
+    // TAB 2: BIOMES, OVERWORLDS & EXPEDITIONS
+    // =========================================================================
+    const BIOME_CATEGORIES = [
+      { id: 'all', label: 'All Realms' },
+      { id: 'sanctuary', label: '🏠 Sanctuary Towns' },
+      { id: 'dungeon', label: '🏰 Dungeon Biomes' },
+      { id: 'expedition', label: '🧭 Overworld Expeditions' },
+      { id: 'special', label: '🚂 Special Set-Piece Regions' },
+      { id: 'breach', label: '🟣 The Eternal Breach (1–50)' },
+    ];
+
+    const CATEGORY_BADGES = {
+      sanctuary: { text: 'Sanctuary Town', cls: 'emerald' },
+      dungeon: { text: 'Dungeon Biome', cls: '' },
+      expedition: { text: 'Overworld Expedition', cls: 'gold' },
+      special: { text: 'Set-Piece Region', cls: 'crimson' },
+      breach: { text: 'Challenge Ladder (1–50)', cls: 'violet' },
+    };
+
+    const biomeFilterState = { cat: 'all', el: 'all' };
+    const expandedBiomeRosters = new Set();
+
+    function renderBiomeCatPills() {
+      const wrap = document.getElementById('biome-cat-pills');
+      wrap.innerHTML = BIOME_CATEGORIES.map((c) => {
+        const count = c.id === 'all'
+          ? ALL_REALMS.length
+          : ALL_REALMS.filter((b) => b.category === c.id).length;
+        return `<button type="button" class="wiki-pill ${biomeFilterState.cat === c.id ? 'active' : ''}" data-bcat="${c.id}">
+          <span>${escapeHtml(c.label)}</span>
+          <span style="opacity:0.7">(${count})</span>
+        </button>`;
+      }).join('');
+
+      wrap.querySelectorAll('[data-bcat]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          biomeFilterState.cat = btn.dataset.bcat;
+          renderBiomeCatPills();
+          renderBiomes();
+        });
+      });
+    }
+
+    function formatArchetypeName(raw) {
+      return String(raw || '').replace(/_/g, ' ');
+    }
+
+    function renderBiomes() {
+      const q = document.getElementById('biome-search').value.trim().toLowerCase();
+      const elFilter = biomeFilterState.el;
+      const catFilter = biomeFilterState.cat;
+
+      const filtered = ALL_REALMS.filter((b) => {
+        if (catFilter !== 'all' && b.category !== catFilter) return false;
+        const normEl = (b.el === 'physical' ? 'phys' : b.el) || 'phys';
+        if (elFilter !== 'all' && normEl !== elFilter) return false;
+        if (q) {
+          const hay = `${b.name} ${b.id} ${(b.adj || []).join(' ')} ${(b.roster || []).join(' ')} ${b.depthText} ${REALM_NOTES[b.id] || ''}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      document.getElementById('biome-count-label').innerHTML = `Showing <b style="color:var(--gold-bright)">${filtered.length}</b> of ${ALL_REALMS.length} realms`;
+      const grid = document.getElementById('biomes-grid');
+
+      if (!filtered.length) {
+        grid.innerHTML = `<div class="empty-box" style="grid-column:1/-1">No biomes or realms matched "<b>${escapeHtml(q)}</b>".</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map((b) => {
+        const elInfo = ELEMENT_INFO[b.el || 'phys'] || ELEMENT_INFO.phys;
+        const badgeMeta = CATEGORY_BADGES[b.category] || CATEGORY_BADGES.dungeon;
+        const torchHex = b.torch || '#ffb060';
+        const fogHex = b.fog || '#0a0806';
+        const ambHex = b.ambient?.color || '#c8b89a';
+        const ambType = b.ambient?.type || 'dust';
+        const roster = b.roster || [];
+        const isExpanded = expandedBiomeRosters.has(b.id);
+        const visibleRoster = isExpanded ? roster : roster.slice(0, 12);
+        const remaining = roster.length - visibleRoster.length;
+        const note = REALM_NOTES[b.id] || `${b.style ? `Layout: ${b.style.toUpperCase()} · ` : ''}${b.family ? `Palette Family: ${b.family.toUpperCase()} · ` : ''}Light Radius ${b.light ?? 8} · Darkness ${Math.round((b.dark ?? 0.8) * 100)}%.`;
+
+        return `
+          <article class="biome-card">
+            <div class="biome-atmo-strip" style="background:linear-gradient(90deg, ${fogHex} 0%, ${torchHex} 50%, ${ambHex} 100%)"></div>
+            <div class="biome-card-body">
+              <div class="biome-card-head">
+                <div>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:5px">
+                    <span class="wiki-badge ${badgeMeta.cls}">${escapeHtml(badgeMeta.text)}</span>
+                    <span class="wiki-badge">${escapeHtml(b.depthText)}</span>
+                  </div>
+                  <h3 class="biome-card-title">${escapeHtml(b.name)}</h3>
+                </div>
+                <span class="wiki-badge" style="color:${elInfo.color};border-color:${elInfo.color}55;flex-shrink:0">
+                  ${elInfo.icon} ${escapeHtml(elInfo.name)}
+                </span>
+              </div>
+
+              <p class="biome-card-sub">${escapeHtml(note)}</p>
+
+              <div class="swatch-row">
+                <div class="swatch-item" title="Torch Light Color: ${escapeHtml(torchHex)}">
+                  <span class="swatch-box" style="background:${escapeHtml(torchHex)}"></span>
+                  <div class="swatch-meta">
+                    <span class="swatch-label">Torch</span>
+                    <span class="swatch-hex">${escapeHtml(torchHex)}</span>
+                  </div>
+                </div>
+                <div class="swatch-item" title="Atmospheric Fog Color: ${escapeHtml(fogHex)}">
+                  <span class="swatch-box" style="background:${escapeHtml(fogHex)}"></span>
+                  <div class="swatch-meta">
+                    <span class="swatch-label">Fog</span>
+                    <span class="swatch-hex">${escapeHtml(fogHex)}</span>
+                  </div>
+                </div>
+                <div class="swatch-item" title="Ambient Particle (${escapeHtml(ambType)}): ${escapeHtml(ambHex)}">
+                  <span class="swatch-box" style="background:${escapeHtml(ambHex)}"></span>
+                  <div class="swatch-meta">
+                    <span class="swatch-label">${escapeHtml(ambType)}</span>
+                    <span class="swatch-hex">${escapeHtml(ambHex)}</span>
+                  </div>
+                </div>
+              </div>
+
+              ${(b.adj && b.adj.length) ? `
+                <div class="biome-adj-row">
+                  <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-family:var(--font-title)">Prefixes:</span>
+                  ${b.adj.map((a) => `<span class="biome-adj-tag">${escapeHtml(a)}</span>`).join('')}
+                </div>
+              ` : ''}
+
+              <div class="biome-roster-wrap">
+                <div class="biome-roster-label">
+                  <span>Monster Archetype Roster</span>
+                  <span>${roster.length ? `${roster.length} Types` : 'Peaceful Sanctuary'}</span>
+                </div>
+                ${roster.length ? `
+                  <div class="roster-tags">
+                    ${visibleRoster.map((arch) =>
+                      `<a class="roster-tag" href="bestiary.html?q=${encodeURIComponent(arch)}">${escapeHtml(formatArchetypeName(arch))}</a>`
+                    ).join('')}
+                    ${remaining > 0 ? `<button type="button" class="roster-more-btn" data-expand-roster="${escapeHtml(b.id)}">+${remaining} more</button>` : ''}
+                    ${isExpanded && roster.length > 12 ? `<button type="button" class="roster-more-btn" data-expand-roster="${escapeHtml(b.id)}">Show less</button>` : ''}
+                  </div>
+                ` : `<span class="wiki-section-sub" style="font-size:12.5px">Safe haven — weapons sheathed; artisans &amp; townsfolk gather here. <a href="lore.html?tab=folk">Meet the Folk →</a></span>`}
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      grid.querySelectorAll('[data-expand-roster]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.expandRoster;
+          if (expandedBiomeRosters.has(id)) expandedBiomeRosters.delete(id);
+          else expandedBiomeRosters.add(id);
+          renderBiomes();
+        });
+      });
+    }
+
+    document.getElementById('biome-search').addEventListener('input', (e) => {
+      renderBiomes();
+      if (currentTab === 'biomes') syncUrl('biomes', e.target.value);
+    });
+    document.getElementById('biome-el-filter').addEventListener('change', (e) => {
+      biomeFilterState.el = e.target.value;
+      renderBiomes();
+    });
+
+    // =========================================================================
+    // TAB 3: ENDGAME — ALTAR OF HERESY, ABYSSAL RIFTS & ETERNAL BREACH
+    // =========================================================================
+    const activeHeresyIds = new Set();
+
+    function renderHeresySimulator() {
+      const ids = [...activeHeresyIds];
+      const rank = heresyRank(ids);
+      const mods = heresyMods(rank);
+      const pct = Math.min(100, (rank / HERESY_MAX_RANK) * 100);
+
+      document.getElementById('heresy-rank-text').textContent = `Active Heresy Rank: ${rank} / ${HERESY_MAX_RANK}`;
+      document.getElementById('heresy-active-count').textContent = `${ids.length} of ${HERESIES.length} Heresies Sworn`;
+      document.getElementById('heresy-rank-fill').style.width = `${pct}%`;
+
+      document.getElementById('heresy-mods-strip').innerHTML = `
+        <div class="heresy-mod-box"><span>Magic Find</span><b>+${mods.mf}%</b></div>
+        <div class="heresy-mod-box"><span>Gold Multiplier</span><b>${mods.gold.toFixed(2)}× (+${Math.round((mods.gold - 1) * 100)}%)</b></div>
+        <div class="heresy-mod-box"><span>Loot Drops</span><b>${mods.loot.toFixed(2)}× (+${Math.round((mods.loot - 1) * 100)}%)</b></div>
+        <div class="heresy-mod-box"><span>XP Gain</span><b>${mods.xp.toFixed(2)}× (+${Math.round((mods.xp - 1) * 100)}%)</b></div>
+        <div class="heresy-mod-box"><span>Sigil Stone Odds</span><b>${mods.sigil.toFixed(2)}× (+${Math.round((mods.sigil - 1) * 100)}%)</b></div>
+        <div class="heresy-mod-box"><span>Relic Odds</span><b>${mods.relic.toFixed(2)}× (+${Math.round((mods.relic - 1) * 100)}%)</b></div>
+      `;
+
+      document.getElementById('heresy-milestones').innerHTML = HERESY_MILESTONES.map((m) => {
+        const unlocked = rank >= m.rank;
+        return `
+          <div class="milestone-card ${unlocked ? 'unlocked' : ''}">
+            <span class="wiki-badge ${unlocked ? 'emerald' : 'gold'}">Rank ${m.rank}</span>
+            <span>${unlocked ? '✅ ' : '🔒 '}${escapeHtml(m.text)}</span>
+          </div>
+        `;
+      }).join('');
+
+      const grid = document.getElementById('heresy-grid');
+      grid.innerHTML = HERESIES.map((h) => {
+        const isOn = activeHeresyIds.has(h.id);
+        return `
+          <div class="heresy-toggle-card ${isOn ? 'on' : ''}" data-heresy-id="${escapeHtml(h.id)}" role="switch" aria-checked="${isOn}">
+            <div class="heresy-card-top">
+              <div class="heresy-name-wrap">
+                <span style="width:10px;height:10px;border-radius:50%;background:${escapeHtml(h.color)};box-shadow:0 0 8px ${escapeHtml(h.color)}"></span>
+                <span>${escapeHtml(h.name)}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="wiki-badge ${isOn ? 'crimson' : ''}">+${h.rank} Rank</span>
+                <span class="heresy-switch"></span>
+              </div>
+            </div>
+            <p style="font-size:13.5px;color:var(--text-dim)">${escapeHtml(h.desc)}</p>
+          </div>
+        `;
+      }).join('');
+
+      grid.querySelectorAll('[data-heresy-id]').forEach((card) => {
+        card.addEventListener('click', () => {
+          const id = card.dataset.heresyId;
+          if (activeHeresyIds.has(id)) activeHeresyIds.delete(id);
+          else activeHeresyIds.add(id);
+          renderHeresySimulator();
+        });
+      });
+    }
+
+    document.querySelectorAll('[data-heresy-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.heresyPreset;
+        activeHeresyIds.clear();
+        if (mode === 'max') {
+          HERESIES.forEach((h) => activeHeresyIds.add(h.id));
+        } else if (mode === 'keys') {
+          // Reach Rank 10 cleanly: twins (3) + iron (2) + crowned (2) + glass (2) + omens (1) = 10
+          ['twins', 'iron', 'crowned', 'glass', 'omens'].forEach((id) => activeHeresyIds.add(id));
+        } else if (mode === 'marks') {
+          // Reach Rank 20: all except thirst (3) & legion (3) => 26 - 6 = 20
+          HERESIES.filter((h) => h.id !== 'thirst' && h.id !== 'legion').forEach((h) => activeHeresyIds.add(h.id));
+        }
+        renderHeresySimulator();
+      });
+    });
+
+    // Abyssal Rifts Calculator
+    const riftSlider = document.getElementById('rift-tier-slider');
+    const riftValEl = document.getElementById('rift-tier-val');
+
+    function fmtMultiplier(x) {
+      if (x >= 1000) return x.toLocaleString(undefined, { maximumFractionDigits: 1 }) + '×';
+      return x.toFixed(2) + '×';
+    }
+
+    function updateRiftCalculator(rawTier) {
+      const tier = Math.max(1, Math.min(100, Math.round(Number(rawTier) || 1)));
+      riftSlider.value = String(tier);
+      riftValEl.textContent = `T${tier}`;
+
+      document.querySelectorAll('#rift-tier-pills [data-rift-tier]').forEach((btn) => {
+        btn.classList.toggle('active', Number(btn.dataset.riftTier) === tier);
+      });
+
+      const hpMul = riftHpMul(tier);
+      const dmgMul = riftDmgMul(tier);
+      const activeInst = instabilitiesForTier(tier);
+      const rew = riftReward(tier, false);
+      const abyssalPct = Math.round(rew.abyssal * 100);
+      const keyLabel = tier >= 40
+        ? '2 Guaranteed Keys'
+        : tier >= 15
+          ? '1 Guaranteed Key'
+          : tier >= 10
+            ? '50% Chance (1 Key)'
+            : '0 Keys (Requires T10+)';
+
+      document.getElementById('rift-metrics-grid').innerHTML = `
+        <div class="depth-metric-card">
+          <span class="depth-metric-label">Clock &amp; Quota Rules</span>
+          <div class="depth-metric-val">${fmtTime(RIFT_TIME)} Clock · ${Math.round(RIFT_QUOTA * 100)}% Quota</div>
+          <span class="depth-metric-sub">Monster Lv ${riftLevel(tier)} · Clear ≤3:30 (+3 Tiers), ≤5:36 (+2), ≤7:00 (+1)</span>
+        </div>
+        <div class="depth-metric-card">
+          <span class="depth-metric-label">Tier ${tier} Monster Scaling</span>
+          <div class="depth-metric-val" style="color:var(--crimson-bright)">
+            HP ${fmtMultiplier(hpMul)} · DMG ${fmtMultiplier(dmgMul)}
+          </div>
+          <span class="depth-metric-sub">+10% compounding HP &amp; +6% compounding DMG per tier above T1</span>
+        </div>
+        <div class="depth-metric-card">
+          <span class="depth-metric-label">Guardian Grand Piñata Loot</span>
+          <div class="depth-metric-val" style="color:var(--gold-bright)">
+            ${rew.items} Gear · ${abyssalPct}% Abyssal
+          </div>
+          <span class="depth-metric-sub">100% Abyssal (Tier 20) on First Clear · ${rew.sigils} Sigils (+${rew.sigilBonus} Rank Bonus)</span>
+        </div>
+        <div class="depth-metric-card">
+          <span class="depth-metric-label">Keys &amp; Infernal Marks</span>
+          <div class="depth-metric-val" style="color:#d5a6ff">
+            🗝️ ${keyLabel}
+          </div>
+          <span class="depth-metric-sub">🔥 ${rew.marks} Infernal Mark${rew.marks === 1 ? '' : 's'} for Malakor the Ash-Wanderer</span>
+        </div>
+      `;
+
+      const activeIds = new Set(activeInst.map((i) => i.id));
+      document.getElementById('rift-instabilities-list').innerHTML = RIFT_INSTABILITIES.map((inst) => {
+        const on = activeIds.has(inst.id);
+        return `
+          <div class="instability-item ${on ? 'active' : ''}">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px">
+              <strong style="font-family:var(--font-title);font-size:13.5px;color:${on ? '#fff' : 'var(--text-dim)'}">${escapeHtml(inst.name)}</strong>
+              <span class="wiki-badge ${on ? 'violet' : ''}">Tier ${inst.minTier}+</span>
+            </div>
+            <p style="font-size:12.8px;color:var(--text-dim)">${escapeHtml(inst.desc)}</p>
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('rift-pylons-grid').innerHTML = PYLONS.map((p) => `
+      <div class="pylon-card" style="border-top:3px solid ${escapeHtml(p.color)}">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+          <strong style="font-family:var(--font-title);font-size:14.5px;color:${escapeHtml(p.color)}">${escapeHtml(p.name)}</strong>
+          <span class="wiki-badge gold">${p.dur}s Duration</span>
+        </div>
+        <p style="font-size:13.5px;color:var(--text-dim)">${escapeHtml(p.desc)}</p>
+      </div>
+    `).join('');
+
+    riftSlider.addEventListener('input', () => updateRiftCalculator(riftSlider.value));
+    document.querySelectorAll('#rift-tier-pills [data-rift-tier]').forEach((btn) => {
+      btn.addEventListener('click', () => updateRiftCalculator(btn.dataset.riftTier));
+    });
+
+    // Eternal Breach Floor Inspector
+    const breachSlider = document.getElementById('breach-floor-slider');
+    const breachValEl = document.getElementById('breach-floor-val');
+
+    function updateBreachInspector(rawFloor) {
+      const f = Math.max(1, Math.min(50, Math.round(Number(rawFloor) || 1)));
+      breachSlider.value = String(f);
+      breachValEl.textContent = `Floor ${f}`;
+      const wv = wyrmVariant(f);
+      const ws = wyrmStats(f);
+      const cyc = breachCycle(f);
+      const eqDepth = breachDepth(f);
+      const eqLv = breachLevel(f);
+      const elInfo = ELEMENT_INFO[wv.el] || ELEMENT_INFO.arcane;
+
+      const skills = ['Elemental Breath'];
+      if (ws.brood) skills.push('Brood Summoning');
+      if (ws.orbs) skills.push('Void Orb Rain');
+      if (ws.coil) skills.push('Constricting Coils');
+      if (f === 50) skills.push('7-Element Convergence');
+
+      document.getElementById('breach-floor-readout').innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+          <strong style="font-family:var(--font-title);color:${escapeHtml(wv.glow)};font-size:15px">
+            ${f === 50 ? '👑 THE APEX ETHEREAL WYRM' : `🐉 ${escapeHtml(wv.name)} Sky-Wyrm (Cycle ${cyc}/7)`}
+          </strong>
+          <span class="wiki-badge" style="color:${elInfo.color}">${elInfo.icon} ${escapeHtml(elInfo.name)}</span>
+        </div>
+        <div style="color:var(--text-dim);display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px">
+          <span><b>Difficulty:</b> Eq. Depth ${eqDepth} (Lv ${eqLv})</span>
+          <span><b>Body Length:</b> ${ws.segs} Segments</span>
+          <span><b>Wyrm Scaling:</b> ${ws.hpMul.toFixed(1)}× HP · ${ws.dmgMul.toFixed(2)}× DMG</span>
+          <span><b>Attack Passes:</b> ${ws.passes} Passes (${ws.attackCd.toFixed(1)}s CD)</span>
+        </div>
+        <div style="margin-top:8px;font-size:12.5px;color:var(--text)">
+          <b>Active Wyrm Mechanics:</b> ${skills.map((s) => `<span class="wiki-badge violet" style="margin-right:4px">${escapeHtml(s)}</span>`).join('')}
+        </div>
+      `;
+    }
+    breachSlider.addEventListener('input', () => updateBreachInspector(breachSlider.value));
+
+    // =========================================================================
+    // TAB 4: DUNGEON AFFIXES (257 MODIFIERS)
+    // =========================================================================
+    const AFFIX_CATEGORIES = ['All', ...new Set(DUNGEON_AFFIXES.map((a) => a.category))];
+    let currentAffixCat = 'All';
+
+    const AFFIX_CAT_BADGE = {
+      'Enemy Stat Modifiers': 'gold',
+      'On-Death Effects': 'crimson',
+      'Elemental Hazards': 'violet',
+      'Enemy Attack Modifiers': 'crimson',
+      'Player Debuffs & Curses': 'violet',
+      'Elite & Boss Modifiers': 'gold',
+      'Risk & Reward': 'emerald',
+    };
+
+    function renderAffixPills() {
+      const wrap = document.getElementById('affix-cat-pills');
+      wrap.innerHTML = AFFIX_CATEGORIES.map((cat) => {
+        const count = cat === 'All'
+          ? DUNGEON_AFFIXES.length
+          : DUNGEON_AFFIXES.filter((a) => a.category === cat).length;
+        return `<button type="button" class="wiki-pill ${currentAffixCat === cat ? 'active' : ''}" data-acat="${escapeHtml(cat)}">
+          <span>${escapeHtml(cat)}</span>
+          <span style="opacity:0.7">(${count})</span>
+        </button>`;
+      }).join('');
+
+      wrap.querySelectorAll('[data-acat]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          currentAffixCat = btn.dataset.acat;
+          renderAffixPills();
+          renderAffixes();
+        });
+      });
+    }
+
+    function renderAffixes() {
+      const q = document.getElementById('affix-search').value.trim().toLowerCase();
+      const filtered = DUNGEON_AFFIXES.filter((a) => {
+        if (currentAffixCat !== 'All' && a.category !== currentAffixCat) return false;
+        if (q) {
+          const hay = `${a.name} ${a.id} ${a.category} ${a.description}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      document.getElementById('affix-count-label').innerHTML = `Showing <b style="color:var(--gold-bright)">${filtered.length}</b> of ${DUNGEON_AFFIXES.length} affixes`;
+      const grid = document.getElementById('affixes-grid');
+
+      if (!filtered.length) {
+        grid.innerHTML = `<div class="empty-box" style="grid-column:1/-1">No dungeon affixes matched "<b>${escapeHtml(q)}</b>".</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map((a) => {
+        const cls = AFFIX_CAT_BADGE[a.category] || '';
+        return `
+          <article class="affix-card">
+            <div class="affix-card-head">
+              <span class="affix-name">${escapeHtml(a.name)}</span>
+              <span class="affix-id">#${escapeHtml(a.id)}</span>
+            </div>
+            <div>
+              <span class="wiki-badge ${cls}">${escapeHtml(a.category)}</span>
+            </div>
+            <p style="font-size:14px;color:var(--text-dim);margin-top:2px">${escapeHtml(a.description)}</p>
+          </article>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('affix-search').addEventListener('input', (e) => {
+      renderAffixes();
+      if (currentTab === 'affixes') syncUrl('affixes', e.target.value);
+    });
+
+    // =========================================================================
+    // INITIALIZE & APPLY URL QUERY PARAMETERS (?tab= & ?q= & ?depth=)
+    // =========================================================================
+    renderActCards();
+    updateDepthExplorer(getQueryParam('depth', '1'));
+    renderBiomeCatPills();
+    renderHeresySimulator();
+    updateRiftCalculator(1);
+    updateBreachInspector(1);
+    renderAffixPills();
+
+    const initTabParam = getQueryParam('tab', '').toLowerCase();
+    const initQuery = getQueryParam('q', '').trim();
+
+    if (initQuery) {
+      // Populate search inputs if matching tab or auto-detect best tab when tab omitted
+      let targetTab = VALID_TABS.includes(initTabParam) ? initTabParam : '';
+      const qLow = initQuery.toLowerCase();
+      if (!targetTab) {
+        if (ALL_REALMS.some((b) => b.name.toLowerCase().includes(qLow) || b.id.toLowerCase() === qLow)) {
+          targetTab = 'biomes';
+        } else if (HERESIES.some((h) => h.name.toLowerCase().includes(qLow))) {
+          targetTab = 'endgame';
+        } else if (DUNGEON_AFFIXES.some((a) => a.name.toLowerCase().includes(qLow) || a.id.toLowerCase() === qLow)) {
+          targetTab = 'affixes';
+        } else {
+          targetTab = 'biomes';
+        }
+      }
+      if (targetTab === 'biomes') document.getElementById('biome-search').value = initQuery;
+      if (targetTab === 'affixes') document.getElementById('affix-search').value = initQuery;
+      if (targetTab === 'endgame') {
+        const matchedHeresy = HERESIES.find((h) => h.name.toLowerCase().includes(qLow) || h.id.toLowerCase() === qLow);
+        if (matchedHeresy) {
+          activeHeresyIds.add(matchedHeresy.id);
+          renderHeresySimulator();
+        }
+      }
+      renderBiomes();
+      renderAffixes();
+      setActiveTab(targetTab, false);
+    } else {
+      renderBiomes();
+      renderAffixes();
+      if (initTabParam && VALID_TABS.includes(initTabParam)) {
+        setActiveTab(initTabParam, false);
+      }
+    }
+  </script>
+</body>
+</html>

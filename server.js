@@ -1198,6 +1198,7 @@ const server = http.createServer((req, res) => {
 
   // 4. Static Game Assets Serving
   if (pathname === '/' || pathname === '') pathname = '/index.html';
+  else if (pathname === '/wiki' || pathname === '/wiki/' || pathname === '/home' || pathname === '/home/') pathname = '/wiki.html';
 
   const safePath = path.normalize(path.join(ROOT, pathname));
   if (!safePath.startsWith(ROOT) || safePath.startsWith(DATA_DIR)) {

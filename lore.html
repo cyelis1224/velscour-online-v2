@@ -1,0 +1,1798 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090706">
+  <title>VELSCOUR WIKI — Lore, Mythos, Raid Tyrants, Herrington Hollow Folk &amp; Sky Chronicles</title>
+  <meta name="description" content="Read the official Lore &amp; Chronicles of Velscour Online: the Five Mythos Chapters, Demon Lord Velscour &amp; all 48 Raid Tyrants, the 9 Master Artisans &amp; 58 Folk of Herrington Hollow, and all 30 Tales of the Sky Lanes.">
+  <link rel="icon" type="image/x-icon" href="assets/ui/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/wiki.css">
+  <style>
+    /* ==========================================================================
+       LORE, TYRANTS & FOLK PAGE — GOTHIC CHRONICLES, PORTRAITS & SCRIPTS
+       ========================================================================== */
+    .lore-tab-panel {
+      display: none;
+      animation: loreFadeIn 0.2s ease-out;
+    }
+    .lore-tab-panel.active {
+      display: block;
+    }
+    @keyframes loreFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Mythos Tome Layout */
+    .mythos-layout {
+      display: grid;
+      grid-template-columns: 270px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+    .mythos-toc {
+      position: sticky;
+      top: 108px;
+      background: linear-gradient(180deg, #17100c 0%, #100b08 100%);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    }
+    .mythos-toc h3 {
+      font-family: var(--font-title);
+      font-size: 12px;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .mythos-toc-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .mythos-toc-list a {
+      display: block;
+      padding: 7px 10px;
+      border-radius: 4px;
+      font-family: var(--font-title);
+      font-size: 12px;
+      line-height: 1.35;
+      color: var(--text-dim);
+      border: 1px solid transparent;
+      transition: all 0.16s;
+    }
+    .mythos-toc-list a:hover {
+      color: var(--gold-bright);
+      background: rgba(212, 175, 55, 0.08);
+      border-color: rgba(212, 175, 55, 0.3);
+    }
+    .mythos-chapters {
+      display: flex;
+      flex-direction: column;
+      gap: 26px;
+    }
+    .lore-chapter {
+      background: linear-gradient(180deg, #19110d 0%, #110b08 100%);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--gold-dim);
+      border-radius: 8px;
+      padding: 28px 30px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
+      scroll-margin-top: 112px;
+    }
+    .lore-chapter-kicker {
+      font-family: var(--font-title);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--crimson-bright);
+      margin-bottom: 4px;
+    }
+    .lore-chapter h2 {
+      font-family: var(--font-title);
+      font-size: clamp(20px, 2.4vw, 26px);
+      font-weight: 900;
+      color: var(--gold-bright);
+      letter-spacing: 1.2px;
+      margin-bottom: 14px;
+    }
+    .lore-epigraph {
+      border-left: 3px solid var(--gold);
+      background: rgba(10, 6, 4, 0.65);
+      padding: 12px 16px;
+      margin-bottom: 18px;
+      border-radius: 0 5px 5px 0;
+      font-style: italic;
+      color: #f3e6cf;
+      font-size: 15.5px;
+    }
+    .lore-epigraph cite {
+      display: block;
+      margin-top: 5px;
+      font-style: normal;
+      font-family: var(--font-title);
+      font-size: 11px;
+      letter-spacing: 0.9px;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+    }
+    .lore-prose p {
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.72;
+      margin-bottom: 14px;
+    }
+    .lore-prose p:first-of-type::first-letter {
+      float: left;
+      font-family: var(--font-title);
+      font-size: 44px;
+      font-weight: 900;
+      line-height: 0.86;
+      padding-right: 10px;
+      padding-top: 4px;
+      color: var(--gold-bright);
+      text-shadow: 0 0 14px rgba(212, 175, 55, 0.35);
+    }
+    .reliquary-citations {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(112, 72, 40, 0.35);
+    }
+    .relic-cite-box {
+      background: rgba(10, 7, 5, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+    .relic-cite-box strong {
+      display: block;
+      font-family: var(--font-title);
+      font-size: 13px;
+      color: var(--gold-bright);
+      margin-bottom: 3px;
+    }
+    .relic-cite-box em {
+      color: var(--text-dim);
+    }
+
+    /* Demon Lord Velscour Featured Dossier */
+    .velscour-dossier {
+      background: radial-gradient(circle at 18% 35%, rgba(185, 38, 18, 0.28) 0%, rgba(18, 10, 8, 0.96) 65%);
+      border: 1px solid rgba(220, 65, 35, 0.65);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 26px;
+      display: grid;
+      grid-template-columns: 230px 1fr;
+      gap: 24px;
+      box-shadow: 0 12px 38px rgba(0, 0, 0, 0.78), 0 0 24px rgba(194, 47, 28, 0.18);
+    }
+    .velscour-stage {
+      background: radial-gradient(circle at 50% 60%, rgba(255, 70, 25, 0.32) 0%, rgba(8, 4, 3, 0.95) 75%);
+      border: 1px solid rgba(255, 110, 65, 0.45);
+      border-radius: 8px;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      gap: 10px;
+    }
+    .velscour-stage canvas {
+      width: 180px;
+      height: 180px;
+      image-rendering: pixelated;
+    }
+    .velscour-phases-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .velscour-phase-box {
+      background: rgba(10, 6, 5, 0.82);
+      border: 1px solid rgba(140, 50, 32, 0.45);
+      border-radius: 5px;
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+    .velscour-phase-box strong {
+      display: block;
+      font-family: var(--font-title);
+      color: var(--gold-bright);
+      font-size: 12.5px;
+      margin-bottom: 3px;
+    }
+
+    /* Raid Boss Tyrant Cards */
+    .tyrant-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .tyrant-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-highlight);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+    }
+    .tyrant-card.superboss {
+      border-color: rgba(212, 175, 55, 0.5);
+      background: linear-gradient(180deg, #1e140e 0%, #160f0b 100%);
+    }
+    .tyrant-top {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+    .tyrant-sprite-box {
+      width: 96px;
+      height: 96px;
+      background: radial-gradient(circle at 50% 62%, rgba(212, 175, 55, 0.16) 0%, rgba(8, 5, 4, 0.96) 76%);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .tyrant-sprite-box canvas {
+      width: 90px;
+      height: 90px;
+      image-rendering: pixelated;
+    }
+    .tyrant-title-block {
+      flex: 1;
+      min-width: 0;
+    }
+    .tyrant-name {
+      font-family: var(--font-title);
+      font-size: 17px;
+      font-weight: 900;
+      color: #fff;
+      line-height: 1.2;
+    }
+    .tyrant-epithet {
+      font-size: 13.5px;
+      font-style: italic;
+      color: var(--gold);
+      margin-bottom: 6px;
+    }
+    .tyrant-phases {
+      background: rgba(10, 6, 4, 0.72);
+      border: 1px solid rgba(80, 52, 32, 0.4);
+      border-radius: 5px;
+      padding: 8px 10px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 5px 10px;
+      font-size: 12.5px;
+    }
+    .tyrant-phase-line {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text);
+    }
+    .tyrant-phase-line span {
+      color: var(--gold-dim);
+      font-family: var(--font-title);
+      font-size: 10.5px;
+      margin-right: 4px;
+    }
+
+    /* Vendors & Townsfolk */
+    .vendor-card {
+      background: linear-gradient(180deg, #1b120d 0%, #130c09 100%);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: transform 0.18s, border-color 0.18s;
+    }
+    .vendor-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--gold-dim);
+    }
+    .vendor-card.travelling {
+      border-color: rgba(194, 47, 28, 0.58);
+      background: linear-gradient(180deg, #24110e 0%, #130a08 100%);
+    }
+    .vendor-head {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+    .vendor-portrait-box {
+      width: 78px;
+      height: 98px;
+      background: radial-gradient(circle at 50% 65%, rgba(212, 175, 55, 0.2) 0%, rgba(9, 6, 5, 0.96) 78%);
+      border: 1px solid var(--border-highlight);
+      border-radius: 6px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .vendor-portrait-box canvas {
+      width: 74px;
+      height: 94px;
+      image-rendering: auto;
+    }
+    .vendor-quote {
+      background: rgba(10, 6, 4, 0.78);
+      border-left: 3px solid var(--gold);
+      padding: 9px 12px;
+      border-radius: 0 4px 4px 0;
+      font-style: italic;
+      color: #f2e4cc;
+      font-size: 14px;
+    }
+
+    /* Townsfolk Portrait Cards */
+    .folk-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 14px;
+    }
+    .folk-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 7px;
+      transition: border-color 0.16s, transform 0.16s;
+    }
+    .folk-card:hover {
+      border-color: var(--border-highlight);
+      transform: translateY(-2px);
+    }
+    .folk-portrait-stage {
+      width: 160px;
+      height: 125px;
+      background: radial-gradient(circle at 50% 72%, rgba(212, 175, 55, 0.15) 0%, rgba(10, 7, 5, 0.95) 75%);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .folk-portrait-stage canvas {
+      width: 154px;
+      height: 120px;
+    }
+    .folk-pose-tag {
+      position: absolute;
+      bottom: 4px;
+      right: 5px;
+      font-family: var(--font-title);
+      font-size: 9.5px;
+      text-transform: uppercase;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: rgba(10, 6, 4, 0.82);
+      border: 1px solid rgba(112, 72, 40, 0.45);
+      color: var(--gold);
+    }
+    .folk-name {
+      font-family: var(--font-title);
+      font-size: 14.5px;
+      font-weight: 800;
+      color: #fff;
+    }
+    .folk-role {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      text-transform: capitalize;
+    }
+
+    /* Voices of the Hollow Dialogue Cards */
+    .dialogue-card {
+      background: #150e0b;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .dialogue-line {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 14.2px;
+    }
+    .dialogue-speaker {
+      font-family: var(--font-title);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--gold);
+      flex-shrink: 0;
+    }
+    .dialogue-emote {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-style: italic;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    /* Sky Stories Cards & Expandable Script Reader */
+    .skystory-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .skystory-card:hover {
+      border-color: var(--border-highlight);
+      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.65);
+    }
+    .skystory-banner {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      position: relative;
+    }
+    .skystory-banner-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(9, 7, 6, 0.82) 0%, rgba(9, 7, 6, 0.42) 60%, rgba(9, 7, 6, 0.75) 100%);
+    }
+    .skystory-banner-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .skystory-title {
+      font-family: var(--font-title);
+      font-size: 18px;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+    }
+    .skystory-ship {
+      font-family: var(--font-title);
+      font-size: 12px;
+      letter-spacing: 1px;
+      color: var(--gold-bright);
+      margin-top: 2px;
+    }
+    .skystory-body {
+      padding: 15px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+    }
+    .cast-pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .cast-pill {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #120b08;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .cast-pill.master {
+      border-color: rgba(220, 60, 35, 0.6);
+      color: #ff9c8a;
+      background: rgba(65, 16, 12, 0.45);
+    }
+    .cast-pill.captain {
+      border-color: rgba(212, 175, 55, 0.5);
+      color: var(--gold-bright);
+    }
+    .script-toggle-btn {
+      margin-top: auto;
+      background: #1e140e;
+      border: 1px solid var(--border-highlight);
+      color: var(--gold-bright);
+      font-family: var(--font-title);
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.16s;
+    }
+    .script-toggle-btn:hover {
+      border-color: var(--gold);
+      background: #2b1c13;
+      color: #fff;
+    }
+    .script-reader {
+      display: none;
+      background: #0d0907;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 12px 14px;
+      margin-top: 6px;
+      max-height: 420px;
+      overflow-y: auto;
+      font-size: 13.5px;
+    }
+    .script-reader.open {
+      display: block;
+    }
+    .script-act-heading {
+      font-family: var(--font-title);
+      font-size: 11px;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+      color: var(--crimson-bright);
+      margin: 10px 0 6px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid rgba(112, 72, 40, 0.3);
+    }
+    .script-act-heading:first-child {
+      margin-top: 0;
+    }
+    .script-row {
+      margin-bottom: 6px;
+      line-height: 1.45;
+    }
+    .script-row b {
+      color: var(--gold-bright);
+      font-family: var(--font-title);
+      font-size: 11.5px;
+      margin-right: 5px;
+    }
+
+    @media (max-width: 960px) {
+      .mythos-layout {
+        grid-template-columns: 1fr;
+      }
+      .mythos-toc {
+        position: static;
+      }
+      .velscour-dossier {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <script src="src/wiki/wiki-boot.js" data-wiki-active="lore"></script>
+  <section class="wiki-page-hero">
+    <div class="wiki-page-hero-inner">
+      <span class="wiki-eyebrow">Chronicles of the Hollow · Mythos, Tyrants, Artisans &amp; Sky-Fleets</span>
+      <h1 class="wiki-page-title">LORE, TYRANTS &amp; <span>FOLK</span></h1>
+      <p class="wiki-page-desc">
+        Uncover the dark history beneath Herrington Hollow — from Demon Lord Velscour's five-hundred-depth entombment and his forty-eight Raid Tyrants to the royal court, knightly orders, master artisans, and the thirty airship boarding chronicles of the Sky Lanes.
+      </p>
+      <div class="wiki-stats-ribbon">
+        <span class="wiki-stat-badge">📖 <b>5</b> Mythos Chapters</span>
+        <span class="wiki-stat-badge">👑 <b>Velscour</b> + <b id="stat-raid-count">48</b> Raid Tyrants</span>
+        <span class="wiki-stat-badge">⚒️ <b id="stat-vendor-count">9</b> Master Artisans &amp; <b id="stat-folk-count">58</b> Hollow Folk</span>
+        <span class="wiki-stat-badge">⛵ <b id="stat-sky-count">30</b> Tales of the Sky Lanes</span>
+      </div>
+    </div>
+  </section>
+
+  <main class="wiki-main">
+    <!-- Sub-Navigation Tabs -->
+    <div class="wiki-tabs" role="tablist" aria-label="Lore & Folk Compendium Tabs">
+      <button class="wiki-tab-btn active" data-tab="mythos" role="tab" aria-selected="true">
+        📜 Mythos &amp; Chronicles
+      </button>
+      <button class="wiki-tab-btn" data-tab="lords" role="tab" aria-selected="false">
+        💀 Tyrants &amp; Raid Lords
+      </button>
+      <button class="wiki-tab-btn" data-tab="folk" role="tab" aria-selected="false">
+        🏘️ Hollow Artisans &amp; Folk
+      </button>
+      <button class="wiki-tab-btn" data-tab="skystories" role="tab" aria-selected="false">
+        ⛵ Tales of the Sky Lanes (30)
+      </button>
+    </div>
+
+    <!-- =====================================================================
+         TAB 1: MYTHOS & CHRONICLES
+         ===================================================================== -->
+    <section class="lore-tab-panel active" id="panel-mythos" role="tabpanel">
+      <div class="mythos-layout">
+        <aside class="mythos-toc" aria-label="Chronicle Chapters">
+          <h3>📖 Codex Chapters</h3>
+          <ul class="mythos-toc-list">
+            <li><a href="#ch-1">I. The Thing Beneath the Hollow</a></li>
+            <li><a href="#ch-2">II. Herrington Hollow &amp; Sunscorch Oasis</a></li>
+            <li><a href="#ch-3">III. The High Reliquary, Covenants &amp; Old Herrington</a></li>
+            <li><a href="#ch-4">IV. Beyond the Crypts: Sand, Sky &amp; Breach</a></li>
+            <li><a href="#ch-5">V. The Shattering: Heresies, Rifts &amp; Velscour Unbound</a></li>
+          </ul>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text-dim)">
+            Cross-referenced live with <a href="gear.html?tab=heirlooms">Relics</a>, <a href="world.html?tab=acts">Campaign Acts</a>, and <a href="bestiary.html">Bestiary</a> records.
+          </div>
+        </aside>
+
+        <div class="mythos-chapters">
+          <!-- Chapter I -->
+          <article class="lore-chapter" id="ch-1">
+            <div class="lore-chapter-kicker">Chapter I · The Abyssal Foundation</div>
+            <h2>The Thing Beneath the Hollow</h2>
+            <blockquote class="lore-epigraph">
+              "A world built upon something that should have stayed dead."
+              <cite>— Inscription on the Warded Well of Old Herrington</cite>
+            </blockquote>
+            <div class="lore-prose">
+              <p>
+                Five hundred strata beneath the roots of the ancient oaks lies a throne of black iron that no mortal mason ever raised. Upon it sits <b>Demon Lord Velscour</b> — not slain in the First Crusade, as the court chroniclers once comforted themselves by writing, merely pinned beneath the weight of five hundred sealed depths, four elemental ward-crystals, and four obelisks of chained basalt. For a thousand years his heart has beaten out of time with the living world, and every century that pulse climbs higher through the stone.
+              </p>
+              <p>
+                In Herrington Hollow, the elders remember when the dungeon entrance was nothing more than a drystone well on the edge of the trees. Now the well water tastes of cold iron, the hens stare unblinking toward the glowing portal until dawn, and the buried dead do not wait for Depth Nine to walk — they claw out of the ossuary niches at <b>Depth One</b>. Every fifth floor downward has been claimed by one of Velscour's forty-eight <b>Raid Tyrants</b>, sealing its archway behind iron grates until either challenger or sovereign falls.
+              </p>
+            </div>
+          </article>
+
+          <!-- Chapter II -->
+          <article class="lore-chapter" id="ch-2">
+            <div class="lore-chapter-kicker">Chapter II · The Last Sanctuaries</div>
+            <h2>Herrington Hollow &amp; Sunscorch Oasis</h2>
+            <blockquote class="lore-epigraph">
+              "The Order keeps the town. You keep the dark at bay."
+              <cite>— Knightly Salute of the Ten Surface Orders</cite>
+            </blockquote>
+            <div class="lore-prose">
+              <p>
+                Above the portal stands <b>Herrington Hollow</b>, a lantern-lit refuge of mud lanes, market stalls, and stubbornly smoking chimneys watched over by <b>King Edric</b>, <b>Queen Elowen</b>, young royal heir <b>Pip</b>, and the indomitable <b>Dowager Queen Agnes</b> — who famously buried two kings and a dragon and still wears steel beneath her mourning velvet. Ten sworn Knightly Orders — from <i>Aldric of the Ashen Bastion</i> and <i>Elsabet of the Ivory Mantle</i> to <i>Halvard the Frostbound</i> and <i>Odo of the Hollow Star</i> — hold the timber palisades and forest roads so the townsfolk can bake bread, mend wagon wheels, and haggle with <i>Fortunato</i> while lone champions brave the descent.
+              </p>
+              <p>
+                Those who conquer the Bone Colossus at Depth 96 break through the subterranean crust into a second sun-bleached world: <b>Sunscorch Oasis</b>, the desert sanctuary of <a href="world.html?tab=acts">Act II</a>. Framed by date palms, canvas pavilions, and wind-scoured sandstone, the Oasis shelters travelers before they march into the burning <a href="world.html?tab=biomes&q=Sea+of+Sand">Sea of Sand</a>, the spiral stairs of the <i>Serpentine Tower</i>, and the buried tombs of the Sunless Dynasty.
+              </p>
+            </div>
+          </article>
+
+          <!-- Chapter III -->
+          <article class="lore-chapter" id="ch-3">
+            <div class="lore-chapter-kicker">Chapter III · Sacred Arms &amp; Lost Crusades</div>
+            <h2>The High Reliquary, Covenants &amp; Old Herrington</h2>
+            <blockquote class="lore-epigraph">
+              "Nine sovereigns wore it into the catacombs. Nine sovereigns fell."
+              <cite>— Reliquary Record for The Ninefold Crown</cite>
+            </blockquote>
+            <div class="lore-prose">
+              <p>
+                Long before the current watch, the <b>High Reliquary</b> marshalled great crusades into the catacombs, arming its champions with named <a href="gear.html?tab=heirlooms">Heirlooms</a> and binding whole brotherhoods under five-piece <a href="gear.html?tab=covenants">Covenant</a> oaths. Their warhammers, censers, and shields still surface in the deep chests — scarred links that remember vows kept unto death, petrified abyssal lenses that never blink, and the battered iron plate of <b>Old Herrington</b>, forged when the first wall held the eastern breach until sunrise.
+              </p>
+              <p>
+                Older still are the twenty <b>Sigil Stones</b> — from humble <i>Ash</i>, <i>Bryn</i>, and <i>Cael</i> to royal <i>Syl</i> and <i>Thane</i>. When set in exact ancient sequence inside unadorned grey steel, these stones awaken living <a href="gear.html?tab=glyphwords">Glyphwords</a> such as <i>Mourning Bell</i>, <i>Ember Litany</i>, <i>Last Light</i>, <i>Sky-Sunder</i>, and the forbidden six-stone <i>Abyssal Writ</i>.
+              </p>
+            </div>
+            <div class="reliquary-citations" id="mythos-relic-citations"></div>
+          </article>
+
+          <!-- Chapter IV -->
+          <article class="lore-chapter" id="ch-4">
+            <div class="lore-chapter-kicker">Chapter IV · The Fractured Horizons</div>
+            <h2>Beyond the Crypts: The Sea of Sand, The Sky Lanes &amp; The Eternal Breach</h2>
+            <blockquote class="lore-epigraph">
+              "That smell is not the sea air. That is a crypt. Up here."
+              <cite>— Boarding Log of the Ironclad, Sky Lanes Chronicle I</cite>
+            </blockquote>
+            <div class="lore-prose">
+              <p>
+                Velscour's corruption is no mere tunnel beneath one village; the descent opens onto distant, fractured horizons bound to his dominion. Beneath the Scorched Wastes rules <b>Pharaoh Sekhmun, the Exchanged King</b>, who bartered his dynasty's beating hearts for an eternal reign of gold-bound sarcophagi and scarab carpets. On the storm-lashed <a href="world.html?tab=biomes&q=Pirate+Seas">Pirate Seas</a>, the Lampwardens' vessel <i>Dawnwake</i> trades cannon fire with the undead <i>Black Tide</i>; high above the Empyrean clouds, ironclad skyships clash across <a href="lore.html?tab=skystories">thirty storied boarding campaigns</a> against <i>Admiral Veyl's</i> black-sail privateers, <i>Morvane's Widow's Bell</i>, and <i>Queen Hiemra's</i> floating ice palace.
+              </p>
+              <p>
+                Back in Herrington Hollow, a second portal burns violet beside the green treeline: <b>The Eternal Breach</b>. Stepping through it casts heroes onto fifty unmoored islands of the <i>Veilscar March</i> drifting over raw void, hunted by two hundred void-trimmed aberrations and the <b>Seven Elemental Wyrms</b>, whose sevenfold ascension culminates at Floor 50 in the sixty-segment <b>Apex Ethereal Wyrm</b>.
+              </p>
+            </div>
+          </article>
+
+          <!-- Chapter V -->
+          <article class="lore-chapter" id="ch-5">
+            <div class="lore-chapter-kicker">Chapter V · Beyond Depth 500</div>
+            <h2>The Shattering: Heresies, Abyssal Rifts &amp; Velscour Unbound</h2>
+            <blockquote class="lore-epigraph">
+              "He wore it for a thousand years. It has not decided whether you are the next."
+              <cite>— Crown of the Demon Lord (Unbound Heirloom)</cite>
+            </blockquote>
+            <div class="lore-prose">
+              <p>
+                Striking down Demon Lord Velscour at Depth 500 does not end the war — it breaks the ancient lock that kept the deeper abyss asleep. In Herrington Hollow, the <b>Altar of Heresy</b> kindles with twelve profane vows: swearing them doubles monster packs, dries every potion flask, calls Pit Legions through sudden hellgates, and pushes Raid Lords into a lethal <i>Fifth Phase</i> in exchange for immense treasure multipliers and <b>Infernal Marks</b> coveted by the ash-cloaked wanderer <b>Malakor</b>.
+              </p>
+              <p>
+                Simultaneously, <b>Abyssal Rifts</b> tear open across a hundred escalating tiers where Rift Guardians hoard <b>Abyssal Keys</b>. Carrying those keys back to the Town Portal unlocks <b>Unbound Exploration</b> — a relentless hundred-floor hardmode plunge culminating before <b>Velscour Unbound</b>. Freed of his ancient chains, the Archfiend summons two Signature Raid Tyrants of his <i>Court of the Abyss</i> to shield him under a blood pact, challenging mortal legends for the five Unbound Heirlooms of the Pit.
+              </p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         TAB 2: TYRANTS & RAID LORDS OF THE DEEP
+         ===================================================================== -->
+    <section class="lore-tab-panel" id="panel-lords" role="tabpanel">
+      <!-- Featured Demon Lord Velscour Dossier -->
+      <article class="velscour-dossier" id="velscour-featured">
+        <div class="velscour-stage" data-monster-art="va_Velscour">
+          <canvas width="180" height="180" style="display:none"></canvas>
+          <div class="superboss-placeholder" style="font-size:48px">👹</div>
+          <a href="bestiary.html?id=va_Velscour" class="wiki-badge crimson">View in Bestiary →</a>
+        </div>
+        <div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+            <span class="wiki-badge crimson">👑 Depth 500 Throne Climax</span>
+            <span class="wiki-badge gold">🔥 Fire / Shadow / Abyssal</span>
+            <span class="wiki-badge violet">Unbound Rematch: Floor 100</span>
+          </div>
+          <h2 style="font-family:var(--font-title);font-size:26px;font-weight:900;color:#fff;letter-spacing:1.4px">
+            DEMON LORD VELSCOUR
+          </h2>
+          <p style="color:var(--gold);font-style:italic;margin-bottom:8px">
+            Ancient Archfiend of the Sunken Throne · Master of the Legion of the Pit
+          </p>
+          <p style="color:var(--text-dim);font-size:14.8px">
+            Seated high upon a basalt dais at Depth 500, Velscour commands a five-phase, fifteen-minute endurance war with life-gated intermissions. In <b>Velscour Unbound</b> (20:00 clock), two Signature Raid Lords of his <i>Court of the Abyss</i> fight beside him, granting him a 60% damage-reduction Pact while they live.
+          </p>
+          <div class="velscour-phases-grid">
+            <div class="velscour-phase-box">
+              <strong>Phase I · Lord Upon the Throne (100–80%)</strong>
+              Hellbrand cleaves, Chains of Velscour drag heroes inward, and Throne Guards march.
+            </div>
+            <div class="velscour-phase-box">
+              <strong>Phase II · The Four Seals (80% Gate)</strong>
+              Invulnerable intermission: shatter 4 Seal Wardens amid sweeping flame walls (+15% boss power per unbroken seal).
+            </div>
+            <div class="velscour-phase-box">
+              <strong>Phase III · Crown of Hellfire (80–50%)</strong>
+              Creeping lava tides, Meteor Spirals, Doom Brand pools, Mirror of Sin clones &amp; Pit Hellgates.
+            </div>
+            <div class="velscour-phase-box">
+              <strong>Phase IV · Into the Abyss (50% Gate)</strong>
+              Pitch darkness falls for 75s: hug the two Soul Lanterns while shattering three Heart Shards (-5% boss HP each).
+            </div>
+            <div class="velscour-phase-box">
+              <strong>Phase V · True Form &amp; Obelisks (50–0%)</strong>
+              Arena-wide <i>Apocalypse</i> blasts (3 safe sigils); at 10% HP he chains himself to 4 Unbound Obelisks.
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Raid Arena Modifiers Strip -->
+      <div class="wiki-card" style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+          <h3 style="font-family:var(--font-title);font-size:15px;color:var(--gold-bright);text-transform:uppercase;letter-spacing:1px">
+            ⚔️ Boss Room Rules &amp; Rolled Raid Modifiers (RAID_MODS)
+          </h3>
+          <span class="wiki-section-sub">3 Phases (4 Phases from Depth 25, 5 with "The Fifth Phase" Heresy) · 90% Warding Crystal Intermissions · Enrage 3:00 / Execute 5:00</span>
+        </div>
+        <div class="wiki-pills" id="raid-mods-strip"></div>
+      </div>
+
+      <!-- Raid Boss Toolbar -->
+      <div class="wiki-toolbar">
+        <div class="wiki-toolbar-row">
+          <div class="wiki-search-field">
+            <input type="search" id="lords-search" placeholder="Search all 48 Raid Tyrants by name, title, phase, summon, or signature mechanic...">
+          </div>
+          <select id="lords-el-filter" class="wiki-select" aria-label="Filter Raid Bosses by Element">
+            <option value="all">All Elements</option>
+            <option value="phys">⚔️ Physical</option>
+            <option value="fire">🔥 Fire</option>
+            <option value="cold">❄️ Cold</option>
+            <option value="light">⚡ Lightning</option>
+            <option value="poison">☠️ Poison</option>
+            <option value="shadow">🌑 Shadow</option>
+            <option value="arcane">✨ Arcane</option>
+            <option value="holy">☀️ Holy</option>
+          </select>
+          <span class="wiki-section-sub" id="lords-count-label"></span>
+        </div>
+        <div class="wiki-pills" id="lords-host-pills"></div>
+      </div>
+
+      <div class="wiki-grid-wide" id="lords-grid"></div>
+    </section>
+
+    <!-- =====================================================================
+         TAB 3: SANCTUARY ARTISANS & FOLK OF HERRINGTON HOLLOW
+         ===================================================================== -->
+    <section class="lore-tab-panel" id="panel-folk" role="tabpanel">
+      <div class="wiki-toolbar">
+        <div class="wiki-toolbar-row">
+          <div class="wiki-search-field">
+            <input type="search" id="folk-search" placeholder="Search vendors, royalty, order knights, scouts, merchants, scamps, or beasts...">
+          </div>
+          <span class="wiki-section-sub" id="folk-count-label"></span>
+        </div>
+        <div class="wiki-pills" id="folk-group-pills"></div>
+      </div>
+
+      <!-- 1. The 9 Master Artisans & Merchants -->
+      <div id="vendors-section">
+        <div class="wiki-section-header" style="margin-top:0">
+          <h2>⚒️ The 9 Master Artisans &amp; Merchants of Herrington Hollow</h2>
+          <span class="wiki-section-sub">Rendered in their authentic in-game palette swaps &amp; shopkeeper greetings</span>
+        </div>
+        <div class="wiki-grid-wide" id="vendors-grid"></div>
+      </div>
+
+      <!-- 2. Townsfolk, Royalty, Knights & Beasts -->
+      <div class="wiki-section-header">
+        <h2>🏘️ Residents, Royalty, Knights &amp; Beasts</h2>
+        <span class="wiki-section-sub">Click any portrait to cycle through their painted emotion frames!</span>
+      </div>
+      <div class="folk-grid" id="folk-grid"></div>
+
+      <!-- 3. Voices of the Hollow -->
+      <div class="wiki-section-header">
+        <h2>💬 Voices of the Hollow: Audiences, Gossip &amp; Festivals</h2>
+        <div class="wiki-pills" id="voices-filter-pills">
+          <button type="button" class="wiki-pill active" data-vcat="audiences">👑 Royal &amp; Town Audiences</button>
+          <button type="button" class="wiki-pill" data-vcat="chats">🗣️ Overheard Town Chats</button>
+          <button type="button" class="wiki-pill" data-vcat="events">🎪 Town Square Events</button>
+        </div>
+      </div>
+      <div class="wiki-grid" id="voices-grid"></div>
+    </section>
+
+    <!-- =====================================================================
+         TAB 4: TALES OF THE SKY LANES (30 AIRSHIP CHRONICLES)
+         ===================================================================== -->
+    <section class="lore-tab-panel" id="panel-skystories" role="tabpanel">
+      <div class="wiki-toolbar">
+        <div class="wiki-toolbar-row">
+          <div class="wiki-search-field">
+            <input type="search" id="sky-search" placeholder="Search all 30 Sky Chronicles by title, flagship, captain, knight, or dialogue...">
+          </div>
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:13.5px;color:var(--gold-bright);cursor:pointer">
+            <input type="checkbox" id="sky-gauntlet-only" style="accent-color:var(--gold)">
+            <span>Boss Gauntlet Chronicles Only</span>
+          </label>
+          <span class="wiki-section-sub" id="sky-count-label"></span>
+        </div>
+        <div class="wiki-pills" id="sky-weather-pills"></div>
+      </div>
+
+      <div class="wiki-grid-wide" id="skystories-grid"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { mountWikiShell, ELEMENT_INFO, escapeHtml, getQueryParam } from './src/wiki/wiki-shell.js';
+    import { RAID_BOSSES, RAID_MODS } from './src/game/raid.js';
+    import { VENDORS } from './src/world/town.js';
+    import { TOWNSFOLK, ANIMALS, folkLabel } from './src/data/townsfolk.js';
+    import { CHATS, AUDIENCES, SHOPPING, ADVENTURER_CHATS, EVENT_LINES } from './src/data/townscripts.js';
+    import { SKY_STORIES } from './src/data/skystories.js';
+    import { ACTS, SUPERBOSS_DEPTHS } from './src/data/depth.js';
+    import { HEIRLOOMS, COVENANTS, POWERS } from './src/data/relics.js';
+    import { STD_FRAMES, EXTRA_FRAMES } from './src/game/townsfolkvisuals.js';
+    import { loadArtFor, enemyImage } from './src/core/enemyart.js';
+    import { recolor } from './src/core/util.js';
+
+    mountWikiShell({ active: 'lore' });
+
+    // Hero Ribbon Counts
+    document.getElementById('stat-raid-count').textContent = String(RAID_BOSSES.length);
+    document.getElementById('stat-vendor-count').textContent = String(VENDORS.length);
+    document.getElementById('stat-folk-count').textContent = String(TOWNSFOLK.length + ANIMALS.length);
+    document.getElementById('stat-sky-count').textContent = String(SKY_STORIES.length);
+
+    // =========================================================================
+    // TAB NAVIGATION & URL SYNC
+    // =========================================================================
+    const VALID_TABS = ['mythos', 'lords', 'folk', 'skystories'];
+    let currentTab = 'mythos';
+
+    function syncUrl(tab, q = '') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tab);
+      if (q && q.trim()) url.searchParams.set('q', q.trim());
+      else url.searchParams.delete('q');
+      window.history.replaceState({}, '', url);
+    }
+
+    function setActiveTab(tab, updateHistory = true) {
+      if (!VALID_TABS.includes(tab)) tab = 'mythos';
+      currentTab = tab;
+      document.querySelectorAll('.wiki-tab-btn').forEach((btn) => {
+        const active = btn.dataset.tab === tab;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      document.querySelectorAll('.lore-tab-panel').forEach((panel) => {
+        panel.classList.toggle('active', panel.id === `panel-${tab}`);
+      });
+      if (updateHistory) {
+        const qVal = tab === 'lords'
+          ? document.getElementById('lords-search').value
+          : tab === 'folk'
+            ? document.getElementById('folk-search').value
+            : tab === 'skystories'
+              ? document.getElementById('sky-search').value
+              : '';
+        syncUrl(tab, qVal);
+      }
+    }
+
+    document.querySelectorAll('.wiki-tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+    });
+
+    // =========================================================================
+    // TAB 1: MYTHOS RELIQUARY CITATIONS (LIVE FROM relics.js)
+    // =========================================================================
+    const citedHeirloomIds = ['verdict', 'ninefold', 'aegis', 'lanternheart', 'crown_demon', 'abyssal_edge'];
+    const citedHtml = citedHeirloomIds.map((id) => {
+      const h = HEIRLOOMS.find((x) => x.id === id);
+      if (!h) return '';
+      const p = POWERS[h.power];
+      return `
+        <div class="relic-cite-box">
+          <strong><a href="gear.html?tab=heirlooms&q=${encodeURIComponent(h.name)}">${escapeHtml(h.name)}</a></strong>
+          <em>"${escapeHtml(h.flavor)}"</em>
+          ${p ? `<div style="margin-top:4px;font-size:11.5px;color:var(--gold-dim)">Power: ${escapeHtml(p.name)}</div>` : ''}
+        </div>
+      `;
+    }).join('') + COVENANTS.slice(0, 2).map((c) => {
+      const p = POWERS[c.power];
+      return `
+        <div class="relic-cite-box">
+          <strong><a href="gear.html?tab=covenants&q=${encodeURIComponent(c.name)}">${escapeHtml(c.name)}</a></strong>
+          <em>5-Piece Sacred Covenant (${c.pieces.map((pc) => pc.name.split(' ').pop()).join(', ')})</em>
+          ${p ? `<div style="margin-top:4px;font-size:11.5px;color:var(--emerald)">5pc Vow: ${escapeHtml(p.name)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+    document.getElementById('mythos-relic-citations').innerHTML = citedHtml;
+
+    // =========================================================================
+    // MONSTER SPRITE RENDERING (loadArtFor + enemyImage via IntersectionObserver)
+    // =========================================================================
+    function drawMonsterToCanvas(cv, spriteCanvas) {
+      if (!cv || !spriteCanvas) return;
+      const ctx = cv.getContext('2d');
+      const w = cv.width, h = cv.height;
+      ctx.clearRect(0, 0, w, h);
+      const sw = spriteCanvas.width, sh = spriteCanvas.height;
+      const pad = 8;
+      const scale = Math.min((w - pad * 2) / sw, (h - pad * 2) / sh, 2.2);
+      const dw = Math.max(1, Math.round(sw * scale));
+      const dh = Math.max(1, Math.round(sh * scale));
+      const dx = Math.round((w - dw) / 2);
+      const dy = Math.round((h - dh) / 2);
+
+      const shadowY = Math.min(h - 5, dy + dh - 3);
+      const shadowW = Math.max(14, dw * 0.42);
+      const grad = ctx.createRadialGradient(w / 2, shadowY, 0, w / 2, shadowY, shadowW);
+      grad.addColorStop(0, 'rgba(0,0,0,0.72)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(w / 2, shadowY, shadowW, Math.max(4, shadowW * 0.28), 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(spriteCanvas, dx, dy, dw, dh);
+    }
+
+    const monsterObserver = new IntersectionObserver((entries) => {
+      const batch = [];
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          const el = entry.target;
+          monsterObserver.unobserve(el);
+          const artId = el.dataset.monsterArt;
+          if (artId) batch.push({ el, artId });
+        }
+      }
+      if (!batch.length) return;
+      loadArtFor(batch.map((b) => b.artId)).then(() => {
+        for (const { el, artId } of batch) {
+          const img = enemyImage(artId);
+          const cv = el.querySelector('canvas');
+          const ph = el.querySelector('.superboss-placeholder');
+          if (img && cv) {
+            drawMonsterToCanvas(cv, img);
+            cv.style.display = 'block';
+            if (ph) ph.style.display = 'none';
+          }
+        }
+      }).catch((err) => console.warn('Monster art load warning:', err));
+    }, { rootMargin: '300px 0px' });
+
+    monsterObserver.observe(document.querySelector('#velscour-featured [data-monster-art]'));
+
+    // =========================================================================
+    // TAB 2: TYRANTS & RAID LORDS OF THE DEEP (48 RAID_BOSSES)
+    // =========================================================================
+    document.getElementById('raid-mods-strip').innerHTML = Object.entries(RAID_MODS).map(([k, m]) =>
+      `<span class="wiki-badge" title="${escapeHtml(m.desc)}"><b style="color:var(--gold-bright)">${escapeHtml(m.name)}:</b>&nbsp;${escapeHtml(m.desc)}</span>`
+    ).join('');
+
+    // Map Campaign Superboss Depths
+    const SUPERBOSS_DEPTH_BY_ID = {};
+    for (const [dep, bid] of Object.entries(SUPERBOSS_DEPTHS)) {
+      const dNum = Number(dep);
+      const actObj = ACTS.find((a) => a.finaleDepth === dNum || (dNum >= a.start && dNum <= a.end));
+      const isFinale = ACTS.some((a) => a.finaleDepth === dNum);
+      SUPERBOSS_DEPTH_BY_ID[bid] = {
+        depth: dNum,
+        label: isFinale ? `Act ${actObj ? actObj.act : ''} Finale · Depth ${dNum}` : `Act ${actObj ? actObj.act : ''} Mid-Boss · Depth ${dNum}`,
+      };
+    }
+
+    const HOST_FILTERS = [
+      { id: 'all', label: 'All Raid Tyrants', test: () => true },
+      { id: 'campaign', label: '👑 Campaign Superbosses', test: (b) => !!SUPERBOSS_DEPTH_BY_ID[b.id] },
+      { id: 'third', label: '✨ Third Host (Signature Mechanics)', test: (b) => !!b.sigs },
+      { id: 'second', label: '🐉 Second Host (Innate Modifiers)', test: (b) => !!b.innate && !b.sigs },
+      { id: 'first', label: '💀 First Host (Classic Lords)', test: (b) => !b.sigs && !b.innate },
+    ];
+
+    let currentHostFilter = 'all';
+
+    function renderHostPills() {
+      const wrap = document.getElementById('lords-host-pills');
+      wrap.innerHTML = HOST_FILTERS.map((hf) => {
+        const count = RAID_BOSSES.filter(hf.test).length;
+        return `<button type="button" class="wiki-pill ${currentHostFilter === hf.id ? 'active' : ''}" data-host="${hf.id}">
+          <span>${escapeHtml(hf.label)}</span>
+          <span style="opacity:0.7">(${count})</span>
+        </button>`;
+      }).join('');
+      wrap.querySelectorAll('[data-host]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          currentHostFilter = btn.dataset.host;
+          renderHostPills();
+          renderRaidLords();
+        });
+      });
+    }
+
+    function formatAbilityKey(k) {
+      return String(k || '').replace(/_/g, ' ');
+    }
+
+    function renderRaidLords() {
+      const q = document.getElementById('lords-search').value.trim().toLowerCase();
+      const elFilter = document.getElementById('lords-el-filter').value;
+      const hostDef = HOST_FILTERS.find((h) => h.id === currentHostFilter) || HOST_FILTERS[0];
+
+      // Show/hide Velscour featured dossier smoothly when searching
+      const velFeatured = document.getElementById('velscour-featured');
+      const velMatches = (!q || 'demon lord velscour throne abyss'.includes(q)) && (elFilter === 'all' || elFilter === 'fire');
+      velFeatured.style.display = velMatches && (currentHostFilter === 'all' || currentHostFilter === 'campaign') ? 'grid' : 'none';
+
+      const filtered = RAID_BOSSES.filter((rb) => {
+        if (!hostDef.test(rb)) return false;
+        if (elFilter !== 'all' && (rb.el || 'phys') !== elFilter) return false;
+        if (q) {
+          const hay = `${rb.name} ${rb.title || ''} ${rb.id} ${rb.cata || ''} ${(rb.mech || []).join(' ')} ${(rb.adds || []).join(' ')} ${rb.phases.map((p) => p.name).join(' ')}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      // Sort Campaign Superbosses & Signature Third-Host bosses cleanly when viewing All, or preserve authentic order
+      const ordered = [...filtered].sort((a, b) => {
+        const sa = SUPERBOSS_DEPTH_BY_ID[a.id]?.depth ?? 9999;
+        const sb = SUPERBOSS_DEPTH_BY_ID[b.id]?.depth ?? 9999;
+        if (sa !== sb) return sa - sb;
+        if (!!b.sigs !== !!a.sigs) return b.sigs ? 1 : -1;
+        return 0;
+      });
+
+      document.getElementById('lords-count-label').innerHTML = `Showing <b style="color:var(--gold-bright)">${ordered.length}</b> of ${RAID_BOSSES.length} Raid Lords`;
+      const grid = document.getElementById('lords-grid');
+
+      if (!ordered.length) {
+        grid.innerHTML = `<div class="wiki-card" style="grid-column:1/-1;text-align:center;color:var(--text-dim);padding:32px">No Raid Tyrants matched "<b>${escapeHtml(q)}</b>".</div>`;
+        return;
+      }
+
+      grid.innerHTML = ordered.map((rb) => {
+        const elInfo = ELEMENT_INFO[rb.el || 'phys'] || ELEMENT_INFO.phys;
+        const sbInfo = SUPERBOSS_DEPTH_BY_ID[rb.id];
+        const artId = rb.art[0];
+        const innateMod = rb.innate && RAID_MODS[rb.innate] ? RAID_MODS[rb.innate] : null;
+        const hostLabel = rb.sigs ? 'Signature Superboss' : rb.innate ? 'Second Host' : 'First Host';
+        const hostCls = rb.sigs ? 'violet' : rb.innate ? 'gold' : '';
+
+        const sigAbilities = [...new Set(rb.phases.flatMap((p) => Object.keys(p.pool || {})))].filter((k) => k !== 'adds');
+
+        return `
+          <article class="tyrant-card ${sbInfo ? 'superboss' : ''}">
+            <div class="tyrant-top">
+              <div class="tyrant-sprite-box" data-monster-art="${escapeHtml(artId)}">
+                <canvas width="90" height="90" style="display:none"></canvas>
+                <span class="superboss-placeholder" style="font-size:28px">💀</span>
+              </div>
+              <div class="tyrant-title-block">
+                <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px">
+                  ${sbInfo ? `<span class="wiki-badge crimson">👑 ${escapeHtml(sbInfo.label)}</span>` : ''}
+                  <span class="wiki-badge ${hostCls}">${escapeHtml(hostLabel)}</span>
+                  <span class="wiki-badge" style="color:${elInfo.color}">${elInfo.icon} ${escapeHtml(elInfo.name)}</span>
+                </div>
+                <h3 class="tyrant-name">${escapeHtml(rb.name)}</h3>
+                <div class="tyrant-epithet">${escapeHtml(rb.title || '')}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--text-dim)">
+                  ${rb.hp ? `<span>HP <b>${rb.hp}×</b></span>` : ''}
+                  ${rb.spd ? `<span>SPD <b>${rb.spd}×</b></span>` : ''}
+                  ${rb.cata ? `<span style="color:#ff8f78">Cataclysm: <b>${escapeHtml(rb.cata)}</b></span>` : ''}
+                  ${rb.mech ? `<span style="color:#d5a6ff">Mechanic: <b>${escapeHtml(rb.mech.map(formatAbilityKey).join(', '))}</b></span>` : ''}
+                  ${innateMod ? `<span style="color:var(--gold-bright)">Innate: <b>${escapeHtml(innateMod.name)}</b></span>` : ''}
+                </div>
+              </div>
+            </div>
+
+            <div class="tyrant-phases">
+              ${rb.phases.map((ph, idx) =>
+                `<div class="tyrant-phase-line" title="Phase ${idx + 1}: ${escapeHtml(ph.name)}"><span>P${idx + 1}</span>${escapeHtml(ph.name)}</div>`
+              ).join('')}
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:6px;border-top:1px solid rgba(80,52,32,0.3);font-size:12px">
+              <span style="color:var(--text-dim)">
+                <b>Summoned Adds:</b> ${(rb.adds || []).map((a) => `<a href="bestiary.html?q=${encodeURIComponent(a)}" style="margin-right:5px">${escapeHtml(a)}</a>`).join('') || 'None'}
+              </span>
+              <a href="bestiary.html?id=${encodeURIComponent(artId)}" class="wiki-badge gold" title="Inspect sprite in Bestiary (${rb.art.length} variant look${rb.art.length === 1 ? '' : 's'})">
+                💀 Bestiary (${rb.art.length} Look${rb.art.length === 1 ? '' : 's'})
+              </a>
+            </div>
+            <div style="font-size:11.5px;color:var(--text-muted)">
+              Rotation Pool: ${sigAbilities.map(formatAbilityKey).join(' · ')}
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      grid.querySelectorAll('[data-monster-art]').forEach((el) => monsterObserver.observe(el));
+    }
+
+    document.getElementById('lords-search').addEventListener('input', (e) => {
+      renderRaidLords();
+      if (currentTab === 'lords') syncUrl('lords', e.target.value);
+    });
+    document.getElementById('lords-el-filter').addEventListener('change', () => renderRaidLords());
+
+    // =========================================================================
+    // TAB 3: HOLLOW ARTISANS (9 VENDORS) & FOLK (58 RESIDENTS & BEASTS)
+    // =========================================================================
+    const VENDOR_SERVICES = {
+      weapons: 'Forges and sells melee blades, axes, maces, polearms, bows, staves, wands, and class armaments.',
+      armor: 'Supplies helms, breastplates, gauntlets, greaves, sabatons, shields, and off-hand wards.',
+      upgrade: 'Tempers and upgrades equipped weapons and armor with holy hammercraft to raise their combat power.',
+      enchant: 'Rerolls and reforges magical affix lines on gear to tailor stats for your build.',
+      alchemist: 'Brews healing draughts, mana tonics, rejuvenation elixirs, and volatile combat philters.',
+      gems: 'Trades cut gemstones and combines three matching stones or Sigils into higher-rank brilliance.',
+      socket: 'Drills sockets into weapons, armor, and rings — or pries socketed gems and Sigil Stones safely free.',
+      gamble: 'Offers unidentified mystery coffers for gold, capable of rolling Rare, Epic, Mythic, or Relic treasures.',
+      infernal: 'Wanders in from the Pit to barter sealed Abyssal Relic coffers strictly for Infernal Marks.',
+    };
+
+    const vendorImgCache = new Map();
+    const vendorObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const box = entry.target;
+        vendorObserver.unobserve(box);
+        const sprite = box.dataset.vsprite;
+        const palJson = box.dataset.vpal;
+        const pal = palJson ? JSON.parse(palJson) : null;
+        const cv = box.querySelector('canvas');
+        if (!sprite || !cv) continue;
+
+        const key = `${sprite}|${palJson}`;
+        const drawIt = (srcCanvas) => {
+          const ctx = cv.getContext('2d');
+          ctx.clearRect(0, 0, cv.width, cv.height);
+          const scale = Math.min((cv.width - 6) / srcCanvas.width, (cv.height - 6) / srcCanvas.height);
+          const dw = Math.round(srcCanvas.width * scale);
+          const dh = Math.round(srcCanvas.height * scale);
+          ctx.drawImage(srcCanvas, Math.round((cv.width - dw) / 2), Math.round((cv.height - dh) / 2), dw, dh);
+        };
+
+        if (vendorImgCache.has(key)) {
+          drawIt(vendorImgCache.get(key));
+        } else {
+          const img = new Image();
+          img.onload = () => {
+            const tinted = recolor(img, pal, 0, 0, img.naturalWidth, img.naturalHeight);
+            vendorImgCache.set(key, tinted);
+            drawIt(tinted);
+          };
+          img.src = `assets/sprites/select/${sprite}.webp`;
+        }
+      }
+    }, { rootMargin: '250px 0px' });
+
+    // Classify all 58 Residents & Beasts into the 7 clean categories
+    function classifyFolk(f) {
+      if (f.animal) return 'animal';
+      if (f.familyId === 'greener') return 'greener';
+      if (f.royal || f.courtier) return 'royal';
+      if (f.knight) return 'knight';
+      if (f.guard) return 'guard';
+      if (f.merchant) return 'merchant';
+      return 'artisan';
+    }
+
+    const ALL_FOLK = [
+      ...TOWNSFOLK.map((f) => ({ ...f, uiGroup: classifyFolk(f) })),
+      ...ANIMALS.map((a) => ({ ...a, uiGroup: 'animal' })),
+    ];
+
+    const FOLK_GROUPS = [
+      { id: 'all', label: 'All Folk & Beasts' },
+      { id: 'royal', label: '👑 Royal Court' },
+      { id: 'knight', label: '🛡️ Order Knights' },
+      { id: 'guard', label: '🏹 Watch & Scouts' },
+      { id: 'merchant', label: '⚖️ Traveling Merchants' },
+      { id: 'artisan', label: '🕯️ Town Artisans & Elders' },
+      { id: 'greener', label: '🐸 Greener Scamps' },
+      { id: 'animal', label: '🐾 Town & Forest Beasts' },
+    ];
+
+    const FOLK_GROUP_LABELS = {
+      royal: { label: 'Royal Court', cls: 'gold' },
+      knight: { label: 'Order Knight', cls: 'crimson' },
+      guard: { label: 'Watch & Scouts', cls: '' },
+      merchant: { label: 'Traveling Merchant', cls: 'emerald' },
+      artisan: { label: 'Town Artisan / Elder', cls: '' },
+      greener: { label: 'Greener Scamp', cls: 'emerald' },
+      animal: { label: 'Hollow Beast', cls: 'violet' },
+    };
+
+    let currentFolkGroup = 'all';
+    const peopleSheetCache = new Map();
+
+    function drawFolkCell(cv, img, frameIndex = 0) {
+      if (!cv || !img) return;
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      const sx = frameIndex * 256;
+      const sy = 0;
+      const sw = 256, sh = 200;
+      const scale = Math.min(cv.width / sw, cv.height / sh);
+      const dw = Math.round(sw * scale);
+      const dh = Math.round(sh * scale);
+      const dx = Math.round((cv.width - dw) / 2);
+      const dy = Math.round((cv.height - dh) / 2);
+      ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+    }
+
+    const folkObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const stage = entry.target;
+        folkObserver.unobserve(stage);
+        const spriteId = stage.dataset.spriteId;
+        const cv = stage.querySelector('canvas');
+        if (!spriteId || !cv) continue;
+
+        if (peopleSheetCache.has(spriteId)) {
+          drawFolkCell(cv, peopleSheetCache.get(spriteId), Number(stage.dataset.frame || 0));
+        } else {
+          const img = new Image();
+          img.onload = () => {
+            peopleSheetCache.set(spriteId, img);
+            drawFolkCell(cv, img, Number(stage.dataset.frame || 0));
+          };
+          img.src = `assets/sprites/people/${spriteId}.webp`;
+        }
+      }
+    }, { rootMargin: '280px 0px' });
+
+    function renderFolkGroupPills() {
+      const wrap = document.getElementById('folk-group-pills');
+      wrap.innerHTML = FOLK_GROUPS.map((g) => {
+        const count = g.id === 'all'
+          ? ALL_FOLK.length + VENDORS.length
+          : ALL_FOLK.filter((f) => f.uiGroup === g.id).length;
+        return `<button type="button" class="wiki-pill ${currentFolkGroup === g.id ? 'active' : ''}" data-fgrp="${g.id}">
+          <span>${escapeHtml(g.label)}</span>
+          <span style="opacity:0.7">(${count})</span>
+        </button>`;
+      }).join('');
+
+      wrap.querySelectorAll('[data-fgrp]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          currentFolkGroup = btn.dataset.fgrp;
+          renderFolkGroupPills();
+          renderFolkAndVendors();
+        });
+      });
+    }
+
+    function renderFolkAndVendors() {
+      const q = document.getElementById('folk-search').value.trim().toLowerCase();
+
+      // 1. Vendors (shown when group === 'all' or matches search)
+      const matchedVendors = VENDORS.filter((v) => {
+        if (currentFolkGroup !== 'all') return false;
+        if (!q) return true;
+        const hay = `${v.name} ${v.title} ${v.id} ${v.greet} ${VENDOR_SERVICES[v.id] || ''}`.toLowerCase();
+        return hay.includes(q);
+      });
+
+      const vendorsSection = document.getElementById('vendors-section');
+      vendorsSection.style.display = matchedVendors.length ? 'block' : 'none';
+
+      const vendorsGrid = document.getElementById('vendors-grid');
+      vendorsGrid.innerHTML = matchedVendors.map((v) => {
+        const shopSample = SHOPPING[v.id]?.[0];
+        return `
+          <article class="vendor-card ${v.travelling ? 'travelling' : ''}">
+            <div class="vendor-head">
+              <div class="vendor-portrait-box" data-vsprite="${escapeHtml(v.sprite)}" data-vpal='${escapeHtml(JSON.stringify(v.pal || null))}'>
+                <canvas width="74" height="94"></canvas>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px">
+                  <span class="wiki-badge gold">${escapeHtml(v.title)}</span>
+                  ${v.travelling ? '<span class="wiki-badge crimson">🔥 Travelling Abyssal Merchant</span>' : '<span class="wiki-badge emerald">Herrington Hollow</span>'}
+                </div>
+                <h3 style="font-family:var(--font-title);font-size:18px;font-weight:900;color:#fff">${escapeHtml(v.name)}</h3>
+                <p style="font-size:13px;color:var(--text-dim);margin-top:3px">${escapeHtml(VENDOR_SERVICES[v.id] || '')}</p>
+              </div>
+            </div>
+            <blockquote class="vendor-quote">"${escapeHtml(v.greet)}"</blockquote>
+            ${shopSample ? `
+              <div style="font-size:12.5px;color:var(--text-dim);background:rgba(12,8,6,0.6);padding:7px 10px;border-radius:4px;border:1px solid rgba(80,52,32,0.35)">
+                <b style="color:var(--text-muted);font-family:var(--font-title);font-size:10px;text-transform:uppercase">Overheard at the Stall:</b>
+                <div>"${escapeHtml(shopSample[0][0])}" — <i>"${escapeHtml(shopSample[1][0])}"</i> — "${escapeHtml(shopSample[2][0])}"</div>
+              </div>
+            ` : ''}
+          </article>
+        `;
+      }).join('');
+
+      vendorsGrid.querySelectorAll('[data-vsprite]').forEach((el) => vendorObserver.observe(el));
+
+      // 2. Townsfolk & Beasts
+      const matchedFolk = ALL_FOLK.filter((f) => {
+        if (currentFolkGroup !== 'all' && f.uiGroup !== currentFolkGroup) return false;
+        if (!q) return true;
+        const hay = `${f.name} ${f.role} ${folkLabel(f)} ${f.spriteId} ${f.where || ''}`.toLowerCase();
+        return hay.includes(q);
+      });
+
+      document.getElementById('folk-count-label').innerHTML = `Showing <b style="color:var(--gold-bright)">${matchedVendors.length + matchedFolk.length}</b> of ${VENDORS.length + ALL_FOLK.length} Hollow figures`;
+
+      const folkGrid = document.getElementById('folk-grid');
+      if (!matchedFolk.length) {
+        folkGrid.innerHTML = `<div class="wiki-card" style="grid-column:1/-1;text-align:center;color:var(--text-dim);padding:28px">No townsfolk or beasts matched your filter.</div>`;
+        return;
+      }
+
+      folkGrid.innerHTML = matchedFolk.map((f) => {
+        const gMeta = FOLK_GROUP_LABELS[f.uiGroup] || { label: 'Hollow Folk', cls: '' };
+        const extraTag = f.animal
+          ? (f.where === 'town' ? 'Town Lanes' : 'Forest Outskirts')
+          : f.healer
+            ? 'Healer'
+            : f.caster
+              ? 'Spellcaster'
+              : f.regular
+                ? 'Veteran Regular'
+                : `${f.frame.count} Poses`;
+
+        return `
+          <article class="folk-card">
+            <div class="folk-portrait-stage" data-sprite-id="${escapeHtml(f.spriteId)}" data-frame="0" data-max="${f.frame.count}" title="Click to cycle ${escapeHtml(f.name)}'s emotion poses">
+              <canvas width="256" height="200"></canvas>
+              <span class="folk-pose-tag">Idle (1/${f.frame.count})</span>
+            </div>
+            <span class="wiki-badge ${gMeta.cls}">${escapeHtml(gMeta.label)}</span>
+            <h3 class="folk-name">${escapeHtml(f.name)}</h3>
+            <div class="folk-role">${escapeHtml(f.role)} · <span style="color:var(--text-muted)">${escapeHtml(extraTag)}</span></div>
+          </article>
+        `;
+      }).join('');
+
+      folkGrid.querySelectorAll('.folk-portrait-stage').forEach((stage) => {
+        folkObserver.observe(stage);
+        stage.addEventListener('click', () => {
+          const spriteId = stage.dataset.spriteId;
+          const max = Number(stage.dataset.max) || 10;
+          const next = ((Number(stage.dataset.frame) || 0) + 1) % max;
+          stage.dataset.frame = String(next);
+          const poseNames = max > 10 ? [...STD_FRAMES, ...EXTRA_FRAMES] : STD_FRAMES;
+          const poseLabel = poseNames[next] || `Pose ${next + 1}`;
+          stage.querySelector('.folk-pose-tag').textContent = `${poseLabel} (${next + 1}/${max})`;
+          const img = peopleSheetCache.get(spriteId);
+          if (img) drawFolkCell(stage.querySelector('canvas'), img, next);
+        });
+      });
+    }
+
+    document.getElementById('folk-search').addEventListener('input', (e) => {
+      renderFolkAndVendors();
+      if (currentTab === 'folk') syncUrl('folk', e.target.value);
+    });
+
+    // Voices of the Hollow Showcase
+    let currentVoiceCat = 'audiences';
+    function renderVoices() {
+      const grid = document.getElementById('voices-grid');
+      if (currentVoiceCat === 'audiences') {
+        const items = [];
+        const roleLabels = {
+          king: '👑 King Edric',
+          queen: '👑 Queen Elowen',
+          'dowager queen': '🗡️ Dowager Queen Agnes',
+          'royal heir': '🌟 Pip, Royal Heir',
+          royal: '🏰 The Royal Court',
+          knight: '🛡️ Knights of the Order',
+          guard: '🏹 The Town Watch',
+          old: '🕯️ Hollow Elders',
+          kids: '🐸 Town Scamps',
+          any: '🏘️ Hollow Villagers',
+        };
+        for (const [role, scripts] of Object.entries(AUDIENCES)) {
+          scripts.forEach((lines, idx) => {
+            items.push({
+              title: `${roleLabels[role] || role} ${scripts.length > 1 ? `#${idx + 1}` : ''}`,
+              badge: 'Royal / Town Audience',
+              lines: lines.map(([txt, emo]) => ({ speaker: role.toUpperCase(), txt, emo })),
+            });
+          });
+        }
+        grid.innerHTML = items.map((it) => `
+          <div class="dialogue-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+              <strong style="font-family:var(--font-title);color:var(--gold-bright);font-size:14px">${escapeHtml(it.title)}</strong>
+              <span class="wiki-badge gold">Audience</span>
+            </div>
+            ${it.lines.map((l) => `
+              <div class="dialogue-line">
+                <span>"${escapeHtml(l.txt)}"</span>
+                <span class="dialogue-emote">[${escapeHtml(l.emo)}]</span>
+              </div>
+            `).join('')}
+          </div>
+        `).join('');
+      } else if (currentVoiceCat === 'chats') {
+        const curated = [...CHATS.slice(0, 18), ...ADVENTURER_CHATS.slice(0, 6).map((c) => ({ tags: ['adventurers'], lines: c.lines }))];
+        grid.innerHTML = curated.map((c, idx) => `
+          <div class="dialogue-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+              <strong style="font-family:var(--font-title);color:#fff;font-size:13.5px">Hollow Vignette #${idx + 1}</strong>
+              <span class="wiki-badge">${escapeHtml((c.tags || ['town']).join(', '))}</span>
+            </div>
+            ${c.lines.map(([spk, txt, emo]) => `
+              <div class="dialogue-line">
+                <span class="dialogue-speaker">Voice ${spk + 1}:</span>
+                <span>"${escapeHtml(txt)}"</span>
+                <span class="dialogue-emote">[${escapeHtml(emo || 'talk')}]</span>
+              </div>
+            `).join('')}
+          </div>
+        `).join('');
+      } else {
+        grid.innerHTML = Object.entries(EVENT_LINES).map(([key, ev]) => {
+          const beats = ev.vows || ev.beats || [];
+          return `
+            <div class="dialogue-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+                <strong style="font-family:var(--font-title);color:var(--gold-bright);font-size:14.5px">${escapeHtml(ev.title)}</strong>
+                <span class="wiki-badge emerald">Town Event</span>
+              </div>
+              <p style="font-size:13px;color:var(--text-dim);font-style:italic">"${escapeHtml(ev.intro)}"</p>
+              ${beats.map(([who, txt, emo]) => `
+                <div class="dialogue-line">
+                  <span class="dialogue-speaker">${escapeHtml(who)}:</span>
+                  <span>"${escapeHtml(txt)}"</span>
+                  <span class="dialogue-emote">[${escapeHtml(emo || '')}]</span>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    document.querySelectorAll('#voices-filter-pills [data-vcat]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        currentVoiceCat = btn.dataset.vcat;
+        document.querySelectorAll('#voices-filter-pills [data-vcat]').forEach((b) => b.classList.toggle('active', b === btn));
+        renderVoices();
+      });
+    });
+
+    // =========================================================================
+    // TAB 4: TALES OF THE SKY LANES (30 SKY_STORIES)
+    // =========================================================================
+    const BASE_WEATHER_NAMES = {
+      all: 'All Sky Weathers',
+      clear: '☀️ Clear Skies',
+      storm: '⛈️ Thunderstorm',
+      night: '🌙 Moonless Night',
+      fog: '🌫️ Fog Bank',
+      sunset: '🌅 Sunset',
+      gale: '💨 Gale',
+      blizzard: '❄️ Blizzard',
+      ash: '🔥 Ashfall',
+    };
+
+    let currentSkyBase = 'all';
+    const openSkyScripts = new Set();
+
+    function resolveSkyText(story, rawText) {
+      if (!rawText) return '';
+      return String(rawText)
+        .replace(/\{@([a-zA-Z0-9_]+)\}/g, (_, k) => story.cast?.[k]?.name || k)
+        .replace(/\{k1\}/g, story.knights?.[0]?.name || 'Sky-Knight I')
+        .replace(/\{k2\}/g, story.knights?.[1]?.name || 'Sky-Knight II')
+        .replace(/\{hero\}/g, 'Champion')
+        .replace(/\{class\}/g, 'Adventurer');
+    }
+
+    function resolveSkySpeaker(story, who) {
+      if (who === 'hero') return 'Hero';
+      if (who === 'cap') {
+        const firstFinal = story.finals?.[0];
+        return story.cast?.[firstFinal]?.name || 'Flagship Captain';
+      }
+      if (who === 'k1') return story.knights?.[0]?.name || 'Sky-Knight I';
+      if (who === 'k2') return story.knights?.[1]?.name || 'Sky-Knight II';
+      return story.cast?.[who]?.name || who;
+    }
+
+    function renderSkyWeatherPills() {
+      const wrap = document.getElementById('sky-weather-pills');
+      const bases = ['all', ...new Set(SKY_STORIES.map((s) => s.base))];
+      wrap.innerHTML = bases.map((b) => {
+        const count = b === 'all' ? SKY_STORIES.length : SKY_STORIES.filter((s) => s.base === b).length;
+        return `<button type="button" class="wiki-pill ${currentSkyBase === b ? 'active' : ''}" data-sbase="${escapeHtml(b)}">
+          <span>${escapeHtml(BASE_WEATHER_NAMES[b] || b)}</span>
+          <span style="opacity:0.7">(${count})</span>
+        </button>`;
+      }).join('');
+
+      wrap.querySelectorAll('[data-sbase]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          currentSkyBase = btn.dataset.sbase;
+          renderSkyWeatherPills();
+          renderSkyStories();
+        });
+      });
+    }
+
+    function renderDialogueRows(story, arr) {
+      if (!arr || !arr.length) return '';
+      return arr.map((line) => `
+        <div class="script-row">
+          <b>${escapeHtml(resolveSkySpeaker(story, line.who))}:</b>
+          <span>"${escapeHtml(resolveSkyText(story, line.text))}"</span>
+        </div>
+      `).join('');
+    }
+
+    function renderSkyStories() {
+      const q = document.getElementById('sky-search').value.trim().toLowerCase();
+      const gauntletOnly = document.getElementById('sky-gauntlet-only').checked;
+
+      const filtered = SKY_STORIES.map((s, index) => ({ s, num: index + 1 })).filter(({ s }) => {
+        if (currentSkyBase !== 'all' && s.base !== currentSkyBase) return false;
+        if (gauntletOnly && !s.gauntlet) return false;
+        if (q) {
+          const castNames = Object.values(s.cast || {}).map((c) => `${c.name} ${c.title || ''}`).join(' ');
+          const knightNames = (s.knights || []).map((k) => k.name).join(' ');
+          const parleyText = (s.lines?.parley || []).map((l) => l.text).join(' ');
+          const hay = `${s.name} ${s.id} ${s.ship} ${s.shipSub || ''} ${s.weather || ''} ${s.blurb || ''} ${castNames} ${knightNames} ${parleyText}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      document.getElementById('sky-count-label').innerHTML = `Showing <b style="color:var(--gold-bright)">${filtered.length}</b> of ${SKY_STORIES.length} boarding chronicles`;
+      const grid = document.getElementById('skystories-grid');
+
+      if (!filtered.length) {
+        grid.innerHTML = `<div class="wiki-card" style="grid-column:1/-1;text-align:center;color:var(--text-dim);padding:32px">No Sky Lanes chronicles matched "<b>${escapeHtml(q)}</b>".</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(({ s, num }) => {
+        const skyColors = s.sky || ['#161c26', '#27313f', '#3d4a5a'];
+        const gradCss = `linear-gradient(135deg, ${skyColors[0]} 0%, ${skyColors[1] || skyColors[0]} 55%, ${skyColors[2] || skyColors[0]} 100%)`;
+        const masterKey = s.gauntlet?.master;
+        const finalsSet = new Set(s.finals || []);
+        const isOpen = openSkyScripts.has(s.id);
+
+        const castEntries = Object.entries(s.cast || {});
+
+        return `
+          <article class="skystory-card">
+            <div class="skystory-banner" style="background:${gradCss}">
+              <div class="skystory-banner-overlay"></div>
+              <div class="skystory-banner-inner">
+                <div>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px">
+                    <span class="wiki-badge gold">Chronicle #${String(num).padStart(2, '0')}</span>
+                    <span class="wiki-badge">${escapeHtml(s.weather || s.base)}</span>
+                    ${s.gauntlet ? '<span class="wiki-badge crimson">⚔️ Boss Gauntlet</span>' : ''}
+                  </div>
+                  <h3 class="skystory-title">${escapeHtml(s.name)}</h3>
+                  <div class="skystory-ship">⛵ ${escapeHtml(s.ship)}${s.shipSub ? ` — ${escapeHtml(s.shipSub)}` : ''}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="skystory-body">
+              <p style="color:var(--text);font-size:14.5px">${escapeHtml(s.blurb || '')}</p>
+              ${s.hazardText ? `<div style="font-size:12.5px;color:#ff9e8a">⚠️ <b>Deck Hazard:</b> ${escapeHtml(s.hazardText)}</div>` : ''}
+
+              ${(s.knights && s.knights.length) ? `
+                <div style="font-size:12.5px;color:var(--text-dim)">
+                  <b style="color:var(--gold)">Allied Boarding Knights:</b> ${s.knights.map((k) => escapeHtml(k.name)).join(' &amp; ')}
+                </div>
+              ` : ''}
+
+              <div>
+                <div style="font-family:var(--font-title);font-size:10.5px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:5px">
+                  Named Cast &amp; Enemy Officers (${castEntries.length})
+                </div>
+                <div class="cast-pill-list">
+                  ${castEntries.map(([key, c]) => {
+                    const cls = key === masterKey ? 'master' : finalsSet.has(key) ? 'captain' : '';
+                    const prefix = key === masterKey ? '👑 ' : finalsSet.has(key) ? '⚓ ' : '';
+                    return `<span class="cast-pill ${cls}" title="${escapeHtml(c.title || '')}">${prefix}${escapeHtml(c.name)}</span>`;
+                  }).join('')}
+                </div>
+              </div>
+
+              <button type="button" class="script-toggle-btn" data-toggle-script="${escapeHtml(s.id)}">
+                <span>📖 ${isOpen ? 'Hide Boarding Parley &amp; Twist Script' : 'Read Parley, Twist &amp; Gauntlet Script'}</span>
+                <span>${isOpen ? '▲' : '▼'}</span>
+              </button>
+
+              <div class="script-reader ${isOpen ? 'open' : ''}" id="script-${escapeHtml(s.id)}">
+                ${s.lines?.arrive ? `
+                  <div class="script-act-heading">Arrival on Deck</div>
+                  <div class="script-row"><i>"${escapeHtml(resolveSkyText(s, s.lines.arrive))}"</i></div>
+                ` : ''}
+                ${s.lines?.mid ? `
+                  <div class="script-act-heading">Vanguard Mid-Boss (${escapeHtml(s.cast?.[s.mid]?.name || 'Mid-Boss')})</div>
+                  <div class="script-row"><b>${escapeHtml(s.cast?.[s.mid]?.name || 'Vanguard')}:</b> "${escapeHtml(resolveSkyText(s, s.lines.mid))}"</div>
+                ` : ''}
+                ${s.lines?.parley?.length ? `
+                  <div class="script-act-heading">Act I · The White-Flag Parley</div>
+                  ${renderDialogueRows(s, s.lines.parley)}
+                ` : ''}
+                ${s.lines?.twist?.length ? `
+                  <div class="script-act-heading">Act II · The Flagship Twist</div>
+                  ${renderDialogueRows(s, s.lines.twist)}
+                ` : ''}
+                ${s.lines?.betrayal?.length ? `
+                  <div class="script-act-heading">Act III · Boarding Hooks &amp; Pact</div>
+                  ${renderDialogueRows(s, s.lines.betrayal)}
+                ` : ''}
+                ${s.gauntlet ? `
+                  <div class="script-act-heading">Act IV · Gauntlet of ${escapeHtml(s.cast?.[s.gauntlet.master]?.name || 'the Master')}</div>
+                  ${renderDialogueRows(s, s.gauntlet.intro)}
+                  ${(s.gauntlet.waves || []).map((w, wi) => w.line ? `
+                    <div class="script-row"><b>Wave ${wi + 1} (${escapeHtml(resolveSkySpeaker(s, w.line.who))}):</b> "${escapeHtml(resolveSkyText(s, w.line.text))}"</div>
+                  ` : '').join('')}
+                  ${renderDialogueRows(s, s.gauntlet.finale)}
+                  ${renderDialogueRows(s, s.gauntlet.death)}
+                ` : ''}
+                ${s.lines?.victory ? `
+                  <div class="script-act-heading">Aftermath</div>
+                  <div class="script-row"><i>"${escapeHtml(resolveSkyText(s, s.lines.victory))}"</i></div>
+                ` : ''}
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      grid.querySelectorAll('[data-toggle-script]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.toggleScript;
+          const reader = document.getElementById(`script-${id}`);
+          const open = !openSkyScripts.has(id);
+          if (open) openSkyScripts.add(id);
+          else openSkyScripts.delete(id);
+          if (reader) reader.classList.toggle('open', open);
+          btn.innerHTML = `<span>📖 ${open ? 'Hide Boarding Parley &amp; Twist Script' : 'Read Parley, Twist &amp; Gauntlet Script'}</span><span>${open ? '▲' : '▼'}</span>`;
+        });
+      });
+    }
+
+    document.getElementById('sky-search').addEventListener('input', (e) => {
+      renderSkyStories();
+      if (currentTab === 'skystories') syncUrl('skystories', e.target.value);
+    });
+    document.getElementById('sky-gauntlet-only').addEventListener('change', () => renderSkyStories());
+
+    // =========================================================================
+    // INITIALIZE & APPLY URL QUERY PARAMETERS (?tab= & ?q=)
+    // =========================================================================
+    renderHostPills();
+    renderFolkGroupPills();
+    renderVoices();
+    renderSkyWeatherPills();
+
+    const initTab = getQueryParam('tab', '').toLowerCase();
+    const initQ = getQueryParam('q', '').trim();
+
+    if (initQ) {
+      let targetTab = VALID_TABS.includes(initTab) ? initTab : '';
+      const qLow = initQ.toLowerCase();
+      if (!targetTab) {
+        if (qLow.includes('velscour') || RAID_BOSSES.some((b) => b.name.toLowerCase().includes(qLow) || (b.title || '').toLowerCase().includes(qLow))) {
+          targetTab = 'lords';
+        } else if (
+          VENDORS.some((v) => v.name.toLowerCase().includes(qLow)) ||
+          ALL_FOLK.some((f) => f.name.toLowerCase().includes(qLow) || f.role.toLowerCase().includes(qLow))
+        ) {
+          targetTab = 'folk';
+        } else if (SKY_STORIES.some((s) => s.name.toLowerCase().includes(qLow) || s.ship.toLowerCase().includes(qLow))) {
+          targetTab = 'skystories';
+        } else {
+          targetTab = 'lords';
+        }
+      }
+      if (targetTab === 'lords') document.getElementById('lords-search').value = initQ;
+      if (targetTab === 'folk') document.getElementById('folk-search').value = initQ;
+      if (targetTab === 'skystories') document.getElementById('sky-search').value = initQ;
+
+      renderRaidLords();
+      renderFolkAndVendors();
+      renderSkyStories();
+      setActiveTab(targetTab, false);
+    } else {
+      renderRaidLords();
+      renderFolkAndVendors();
+      renderSkyStories();
+      if (initTab && VALID_TABS.includes(initTab)) {
+        setActiveTab(initTab, false);
+      }
+    }
+  </script>
+</body>
+</html>

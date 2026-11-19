@@ -1,5 +1,5 @@
 // Electron Main Process for VELSCOUR ONLINE
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, shell } = require('electron');
 const path = require('path');
 const http = require('http');
 const { fork } = require('child_process');
@@ -128,6 +128,9 @@ function createWindow() {
           },
         },
       };
+    }
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      shell.openExternal(url).catch(() => {});
     }
     return { action: 'deny' };
   });

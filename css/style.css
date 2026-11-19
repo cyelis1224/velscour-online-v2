@@ -4326,19 +4326,22 @@ body.touch .reliquary-panel .codex-cell {
 
 .title-screen .title-tag,
 .title-screen .title-menu,
-.title-screen .title-foot {
+.title-screen .title-foot,
+.title-screen .title-wiki-btn {
   z-index: 3;
   transition: opacity .4s ease-out;
 }
 
 .title-screen:not(.title-lit) .title-tag,
 .title-screen:not(.title-lit) .title-menu,
-.title-screen:not(.title-lit) .title-foot {
+.title-screen:not(.title-lit) .title-foot,
+.title-screen:not(.title-lit) .title-wiki-btn {
   opacity: 0;
 }
 
 .title-screen:not(.title-ready) .title-menu,
-.title-screen:not(.title-ready) .title-foot {
+.title-screen:not(.title-ready) .title-foot,
+.title-screen:not(.title-ready) .title-wiki-btn {
   pointer-events: none;
 }
 
@@ -4473,6 +4476,53 @@ body.touch .reliquary-panel .codex-cell {
 }
 
 .title-update-btn svg {
+  display: block;
+  stroke: currentColor;
+  flex-shrink: 0;
+}
+
+.title-wiki-btn {
+  position: absolute;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  right: max(14px, env(safe-area-inset-right));
+  height: 36px;
+  padding: 0 14px;
+  gap: 7px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(32, 22, 15, 0.9) 0%, rgba(16, 11, 8, 0.92) 100%);
+  border: 1px solid rgba(196, 150, 74, 0.55);
+  border-radius: 4px;
+  color: #e2c992;
+  font-family: var(--font-head, 'Cinzel', serif);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: opacity 0.4s ease-out, color 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.title-wiki-btn:hover {
+  color: #ffe57f;
+  border-color: #ffd34a;
+  background: linear-gradient(180deg, rgba(52, 35, 22, 0.96) 0%, rgba(26, 17, 12, 0.96) 100%);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.85), 0 0 14px rgba(255, 216, 96, 0.35);
+  transform: translateY(-1px);
+}
+
+.title-wiki-btn:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.title-wiki-btn svg {
   display: block;
   stroke: currentColor;
   flex-shrink: 0;

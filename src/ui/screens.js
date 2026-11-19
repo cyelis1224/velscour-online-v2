@@ -18,7 +18,7 @@ import { DOLL } from './inventory.js';
 import { itemCell, rarityClass, itemTooltip } from './itemui.js';
 import { FILTER_ROWS, lootFilter } from '../game/lootfilter.js';
 import { Cloud } from '../game/cloud.js';
-import { initTitleUpdater, checkForUpdates, showUpdateDialog, compareVersions, CLIENT_VERSION, getClientVersion, hardReload } from './updater.js';
+import { initTitleUpdater, checkForUpdates, showUpdateDialog, compareVersions, CLIENT_VERSION, getClientVersion, getServerBaseUrl, hardReload } from './updater.js';
 import {
   getOnlineAccount,
   getOnlineCharacters,
@@ -51,6 +51,14 @@ function show(node) {
   UI.screensEl.appendChild(node);
 }
 export function hide() { if (current) { current.remove(); current = null; } }
+
+/** Open the Velscour Online Wiki in a browser tab (resolves server URL cleanly on native mobile & desktop). */
+function openWikiBrowser() {
+  const loc = window.location;
+  const isNativeLocal = !loc.protocol.startsWith('http') || ((loc.hostname === 'localhost' || loc.hostname === '127.0.0.1') && !loc.port);
+  const url = isNativeLocal ? `${getServerBaseUrl()}/wiki.html` : new URL('wiki.html', loc.href).href;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
 
 export function titleScreen() {
   G.mode = 'title';
@@ -109,6 +117,27 @@ export function titleScreen() {
   s.appendChild(foot);
   s.cloudFoot = () => { foot.textContent = 'Rough draft · placeholder art · ' + cloudLine(); };
   s.cloudFoot();
+
+  const wikiBtn = el('button', 'title-wiki-btn');
+  wikiBtn.id = 'title-wiki-btn';
+  wikiBtn.type = 'button';
+  wikiBtn.title = 'Open Official Velscour Wiki in Browser';
+  wikiBtn.setAttribute('aria-label', 'Open Official Velscour Wiki in Browser');
+  wikiBtn.innerHTML = `
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+    <span>Wiki</span>
+  `;
+  wikiBtn.onclick = (e) => {
+    e.stopPropagation();
+    if (!s.classList.contains('title-ready')) return;
+    initAudio();
+    sfx('ui');
+    openWikiBrowser();
+  };
+  s.appendChild(wikiBtn);
   const gate = el('div', 'title-gate', G.touch ? 'Tap to awaken' : 'Click to awaken');
   s.appendChild(gate);
   show(s);
