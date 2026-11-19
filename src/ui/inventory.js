@@ -6,7 +6,11 @@ import { shownWeapon, heroDmgLevel } from '../data/depth.js';
 import { sfx } from '../core/audio.js';
 import { UI, draggable, droppable } from './ui.js';
 import { itemCell, itemTooltip, itemGearTip, rarityClass } from './itemui.js';
-import { SLOTS, SLOT_NAMES, VANITY_SLOTS, shownEquip, itemName, itemColor, GEMS, gemName, itemValue, fitsSlot, slotFor, unsocketCost, makeGem, itemReqStat, charEffectiveStat, canEquipItem, STAT_NAMES, canWearVanity, itemBaseType, itemBaseDisplayName } from '../data/items.js';
+import {
+  SLOTS, SLOT_NAMES, VANITY_SLOTS, shownEquip, itemName, itemColor, GEMS, gemName,
+  itemValue, fitsSlot, slotFor, unsocketCost, makeGem, canWearVanity, itemBaseType, itemBaseDisplayName,
+  itemReqStat, charEffectiveStat, canEquipItem, armsReason, BASE_REQ_STAT, STAT_NAMES,
+} from '../data/items.js';
 import { CLASSES, ATTRS } from '../data/classes.js';
 import { allocateAttrs } from '../game/attrs.js';
 import { xpToNext, CRIT_OVER } from '../game/player.js';
@@ -61,6 +65,8 @@ export function equipFromBag(idx, slot) {
   if (it.sealed) { UI.log('Break the seal first.', '#ffdf8a'); return false; }
   if ((it.req || 1) > c.level) { UI.log(`Requires level ${it.req}.`, '#ff8080'); sfx('error'); return false; }
   const to = slot && fitsSlot(it, slot, c.classId) ? slot : slotFor(c.equip, it, c.classId);
+  const arms = armsReason(c.classId, it, to);
+  if (arms) { UI.log(arms, '#ff8080'); sfx('error'); return false; }
   const reqStat = itemReqStat(it);
   if (reqStat) {
     const cur = charEffectiveStat(c, reqStat.stat, to);

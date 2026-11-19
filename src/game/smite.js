@@ -29,6 +29,7 @@ import {
   BoomerangGaleVortex, BoomerangBladeStorm,
   DragonKnightHellfireRune, DragonKnightBreathOfFlame
 } from '../gfx/ultimates_fx.js';
+import { verdictUlt, moonlessUlt } from './martialults.js';
 
 export const SMITE_KILLS = 45; // Plain kills to fill the meter
 const WORTH = { normal: 1, champion: 3, unique: 6, boss: 12, raid: 12 };
@@ -166,6 +167,32 @@ export const ULTIMATES = {
     desc: 'Dashes with supersonic grace, striking all nearby enemies with radiant palm shockwaves and resonant temple bells.',
     chargeSound: 'holy',
     opts: { noArc: true, knock: 1.6, stun: true },
+  },
+  rogue: {
+    id: 'verdict',
+    name: "Night's Verdict",
+    title: 'VERDICT',
+    stat: 'dex',
+    el: 'blood',
+    r: 4.6,
+    color: '#ff2a3c',
+    haloColor: '#a00818',
+    desc: 'Daggers close in out of the ground, steel rains from the sky, and one colossal dagger falls on the spot.',
+    chargeSound: 'shadow',
+    opts: { noArc: true, bleed: true, knock: 1.2 },
+  },
+  ninja: {
+    id: 'moonless',
+    name: 'Moonless Night',
+    title: 'MOONLESS',
+    stat: 'dex',
+    el: 'shadow',
+    r: 4.8,
+    color: '#7fe6ff',
+    haloColor: '#3a6cff',
+    desc: 'The light goes out; nine shadows cross the circle, and every line they drew opens at once.',
+    chargeSound: 'shadow',
+    opts: { noArc: true, stun: true },
   },
   dragoon: {
     id: 'skydive',
@@ -543,6 +570,9 @@ export function executeUltimate(ult, x, y, w, p, c, isRemote = false) {
       }, 320);
       break;
     }
+
+    case 'verdict': verdictUlt(ult, x, y, w, p, () => dealUltimateDamage(ult, x, y, w, p)); break;
+    case 'moonless': moonlessUlt(ult, x, y, w, p, () => dealUltimateDamage(ult, x, y, w, p)); break;
 
     case 'skydive': {
       // Dragoon: Celestial Skyfall Dive & Dragon Meteor Lance

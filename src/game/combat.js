@@ -183,7 +183,7 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
         const st = owner && owner.st ? owner.st : {};
         if (tgt.rank === 'boss' && st.bossDmg) dmg *= 1 + st.bossDmg / 100;
         if (worldAffixes.has('cursed_fortune')) dmg *= 1.15;
-        if (src.isPlayer && !o.dot && o.crit !== false && chance(st.critChance / 100)) {
+        if (src.isPlayer && !o.dot && o.crit !== false && (o.sureCrit || chance(st.critChance / 100))) {
           crit = true;
           dmg *= 1 + st.critDmg / 100;
         }

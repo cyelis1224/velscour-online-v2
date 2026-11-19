@@ -4579,11 +4579,11 @@ body.touch .reliquary-panel .codex-cell {
 
 .class-grid {
   display: grid;
-  grid-template-columns: repeat(9, minmax(0, 108px));
+  grid-template-columns: repeat(10, minmax(0, 100px));
   justify-content: center;
   gap: 6px;
   padding: 6px 8px;
-  width: min(98vw, 1040px);
+  width: min(98vw, 1070px);
 }
 
 .class-card {
@@ -6422,7 +6422,7 @@ body.touch .skill-detail {
 
 @media (max-width: 900px) {
   .class-grid {
-    grid-template-columns: repeat(9, minmax(0, 1fr));
+    grid-template-columns: repeat(10, minmax(0, 1fr));
   }
 
   .plaque {

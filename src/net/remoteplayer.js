@@ -6,6 +6,7 @@ import { sfx } from '../core/audio.js';
 import { floatText, sparkle, burst, addEffect, Ring } from '../gfx/vfx.js';
 import { loadGearArt, heroLook, heroFrame, savedGearPreview, gearFxOf, finishOf } from '../core/gearart.js';
 import { heldHero, drawHeldLayer, loadHeld } from '../gfx/heldart.js';
+import { ninjaGearLayer } from '../gfx/ninjagear.js';
 import { drawGearFx, updateGearFx } from '../gfx/gearfx.js';
 import { fxColor } from '../data/gear.js';
 import { gearSignature } from './network.js';
@@ -19,6 +20,8 @@ import { castArtFx } from '../gfx/artfx.js';
 import { SKILLS } from '../data/skills.js';
 import { angleTo } from '../core/util.js';
 import { bardScore, bardCompose, bardUpdate, bardRetune, ensureInstrumentsLoaded } from '../game/bard.js';
+import { rogueUpdate } from '../game/rogue.js';
+import { ninjaUpdate } from '../game/ninja.js';
 import { getBannerSkin, getBannerRoll } from '../gfx/bannergen.js';
 import { getUltimate, executeUltimate } from '../game/smite.js';
 import { MuteManager } from './mutemanager.js';
@@ -148,7 +151,7 @@ export class RemotePlayer extends Creature {
     const eq = this.gear || {};
     const base = heroLook(this.classId, eq.body, eq.head);
     if (!base) return null;
-    const held = G.settings.heldGear !== false ? heldHero(base, this.classId, eq) : null;
+    const held = G.settings.heldGear !== false ? heldHero(base, this.classId, this.ghostDraw ? { ...eq, _still: true } : eq) : null;
     const img = held ? held.img : base;
     this.heldArt = { held, base };
     const f = heroFrame(this.classId, this.spriteH);
@@ -174,6 +177,7 @@ export class RemotePlayer extends Creature {
       const g = this.gearFx();
       if (g) drawGearFx(ctx, this, g.fx, g.col, layer, art);
       if (layer === 'front' && this.heldArt && G.settings.heldGear !== false) drawHeldLayer(ctx, this, this.heldArt.held, this.heldArt.base, art);
+      if (this.classId === 'ninja' && G.settings.heldGear !== false && !this.ghostDraw) ninjaGearLayer(ctx, this, layer, art);
     }
     if (layer === 'back' && this.classId === 'death_knight') bladeOnBack(ctx, this, art, this.heldArt?.base);
   }
@@ -248,6 +252,8 @@ export class RemotePlayer extends Creature {
     this.animT = (this.animT || 0) + dt;
     this.spawnT = (this.spawnT || 0) + dt;
     if (this.flash > 0) this.flash = Math.max(0, this.flash - dt * 4);
+    if (this.lunge > 0) this.lunge = Math.max(0, this.lunge - dt * 4);
+    if (this.acro && (this.acro.t += dt) >= this.acro.dur) this.acro = null;
 
     if (this.classId === 'bard' && this.world && this.world.kind !== 'town') {
       try {
@@ -255,6 +261,11 @@ export class RemotePlayer extends Creature {
       } catch (e) {
         console.warn('RemotePlayer bardUpdate error:', e);
       }
+    }
+    if (this.classId === 'rogue' && this.world) {
+      try { rogueUpdate(this, dt); } catch (e) {}
+    } else if (this.classId === 'ninja' && this.world) {
+      try { ninjaUpdate(this, dt); } catch (e) {}
     }
 
     if (this.chatTimer > 0) {
@@ -340,6 +351,7 @@ export class RemotePlayer extends Creature {
 
   draw(ctx) {
     super.draw(ctx);
+    if (this.ghostDraw) return;
     const px = isoX(this.x, this.y);
     const py = isoY(this.x, this.y);
     const z = this.z;

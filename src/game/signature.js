@@ -25,7 +25,10 @@ import lancer from './sigs/lancer.js';
 import dragon_knight from './sigs/dragonknight.js';
 import gunner from './sigs/gunner.js';
 import monk from './sigs/monk.js';
-export const SIGNATURES = { paladin, ranger, wizard, necromancer, barbarian, dragoon, totem_master, death_knight, carrion_witch, slime_lord, boomerang_knight, lancer, dragon_knight, gunner, monk };
+import rogue from './sigs/rogue.js';
+import ninja from './sigs/ninja.js';
+
+export const SIGNATURES = { paladin, ranger, wizard, necromancer, barbarian, dragoon, totem_master, death_knight, carrion_witch, slime_lord, boomerang_knight, lancer, dragon_knight, gunner, monk, rogue, ninja };
 const NO_DMG = new Set(['buff', 'heal', 'summon']);
 export const on = (p) => G.settings.signatures !== false && p.world && !p.dead;
 

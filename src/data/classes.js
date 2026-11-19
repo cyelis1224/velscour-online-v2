@@ -1,11 +1,11 @@
 import { TREE4_NAMES } from './skilltrees4.js';
-
-// All 17 playable classes on the Character Select screen (16 core classes + Monk).
+// All 19 playable classes on the Character Select screen (16 core classes + Monk, Rogue, Ninja).
 export const ACTIVE_CLASS_IDS = [
   'paladin', 'ranger', 'wizard', 'necromancer',
   'barbarian', 'dragoon', 'totem_master', 'death_knight',
   'arcane_sorcerer', 'carrion_witch', 'bard', 'slime_lord',
   'boomerang_knight', 'lancer', 'dragon_knight', 'gunner', 'monk',
+  'rogue', 'ninja',
 ];
 export const DISABLED_CLASS_IDS = [];
 
@@ -113,6 +113,20 @@ export const CLASSES = {
     trees: ['Martial Arts', 'Spirit & Mantras', 'Dragon & Tiger'],
     desc: 'A disciplined martial artist of the secluded monasteries. Harnesses inner chi through lightning-fast hand strikes, soaring kicks, and sacred defensive mantras.',
   },
+  rogue: {
+    // a dagger in each hand (items.js DUAL_WIELD); Combo Points and Stealth live in game/rogue.js
+    name: 'Rogue', primary: 'dex', base: { str: 16, dex: 30, vit: 20, int: 12 }, life: 80, mana: 46, lifeLvl: 14.5, manaLvl: 3.5,
+    weapon: 'dagger', element: 'blood', color: '#d8283c',
+    trees: ['Assassination', 'Subtlety', 'Knives'],
+    desc: 'A black-leather killer from the shuttered guilds. She lurks in the shadows, builds Combo Points with twin daggers and spends them on bloody finishers, while steel rains from the sky and bursts from the ground.',
+  },
+  ninja: {
+    // katana in the right hand, nunchaku on the belt; the flips, shadows and the Unseen Cut live in game/ninja.js
+    name: 'Ninja', primary: 'dex', base: { str: 18, dex: 30, vit: 20, int: 14 }, life: 82, mana: 48, lifeLvl: 15, manaLvl: 3.5,
+    weapon: 'katana', offhand: 'nunchaku', element: 'shadow', color: '#6fd8ff',
+    trees: ['Way of the Blade', 'Shadow Arts', 'Tools of War'],
+    desc: 'A silent agent of the ruined moon temple. He somersaults through his foes behind a katana, his shadows repeat every cut, his hook drags them in, and the air fills with shuriken and caltrops.',
+  },
 };
 for (const [c, name] of Object.entries(TREE4_NAMES)) if (CLASSES[c].trees.length === 3) CLASSES[c].trees.push(name);
 
@@ -147,6 +161,8 @@ export const DMG_TUNE = {
   dragon_knight: [1.05, 1.05, 1.05, 1.05],
   gunner: [0.96, 0.98, 0.98, 0.98],
   monk: [1.04, 1.05, 1.05, 1.05],
+  rogue: [1.03, 1.04, 1.04, 1.04],
+  ninja: [1.03, 1.04, 1.04, 1.04],
 };
 
 export const ATTRS = {
