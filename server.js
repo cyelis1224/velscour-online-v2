@@ -1054,12 +1054,11 @@ const server = http.createServer((req, res) => {
       serverTime: Date.now(),
       buildTime: latestBuild,
       changelog: [
-        "New Playable Class — The Rogue: Dual-wielding dagger assassin featuring Combo Point builders and finishers, Stealth & Ambush guaranteed criticals, 3D sky-falling and earth-bursting daggers, the Bloodletting signature, and the Night's Verdict ultimate.",
-        "New Playable Class — The Ninja: Agile katana and belt-nunchaku shinobi featuring mid-air somersault slashes, strike-repeating Mirror Shadows, multi-target Grappling Hook pulls, shuriken & caltrops, the Zanshin signature, and the Moonless Night ultimate.",
-        "Monk 48-Armor Redesign & 3D Martial Arsenal: Upgraded Monk onto a full 48-armor Grim Nocturne sprite set (preserving saved hero tiers) alongside 48 Rogue and 48 Ninja armors, plus four 50-design 3D held sets (katanas, nunchakus, stilettos, off-hand stilettos).",
-        "19-Class Roster & Multiplayer Replication: Expanded Velscour Online to 19 playable classes, 76 skill trees, 684 active skills, and 456 talent/morph nodes with full co-op rendering for live 3D Ninja weapons, somersaults, and Mirror Shadows.",
-        "Official Velscour Online Wiki & Compendium: Added a live-synced Wiki & global Omni-Search accessible from the Title Screen — browse all 19 classes, interactive Skill & 5-Tier Talent calculators, 1,090+ Bestiary monsters, 20-tier Gear & Relics, World Acts, and Lore.",
-        "Auto-Play & Studio Polish: Fixed zero-length frame NaN hurt-rate stalls in Auto-play, improved ring-projectile positioning, and added inline cutscene renaming to the Velscour Level & Cutscene Studio."
+        "Monk, Rogue & Ninja 48-Helmet Arsenal: Added 144 bespoke Grim Nocturne helmets (48 per class, 8 per rarity) fitted to each class's 48 armors, with muted Ninja/Rogue finishes, legacy borrowed-helm rerolling, and full co-op RemotePlayer support.",
+        "Rogue Reverse-Grip Dual Daggers: Re-engineered Rogue main-hand and off-hand stilettos into a reverse ice-pick grip through her closed fists — pommel above the fist, off-hand blade sweeping behind her body, and hilt/guard gem glow in front.",
+        "Abyssal Rift Pylon, Conduit & Boss Gate Fixes: Placed Rift Pylons on walkable room centers away from the start, fixed Conduit Pylon NaN bolt damage and Velocity Pylon speedMul, prevented Auto-Play from waiting at the sealed exit before 100% quota, and reopened sealed Boss Room gates after 3s if all living party members are outside.",
+        "Iron Express Summoner & Boarder Pacing: Capped Cultist Summoner raised skeletons (4 per summoner, 8 within 10 tiles), paused raider boarding waves while 10+ awake foes crowd the hero, and enabled Auto-Play's brave telegraph push along train cars.",
+        "Cutscene Director & Wiki Bestiary Polish: Fixed Combat Clear boss-death triggers so Stage Clear cutscenes reliably fire or queue until nearby adds are slain, prevented Playtest exit auto-step during active cutscenes, and upgraded the Wiki Bestiary to a full-width responsive layout."
       ],
       downloads: {
         android: {

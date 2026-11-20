@@ -4,6 +4,24 @@ All notable changes to Velscour Online are documented in this file.
 
 ---
 
+## [0.3.0] - 2026-11-20
+
+### Added
+- **Monk, Rogue & Ninja 48-Helmet Overhaul (PR #262)**:
+  - Added 144 custom Grim Nocturne helmets (`assets/sprites/gear/helmets_martial/` — 48 per class, 8 per rarity, each fitted to the armor it was drawn on), muted Rogue/Ninja palette tinting, automatic rerolling of legacy borrowed Monk helms, a dedicated martial set in the Helmet Fitter, and multiplayer `classGearCache`-aware `RemotePlayer` rendering.
+- **Rogue Reverse-Grip Dual Daggers (PR #263)**:
+  - Re-baked `stilettos` and `offstilettos` in a reverse grip through the Rogue's closed fists (`pommel` above the fist, `guard` beneath, blades angled down toward her back), rendering the off-hand blade behind her body while keeping its hilt, guard, and socketed gem glow in front.
+
+### Fixed & Improved
+- **Iron Express Summoner & Crowd Pacing (PR #264)**:
+  - Capped Cultist Summoner raised skeletons (`4` per summoner, `8` within `10` tiles), paused Iron Express boarder waves while `10+` awake foes crowd the hero, and enabled Auto-Play's `brave` telegraph push across train cars.
+- **Abyssal Rift Pylons, Conduit Bolts & Boss Room Gates (PR #265)**:
+  - Spawned Rift Pylons on walkable room centers away from the entrance, fixed Conduit Pylon `NaN` bolt damage (`4.5x` main-attack average) and Velocity Pylon `speedMul`, stopped Auto-Play from waiting at the sealed exit prior to 100% quota, and reopened sealed Boss Room gates after `3s` when no living party member remains inside.
+- **Cutscene Director & Wiki Bestiary Polish**:
+  - Fixed `Combat Clear` `onEntityDeath` triggers burning `deadSeen` before retry and missing `0.05s`-spliced corpses, prevented Playtest exit auto-stepping while cutscenes play, eliminated `_done` objective mutation in scenario files, and expanded `bestiary.html` to a full-width responsive grid.
+
+---
+
 ## [0.2.9] - 2026-11-18
 
 ### Added

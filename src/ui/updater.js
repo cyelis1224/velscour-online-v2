@@ -2,7 +2,7 @@
 import { UI } from './ui.js';
 import { sfx } from '../core/audio.js';
 
-export const CURRENT_BUILD_VERSION = '0.2.9';
+export const CURRENT_BUILD_VERSION = '0.3.0';
 
 const STORAGE_VERSION_KEY = 'Velscour_installed_version';
 const STORAGE_MANIFEST_HASH_KEY = 'Velscour_installed_manifest_hash';
@@ -340,12 +340,11 @@ export async function checkForUpdates({ force = false } = {}) {
           version: forceTestUpdate ? '0.2.0' : currentVer,
           inGameUpdateSupported: true,
           changelog: [
-            'New Playable Class — The Rogue: Dual-dagger assassin with Combo Point builders & bloody finishers, Stealth & Ambush sure-crits, 3D thrown/raining daggers, Bloodletting signature, and Night\'s Verdict ultimate',
-            'New Playable Class — The Ninja: Katana & physics-driven belt nunchaku warrior with mid-air somersault cuts, strike-repeating Mirror Shadows, 1–5 target Grappling Hook, shuriken & caltrops, Zanshin signature, and Moonless Night ultimate',
-            'Monk & Martial Gear Overhaul: 144 new Grim Nocturne armor sprites (48 per class across Monk, Rogue, and Ninja) plus 200 new 3D held weapons across katanas, nunchakus, and main/off-hand stilettos',
-            'Expanded 19-Class Skill & Talent Compendium: Roster expanded to 19 playable classes, 76 specialization trees, 684 active skills, and 456 passive talent & morph nodes with full co-op multiplayer sync',
-            'Official Velscour Online Wiki & Omni-Search: New in-browser Wiki accessible directly from the Title Screen covering all 19 classes, interactive Skill & Talent calculators, 1,090+ Bestiary fiends, 20-tier Gear/Relics, World Acts, and Lore',
-            'Level & Cutscene Studio Enhancements: Added inline cutscene renaming in the Cutscene Director toolbar alongside scenario and autoplay refinements',
+            'Monk, Rogue & Ninja 48-Helmet Arsenal: Added 144 bespoke Grim Nocturne helmets (48 per class, 8 per rarity) paired to each armor with muted Rogue/Ninja finishes and full co-op RemotePlayer rendering',
+            'Rogue Reverse-Grip Dual Daggers: Reworked Rogue main-hand and off-hand stilettos into a reverse grip through her fists — pommel above the fist, off-hand blade sweeping behind her body, and hilt gems glowing cleanly in front',
+            'Abyssal Rift Pylon & Auto-Play Overhaul: Spawned Rift Pylons on reachable room floors, fixed Conduit Pylon NaN bolt damage and Velocity Pylon speed scaling, stopped pre-quota exit stalls, and reopened empty sealed Boss Room gates after 3s',
+            'Iron Express Crowd & Summoner Balance: Capped Cultist Summoner raised skeletons (4 per caster, 8 nearby), paused new raider boarders during heavy 10+ foe crowds, and enabled Auto-Play brave telegraph pushes across train cars',
+            'Cutscene Director & Scenario Reliability: Fixed Combat Clear boss-death triggers so Stage Clear cutscenes reliably fire or queue until nearby adds fall, and expanded the Wiki Bestiary to a full-width responsive grid',
           ],
           downloads: {
             android: { available: true, url: '/download/android', filename: 'VelscourOnline.apk', sizeFormatted: '346 MB' },

@@ -25,6 +25,8 @@ const EXCLUDED_ASSET_DIRS = new Set([
   'assets/PrelimMonsters',
   'assets/The_Eternal_Breach_Biome_Pack',
   'assets/The_Eternal_Breach_Expanded_Pack',
+  'assets/martialarts',
+  'assets/newhelms',
 ]);
 
 /**
