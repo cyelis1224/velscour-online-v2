@@ -518,11 +518,31 @@ function pointInZone(x, y, z) {
 export function createScenarioDirector(world, doc, opts = {}) {
   const scripted = [];
   const fired = new Set();
+  const pendingClearTriggers = new Set();
   const insideZones = new Set();
   const bossAwakeSeen = new Set();
   const deadSeen = new Set();
+  const doneObjectives = new Set();
+  const trackedEnemies = new Set();
   let arrivalPending = !opts.skipArrival;
   let arrivalDelay = 0.25;
+
+  const syncTrackedEnemies = () => {
+    for (const c of world.creatures || []) {
+      if (c && c.team === 'enemy') trackedEnemies.add(c);
+    }
+  };
+  syncTrackedEnemies();
+
+  const isCombatClear = () => {
+    const hero = world.player || G.player;
+    if (!hero) return true;
+    return !world.creatures.some((c) => {
+      if (c.team !== 'enemy' || c.dead || !c.awake || c.clutter) return false;
+      const d = Math.hypot(c.x - hero.x, c.y - hero.y);
+      return d <= 5.5 && world.map.los(hero.x, hero.y, c.x, c.y);
+    });
+  };
 
   const orientActor = (who, fx, fy, tx, ty) => {
     const dx = tx - fx, dy = ty - fy;
@@ -546,7 +566,14 @@ export function createScenarioDirector(world, doc, opts = {}) {
     const total = Math.max(0.05, dur);
     const isFolk = !!(who.sprite === 'townsfolk' || ('walking' in who && !('moving' in who)));
     orientActor(who, fx, fy, to[0], to[1]);
+    const inCineAtStart = !!G.cine;
     scripted.push((dt) => {
+      if (inCineAtStart && !G.cine) {
+        who.going = false;
+        if (isFolk) { who.walking = false; who.walkT = 0; }
+        else who.moving = false;
+        return false;
+      }
       t += dt;
       const k = clamp(t / total, 0, 1);
       const active = k < 1;
@@ -660,10 +687,15 @@ export function createScenarioDirector(world, doc, opts = {}) {
   function fireTrigger(tr, fromNetwork = false) {
     if (!tr || tr.enabled === false) return false;
     if (tr.once && fired.has(tr.id)) return false;
-    if (!fromNetwork && tr.requireCombatClear) {
-      const awakeFoes = world.creatures.some((c) => c.team === 'enemy' && !c.dead && c.awake);
-      if (awakeFoes) return false;
+    if (!fromNetwork && tr.requireCombatClear && !isCombatClear()) {
+      if (!pendingClearTriggers.has(tr)) {
+        pendingClearTriggers.add(tr);
+        const hero = world.player || G.player;
+        if (hero) floatText(hero.x, hero.y, 52, 'Defeat remaining foes nearby!', '#ffd080', 12);
+      }
+      return false;
     }
+    pendingClearTriggers.delete(tr);
     if (tr.once) fired.add(tr.id);
 
     // Broadcast to co-op party so everyone on this floor locks & plays simultaneously (like Sky/Sea Battles)
@@ -697,7 +729,7 @@ export function createScenarioDirector(world, doc, opts = {}) {
     },
     get description() {
       if (director.completed) return 'The way onward stands open.';
-      const nextObj = (doc.objectives || []).find((o) => !o._done);
+      const nextObj = (doc.objectives || []).find((o, idx) => !doneObjectives.has(o.id || idx));
       return nextObj ? nextObj.text : (doc.meta?.blurb || 'Explore the area and defeat its guardian.');
     },
     get objective() {
@@ -721,6 +753,7 @@ export function createScenarioDirector(world, doc, opts = {}) {
       return true;
     },
     tickScripted(dt) {
+      syncTrackedEnemies();
       world.skyDirector?.tick(dt);
       for (let i = scripted.length - 1; i >= 0; i--) {
         if (!scripted[i](dt)) scripted.splice(i, 1);
@@ -743,6 +776,14 @@ export function createScenarioDirector(world, doc, opts = {}) {
 
       if (G.cine) return;
 
+      // Retry any triggers (such as onEntityDeath with Combat Clear) once nearby combat clears
+      if (pendingClearTriggers.size && isCombatClear()) {
+        for (const tr of [...pendingClearTriggers]) {
+          fireTrigger(tr);
+          if (G.cine) return;
+        }
+      }
+
       // Spatial zone triggers
       for (const z of doc.entities?.zones || []) {
         const inside = pointInZone(p.x, p.y, z);
@@ -760,20 +801,23 @@ export function createScenarioDirector(world, doc, opts = {}) {
         }
       }
 
-      // Combat & cast lifecycle triggers
-      for (const c of world.creatures) {
+      // Combat & cast lifecycle triggers (iterating trackedEnemies so creatures spliced out 0.05s after death are never missed!)
+      const normKey = (k) => String(k || '').replace(/^@/, '').trim();
+      for (const c of trackedEnemies) {
         if (c.team !== 'enemy') continue;
-        const key = c.castKey || '';
+        const key = normKey(c.castKey);
         if (c.awake && !c.dead && key && !bossAwakeSeen.has(c)) {
           bossAwakeSeen.add(c);
           for (const tr of doc.triggers || []) {
-            if (tr.event === 'onBossAwake' && (!tr.targetKey || tr.targetKey === key)) fireTrigger(tr);
+            const tk = normKey(tr.targetKey);
+            if (tr.event === 'onBossAwake' && (!tk || tk === key)) fireTrigger(tr);
           }
         }
         if (!c.dead && c.maxHp > 0) {
           const pct = (c.hp / c.maxHp) * 100;
           for (const tr of doc.triggers || []) {
-            if (tr.event === 'onBossHpBelow' && (!tr.targetKey || tr.targetKey === key) && pct <= (tr.hpPct ?? 50)) {
+            const tk = normKey(tr.targetKey);
+            if (tr.event === 'onBossHpBelow' && (!tk || tk === key) && pct <= (tr.hpPct ?? 50)) {
               fireTrigger(tr);
             }
           }
@@ -781,32 +825,37 @@ export function createScenarioDirector(world, doc, opts = {}) {
         if (c.dead && !deadSeen.has(c)) {
           deadSeen.add(c);
           for (const tr of doc.triggers || []) {
-            if (tr.event === 'onEntityDeath' && (!tr.targetKey || tr.targetKey === key)) fireTrigger(tr);
+            const tk = normKey(tr.targetKey);
+            if (tr.event === 'onEntityDeath' && (!tk || tk === key)) fireTrigger(tr);
           }
         }
       }
 
-      // Objective completion check
+      // Objective completion check (tracked locally without mutating doc.objectives)
       let allDone = true;
-      for (const obj of doc.objectives || []) {
-        if (obj._done) continue;
+      for (let oi = 0; oi < (doc.objectives || []).length; oi++) {
+        const obj = doc.objectives[oi];
+        const oid = obj.id || oi;
+        if (doneObjectives.has(oid)) continue;
         if (obj.kind === 'kill_bosses') {
           const alive = world.creatures.some((c) => c.team === 'enemy' && !c.dead && (c.rank === 'boss' || c.rank === 'raid'));
-          if (!alive) obj._done = true;
+          if (!alive) doneObjectives.add(oid);
         } else if (obj.kind === 'kill_cast') {
-          const alive = world.creatures.some((c) => c.team === 'enemy' && !c.dead && c.castKey === obj.target);
-          if (!alive) obj._done = true;
+          const tgt = normKey(obj.target);
+          const alive = world.creatures.some((c) => c.team === 'enemy' && !c.dead && normKey(c.castKey) === tgt);
+          if (!alive) doneObjectives.add(oid);
         } else if (obj.kind === 'kill_all') {
           const alive = world.creatures.some((c) => c.team === 'enemy' && !c.dead && !c.clutter);
-          if (!alive) obj._done = true;
+          if (!alive) doneObjectives.add(oid);
         } else if (obj.kind === 'reach_zone') {
           const z = (doc.entities?.zones || []).find((q) => q.id === obj.zoneId);
-          if (z && pointInZone(p.x, p.y, z)) obj._done = true;
+          if (z && pointInZone(p.x, p.y, z)) doneObjectives.add(oid);
         }
-        if (!obj._done) allDone = false;
+        if (!doneObjectives.has(oid)) allDone = false;
       }
 
-      if (!director.completed && (doc.objectives?.length ? allDone : false)) {
+      const waitingUnseal = [...pendingClearTriggers].some((tr) => tr.unsealExit);
+      if (!director.completed && !waitingUnseal && (doc.objectives?.length ? allDone : false)) {
         director.completed = true;
         for (const tr of doc.triggers || []) {
           if (tr.event === 'onScenarioWin') fireTrigger(tr);

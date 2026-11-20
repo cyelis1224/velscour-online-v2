@@ -93,6 +93,7 @@ export class PlaytestController {
     world.map.reveal(player.x, player.y, 14);
     const initExit = (world.portals || []).find((po) => po.type === 'exit');
     this._exitStepArmed = !initExit || dist(player.x, player.y, initExit.x, initExit.y) > 1.35;
+    this._prevExitActive = !!initExit?.active;
 
     G.world = world;
     G.player = player;
@@ -304,10 +305,14 @@ export class PlaytestController {
       camera.follow(p.x, p.y, dt);
     }
     world.customDirector?.update(dt);
-    if (this.active && p && !p.dead) {
+    if (this.active && !G.cine && p && !p.dead) {
       const ex = (world.portals || []).find((po) => po.type === 'exit');
       if (ex) {
         const dEx = dist(p.x, p.y, ex.x, ex.y);
+        if (ex.active && !this._prevExitActive && dEx < 1.1) {
+          this._exitStepArmed = false;
+        }
+        this._prevExitActive = !!ex.active;
         if (dEx > 1.35) this._exitStepArmed = true;
         else if (ex.active && this._exitStepArmed && dEx < 0.95) {
           this._exitStepArmed = false;

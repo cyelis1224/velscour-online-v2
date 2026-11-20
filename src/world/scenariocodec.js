@@ -913,7 +913,7 @@ export function serializeScenarioDoc(doc) {
     },
     architecture: structuredClone(doc.architecture),
     entities: structuredClone(doc.entities),
-    objectives: structuredClone(doc.objectives || []),
+    objectives: structuredClone(doc.objectives || []).map(({ _done, ...rest }) => rest),
     triggers: structuredClone(doc.triggers || []),
     cutscenes: structuredClone(doc.cutscenes || []),
   };

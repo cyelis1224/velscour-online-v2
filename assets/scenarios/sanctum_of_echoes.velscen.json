@@ -27,7 +27,7 @@
       "music": "wilds",
       "ambience": "catacombs"
     },
-    "updatedAt": "2026-11-18T19:36:48.174Z"
+    "updatedAt": "2026-11-19T01:29:07.158Z"
   },
   "grid": {
     "w": 56,
@@ -527,9 +527,8 @@
   "objectives": [
     {
       "id": "obj_mwmfdkmu",
-      "kind": "kill_cast",
-      "text": "Defeat the area boss",
-      "_done": true
+      "kind": "kill_bosses",
+      "text": "Defeat the area boss"
     }
   ],
   "triggers": [

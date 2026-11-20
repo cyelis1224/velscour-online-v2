@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-18T19:36:48.176Z",
+  "updatedAt": "2026-11-19T01:54:56.363Z",
   "scenarios": [
     {
       "id": "sanctum_of_echoes",
@@ -23,7 +23,7 @@
         "campaignPool": false,
         "pinnedDepth": null
       },
-      "updatedAt": "2026-11-18T19:36:48.174Z"
+      "updatedAt": "2026-11-19T01:29:07.158Z"
     },
     {
       "id": "sea_of_sand_seed_936020",
