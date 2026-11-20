@@ -100,6 +100,7 @@ node tools/tests/gear.js paladin,wizard            # hero looks: armor+helm per 
 node tools/tests/closed_helms.js all               # all 15 enclosed helmets on all 26 armors: face covered, centred, body untouched
 node tools/tests/herolook.js all death_knight 8      # every armor/helmet/finish loads (3,009 per class) + hero visible every second of a soak
 node tools/tests/heldgear.js [classes|all]         # held weapons/off-hands in play: every rarity, both facings, settings toggles, bag icons, ground drops
+node tools/tests/rogue_daggers.js                  # the Rogue's reverse-grip daggers: pommel above the fist, blades down to her back, the left one behind her
 node tools/weapons3d_bake.js [sets,..|all]         # the game's held gear: 35 sets x 50 procedural designs (tools/weapons3d*.js) -> assets/sprites/held/ (sprites, palette masks, icons, sockets/effect points; lossless WebP via Pillow)
 node tools/weapons3d_shots.js [classes|all] [seed] # review sheets: per class random heroes holding each rarity's designs with effects, art-review/weapons/
 node tools/handheld3d_bake.js [N,..|all|classes]   # the held-gear rig's fitting sheets (tools/handheld3d.js, tools/handheld3d_kits.js): the Paladin attempts, every class's kit, art-review/handheld/
@@ -227,7 +228,8 @@ Screenshots are written to `tools/tests/out/` (git-ignored). Look at them, becau
   The hero's look is the Grim Nocturne gear: 26 armors per class (2-7 per rarity) and 15 enclosed helmets per class (three sets),
   69 palette finishes, built by `python tools/nocturnegear.py build` (or `process_assets.py gear`) from the natives in
   `assets/source/gear_nocturne/`; helmet nudges go in `assets/sprites/gear/helmets/placements.json` via
-  `Fit Helmets.cmd`. The old `assets/FinalClasses/<class>.zip` libraries are no longer read. Class art packs (Paladin weapons, ability effects) go in
+  `Fit Helmets.cmd`. The Monk, Rogue and Ninja have 48 helmets each, one per armor, in their own atlas
+  `assets/sprites/gear/helmets_martial/` (`python tools/martialhelms.py` from `assets/newhelms/`; fitter set "Monk, Rogue, Ninja"). The old `assets/FinalClasses/<class>.zip` libraries are no longer read. Class art packs (Paladin weapons, ability effects) go in
   `assets/source/classes/<class>/` and are imported by `python3 tools/process_assets.py classes [class]`; both are in
   [`docs/CLASS_ART.md`](docs/CLASS_ART.md). The animated class-select portraits come from
   `assets/FinalClasses/All 16 Classes.png` (`python3 tools/process_assets.py select`, drawn by `src/ui/heroanim.js`).

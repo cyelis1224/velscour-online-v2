@@ -670,6 +670,10 @@ class Raid {
       this.wake();
     }
     if (!this.sealed && anyInside) this.seal();
+    // a hero (or whole party) blinked or thrown back out past the seal is locked out for good (auto-play hunted the boss
+    // through the wall of light for minutes): after 3 s with no living party member inside, the gate opens again
+    if (this.sealed && this.gateTiles && !players.some(pl => this.inside(pl, -0.5))) { if ((this.outT = (this.outT || 0) + dt) > 3) { this.unseal(); this.outT = 0; } }
+    else this.outT = 0;
     if (this.joinPromptCooldown > 0) this.joinPromptCooldown -= dt;
     if (this.sealed && p && !p.dead && !this.inside(p)) {
       const gy = (g.y0 + g.y1 + 1) / 2;
