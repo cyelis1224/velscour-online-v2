@@ -9,7 +9,7 @@ import { heldHero, drawHeldLayer, loadHeld } from '../gfx/heldart.js';
 import { ninjaGearLayer } from '../gfx/ninjagear.js';
 import { drawGearFx, updateGearFx } from '../gfx/gearfx.js';
 import { fxColor } from '../data/gear.js';
-import { gearSignature } from './network.js';
+import { net, gearSignature } from './network.js';
 import { RemoteSummon } from './remotesummon.js';
 import { G } from '../state.js';
 import { sigOf, sigUpdate, sigCast, SIGNATURES } from '../game/signature.js';
@@ -251,6 +251,7 @@ export class RemotePlayer extends Creature {
   update(dt) {
     this.animT = (this.animT || 0) + dt;
     this.spawnT = (this.spawnT || 0) + dt;
+    if (this.invuln > 0) this.invuln = Math.max(0, this.invuln - dt);
     if (this.flash > 0) this.flash = Math.max(0, this.flash - dt * 4);
     if (this.lunge > 0) this.lunge = Math.max(0, this.lunge - dt * 4);
     if (this.acro && (this.acro.t += dt) >= this.acro.dur) this.acro = null;
@@ -490,16 +491,47 @@ export class RemotePlayer extends Creature {
     }
   }
 
+  markSummonKilled(summonId) {
+    if (!summonId) return;
+    if (!(this.killedSummonIds instanceof Map)) this.killedSummonIds = new Map();
+    this.killedSummonIds.set(summonId, { ts: performance.now(), resent: false });
+  }
+
   syncSummons(summonsList) {
     if (!this.summons) this.summons = new Map();
-    if (!this.killedSummonIds) this.killedSummonIds = new Set();
+    if (!(this.killedSummonIds instanceof Map)) this.killedSummonIds = new Map();
     const activeIds = new Set();
     const w = G.world;
     if (!w) return;
+    const now = performance.now();
 
     for (const s of summonsList) {
       if (!s || !s.id) continue;
-      if (this.killedSummonIds.has(s.id)) continue;
+      const killedEntry = this.killedSummonIds.get(s.id);
+      if (killedEntry) {
+        const age = now - killedEntry.ts;
+        if (age < 1200) {
+          // If the owner is still reporting this summon alive after 350ms in a duel, retry the kill packet once
+          if (age > 350 && !killedEntry.resent && (this.isDuelOpponent || w.kind === 'arena') && net.connected) {
+            killedEntry.resent = true;
+            net.send({
+              type: 'duel_summon_hit',
+              duelId: w.duelId || null,
+              ownerId: this.id,
+              summonId: s.id,
+              summonKey: s.key,
+              x: Math.round((s.x || 0) * 10) / 10,
+              y: Math.round((s.y || 0) * 10) / 10,
+              dmg: 999999,
+              el: 'phys',
+              killed: true,
+            });
+          }
+          continue;
+        }
+        // Grace window expired and owner still authoritatively reports it alive: restore visibility instead of leaving a ghost
+        this.killedSummonIds.delete(s.id);
+      }
       activeIds.add(s.id);
       let rs = this.summons.get(s.id);
       if (!rs) {
@@ -524,7 +556,7 @@ export class RemotePlayer extends Creature {
       }
     }
 
-    for (const id of this.killedSummonIds) {
+    for (const id of this.killedSummonIds.keys()) {
       if (!summonsList.some((s) => s && s.id === id)) {
         this.killedSummonIds.delete(id);
       }

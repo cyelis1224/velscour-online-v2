@@ -1266,12 +1266,16 @@ function cleanupClientSessions(clientId, reason = 'Partner disconnected.') {
   }
   for (const [duelId, session] of activeDuelSessions.entries()) {
     if (session.p1.id === clientId || session.p2.id === clientId) {
-      if (session.room) {
-        broadcastToRoom(session.room, {
-          type: 'duel_cancel',
-          duelId,
-          reason,
-        });
+      const otherId = session.p1.id === clientId ? session.p2.id : session.p1.id;
+      for (const [otherWs, c] of clients) {
+        if (c.id === otherId && otherWs.readyState === WebSocket.OPEN) {
+          otherWs.send(JSON.stringify({
+            type: 'duel_cancel',
+            duelId,
+            reason,
+          }));
+          break;
+        }
       }
       activeDuelSessions.delete(duelId);
     }
@@ -3260,6 +3264,14 @@ wss.on('connection', (ws) => {
           fromWs.send(JSON.stringify({ type: 'duel_cancel', reason: `${clientData.name} declined the duel challenge.` }));
           break;
         }
+        // Prevent starting a duel if either player is already in an active duel
+        for (const existing of activeDuelSessions.values()) {
+          if (existing.p1.id === fromClient.id || existing.p2.id === fromClient.id ||
+              existing.p1.id === clientData.id || existing.p2.id === clientData.id) {
+            ws.send(JSON.stringify({ type: 'duel_cancel', reason: 'One of the players is already in a duel.' }));
+            return;
+          }
+        }
         const duelId = 'duel_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
         const ringX = clientData.x || fromClient.x || 20;
         const ringY = clientData.y || fromClient.y || 20;
@@ -3274,7 +3286,7 @@ wss.on('connection', (ws) => {
         };
         activeDuelSessions.set(duelId, session);
 
-        broadcastToRoom(clientData.room, {
+        const startPayload = JSON.stringify({
           type: 'duel_start',
           duelId,
           p1: session.p1,
@@ -3283,6 +3295,8 @@ wss.on('connection', (ws) => {
           ringY,
           radius: 22,
         });
+        if (fromWs.readyState === WebSocket.OPEN) fromWs.send(startPayload);
+        if (ws.readyState === WebSocket.OPEN) ws.send(startPayload);
         break;
       }
 
@@ -3290,7 +3304,7 @@ wss.on('connection', (ws) => {
       case 'duel_summon_hit': {
         if (!clientData.room) break;
         msg.sourceId = clientData.id;
-        broadcastToRoom(clientData.room, msg);
+        broadcastToRoom(clientData.room, msg, ws);
         break;
       }
 

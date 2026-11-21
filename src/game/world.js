@@ -9,7 +9,7 @@ import { rand, dist2, TAU, chance } from '../core/util.js';
 import { sfx } from '../core/audio.js';
 import { spawn, updateVfx, addLight, sparkle, smoke, lights } from '../gfx/vfx.js';
 import { bodyR } from '../world/map.js';
-import { isDuelTarget } from './duel.js';
+import { DuelManager, isDuelTarget } from './duel.js';
 
 const CELL = 2;
 
@@ -196,8 +196,9 @@ export class World {
     // the other teams' creatures, when they are fewer than the cells to scan (a monster looking for the hero and his
     // summons among hundreds of monsters): same cells, same distance test and tie order as the grid scans below
     let others = 0;
-    if (this.teams) for (const [t, a] of this.teams) if (t !== team) others += a.length;
-    if (this.teams && others < Math.min(this.grid.size, (x1 - x0 + 1) * (y1 - y0 + 1))) {
+    const inDuel = this.kind === 'arena' || DuelManager.isDueling();
+    if (!inDuel && this.teams) for (const [t, a] of this.teams) if (t !== team) others += a.length;
+    if (!inDuel && this.teams && others < Math.min(this.grid.size, (x1 - x0 + 1) * (y1 - y0 + 1))) {
       for (const [t, a] of this.teams) {
         if (t === team) continue;
         for (const c of a) {

@@ -33,6 +33,26 @@ class DuelManagerClass {
     this.promptEl = null;
     this.promptTimer = null;
     this.bannerEl = null;
+    this._endTimer = null;
+    this._bannerTimer = null;
+  }
+
+  _clearTimers() {
+    if (this._endTimer) {
+      clearTimeout(this._endTimer);
+      this._endTimer = null;
+    }
+    if (this._bannerTimer) {
+      clearTimeout(this._bannerTimer);
+      this._bannerTimer = null;
+    }
+  }
+
+  _findRemotePlayer(id, name = null) {
+    if (!G.remotePlayers) return null;
+    return G.remotePlayers.get(id) || Array.from(G.remotePlayers.values()).find((p) =>
+      (id != null && String(p.id) === String(id)) || (name && p.name === name)
+    ) || null;
   }
 
   isDueling() {
@@ -115,17 +135,33 @@ class DuelManagerClass {
   }
 
   startDuel(data) {
+    const isP1 = data?.p1 && String(data.p1.id) === String(net.myId);
+    const isP2 = data?.p2 && String(data.p2.id) === String(net.myId);
+    if (!isP1 && !isP2) return; // Bystanders in rooms with >2 players must not be pulled into the duel
+
+    this._clearTimers();
     this.clearPrompt();
     sfx('horn');
 
-    const isP1 = String(data.p1.id) === String(net.myId);
     const opponent = isP1 ? data.p2 : data.p1;
     const mySpawn = isP1 ? [16, 7] : [16, 25];
 
-    // Mark remote player as duel opponent
-    const rp = G.remotePlayers?.get(opponent.id) || Array.from(G.remotePlayers?.values() || []).find((p) => String(p.id) === String(opponent.id) || p.name === opponent.name);
+    // Clear any stale opponent flags before marking the new duel opponent
+    if (G.remotePlayers) {
+      for (const other of G.remotePlayers.values()) other.isDuelOpponent = false;
+    }
+
+    // Mark remote player as duel opponent and reset any stale combat/loading state
+    const rp = this._findRemotePlayer(opponent.id, opponent.name);
     if (rp) {
       rp.isDuelOpponent = true;
+      rp.dead = false;
+      rp.invuln = 0;
+      rp.targetable = true;
+      rp.isLoading = false;
+      rp.alpha = 1;
+      if (rp.hp <= 0) rp.hp = rp.maxHp || 100;
+      if (rp.killedSummonIds) rp.killedSummonIds.clear();
     }
 
     this.activeDuel = {
@@ -139,6 +175,12 @@ class DuelManagerClass {
 
     if (G.game?.enterArena) {
       G.game.enterArena(data, mySpawn);
+    }
+
+    if (G.player) {
+      G.player.dead = false;
+      G.player.invuln = 0;
+      G.player.targetable = true;
     }
 
     this.showBanner('DUEL IN 3…', '#ffd34a');
@@ -182,7 +224,11 @@ class DuelManagerClass {
         sfx('shout');
         this.showBanner('FIGHT!', '#ff4444');
         p.castLock = 0;
-        setTimeout(() => this.clearBanner(), 1500);
+        if (this._bannerTimer) clearTimeout(this._bannerTimer);
+        this._bannerTimer = setTimeout(() => {
+          this._bannerTimer = null;
+          this.clearBanner();
+        }, 1500);
       }
       return;
     }
@@ -236,29 +282,31 @@ class DuelManagerClass {
   }
 
   handleDuelSummonHit(data) {
-    if (!this.activeDuel) return;
-    const oppId = this.activeDuel.opponentId;
-    const isTargetMySummon = !data.ownerId || String(data.ownerId) === String(net.myId) || (data.sourceId != null && String(data.sourceId) === String(oppId));
+    if (!this.activeDuel && G.world?.kind !== 'arena') return;
+    if (data.sourceId != null && String(data.sourceId) === String(net.myId)) return; // Already applied locally by attacker
+    if (data.duelId && this.activeDuel && this.activeDuel.duelId !== data.duelId) return;
+    const oppId = this.activeDuel?.opponentId;
+    const isTargetMySummon = (data.ownerId != null && String(data.ownerId) === String(net.myId)) ||
+      (data.ownerId == null && oppId != null && data.sourceId != null && String(data.sourceId) === String(oppId));
     if (isTargetMySummon && G.world?.creatures) {
       let mySummon = null;
+      const isMyLocalSummon = (c) => c && c.summon && !c.isRemoteSummon && c.owner === G.player && !c.dead;
       if (data.summonId) {
-        mySummon = G.world.creatures.find((c) => c.summon && (c.owner === G.player || c.team === 'player') && c.summonId === data.summonId && !c.dead);
+        mySummon = G.world.creatures.find((c) => isMyLocalSummon(c) && c.summonId === data.summonId);
       }
-      if (!mySummon && typeof data.x === 'number' && typeof data.y === 'number') {
-        let bestDist = Infinity;
+      // Only use spatial fallback when summonId was not provided; never kill a different summon on a duplicate/stale summonId
+      if (!mySummon && !data.summonId && typeof data.x === 'number' && typeof data.y === 'number') {
+        let bestDist = 3.5;
         for (const c of G.world.creatures) {
-          if (c.summon && (c.owner === G.player || c.team === 'player') && !c.dead) {
+          if (isMyLocalSummon(c)) {
             const d = dist(c.x, c.y, data.x, data.y);
-            const keyMatch = data.summonKey && c.summonKey === data.summonKey ? -5 : 0;
+            const keyMatch = data.summonKey && c.summonKey === data.summonKey ? -1.5 : 0;
             if (d + keyMatch < bestDist) {
               bestDist = d + keyMatch;
               mySummon = c;
             }
           }
         }
-      }
-      if (!mySummon) {
-        mySummon = G.world.creatures.find((c) => c.summon && (c.owner === G.player || c.team === 'player') && !c.dead);
       }
 
       if (mySummon) {
@@ -275,9 +323,9 @@ class DuelManagerClass {
         }
       }
     } else {
-      const rp = G.remotePlayers?.get(data.ownerId) || Array.from(G.remotePlayers?.values() || []).find((p) => String(p.id) === String(data.ownerId) || String(p.id) === String(oppId));
+      const rp = this._findRemotePlayer(data.ownerId ?? oppId);
       let rs = rp?.summons?.get(data.summonId);
-      if (!rs && G.world?.creatures && typeof data.x === 'number' && typeof data.y === 'number') {
+      if (!rs && !data.summonId && G.world?.creatures && typeof data.x === 'number' && typeof data.y === 'number') {
         rs = G.world.creatures.find((c) => c.isRemoteSummon && !c.dead && dist(c.x, c.y, data.x, data.y) < 2);
       }
       if (rs) {
@@ -288,7 +336,7 @@ class DuelManagerClass {
           rs.dead = true;
           rs.hp = 0;
           burst(rs.x, rs.y, 14, '#ff6060', 8, 1.2);
-          if (rp?.killedSummonIds && data.summonId) rp.killedSummonIds.add(data.summonId);
+          if (rp?.markSummonKilled && data.summonId) rp.markSummonKilled(data.summonId);
           if (G.world?.creatures) {
             const idx = G.world.creatures.indexOf(rs);
             if (idx !== -1) G.world.creatures.splice(idx, 1);
@@ -311,30 +359,48 @@ class DuelManagerClass {
 
   forfeit() {
     if (!this.activeDuel) return;
+    this._clearTimers();
     const duelId = this.activeDuel.duelId;
+    const oppId = this.activeDuel.opponentId;
     this.activeDuel = null;
+    const rp = this._findRemotePlayer(oppId);
+    if (rp) rp.isDuelOpponent = false;
     net.send({
       type: 'duel_forfeit',
       duelId,
     });
     this.restorePlayer();
     this.showBanner('DUEL FORFEITED', '#ff6666');
-    setTimeout(() => {
+    this._endTimer = setTimeout(() => {
+      this._endTimer = null;
       this.clearBanner();
-      if (G.world?.kind === 'arena') {
+      if (!this.activeDuel && G.world?.kind === 'arena') {
         G.game?.enterTown();
       }
     }, 2000);
   }
 
   endDuel(data) {
+    const isWinner = data?.winnerId != null && String(data.winnerId) === String(net.myId);
+    const isLoser = data?.loserId != null && String(data.loserId) === String(net.myId);
+    const isMyDuel = (this.activeDuel && (!data?.duelId || this.activeDuel.duelId === data.duelId)) || isWinner || isLoser;
+
+    if (!isMyDuel) {
+      // Bystander in the room: log the outcome in chat without affecting their state or position
+      if (data?.winnerName && data?.loserName) {
+        UI.log(`⚔️ <b style="color:#ffd34a">${escapeHtml(data.winnerName)}</b> defeated <b style="color:#ffd34a">${escapeHtml(data.loserName)}</b> in the Grand Arena!`, '#ffd34a');
+      }
+      return;
+    }
+
+    this._clearTimers();
     this.clearPrompt();
-    const won = String(data.winnerId) === String(net.myId);
+    const won = isWinner;
     const partnerName = won ? data.loserName : data.winnerName;
 
     if (won) {
       sfx('victory');
-      sparkle(G.player.x, G.player.y, 35, '#ffd700', 30, 0.8);
+      if (G.player) sparkle(G.player.x, G.player.y, 35, '#ffd700', 30, 0.8);
       this.showBanner('VICTORY!', '#ffd700');
       UI.log(`🏆 You defeated <b style="color:#ffd34a">${escapeHtml(partnerName)}</b> in the Grand Arena!`, '#ffd34a');
     } else {
@@ -344,18 +410,20 @@ class DuelManagerClass {
     }
 
     // Unmark remote player
-    if (this.activeDuel?.opponentId) {
-      const rp = G.remotePlayers?.get(this.activeDuel.opponentId);
+    const oppId = this.activeDuel?.opponentId ?? (won ? data.loserId : data.winnerId);
+    if (oppId != null) {
+      const rp = this._findRemotePlayer(oppId, partnerName);
       if (rp) rp.isDuelOpponent = false;
     }
 
     this.activeDuel = null;
     this.restorePlayer();
 
-    // After 3.5s victory celebration, return to town
-    setTimeout(() => {
+    // After 3.5s victory celebration, return to town (unless a new duel has already started)
+    this._endTimer = setTimeout(() => {
+      this._endTimer = null;
       this.clearBanner();
-      if (G.world?.kind === 'arena') {
+      if (!this.activeDuel && G.world?.kind === 'arena') {
         G.game?.enterTown();
       }
     }, 3500);
@@ -367,21 +435,29 @@ class DuelManagerClass {
       p.hp = p.maxHp;
       p.mana = p.maxMana;
       p.castLock = 0;
+      p.invuln = 0;
+      p.dead = false;
+      p.targetable = true;
       floatText(p.x, p.y, 45, 'Restored!', '#4fd65a', 14);
     }
   }
 
-  cancelDuel(reason = 'Duel cancelled.') {
+  cancelDuel(reason = 'Duel cancelled.', duelId = null) {
+    if (duelId && this.activeDuel?.duelId !== duelId) return;
+    this._clearTimers();
     if (this.activeDuel?.opponentId) {
-      const rp = G.remotePlayers?.get(this.activeDuel.opponentId);
+      const rp = this._findRemotePlayer(this.activeDuel.opponentId);
       if (rp) rp.isDuelOpponent = false;
     }
+    const wasInDuel = !!this.activeDuel;
     this.activeDuel = null;
     this.clearPrompt();
     this.clearBanner();
-    this.restorePlayer();
-    if (G.world?.kind === 'arena') {
-      G.game?.enterTown();
+    if (wasInDuel) {
+      this.restorePlayer();
+      if (G.world?.kind === 'arena') {
+        G.game?.enterTown();
+      }
     }
     UI.log(reason, '#ffd34a');
   }
@@ -397,7 +473,7 @@ export function initDuel() {
   net.on('duel_hit', (data) => DuelManager.handleDuelHit(data));
   net.on('duel_summon_hit', (data) => DuelManager.handleDuelSummonHit(data));
   net.on('duel_end', (data) => DuelManager.endDuel(data));
-  net.on('duel_cancel', (data) => DuelManager.cancelDuel(data.reason));
+  net.on('duel_cancel', (data) => DuelManager.cancelDuel(data.reason, data.duelId));
 }
 
 // Deferred initialization fallback

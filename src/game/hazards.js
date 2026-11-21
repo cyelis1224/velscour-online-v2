@@ -91,7 +91,14 @@ export class Projectile {
     }
     // homing
     if (this.home) {
-      if (!this.target || this.target.dead || this.t % 0.3 < dt) this.target = w.nearestHostile(this.team, this.x, this.y, 8);
+      if (!this.target || this.target.dead || this.target === this.src || this.t % 0.3 < dt) {
+        if (this.src?.isRemotePlayer && (w.kind === 'arena' || this.src.isDuelOpponent)) {
+          this.target = w.player && !w.player.dead ? w.player : null;
+        } else {
+          this.target = w.nearestHostile(this.team, this.x, this.y, 8);
+          if (this.target === this.src) this.target = null;
+        }
+      }
       if (this.target) {
         const want = angleTo(this.x, this.y, this.target.x, this.target.y);
         const cur = Math.atan2(this.vy, this.vx);

@@ -287,7 +287,7 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
       tgt.dead = true;
       tgt.hp = 0;
       burst(tgt.x, tgt.y, 14, '#ff6060', 8, 1.2);
-      if (tgt.owner?.killedSummonIds) tgt.owner.killedSummonIds.add(tgt.summonId);
+      if (tgt.owner?.markSummonKilled) tgt.owner.markSummonKilled(tgt.summonId);
       if (tgt.owner?.summons) tgt.owner.summons.delete(tgt.summonId);
       const w = tgt.world || G.world;
       if (w && w.creatures) {
@@ -295,6 +295,9 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
         if (idx !== -1) w.creatures.splice(idx, 1);
       }
     }
+    floatText(tgt.x, tgt.y, 35, `-${Math.round(dmg)}`, '#ffd34a', 12);
+    sfx('hurt');
+    return dmg;
   }
 
   if (G.room && byHero && !o.fromNetwork && !src?.isRemotePlayer && net.connected && !tgt.isRemotePlayer && !tgt.isRemoteSummon) {
@@ -672,7 +675,7 @@ export function kill(tgt, src, info = {}) {
           killed: true,
         });
       }
-      if (tgt.owner?.killedSummonIds) tgt.owner.killedSummonIds.add(tgt.summonId);
+      if (tgt.owner?.markSummonKilled) tgt.owner.markSummonKilled(tgt.summonId);
       if (tgt.owner?.summons) tgt.owner.summons.delete(tgt.summonId);
       if (world && world.creatures) {
         const idx = world.creatures.indexOf(tgt);
