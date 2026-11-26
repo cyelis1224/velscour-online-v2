@@ -2,7 +2,7 @@
 import { UI } from './ui.js';
 import { sfx } from '../core/audio.js';
 
-export const CURRENT_BUILD_VERSION = '0.3.0';
+export const CURRENT_BUILD_VERSION = '0.3.1';
 
 const STORAGE_VERSION_KEY = 'Velscour_installed_version';
 const STORAGE_MANIFEST_HASH_KEY = 'Velscour_installed_manifest_hash';
@@ -340,11 +340,11 @@ export async function checkForUpdates({ force = false } = {}) {
           version: forceTestUpdate ? '0.2.0' : currentVer,
           inGameUpdateSupported: true,
           changelog: [
-            'Monk, Rogue & Ninja 48-Helmet Arsenal: Added 144 bespoke Grim Nocturne helmets (48 per class, 8 per rarity) paired to each armor with muted Rogue/Ninja finishes and full co-op RemotePlayer rendering',
-            'Rogue Reverse-Grip Dual Daggers: Reworked Rogue main-hand and off-hand stilettos into a reverse grip through her fists — pommel above the fist, off-hand blade sweeping behind her body, and hilt gems glowing cleanly in front',
-            'Abyssal Rift Pylon & Auto-Play Overhaul: Spawned Rift Pylons on reachable room floors, fixed Conduit Pylon NaN bolt damage and Velocity Pylon speed scaling, stopped pre-quota exit stalls, and reopened empty sealed Boss Room gates after 3s',
-            'Iron Express Crowd & Summoner Balance: Capped Cultist Summoner raised skeletons (4 per caster, 8 nearby), paused new raider boarders during heavy 10+ foe crowds, and enabled Auto-Play brave telegraph pushes across train cars',
-            'Cutscene Director & Scenario Reliability: Fixed Combat Clear boss-death triggers so Stage Clear cutscenes reliably fire or queue until nearby adds fall, and expanded the Wiki Bestiary to a full-width responsive grid',
+            "Tessariel's Keep (Personal Online Hall): Added the baked 3D Great Hall with Sagas, daily Bounties, Deeds, Renown, Embers, Furnishings, Trophies, War Table, Sacred Flame, and your online account's other heroes walking the hall (with account-bound Ember & Vault gear).",
+            '51-Upgrade Infernal Marks Library & PvP Normalization: Rebuilt Infernal Marks into a 6-tab upgrade library (Offensive, Defensive, Resources, Loot, Utility, Endgame) with progressive post-100 XP, bulk buy/refund, and PvP Arena normalization caps.',
+            'Account-Wide Reliquary Gold & Shared Jewel Box + Custom Chest Art: Added server-synced Reliquary Gold transfers, account-wide Jewel Box storage with automatic gem migration, 20 dungeon chest visual variants, and new Storage/Reliquary/Jewel Box artwork.',
+            'Sheer Drops, 20 Treasure Imps, Gilded Critters, Pack Leaders & Traps: Added 10 void-cliff Sheer Drop biomes, 20 Treasure Imp variants with custom sprites and loot trails, Gilded Critters overhaul, 15-role Enemy Pack Leaders, Environmental Traps, and safe Mimic reveals.',
+            'Altar of Heresy Rank 75, Co-op Scaling & Engine Polish: Expanded Altar of Heresy to Rank 75 (3-column UI + co-op host Heresy sync), added desktop 2-4x raster sprites, 3D Altar of Heresy, class-specific mana orb colors, Unique/Champion durability + co-op HP scaling, and PvP duel fixes.',
           ],
           downloads: {
             android: { available: true, url: '/download/android', filename: 'VelscourOnline.apk', sizeFormatted: '346 MB' },

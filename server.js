@@ -1054,11 +1054,11 @@ const server = http.createServer((req, res) => {
       serverTime: Date.now(),
       buildTime: latestBuild,
       changelog: [
-        "Monk, Rogue & Ninja 48-Helmet Arsenal: Added 144 bespoke Grim Nocturne helmets (48 per class, 8 per rarity) fitted to each class's 48 armors, with muted Ninja/Rogue finishes, legacy borrowed-helm rerolling, and full co-op RemotePlayer support.",
-        "Rogue Reverse-Grip Dual Daggers: Re-engineered Rogue main-hand and off-hand stilettos into a reverse ice-pick grip through her closed fists — pommel above the fist, off-hand blade sweeping behind her body, and hilt/guard gem glow in front.",
-        "Abyssal Rift Pylon, Conduit & Boss Gate Fixes: Placed Rift Pylons on walkable room centers away from the start, fixed Conduit Pylon NaN bolt damage and Velocity Pylon speedMul, prevented Auto-Play from waiting at the sealed exit before 100% quota, and reopened sealed Boss Room gates after 3s if all living party members are outside.",
-        "Iron Express Summoner & Boarder Pacing: Capped Cultist Summoner raised skeletons (4 per summoner, 8 within 10 tiles), paused raider boarding waves while 10+ awake foes crowd the hero, and enabled Auto-Play's brave telegraph push along train cars.",
-        "Cutscene Director & Wiki Bestiary Polish: Fixed Combat Clear boss-death triggers so Stage Clear cutscenes reliably fire or queue until nearby adds are slain, prevented Playtest exit auto-step during active cutscenes, and upgraded the Wiki Bestiary to a full-width responsive layout."
+        "Tessariel's Keep (Personal Online Hall): Added the baked 3D Great Hall with Sagas, daily Bounties, Deeds, Renown, Embers, Furnishings, Trophies, War Table, Sacred Flame, and your online account's other heroes walking the hall (with account-bound Ember & Vault gear).",
+        "51-Upgrade Infernal Marks Library & PvP Normalization: Rebuilt Infernal Marks into a 6-tab upgrade library (Offensive, Defensive, Resources, Loot, Utility, Endgame) with progressive post-100 XP, bulk buy/refund, and PvP Arena normalization caps.",
+        "Account-Wide Reliquary Gold & Shared Jewel Box + Custom Chest Art: Added server-synced Reliquary Gold transfers, account-wide Jewel Box storage with automatic gem migration, 20 dungeon chest visual variants, and new Storage/Reliquary/Jewel Box artwork.",
+        "Sheer Drops, 20 Treasure Imps, Gilded Critters, Pack Leaders & Traps: Added 10 void-cliff Sheer Drop biomes, 20 Treasure Imp variants with custom sprites and loot trails, Gilded Critters overhaul, 15-role Enemy Pack Leaders, Environmental Traps, and safe Mimic reveals.",
+        "Altar of Heresy Rank 75, Co-op Scaling & Engine Polish: Expanded Altar of Heresy to Rank 75 (3-column UI + co-op host Heresy sync), added desktop 2-4x raster sprites, 3D Altar of Heresy, class-specific mana orb colors, Unique/Champion durability + co-op HP scaling, and PvP duel fixes."
       ],
       downloads: {
         android: {
