@@ -43,6 +43,7 @@ import { castellanMark } from './keep.js';
 import { townStorageChestArtFor } from '../data/town-storage-chests.js';
 import { CURSED_CHEST_VARIANT, selectDungeonChestVariant } from '../data/chestappearances.js';
 import { findTrapGroundAnchor, trapAnchorFrame, trapAtlasFrameRect } from './trapgeometry.mjs';
+import { MAP_TERRAIN_COLORS, eternalBreachMapColor, terrainColor, terrainKindFromName } from '../gfx/mapcolors.js';
 
 let lightCanvas = null, glowCanvas = null, vignette = null, vigKey = '';
 const transitionSprites = new Map();
@@ -1556,6 +1557,110 @@ function drawOverheadNames(ctx, world) {
 
 // ------------------------------------------------------------------ minimap
 let mmT = 0;
+const floorMapColors = new WeakMap();
+const automapTerrainCaches = new WeakMap();
+
+function floorMapColor(world, variant) {
+  const floors = world.townTiles || world.tileset?.floors;
+  if (!floors) return terrainColor(null, world.biome?.id);
+  let colors = floorMapColors.get(floors);
+  if (!colors) floorMapColors.set(floors, (colors = new Map()));
+  const key = `${world.biome?.id || ''}:${variant}`;
+  if (colors.has(key)) return colors.get(key);
+  const floor = floors[variant] || floors[0];
+  const name = `${floor?.material || ''} ${floor?.surface || ''} ${floor?.name || ''}`;
+  const color = terrainColor(terrainKindFromName(name), world.biome?.id);
+  colors.set(key, color);
+  return color;
+}
+
+function mapTerrainColor(world, map, i) {
+  if (map.wet?.[i]) return map.wet[i] > 1 ? MAP_TERRAIN_COLORS.deepWater : MAP_TERRAIN_COLORS.water;
+  if (map.siegeIce?.[i]) return MAP_TERRAIN_COLORS.ice;
+  if (map.rail?.[i]) return MAP_TERRAIN_COLORS.rail;
+  if (map.castleMat) {
+    const m = map.castleMat[i];
+    if (m === MAT.water) return MAP_TERRAIN_COLORS.water;
+    if (m === MAT.sand) return MAP_TERRAIN_COLORS.sand;
+    if (m === MAT.forest || m === MAT.lush) return MAP_TERRAIN_COLORS.vegetation;
+    if (m === MAT.meadow || m === MAT.bright || m === MAT.mid || m === MAT.grave) return MAP_TERRAIN_COLORS.grass;
+    if (m === MAT.dirt || m === MAT.road || m === MAT.field || m === MAT.mud) return m === MAT.mud ? MAP_TERRAIN_COLORS.mud : MAP_TERRAIN_COLORS.dirt;
+    if (m === MAT.plank) return MAP_TERRAIN_COLORS.bridge;
+    if (m === MAT.wall || m === MAT.rampart || m === MAT.hall || map.castleRoomWalls?.[i] || map.rampartWall?.[i]) return MAP_TERRAIN_COLORS.wall;
+    if (m === MAT.cobble || m === MAT.pave || m === MAT.dark || m === MAT.moss) return m === MAT.moss ? MAP_TERRAIN_COLORS.grass : MAP_TERRAIN_COLORS.stone;
+  }
+  if (map.faceArt?.[i] && map.block?.[i]) return MAP_TERRAIN_COLORS.wall;
+  if (map.rampartDeck?.[i] || map.siegeDeck?.[i]) return MAP_TERRAIN_COLORS.stone;
+  let color = floorMapColor(world, map.v?.[i] || 0);
+  if (map.hgt && map.hgt[i] > (map.minLevel || 0) + 5 && (map.block?.[i] || map.castleRoomWalls?.[i])) color = MAP_TERRAIN_COLORS.wall;
+  return color;
+}
+
+function mapCellColor(world, map, i) {
+  const breachColor = eternalBreachMapColor(map, i);
+  if (breachColor) return breachColor;
+  if (map.wet?.[i]) return map.wet[i] > 1 ? MAP_TERRAIN_COLORS.deepWater : MAP_TERRAIN_COLORS.water;
+  if (map.sea) return MAP_TERRAIN_COLORS.deepWater;
+  if (map.sky || map.ghostTrain || map.voidFace || map.sheer) return map.t[i] === 1 ? mapTerrainColor(world, map, i) : MAP_TERRAIN_COLORS.void;
+  return map.t[i] === 1 ? mapTerrainColor(world, map, i) : MAP_TERRAIN_COLORS.wall;
+}
+
+const mapInBounds = (map, x, y) => (map.inb ? map.inb(x, y) : x >= 0 && y >= 0 && x < map.w && y < map.h);
+const mapCellWalkable = (map, x, y) => mapInBounds(map, x, y) && map.t[y * map.w + x] === 1 && !map.block?.[y * map.w + x];
+
+function drawMapCell(ctx, world, map, x, y, s, toS, opacity = 1) {
+  if (x < 0 || y < 0 || x >= map.w || y >= map.h) return;
+  const i = y * map.w + x;
+  if (!map.seen[i]) return;
+  const floor = map.t[i] === 1, wet = !!map.wet?.[i];
+  if (!floor && !wet) {
+    const left = x > 0 ? i - 1 : -1, right = x + 1 < map.w ? i + 1 : -1;
+    const up = y > 0 ? i - map.w : -1, down = y + 1 < map.h ? i + map.w : -1;
+    const besideFloor = (left >= 0 && map.seen[left] && map.t[left] === 1) || (right >= 0 && map.seen[right] && map.t[right] === 1)
+      || (up >= 0 && map.seen[up] && map.t[up] === 1) || (down >= 0 && map.seen[down] && map.t[down] === 1);
+    if (!besideFloor && !map.sea && !map.sky && !map.ghostTrain && !map.voidFace) return;
+  }
+  const [sx, sy] = toS(x, y), color = mapCellColor(world, map, i);
+  ctx.globalAlpha = opacity;
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.moveTo(sx, sy - s * 0.5); ctx.lineTo(sx + s, sy); ctx.lineTo(sx, sy + s * 0.5); ctx.lineTo(sx - s, sy); ctx.closePath(); ctx.fill();
+  if (floor) {
+    const edge = Math.max(0.6, Math.min(1.5, s * 0.14));
+    ctx.strokeStyle = 'rgba(12,14,16,0.88)'; ctx.lineWidth = edge; ctx.beginPath();
+    let hasEdge = false;
+    let nx = x + 1, ny = y, ni = ny * map.w + nx;
+    if (!mapInBounds(map, nx, ny) || (map.seen[ni] && !mapCellWalkable(map, nx, ny))) { ctx.moveTo(sx + s, sy); ctx.lineTo(sx, sy + s * 0.5); hasEdge = true; }
+    nx = x; ny = y + 1; ni = ny * map.w + nx;
+    if (!mapInBounds(map, nx, ny) || (map.seen[ni] && !mapCellWalkable(map, nx, ny))) { ctx.moveTo(sx, sy + s * 0.5); ctx.lineTo(sx - s, sy); hasEdge = true; }
+    nx = x - 1; ny = y; ni = ny * map.w + nx;
+    if (!mapInBounds(map, nx, ny) || (map.seen[ni] && !mapCellWalkable(map, nx, ny))) { ctx.moveTo(sx - s, sy); ctx.lineTo(sx, sy - s * 0.5); hasEdge = true; }
+    nx = x; ny = y - 1; ni = ny * map.w + nx;
+    if (!mapInBounds(map, nx, ny) || (map.seen[ni] && !mapCellWalkable(map, nx, ny))) { ctx.moveTo(sx, sy - s * 0.5); ctx.lineTo(sx + s, sy); hasEdge = true; }
+    if (hasEdge) ctx.stroke();
+  }
+  if (floor && map.block?.[i] && !wet && color !== MAP_TERRAIN_COLORS.bridge) {
+    ctx.fillStyle = `rgba(12,14,16,${0.72 * opacity})`;
+    ctx.fillRect(sx - s * 0.18, sy - s * 0.11, s * 0.36, s * 0.22);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function rebuildAutomapTerrainCache(world, canvas, s, toS) {
+  const map = world.map, W = canvas.width, H = canvas.height;
+  const key = `${W}x${H}:${s}:${world.biome?.id || ''}:${world.townTiles ? 'town' : ''}`;
+  let seenCount = 0;
+  for (let i = 0; i < map.seen.length; i++) if (map.seen[i]) seenCount++;
+  let cache = automapTerrainCaches.get(map);
+  if (!cache || cache.key !== key || cache.seenCount !== seenCount) {
+    cache = { key, canvas: cache?.key === key ? cache.canvas : makeCanvas(W, H), seenCount };
+    automapTerrainCaches.set(map, cache);
+    const ctx = cache.canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H);
+    for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) drawMapCell(ctx, world, map, x, y, s, toS);
+  }
+  return cache.canvas;
+}
+
 export function drawMinimap(world, dt, canvas, big = false) {
   if (!canvas) return;
   mmT -= dt;
@@ -1567,30 +1672,36 @@ export function drawMinimap(world, dt, canvas, big = false) {
   c.clearRect(0, 0, W, H);
   const p = world.player;
   if (!p) return;
-  if (world.tower) { world.tower.minimap(c, W, H, big); return; }
+  const terrainOpacity = big ? 1 - clamp(Number(G.settings.tabMapTransparency ?? 45), 0, 100) / 100 : 1;
+  if (world.tower) { world.tower.minimap(c, W, H, big, terrainOpacity); return; }
   const map = world.map;
-  const s = big ? Math.max(2, Math.min(W / (map.w + map.h), H / ((map.w + map.h) / 2)) * 0.95) : 2.4;
+  const fitScale = Math.min(W / (map.w + map.h + 2), H / ((map.w + map.h) / 2 + 2));
+  const s = big ? Math.max(0.25, fitScale * 0.95) : Math.min(4.5, Math.max(2.4, fitScale * 0.9));
   const cx = W / 2, cy = H / 2;
-  const ox = big ? cx : cx - (p.x - p.y) * s, oy = big ? cy - ((map.w + map.h) / 4) * s + (big ? 0 : 0) : cy - ((p.x + p.y) * s) / 2;
+  const ox = big ? cx : cx - (p.x - p.y) * s, oy = big ? cy - ((map.w + map.h) / 4) * s : cy - ((p.x + p.y) * s) / 2;
   const toS = (x, y) => big ? [cx + (x - y) * s - ((map.w - map.h) * s) / 2, cy - ((map.w + map.h) * s) / 4 + ((x + y) * s) / 2] : [ox + (x - y) * s, oy + ((x + y) * s) / 2];
-  c.fillStyle = big ? 'rgba(200,180,140,0.35)' : 'rgba(170,150,120,0.55)';
-  // the small map shows a window round the hero: only the tiles whose diamonds can land in it (the same order, so the
-  // same picture), not the whole map (60k-100k tiles on the dunes and the Castle) five times a second
-  let x0 = 0, x1 = map.w - 1, y0 = 0, y1 = map.h - 1;
-  if (!big) {
-    const d0 = (-4 - ox) / s - 1, d1 = (W + 4 - ox) / s + 1, s0 = (2 * (-4 - oy)) / s - 1, s1 = (2 * (H + 4 - oy)) / s + 1;   // x - y and x + y on screen
-    x0 = Math.max(0, Math.floor((d0 + s0) / 2)); x1 = Math.min(map.w - 1, Math.ceil((d1 + s1) / 2));
-    y0 = Math.max(0, Math.floor((s0 - d1) / 2)); y1 = Math.min(map.h - 1, Math.ceil((s1 - d0) / 2));
-  }
-  for (let y = y0; y <= y1; y++) {
-    for (let x = x0; x <= x1; x++) {
-      const i = y * map.w + x;
-      if ((map.t[i] !== 1 && !(map.wet && map.wet[i])) || !map.seen[i]) continue;
-      const [sx, sy] = toS(x, y);
-      if (!big && (sx < -4 || sy < -4 || sx > W + 4 || sy > H + 4)) continue;
-      if (map.hgt) c.fillStyle = map.wet && map.wet[i] ? 'rgba(70,140,230,0.65)' : terrainShade(map, i); // paler up the mountain; the caves' water blue (and up the Castle's walls)
-      c.fillRect(sx - s * 0.5, sy, s, s * 0.6);
+  if (big) {
+    const terrain = rebuildAutomapTerrainCache(world, canvas, s, toS);
+    c.globalAlpha = terrainOpacity; c.drawImage(terrain, 0, 0); c.globalAlpha = 1;
+  } else {
+    const pad = s + 2;
+    const d0 = (-pad - ox) / s - 1, d1 = (W + pad - ox) / s + 1, s0 = (2 * (-pad - oy)) / s - 1, s1 = (2 * (H + pad - oy)) / s + 1;
+    const x0 = Math.max(0, Math.floor((d0 + s0) / 2)), x1 = Math.min(map.w - 1, Math.ceil((d1 + s1) / 2));
+    const y0 = Math.max(0, Math.floor((s0 - d1) / 2)), y1 = Math.min(map.h - 1, Math.ceil((s1 - d0) / 2));
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const [sx, sy] = toS(x, y);
+        if (sx < -pad || sy < -pad || sx > W + pad || sy > H + pad) continue;
+        drawMapCell(c, world, map, x, y, s, toS);
+      }
     }
+  }
+  for (const door of map.doors || []) {
+    const tx = Math.floor(door.x), ty = Math.floor(door.y), i = ty * map.w + tx;
+    if (tx < 0 || ty < 0 || tx >= map.w || ty >= map.h || !map.seen[i]) continue;
+    const [sx, sy] = toS(door.x, door.y);
+    c.fillStyle = door.open ? '#b6a276' : '#81704d';
+    c.beginPath(); c.arc(sx, sy + s * 0.3, big ? 2 : 1.2, 0, TAU); c.fill();
   }
   const dot = (x, y, col, r) => { const [sx, sy] = toS(x, y); c.fillStyle = col; c.beginPath(); c.arc(sx, sy + s * 0.3, r, 0, TAU); c.fill(); };
   for (const po of world.portals) if (map.seen[Math.floor(po.y) * map.w + Math.floor(po.x)] || world.kind === 'town') dot(po.x, po.y, po.active ? po.color || '#ff5020' : '#888', big ? 6 : 4);

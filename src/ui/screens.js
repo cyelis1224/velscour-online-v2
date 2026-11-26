@@ -1329,6 +1329,7 @@ export function settingsDialog() {
       <label title="Off: the best drops are named first and lesser ones only close by, so a big fight's loot doesn't bury the screen; hover any item for its name">Show every item name</label><input type="checkbox" data-k="allItemNames" ${st.allItemNames ? 'checked' : ''}>
       <label>Standard skill bar on mobile (landscape)</label><input type="checkbox" data-k="mobileSkillBar" ${st.mobileSkillBar !== false ? 'checked' : ''}>
       <label title="Drag, resize, hide, and save profiles for HUD elements">HUD &amp; UI Layout</label><button class="btn small" data-customize-ui>Customize UI</button>
+      <label title="Changes terrain and wall transparency on the TAB map only; markers stay clear">TAB Map Transparency</label><div style="display:flex;align-items:center;gap:6px"><input type="range" min="0" max="100" step="1" value="${st.tabMapTransparency ?? 45}" data-k="tabMapTransparency" style="flex:1"><output data-map-opacity style="min-width:34px;text-align:right">${st.tabMapTransparency ?? 45}%</output><button type="button" class="btn small" data-reset-map-opacity>Reset</button></div>
     </div>
   </div>
   <div class="settings-tab-pane" data-pane="autoplay">
@@ -1362,6 +1363,15 @@ export function settingsDialog() {
   d.box.querySelector('[data-backups]').onclick = () => { sfx('ui'); backupsDialog(); };
   const cui = d.box.querySelector('[data-customize-ui]');
   if (cui) cui.onclick = () => { sfx('ui'); d.close(); openCustomizeUI(); };
+  const rmo = d.box.querySelector('[data-reset-map-opacity]');
+  if (rmo) rmo.onclick = () => {
+    st.tabMapTransparency = 45;
+    const range = d.box.querySelector('[data-k="tabMapTransparency"]');
+    if (range) range.value = '45';
+    const out = d.box.querySelector('[data-map-opacity]');
+    if (out) out.textContent = '45%';
+    saveSettings();
+  };
   const ub = d.box.querySelector('[data-check-update]');
   if (ub) {
     ub.onclick = async () => {
@@ -1415,6 +1425,7 @@ export function settingsDialog() {
       const k = inp.dataset.k;
       st[k] = inp.type === 'checkbox' ? inp.checked : inp.dataset.str ? inp.value : Number(inp.value);
       if (k === 'mobileSkillBar' && UI.hud) UI.hud.layoutMobile();
+      if (k === 'tabMapTransparency') { const out = d.box.querySelector('[data-map-opacity]'); if (out) out.textContent = `${st[k]}%`; }
       if ((k === 'showHeroStats' || k === 'showTargetBox' || k === 'showTargetSprite') && UI.hud) UI.hud.applyVisibilitySettings();
       applyVolumes();
       saveSettings();
