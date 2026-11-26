@@ -2097,6 +2097,7 @@ export const game = {
       UI.log("The Keep's portal flickers and holds shut. Try again.", '#ff8060');
     } finally {
       await LoadingScreen.hide();
+      this.spawnPlayer(G.world);
       this.autosave();
     }
   },
