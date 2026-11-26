@@ -40,6 +40,8 @@ import { drawLightShafts } from '../gfx/keepart.js';
 import { drawKeepHero, folkMark } from './keepfolk.js';
 import { drawKeepNpc } from './keepgame.js';
 import { castellanMark } from './keep.js';
+import { townStorageChestArtFor } from '../data/town-storage-chests.js';
+import { CURSED_CHEST_VARIANT, selectDungeonChestVariant } from '../data/chestappearances.js';
 
 let lightCanvas = null, glowCanvas = null, vignette = null, vigKey = '';
 const transitionSprites = new Map();
@@ -342,19 +344,57 @@ function drawBuilding(ctx, b, alpha) {
   if (alpha < 1) ctx.globalAlpha = 1;
 }
 
+let fallbackChestArt = null;
+function chestVariantIndex(c) {
+  if (c.chestType === 'cursed') return CURSED_CHEST_VARIANT;
+  if (c.chestArtPreview === true && Number.isInteger(c.chestVariant) && c.chestVariant >= 0 && c.chestVariant < A.chestVariants.length) return c.chestVariant;
+  const world = G.world;
+  c.chestVariant = selectDungeonChestVariant({
+    biomeId: world?.biome?.id || world?.kind,
+    variantId: world?.chestEnvironmentVariant || '',
+    seed: world?.chestSeed ?? G.dungeonSeed ?? 0,
+    x: c.x, y: c.y,
+  });
+  return c.chestVariant;
+}
+function chestArtFallback() {
+  if (!A.chestImg || !A.chestMeta) return null;
+  if (fallbackChestArt?.img !== A.chestImg || fallbackChestArt?.meta !== A.chestMeta) {
+    const frame = (r) => ({ img: A.chestImg, sx: r.x, sy: r.y, w: r.w, h: r.h });
+    fallbackChestArt = {
+      img: A.chestImg, meta: A.chestMeta,
+      closed: frame(A.chestMeta.closed), open: frame(A.chestMeta.open),
+      rareClosed: frame(A.chestMeta.rareClosed), rareOpen: frame(A.chestMeta.rareOpen),
+    };
+  }
+  return fallbackChestArt;
+}
+
 function drawChest(ctx, c) {
   const x = isoX(c.x, c.y), y = isoY(c.x, c.y);
   if (c.draw) return c.draw(ctx, x, y); // shrines, remains, cursed chests (game/happenings.js)
-  const art = G.world && G.world.tileset && G.world.tileset.chest;
-  const s = art && (c.opened ? (c.rare ? art.rareOpen : art.open) : (c.rare ? art.rareClosed : art.closed));
+  const variant = (c.townStorageChest && A.townStorageChests?.[c.townStorageChest])
+    || (A.chestVariants?.length ? A.chestVariants[chestVariantIndex(c)] : null);
+  const art = variant ? null : G.world?.tileset?.chest || chestArtFallback();
+  const closed = variant ? variant.closed : art && (c.rare ? art.rareClosed : art.closed);
+  const s = variant ? (c.opened ? variant.open : variant.closed)
+    : art && (c.opened ? (c.rare ? art.rareOpen : art.open) : (c.rare ? art.rareClosed : art.closed));
   if (s) {
-    // the biome's chest art, sized off the closed chest so opening it doesn't change the scale
-    const k = 46 / (c.rare ? art.rareClosed : art.closed).w, w = s.w * k, h = s.h * k;
-    ctx.drawImage(s.img, s.sx, s.sy, s.w, s.h, x - w / 2, y + w / 4 - h, w, h);
-    if (!c.opened) {
+    const k = 46 / closed.w, w = s.w * k, h = s.h * k, floorY = y + 46 / 4;
+    ctx.drawImage(s.img, s.sx, s.sy, s.w, s.h, x - w / 2, floorY - h, w, h);
+    if (!c.opened || (c.glowWhileOpen && !c.done)) {
       ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.25 + Math.sin(G.time * 3) * 0.15;
-      ctx.drawImage(glowSprite(c.rare ? '#c080ff' : '#ffd060'), x - 28, y - 40, 56, 46);
+      ctx.drawImage(glowSprite(c.glow || (c.rare ? '#c080ff' : '#ffd060')), x - 28, y - 40, 56, 46);
+      if (c.tint) {
+        ctx.globalAlpha = 0.14;
+        ctx.drawImage(glowSprite(c.tint), x - 24, y - 34, 48, 40);
+      }
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    }
+    if (!c.opened && c.label && !(c.dot || c.isDungeonEvent || c.eventLabel || c.scen || c.encounter || c.commission) && G.player && Math.hypot(c.x - G.player.x, c.y - G.player.y) < 5) {
+      ctx.save(); ctx.font = '10px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(12,8,5,.9)'; ctx.strokeText(c.label.toUpperCase(), x, floorY - h - 4);
+      ctx.fillStyle = c.glow || '#e8c575'; ctx.fillText(c.label.toUpperCase(), x, floorY - h - 4); ctx.restore();
     }
     return;
   }
@@ -468,7 +508,8 @@ function drawNpc(ctx, n) {
       ctx.drawImage(glowSprite('#b850ff'), x - 40, y - 46, 80, 64); ctx.restore();
     }
     const isOpened = !!(n.jewelBox ? G.ui.jewelBox && G.ui.jewelBox.active : n.reliquary ? G.ui.reliquary && G.ui.reliquary.active : G.ui.stash && G.ui.stash.active);
-    drawChest(ctx, { x: n.x, y: n.y, rare: true, opened: isOpened });
+    const chestArt = townStorageChestArtFor(n);
+    drawChest(ctx, { x: n.x, y: n.y, rare: true, ...chestArt, opened: isOpened });
     n.sbox = [x - 24, y - 40, x + 24, y + 6];
     return;
   }

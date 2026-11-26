@@ -158,24 +158,24 @@ export class Player extends Creature {
         magic: Math.round(((add.resAll || 0) + buffRes + Math.round((c.level - 1) * 0.2)) * 0.75),
       },
       critChance: clamp(critRaw, 0, 75), critOver,
-      critDmg: 50 + (add.critDmg || 0) + buffCritDmg + mk.critDmg + critOver * CRIT_OVER,
-      atkSpeed: Math.min(150, dex * 0.3 + (add.atkSpeed || 0) + buffAs),
-      castSpeed: Math.min(150, int * 0.1 + (add.castSpeed || 0) + buffAs),
-      moveSpeed: Math.min(80, (add.moveSpeed || 0) + buffSpeed * 0.6),
-      lifeSteal: (add.lifeSteal || 0) + buffLeech / 4,
+      critDmg: 50 + (add.critDmg || 0) + buffCritDmg + (mk.critDmg || 0) + critOver * CRIT_OVER,
+      atkSpeed: Math.min(150, dex * 0.3 + (add.atkSpeed || 0) + buffAs + (mk.castSpeed || 0)),
+      castSpeed: Math.min(150, int * 0.1 + (add.castSpeed || 0) + buffAs + (mk.castSpeed || 0)),
+      moveSpeed: Math.min(80, (add.moveSpeed || 0) + buffSpeed * 0.6 + (mk.moveSpeed || 0)),
+      lifeSteal: (add.lifeSteal || 0) + buffLeech / 4 + (mk.lifeSteal || 0),
       manaSteal: add.manaSteal || 0,
       block: Math.min(60, (add.block || 0) + buffBlock / 2),
       // on the shown scale (combat.js), x Fortitude like life: one affix kills a normal in ~40 reflected blows at any depth,
       // a thorns buff (Vengeance Aura...) in ~8-16 (it was level x 0.2 against raw life: nothing past the first depths)
       thorns: ((add.thorns || 0) + buffThorns * c.level * 0.03) * fortitude(c.level),
-      goldFind: (add.goldFind || 0) + buffGf + kb.gf,
+      goldFind: (add.goldFind || 0) + buffGf + kb.gf + (mk.gold || 0),
       magicFind: (add.magicFind || 0) + buffMf + kb.mf,
-      drops: mk.mf,
+      drops: mk.drops || 0,
       xpPct: (add.xpPct || 0) + buffXp + kb.xp,
-      reduce: Math.min(60, (add.reduce || 0) + buffReduce),
+      reduce: Math.min(60, (add.reduce || 0) + buffReduce + (mk.reduce || 0)),
       fortitude: fortitude(c.level),
-      cdr: Math.min(60, (add.cdr || 0) + buffCdr / 2),
-      areaPct: (add.areaPct || 0) + buffArea,
+      cdr: Math.min(60, (add.cdr || 0) + buffCdr / 2 + (mk.cdr || 0)),
+      areaPct: (add.areaPct || 0) + buffArea + (mk.area || 0),
       echoChance: (add.echoChance || 0) + buffEcho,
       elementalBonus: buffElemental,
       projSpeed: add.projSpeed || 0,
@@ -183,19 +183,34 @@ export class Player extends Creature {
       pierce: add.pierce || 0,
       chainPlus: add.chainPlus || 0,
       splitChance: add.splitChance || 0,
-      echoChance: add.echoChance || 0,
       homing: add.homing || 0,
       novaOnCast: add.novaOnCast || 0,
       orbitOnCast: add.orbitOnCast || 0,
-      bossDmg: add.bossDmg || 0,
+      bossDmg: (add.bossDmg || 0) + (mk.bossDamage || 0),
       summonPct: add.summonPct || 0,
       skillsAll: add.skillsAll || 0,
       skillTree0: add.skillTree0 || 0, skillTree1: add.skillTree1 || 0, skillTree2: add.skillTree2 || 0, skillTree3: add.skillTree3 || 0,
-      dmgPct: (add.dmgPct || 0) + buffDmg + (this.furyT > 0 ? 30 : 0),
+      dmgPct: (add.dmgPct || 0) + buffDmg + (mk.damage || 0) + (this.furyT > 0 ? 30 : 0),
       physPct: (add.physPct || 0) + str,
       elemPct: {},
       primary: { str, dex, vit, int }[C.primary],
-      regenPct: buffRegen / 10,
+      regenPct: buffRegen / 10 + (mk.regen || 0),
+      markDamage: mk.damage || 0, markPenetration: mk.penetration || 0,
+      markExecution: mk.execution || 0, markEliteDamage: mk.eliteDamage || 0, markBossDamage: mk.bossDamage || 0,
+      markFullHealthDamage: mk.fullHealthDamage || 0, markDotDuration: mk.dotDuration || 0,
+      markDotReduce: mk.dotReduce || 0, markCcReduce: mk.ccReduce || 0,
+      markEvasion: Math.min(20, mk.evasion || 0), markLifeSteal: mk.lifeSteal || 0,
+      markHealing: mk.healing || 0, markBossReduce: mk.bossReduce || 0, markLowHpReduce: mk.lowHpReduce || 0,
+      markManaCost: mk.manaCost || 0, markManaOnKill: mk.manaOnKill || 0,
+      markOrbMana: mk.orbMana || 0, markOrbHeal: mk.orbHeal || 0,
+      markGold: mk.gold || 0, markGemChance: mk.gemChance || 0, markGemTier: mk.gemTier || 0,
+      markSigilChance: mk.sigilChance || 0, markCollector: mk.collector || 0, markAbundance: mk.drops || 0,
+      markImpSpawn: mk.impSpawn || 0, markImpReward: mk.impReward || 0, markChestSpawn: mk.chestSpawn || 0,
+      markDiscount: Math.min(40, mk.discount || 0), markSell: mk.sell || 0,
+      markPickupRadius: mk.pickupRadius || 0, markShrineDuration: mk.shrineDuration || 0,
+      markPotionDuration: mk.potionDuration || 0, markImpDamage: mk.impDamage || 0,
+      markBounty: mk.bounty || 0, markRiftRewards: mk.riftRewards || 0, markRiftDamage: mk.riftDamage || 0,
+      markBreachRewards: mk.breachRewards || 0, markHeretic: mk.heretic || 0,
     };
     for (const k of ELEM_KEYS) st.elemPct[k] = (add[k + 'Pct'] || 0) + int;
     st.weapon = weapon ? itemDmg(weapon) : [Math.round(1 + (c.level - 1) * 0.4), Math.round(3 + (c.level - 1) * 0.8)];
@@ -209,13 +224,13 @@ export class Player extends Creature {
     if (weapon) { const fd = add.flatDmg || 0; st.weapon = [st.weapon[0] + fd, st.weapon[1] + fd]; }
     const lifePct = (add.lifePct || 0) + buffLife;
     const baseHp = C.life + (c.level - 1) * C.lifeLvl + Math.round(Math.pow(c.level - 1, 2) * 0.45) + vit * 6 + (add.life || 0);
-    this.maxHp = Math.round(baseHp * (1 + lifePct / 100) * st.fortitude * (1 + mk.life / 100));
-    this.maxMana = Math.round(C.mana + (c.level - 1) * C.manaLvl + int * 2 + (add.mana || 0));
+    this.maxHp = Math.round(baseHp * (1 + lifePct / 100) * st.fortitude * (1 + (mk.life || 0) / 100));
+    this.maxMana = Math.round((C.mana + (c.level - 1) * C.manaLvl + int * 2 + (add.mana || 0)) * (1 + (mk.mana || 0) / 100));
     const inTown = this.world && this.world.kind === 'town';
     st.naturalLifeRegen = 1.2 + c.level * 0.35 + vit * 0.08;
     st.bonusLifeRegen = (add.lifeRegen || 0) + this.maxHp * st.regenPct / 100;
     st.lifeRegen = heresyAllows('regen', c) ? ((inTown ? st.naturalLifeRegen : 0) + st.bonusLifeRegen) : 0; // Hunger of the Abyss: none
-    st.manaRegen = (1.0 + c.level * 0.04 + int * 0.04 + (add.manaRegen || 0)) * (1 + (add.manaRegenPct || 0) / 100);
+    st.manaRegen = (1.0 + c.level * 0.04 + int * 0.04 + (add.manaRegen || 0)) * (1 + ((add.manaRegenPct || 0) + (mk.manaRegen || 0)) / 100);
     st.talents = tb.mods;
     st.talentSkillMults = tb.skillMults;
     st.talentMorphs = tb.morphs;
