@@ -1,7 +1,7 @@
 // Online Account Authentication & Server-Side Character Management for Velscour Online
 import { getServerBaseUrl } from '../ui/updater.js';
 import { newCharData, migrate } from '../game/save.js';
-import { endgame } from '../game/endgame.js';
+import { endgame, adoptEndgame } from '../game/endgame.js';
 import { adoptOnlineReliquary, setReliquaryOnlineHooks, resetReliquaryCache } from '../game/reliquary.js';
 import { isProfaneName } from './profanity.js';
 
@@ -48,7 +48,7 @@ function persistSession(token, account) {
 
 function normalizeCharList(list) {
   if (!Array.isArray(list)) return [];
-  return list
+  const chars = list
     .filter(c => c && c.id && c.classId)
     .map(c => {
       const m = migrate({ ...c });
@@ -56,6 +56,16 @@ function normalizeCharList(list) {
       return m;
     })
     .sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0));
+  // Hydrate account-wide Infernal Marks from the highest-marks character in the roster
+  // so no character switch or legacy migration can ever lose earned Marks.
+  let bestMarks = null;
+  for (const ch of chars) {
+    if (ch.marks && (Number(ch.marks.pts) || 0) > (Number(bestMarks?.pts) || 0)) bestMarks = ch.marks;
+  }
+  if (bestMarks) {
+    try { adoptEndgame({ marks: bestMarks }); } catch (e) { }
+  }
+  return chars;
 }
 
 export function getOnlineAccount() {

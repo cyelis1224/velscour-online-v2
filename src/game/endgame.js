@@ -17,49 +17,39 @@ export function fixEndgame(r) {
   const o = blank();
   if (!r || typeof r !== 'object') return o;
   const version = Number(r.marksResetVersion) || 0;
-  const resetLegacyMarks = version < 1;
   o.marksResetVersion = MARKS_RESET_VERSION;
   o.markXpMigrationV1 = !!r.markXpMigrationV1;
   o.unlocked = Number(r.unlocked) > 0 ? Number(r.unlocked) : 0;
   o.heresySelection = Array.isArray(r.heresySelection) ? [...new Set(r.heresySelection.filter((id) => typeof id === 'string'))] : [];
   o.heresySelectionSet = !!r.heresySelectionSet;
   const m = r.marks && typeof r.marks === 'object' ? r.marks : {};
-  // The historical v1 reset removed campaign-era points. Keep that policy for v0 data;
-  // the v1 -> v2 upgrade below preserves valid progression and refunds removed Fortune.
-  o.marks.pts = resetLegacyMarks ? 0 : Math.max(0, Math.floor(Number(m.pts) || 0));
+  // Always preserve existing Infernal Marks across upgrades — never zero legacy v0/v1 wallets.
+  o.marks.pts = Math.max(0, Math.floor(Number(m.pts) || 0));
   const legacyXp = Number(m.xp);
-  o.marks.xp = resetLegacyMarks || !Number.isFinite(legacyXp) ? 0 : Math.max(0, legacyXp);
-  if (!resetLegacyMarks && version < 2) {
-    const old = m.spent && typeof m.spent === 'object' ? m.spent : {};
+  o.marks.xp = !Number.isFinite(legacyXp) ? 0 : Math.max(0, legacyXp);
+  const old = m.spent && typeof m.spent === 'object' ? m.spent : {};
+  const isLegacySpent = version < 2 && !Number(m.spentValue) && (Number(old.life) > 0 || Number(old.rift) > 0 || Number(old.mf) > 0);
+  if (isLegacySpent) {
     const oldLife = Math.max(0, Math.floor(Number(old.life) || 0));
     const oldCrit = Math.max(0, Math.floor(Number(old.crit) || 0));
     const oldHaste = Math.max(0, Math.floor(Number(old.rift) || 0));
     o.marks.spent.vitality = oldLife;
-    // Keep purchased ranks intact even when they exceed the new cap. The registry
-    // caps their effect, while the rank record remains available for migration/UI.
     o.marks.spent.crit = oldCrit;
     const legacyCritDamage = oldCrit > 0 ? 0.5 * (140 * (Math.sqrt(1 + oldCrit / 100) - 1)) : 0;
     o.marks.spent.ferocity = Math.min(50, Math.floor(legacyCritDamage / 2));
     o.marks.spent.haste = oldHaste;
-    // Precision's former critical-damage component moves to Ferocity without
-    // consuming a second rank or duplicating the bonus on Crit.
     o.marks.legacyFerocity = Math.round((legacyCritDamage - o.marks.spent.ferocity * 2) * 100) / 100;
-    // Removed Fortune is fully refunded. Haste keeps its ranks, now affecting
-    // casting only; old Crit damage is moved to Ferocity without duplicate ranks.
-    // Marks.pts is the lifetime wallet (external purchases decrement it); removing
-    // these ranks from spentValue below makes the removed ranks available again.
+    // Removed Fortune (old.mf) is refunded automatically into free Marks because it is omitted from spentValue.
     o.marks.spentValue = oldLife + oldCrit + oldHaste;
     o.marks.rewardRemainder = 0;
-  } else if (!resetLegacyMarks) {
-    for (const id of MARK_CATS) o.marks.spent[id] = Math.max(0, Math.floor(Number(m.spent?.[id]) || 0));
+  } else {
+    for (const id of MARK_CATS) o.marks.spent[id] = Math.max(0, Math.floor(Number(old[id]) || 0));
     o.marks.spentValue = Math.max(0, Math.floor(Number(m.spentValue) || 0));
     o.marks.rewardRemainder = Math.max(0, Math.min(0.999999, Number(m.rewardRemainder) || 0));
     o.marks.legacyFerocity = Math.max(0, Number(m.legacyFerocity) || 0);
   }
-  if (resetLegacyMarks) { o.marks.pts = 0; o.marks.xp = 0; o.marks.spentValue = 0; }
   const sumRanks = MARK_CATS.reduce((sum, id) => sum + o.marks.spent[id], 0);
-  // A v2 record missing spentValue is repaired using legacy one-Mark-per-rank accounting.
-  if (o.marks.spentValue === 0 && sumRanks > 0 && version >= 2) o.marks.spentValue = sumRanks;
+  if (o.marks.spentValue === 0 && sumRanks > 0) o.marks.spentValue = sumRanks;
   if (o.marks.spentValue > o.marks.pts) o.marks.spentValue = o.marks.pts;
   // Keep purchased rank history intact. Legacy purchases used one Mark per rank;
   // v2 purchases use escalating costs, so rank counts are not a reliable wallet check.
@@ -158,7 +148,11 @@ export function mergeEndgame(a, b, base) {
   o.unlocked = a.unlocked && b.unlocked ? Math.min(a.unlocked, b.unlocked) : a.unlocked || b.unlocked;
   o.marks.pts = add(a.marks.pts, b.marks.pts, B && B.marks.pts);
   o.marks.xp = Math.max(a.marks.xp, b.marks.xp);
-  o.marks.spent = { ...(b.marks.pts > a.marks.pts ? b : a).marks.spent };
+  const winner = b.marks.pts > a.marks.pts ? b : a;
+  o.marks.spent = { ...winner.marks.spent };
+  o.marks.spentValue = winner.marks.spentValue || 0;
+  o.marks.rewardRemainder = winner.marks.rewardRemainder || 0;
+  o.marks.legacyFerocity = winner.marks.legacyFerocity || 0;
   for (const cls of new Set([...Object.keys(a.bests), ...Object.keys(b.bests)])) o.bests[cls] = betterRift(a.bests[cls], b.bests[cls]) ? { ...b.bests[cls] } : { ...a.bests[cls] };
   o.keysFound = add(a.keysFound, b.keysFound, B && B.keysFound);
   o.unboundWins = add(a.unboundWins, b.unboundWins, B && B.unboundWins);

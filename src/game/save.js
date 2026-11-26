@@ -195,15 +195,19 @@ export function migrate(c) {
   c.unboundExploration.depth = Math.min(100, Math.max(1, c.unboundExploration.depth | 0 || 1));
   c.unboundExploration.deepest = Math.min(100, Math.max(1, c.unboundExploration.deepest | 0 || 1));
   if (c.marks && typeof c.marks === 'object') {
+    const rawSpent = c.marks.spent && typeof c.marks.spent === 'object' ? c.marks.spent : {};
+    const spent = {};
+    for (const [k, v] of Object.entries(rawSpent)) {
+      const n = Math.max(0, Math.floor(Number(v) || 0));
+      if (n > 0) spent[k] = n;
+    }
     c.marks = {
       pts: Math.max(0, Math.floor(Number(c.marks.pts) || 0)),
       xp: Math.max(0, Number(c.marks.xp) || 0),
-      spent: {
-        life: Math.max(0, Math.floor(Number(c.marks.spent?.life) || 0)),
-        crit: Math.max(0, Math.floor(Number(c.marks.spent?.crit) || 0)),
-        mf: Math.max(0, Math.floor(Number(c.marks.spent?.mf) || 0)),
-        rift: Math.max(0, Math.floor(Number(c.marks.spent?.rift) || 0)),
-      }
+      spentValue: Math.max(0, Math.floor(Number(c.marks.spentValue) || 0)),
+      rewardRemainder: Math.max(0, Math.min(0.999999, Number(c.marks.rewardRemainder) || 0)),
+      legacyFerocity: Math.max(0, Number(c.marks.legacyFerocity) || 0),
+      spent,
     };
   }
   c.granted = c.granted || {};

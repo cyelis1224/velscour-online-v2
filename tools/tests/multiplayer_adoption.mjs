@@ -173,3 +173,18 @@ test('Deep Velscour-PC integration: 40+ Marks, 20 Chest Variants, Jewel Box art,
   assert.ok(Object.keys(ENVIRONMENT_TRAP_TYPES).length >= 15);
   assert.equal(HERESY_MAX_RANK, 75);
 });
+
+import { fixEndgame } from '../../src/game/endgame.js';
+
+test('Legacy v0 Velscour Online Infernal Marks are preserved and migrated without ever resetting to 0', () => {
+  const migrated = fixEndgame({
+    unlocked: 1700000000000,
+    marks: { pts: 1755, xp: 1234, spent: { life: 439, crit: 439, mf: 439, rift: 438 } },
+  });
+  assert.equal(migrated.marks.pts, 1755, 'Legacy v0 pts must never be zeroed');
+  assert.equal(migrated.marks.spent.vitality, 439);
+  assert.equal(migrated.marks.spent.crit, 439);
+  assert.equal(migrated.marks.spent.haste, 438);
+  assert.equal(migrated.marks.spentValue, 439 + 439 + 438);
+  assert.equal(migrated.marks.pts - migrated.marks.spentValue, 439, 'Removed Fortune (mf) ranks are refunded as free Marks');
+});
