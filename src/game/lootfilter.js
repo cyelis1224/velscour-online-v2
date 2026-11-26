@@ -11,7 +11,7 @@ export const FILTER_ROWS = [
 ];
 export const FILTER_DEFAULT = { on: false, weapon: 0, offhand: 0, armor: 0, ring: 0, gems: 0, upgrades: true, keep: false };
 
-const LABEL_FILTER_DEFAULT = { on: false, weapon: 0, offhand: 0, armor: 0, ring: 0, gems: 0 };
+const LABEL_FILTER_DEFAULT = { on: false, weapon: 0, offhand: 0, armor: 0, ring: 0, gems: 0, dynamicPotionLabels: false };
 
 function normalizedFilter(target, key, defaults, fallback) {
   let f = target[key];
@@ -60,6 +60,13 @@ export function lootLabelFilter() {
 }
 /** The label filter when it is switched on, else null. */
 export const activeLabelFilter = () => { const f = lootLabelFilter(); return f && f.on ? f : null; };
+
+/** Capacity only suppresses potion labels when the opt-in label-filter preference is enabled. */
+export function shouldSuppressPotionLabelForCapacity(character, kind) {
+  if (lootLabelFilter().dynamicPotionLabels !== true) return false;
+  if (!character || !kind) return false;
+  return (character.potions?.[kind] || 0) >= 30;
+}
 
 function passesFilter(it, f) {
   if (!f || !it) return true;

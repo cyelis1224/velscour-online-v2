@@ -28,6 +28,7 @@ import { worldHeresies } from './heresies.js';
 import { DUNGEON_AFFIX_BY_ID, DUNGEON_AFFIX_CONFIG } from '../data/dungeonaffixes.js';
 import { setupWorldObjects } from './worldobjects.js';
 import { setupDungeonEvent } from './dungeonevents.js';
+import { LEGACY_SHRINE_DESCRIPTIONS, shrineFloatingMessage } from './shrineeffects.js';
 
 // ------------------------------------------------------------------------------------------------ shrines
 export const SHRINES = {
@@ -174,8 +175,9 @@ export function addShrine(world, [x, y], key) {
       burst(p.x, p.y, 30, S.el, 30, 5, { up: 2 });
       sfx('levelup', 0.6);
       if (S.heal) { p.hp = p.maxHp; p.mana = p.maxMana; }
-      if (typeof p?.addBuff === 'function') p.addBuff({ id: 'shrine_' + key, name: S.name, el: S.el, stats: S.buff, t: S.t, max: S.t, storm: S.storm, floorOnly: true, worldObject: true });
-      floatText(p.x, p.y, 90, S.name.toUpperCase(), S.color, 16, { life: 2 });
+      const buff = typeof p?.addBuff === 'function' ? p.addBuff({ id: 'shrine_' + key, name: S.name, el: S.el, stats: S.buff, t: S.t, max: S.t, storm: S.storm, floorOnly: true, worldObject: true }) : null;
+      if (buff) buff.description = LEGACY_SHRINE_DESCRIPTIONS[key] || S.msg;
+      floatText(x, y, 112, shrineFloatingMessage(key, buff), S.color, 12, { life: 2.5, vz: 18 });
       UI.log(`<b style="color:${S.color}">${S.name}</b>: ${S.msg} for ${S.t} s.`, S.color);
     },
   });

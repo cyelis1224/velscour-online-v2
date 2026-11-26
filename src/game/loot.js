@@ -14,7 +14,7 @@ import { heldIcon } from '../gfx/heldart.js';
 import { AUGMENTS } from '../data/rings.js';
 import { depthLevel } from '../data/depth.js';
 import { sheetIcon } from '../gfx/notation.js';
-import { filterPasses, labelFilterPasses } from './lootfilter.js';
+import { filterPasses, labelFilterPasses, shouldSuppressPotionLabelForCapacity } from './lootfilter.js';
 import { rollSigil, SIGILS } from '../data/items.js';
 import { maybeRelic } from '../data/relics.js';
 import { heresyAllows } from './heresies.js';
@@ -519,6 +519,10 @@ export function drawLootLabels(ctx, world, mouse) {
     if (l.kind !== 'item' && l.kind !== 'potion' && l.kind !== 'key' && !(l.kind === 'gold' && l.amount > 0)) continue;
     const d = p ? Math.hypot(p.x - l.x, p.y - l.y) : 0;
     if (d > 14) continue;
+    if (l.kind === 'potion') {
+      l._potionLabelSuppressedForCapacity = shouldSuppressPotionLabelForCapacity(p?.char, l.item?.kind);
+      if (l._potionLabelSuppressedForCapacity) { l.named = false; silent.push(l); continue; }
+    }
     if (l.kind === 'gold' && !S.showGoldLabels) continue;
     const r = labelRank(l);
     if (S.hideItemNames || r < 0 || (!all && d > labelReach(r))) { l.named = false; silent.push(l); continue; }
