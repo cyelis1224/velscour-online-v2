@@ -14,6 +14,214 @@ Contents
 
 ---
 
+## November 25, 2026 — SHEER DROPS: ten dungeons with no walls, only cliffs into the void (branch `feat/sheer-drop-dungeons`)
+
+The user asked for "Sheer drop off" dungeons, generated the same way as the others but with sheer drops into an endless
+void where the walls would be. They asked for ten variants with proper textures (the game's own, or seamless tiles from
+the bm repo): some dark below, some lighter with fog over the lower parts. Flyers and leaps may cross gaps but never
+come to rest over one. Anything that does by accident dies at once, the hero included, and auto-play must prevent it.
+Everything is in [`docs/SHEER_DROPS.md`](SHEER_DROPS.md).
+- **Data**: `src/data/sheer.js` (10 variants: 5 dark, 5 fog, two per Act). Each copies a base biome in
+  `src/data/biomes.js` and joins `ACT_BIOMES`. Cliff textures are ten seamless rock tiles from bm, recoloured by
+  `tools/sheerpack.py` into `assets/tiles/sheer/` (sources in `assets/source/sheer/`).
+- **Layout**: `world/dungeon.js` skips `buildWalls` when `map.sheer` is set, puts lit lamps at the brinks
+  (`brinkLamps`), and turns raid pillars into pits.
+- **Drawing**: `src/gfx/sheer.js`. The abyss replaces the black background (parallax motes, glow or fog layers, storm
+  flashes). Cliff faces are baked into the floor chunks (`render.js` `drawSheerFloor`). Plunges are drawn behind the
+  brink.
+- **Rules**: `src/game/sheer.js` (`sheerUpdate`), plus `map.js` (`aloft`, `flyMove`, `shove`, `solid`, `nearestFloor`,
+  `leapOk`, and void-blind `los`/`rayLength`), `creature.js` (knocks over the brink, auto-play braces),
+  `monster.js` (lunges and flyers over gaps) and `hazards.js` (hero leaps land on floor, shots fly over the void).
+  Monsters that fall die with their loot on the brink. The hero dies to "the Abyss" only from a knock or pull with
+  auto-play off. Bosses and pets are set back.
+- **Verified** by `node tools/tests/sheer.js`: every variant has no walls, has lamps, has its exit reachable and
+  starts every monster on floor (shots `sheer_<id>.png` and `sheer_<id>_wide.png`). The brink rules check passes, and
+  an auto-play soak in Sheer Drops only lets the hero fall 0 times.
+- **Open**: the first-person view and the minimap are not adapted to Sheer Drops.
+
+## November 24, 2026 — the frame-rate pass (branch `perf/framerate`)
+
+The user asked for a much higher frame rate (165+, never under 60 at peak action) with no instability and no loss of
+visual quality, reviewed by two critics. What held the desktop back was not JavaScript but **GPU texture copies**:
+Chromium copies a *canvas* source whole into a new mipmapped texture every time it is drawn with the desktop's
+`imageSmoothingQuality = 'medium'`, and keeps no copy. Every monster recolour, hero look, gib sheet, blood splat and
+glow was a canvas, so a 1080p fight copied up to ~50 Mpx a frame. Readbacks from GPU canvases (getImageData, a GPU
+canvas drawn into a CPU one) stalled the GPU queue for 0.3-1 s.
+- **Raster sprites** (`src/core/util.js`: `rasterSprites`, `spriteCanvas`, `frozen`, `cpuImage`/`cpuCanvas`,
+  `texSource`, `pixelsOf`): sprites are painted on a CPU `OffscreenCanvas` (`willReadFrequently`) and
+  `transferToImageBitmap()`'d; an ImageBitmap is uploaded once and kept (unless memory
+  pressure makes Chromium let it go; see Results), so it draws at 'medium' for the cost of 'low'. `frozen()` **primes** each one: drawn once at 1:1 into a tiny GPU `OffscreenCanvas` whose frame is handed
+  over at once, it reaches the GPU without mip levels, and the GPU builds them later exactly as for a canvas. Left to a
+  minified first draw, Skia builds them on the CPU, and a sprite with a side of odd length came out up to ~30% softer
+  (`tools/tests/out/bench_mips6.js`: unprimed vs primed vs canvas at every size and scale). Primed sprites also draw
+  faster. What still differs from a canvas is the painting (Skia on the CPU anti-aliases and resamples differently in
+  its last bits): `rasterlook.js` finds 95-99% of pixels identical and the same fine detail within 1% in every scene
+  but the town (0.9873 where the frames differ: townsfolk outline edges; not visible at 5x). Desktop Chromium only: phones draw sprites 'low', which copies nothing, so they gain no frame rate from it
+  and keep canvases; other browsers are untested and keep canvases too;
+  `globalThis.VELSCOUR_NO_RASTER = true` or `?noraster` in the address turns it off. Used by the monster recolours
+  (enemyart, replacementart, heavenlymonsters, seaofsand), assets.js scatter/prop/chest recolours, castle props,
+  isobarriers, gearart, heldart, gearfx/heldfx, varrowaxe, critters, bonegibs, creature tints/rims, vfx blood, petart
+  tints, approved/AI biome monsters. A sprite is only raster when what it is painted *from* is on the CPU
+  (`spriteCanvas(w, h, from)`), or painting it would be a readback. **Rules**: no GPU readbacks in play; pixel reads
+  go through `pixelsOf()`; three.js textures made from sprites go through `texSource()` (WebGL ignores flipY for an
+  ImageBitmap); never `close()` a sprite bitmap (decals and corpses keep references); **never make anything drawn
+  with `'low'` smoothing a raster sprite** (floor atlases, wall atlases, floor chunks): Chromium uploads a CPU bitmap
+  drawn 'low' at under half scale at half resolution, so it blurs, and how much depends on what was drawn before.
+  Floors stay plain canvases (`clipFloors` in assets.js, castle `floors`/`keep_floors`/rampart tops); their grit
+  colours are read once when the atlas is built (`gritSamples`, `img._grit`) instead of a readback mid-frame.
+- **The raster safety valve** (`util.js` `rasterFallback`, `main.js` `rasterWatch`). A raster sprite's GPU copy lives in
+  Chromium's image cache (256 MB / 2,000 entries, LRU); a canvas owns its texture. After critical memory pressure (the
+  OS nearly out of RAM; `fps.js` scene `purge` simulates it) Chromium stopped keeping them and sent sprites up again every
+  frame: the town fell to 8-10 fps for a minute where the baseline held ~100. Re-priming did not help. So: on a desktop,
+  two 2 s windows with drawing over 25 ms a frame (normal play: under 10) switch it on as a trial, kept if the next
+  window's drawing time halves, else undone for that level. On, it wraps `CanvasRenderingContext2D.prototype.drawImage`:
+  a raster sprite drawn into the game canvas (`#game`) is drawn from a plain canvas copy of it, made once (the baseline's
+  way; frames bit-identical, `rasterlook.js` `RL_FALLBACK=1`). Nothing else changes, so don't make it flip
+  `rasterSprites()`: grit reads and canvas reuse key off that, and flipping it mid-session brings readbacks back and
+  assigns `width` to bitmaps. After a purge with it on: town 116, catacombs 75, cathedral 61, peak 50, stress 41
+  (baseline after the same purge: 27-106, 10-48, 56, 39-83, 26-32). Check it with
+  `HEADED=1 VSYNC=1 node tools/tests/fps.js town,catacombs,purge,town,catacombs,town,town,peak,stress`: lines get
+  `[raster fallback]` after the purge, never in a plain `fps.js all`.
+- **Readbacks cost the GPU's whole queue.** Any read of GPU pixels (getImageData/toDataURL of a GPU canvas, a GPU canvas
+  or an image Chromium holds decoded on the GPU drawn into a CPU canvas) waits until the GPU has finished everything
+  queued before it: 1-4 ms at vsync, **~0.5 s with vsync off** (the queue runs deep). They made the 0.1% lows of the
+  uncapped runs (1-5 fps on the baseline), and opening a shop with new stock still pays one (item icons go to
+  `toDataURL`: ~0.5 s uncapped here, ~1.2 s on the baseline; a few ms at vsync).
+- **Grit** (`src/gfx/grit.js`): the sampler reads the tile's own pixels (a 1:1 copy, exact from any image or canvas)
+  and samples its 32x16 grid in JS. A shrinking `drawImage` gave different colours for the same tile depending on
+  Chromium's decode cache and the canvas's history, and the colours steer the speck rolls, so the grit's layout
+  changed from one visit (or build) to the next. It is now the same every time, raster sprites on or off. On desktop
+  no floor variant is read on its own mid-frame: the atlases' colours are read when they are built, from the
+  recolour's CPU pixels (`recolor(..., keepPx)` → `_px`; the town/Wilds expansion atlases in `biomeexpansion.js`), and
+  an atlas without them has all the cells the world uses read from one copy the first time any is needed (an image's
+  colours are kept on it for later worlds). Phones use the new 1:1 sampler too, with the old pacing (two new variants a
+  frame, each read on its own). The castle's procedural planks and carpet (`castle.js plankArt/carpetArt`) are painted
+  when the pack loads on desktop: made at first sight, their grit read waited up to ~0.5 s on the GPU's queue under
+  auto-play (uncapped).
+- **Bone gibs** (`src/gfx/bonegibs.js`): each bone kind's cells are packed into a strip of their own, one image per
+  (colours, look, kind), instead of repainting the whole 512x194 sheet for every new kind (~90 sheet uploads a second
+  with a Necromancer's army).
+- **adaptRes** (`src/main.js`): on a PC, loading and the first second of a new level no longer count as slow (every
+  level used to drop to 85% resolution); it steps down only after two slow 2 s windows, and a step that doesn't buy
+  10% is undone for that level (its hold ends with the level). Phones are unchanged. Sprites keep 'medium' smoothing
+  at a lower resScale when raster.
+- **New tools**: `tools/tests/fps.js` (uncapped desktop fps per scene: SEED, VSYNC, HEADED, SLOW, MEM, NORASTER,
+  PROBE (a page script; `tools/tests/out/probe_draw.js` times drawImage/restore/fill by source), 1%/0.1% lows, late%;
+  pseudo-scenes `reload`, `purge` and `fallback`; `[raster fallback]` marks scenes after the valve switched on; `stress`
+  is a fixed load that drops the hero's summons carried from an earlier stress run, since lasting summons follow the
+  hero through portals), `tools/tests/rasterlook.js` (raster vs plain canvases or another build: pixel diff and a
+  fine-detail ratio, at zooms and DPRs; `RL_PURGE`, `RL_FALLBACK`), `perf.js` `SEED`,
+  `harness.js` options `HEADED=1`, `dpr`, `init`; `longrun.js` `LR_DESKTOP=1` (desktop soak with per-minute render p99).
+  Measuring tip: with vsync off, any GPU readback costs ~0.5 s, so a probe that reads pixels mid-frame lies about frame
+  times; and a headed (vsync) browser session gets slower at the heaviest load after a couple of minutes of play (a
+  reload doesn't restore it, a new browser does; see Results), so compare like with like and report both.
+- Results (RX 9070 XT, 1920x1080, seeded; `fps.js`). The fixed `stress` load, 6 runs a build, fresh browsers: uncapped
+  **79 vs 31 fps** (1% low 29 vs 13), headed at ~131 Hz **114.5 vs 29.5** (1% low 61-64 vs 25-26) in a fresh browser,
+  and **73-77 vs 30-34** (1% low 43-44 vs 21-30) a few minutes into a browser session: this build slows there, the
+  baseline is already GPU-bound at ~30; held by the browser process (a reload keeps it), whether this build's uploads
+  add to it is not isolated. Every scene uncapped,
+  one run each, this build vs the baseline: town 441/116, catacombs 158/71, cathedral 123/65, Wilds 423/129, castle
+  465/205, dark forest 374/110, Sea of Sand 221/162, raid 121/115, peak 119/84, Necromancer army 112/46; worst frame in
+  any scene 58 ms (baseline up to 1.1 s, readback stalls); again on the final tree with the safety valve: 426/135/156/
+  406/478/333/351/124/145/98, stress 77, worst 61 ms, the valve never switched on. Headed, the display's refresh is held in town, the castle,
+  the Wilds, the forest and the desert, and in 3 of 4 catacombs/cathedral runs; dungeon fights run 81-127 (raid
+  83-111, peak 124-127, Necromancer army 81-86). Phones: no change (one same-level pair, 17.5 vs 17.5 fps on the
+  4x-throttled desktop proxy, far below 60; no real phone measured). Not met: 165+ in dungeon fights (112-158 uncapped) and a 60 fps 1% low in the heaviest
+  particle storms late in a session (43-45); after critical memory pressure the frame rate drops for the few seconds
+  until the safety valve switches on. Remaining limits: the Canvas2D call count (particles are
+  about half of a peak frame), the Cathedral's glow-heavy frames and a Necromancer army. A WebGL particle layer was
+  considered and left out for **stability**: it is a renderer rewrite, puts another WebGL context beside the three.js
+  scenes (more context-limit and context-loss paths), and needs a compositing redesign (particles are drawn before the
+  lighting pass, which multiplies over them, so a WebGL layer on top would draw them unlit, over the darkness).
+- Tests failing the same way on the untouched baseline: flow ("expected town at depth 1"), hud (10-slot migration),
+  seethrough (Starstorm), heavenly (selection pool), dkblade (model off his back), homunculus (townLife), firstperson
+  (click box), replacementart (18 slime placeholders), rims (target box never shows), legion (random 0-attack
+  skeletons), and exit code 1 everywhere from missing `assets/ui/skills/arcane_sorcerer_*` / `slime_lord_*` icons.
+
+## November 24, 2026 — auto-play's Standard Campaign visits Tessariel's Keep (branch `claude/amazing-mccarthy-ph4dzv`, after PR #268)
+
+The user asked that the auto-play Standard Campaign go to the keep and pick up quests to complete. `Auto.keepWanted` and
+the new `Auto.keepTick` in `src/game/autoplay.js` (docs/TESSARIELS_KEEP.md "Auto-play"); `keep.js` plays a new hero's
+campaign from town: to the keep, a Saga from its giver, the Castellan, the Flame, back to town, down. Tests run: `keep.js`
+(desktop, mobile), `keep_quests.mjs`, `autoplay.js wizard 12`, `autoplay.js paladin 6 mobile`, `autoshop.js`, `stash.js`;
+`autoloops.js` ("Lance Charge started a dash channel") and `flow.js` fail the same way on `main`.
+
+## November 24, 2026 — Tessariel's Keep, four passes of polish (branch `claude/amazing-mccarthy-ph4dzv`)
+
+The user asked to continue on Tessariel's Keep with several iterations of polish: "make it look and feel AMAZING".
+The full account is in docs/TESSARIELS_KEEP.md ("The critics ... and the polish that followed"). In short:
+- **The hall was re-baked** (`src/world/tkeep.js`, `tools/tkeep3d.html`): the front terraces are half as high (12
+  levels, `TK.BALF`) with three-step corner stairs, so the floor is seen over them; the columns moved off the stairs'
+  sight lines; a floor medallion and limestone bands; four baked chandeliers hung by the game with live candles;
+  trophies and Elders larger. **Two old faults found**: every shield trophy was baked from behind (black), and the
+  **map edge fade painted over the upper walls and battlements**, which had never been visible in-game (now off in the
+  keep, `drawMapEdgeFade`).
+- **The bake needs the user's repos**: `GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 --filter=blob:none --sparse` of
+  `Agilancer/vesperwrithe` (sparse-checkout `assets/game/items assets/game/weapons/lances`) and `Agilancer/bm`
+  (`art/dragons/rigged`) into `/home/user/agilancer/`; both are public, the cloud proxy serves them. Then
+  `node tools/tkeep3d_bake.js && python tools/tkeep3d.py pack`. `window.TKEEP.probe(x, y, level)` in the bake page says
+  which tile a point is cut to.
+- **Runtime art** (`src/gfx/keepart.js`): `drawFire` (the Sacred Flame, braziers), `drawCandle`, the glass re-coloured at
+  load (reds to emerald), rugs lifted and gilt-bordered, the Elders' shades. Props take `fx` (drawn after the sprite),
+  `alpha` and `noHide` in `drawProp` / the prop pass of `render.js`.
+- **People and feel** (`src/game/keepfolk.js`, `src/data/keeplines.js`, `src/game/keepgame.js`): name plates, hero cards,
+  `GREETS_WHEN`, six lines a class, shuffle bags, the Castellan's mark (`castellanMark` in keep.js), `keepArrive`, the
+  claim ceremony (`claimCeremony` in ui/keep.js), clickable banners and windows (`decorSlot`).
+- **The panel** (`src/ui/keep.js`, css at the end of `css/style.css`): grouped tabs with badges, chapter pips, the trade's
+  comparison and confirm.
+- **Balance for veterans** (asked for after the polish; docs/TESSARIELS_KEEP.md "The veteran"): the War Table paid
+  ~1,400 Embers a day for no play to a hero with 18 others (now seats by Renown, 60 Embers a day, smaller payments); the
+  Ascent deeds ran to level 1,000 with a cap of 100; the trade forged at item level 100 under drops of 120; nothing was
+  left to earn or spend once every deed was done (the Long Watch, `WATCHES`; feeding the Flame, `KINDLE.rekindle`).
+  `keep_quests.mjs` now models the veteran and fails if a day's Embers leave the band.
+- **Third request the same day** (givers in the keep, quests below max level, graphics, the Flame and its holder, two
+  critics until they approve, then merge): docs/TESSARIELS_KEEP.md "The third session". Both critics approved in round 2
+  (8/10 each). New rules to know: `keepWorthy` (deeds count only near the hero's depth or level), `reachable`/`chapterHint`,
+  `sagaOpen` (`minLevel`), `MARCHES`, `giverTalk`. The Flame is `drawPixelFire` in keepart.js; the brazier, altar and
+  medallion are parts in `tools/tkeep3d.html`.
+- `spectate.js` fails on `main` too: "auto-play counts down" (auto-play's `leaveLevel` opens the portal choice with 2 s, the
+  test expects 5-7), and the click after it can then race the closing dialog and crash the run. Not the keep's.
+- Tests run: `keep.js` (desktop, mobile), `keep_quests.mjs`, `flow.js`, `hud.js`, `mobile.js`, `town.js`, `riftgate.js`.
+  `tools/tests/out/keeplook.js` (git-ignored, so gone in a new container) was a scratch script for quick shots.
+- Still open: docs/TESSARIELS_KEEP.md "Still open".
+
+## November 24, 2026 — TESSARIEL'S KEEP (branch `claude/tessariels-keep-portal-eb63lb`)
+
+The user asked for a portal in town to **Tessariel's Keep**: your other heroes walking about it talking to you and each
+other, hundreds of quests and challenges that unlock decorations for the keep, a ground floor and a balcony round it by
+stairs, places for trophies and time records, an NPC who gives the quests and trades their tokens for armour to
+Legendary (now and then Mythic), balanced with the game, portals back to town, the useful things such hubs have for the
+endgame; banners and assets from the user's bm, vesperwrithe and Bellmourn repos; ideas from the current WoW raid bosses
+and bm's four Elder Dragon dungeon; three critics (level design artists, quest designers) until they approve or four
+rounds; then PR and merge. Isometric, locked to the Velscour style. Everything is in **docs/TESSARIELS_KEEP.md**.
+- **The hall** (`src/world/tkeep.js` layout, `tools/tkeep3d.html` bake, `assets/tiles/tkeep/`): a 24 x 24 great hall,
+  back walls with ten lancet windows, a balcony on all four sides 24 levels up, two grand stairs flanking the Castellan's
+  dais, the Sacred Flame's basin, four Elder plinths, six columns, sixteen trophy pedestals; baked like the Sky Battle's
+  ship (`map.c3only`, every tile its own piece) with the Castle's tall occlusion. three.js for the bake comes from
+  `vendor/three/` (jsDelivr is blocked here); `GLTFLoader` was added there for the trophies.
+- **Decor** (`src/gfx/keepart.js`): banners and stained glass laid onto the wall planes by an affine map (one canvas each,
+  then ordinary prop sprites), rugs drawn into the floor tile by tile (`map.dressTile`, a hook in `gfx/terrain.js`
+  `drawColumn`), trophies from the bake (the user's GLBs: bm's four Elder Dragons, vesperwrithe's T shields, shields,
+  skulls, staves), the Castle Keep pack's painted furniture. T never near V: no V banner, window or trophy.
+- **People** (`src/game/keepfolk.js`, `src/data/keeplines.js`): every other class's hero (`heroesByClass`) in their saved
+  gear (`savedGearPreview`), walking the hall and the balcony, pair conversations with their own numbers, greetings; the
+  Castellan Elsabet on the dais; five of the keep's folk at their posts.
+- **Quests** (`src/data/keep.js`, `src/game/keep.js`): 8 Sagas (86 chapters), 62 daily Bounty kinds (three a day), 239
+  Deeds; counters fed by `keepEvent` hooks (kills in `combat.js`, clears in `game.brokeThrough`, Breach, Rifts, pickups,
+  potions, sockets, upgrades, deaths). Rewards wait at the Castellan: Embers, Renown, gold, trophies, decorations.
+- **Endgame helpers**: the Ember trade (Rare 18 / Epic 55 / Legendary 150, the hero's own item level, 1 in 10 Legendaries
+  Mythic, a rarity only once its item level opens), the weekly Vault of the Flame, Renown (+1% gold, +1 MF, +0.5% XP a
+  rank, 20 ranks), Kindled at the Flame (+10% XP, +15% gold, +15 MF, 30 min, hourly), the War Table (your other heroes'
+  real-time expeditions), the Chronicle of Deeds (every hero's records), the chests, the Waygate down.
+- **State**: `G.char.keep` (filled in on first use by `keepState`; an old save loads as a new keep). Renown and Kindled
+  are added in `Player.recompute` (`keepBonuses`).
+- **Auto-play** in the keep claims, takes Sagas, kneels, walks out (`Auto.keepTick`); it never walks in by itself.
+- **Critics**: round 1 only (art 6/10, hub/UX 6/10, both reject; the systems critic hit the usage limit); the user asked to
+  wrap up. What was fixed and the full list still open: docs/TESSARIELS_KEEP.md "The critics". Start there next time.
+- **Tests**: `node tools/tests/keep_quests.mjs` (data, rules, economy: ~2,200 Embers, 14 Legendaries over a full game),
+  `node tools/tests/keep.js [noshots] [mobile]`. `flow.js` ('expected town at depth 1') and `data_check.mjs` ('first 41
+  biomes...') fail on `main` too; `mobile.js` logs two 404s for the Gunner's missing skill sheets (also on `main`).
+
 ## November 18, 2026 — the Rogue and the Ninja, and the Monk's new sprites (branch `feat/rogue-ninja-monk`)
 
 The user asked for the Monk's sprite set to be changed and for two new classes, the Rogue and the Ninja, from the art in
@@ -401,16 +609,6 @@ Player request: look the way you want without giving up stats.
   damage, mastery and bonuses; it was always so, the scale just shows it. (Oct 30: weapon figures now use `shownWeapon`, ~100.)
 - `balance.js` now prints `dps` on the shown scale (Meter).
 
-## October 29, 2026 — inventory, character, storage and shop UI refresh
-- Desktop panels in `src/ui/ui.js` can be moved by their title bar, focused independently and kept in bounds on resize.
-  Shop, chest and Reliquary panels open beside the inventory; touch layouts keep their fixed panel flow.
-- The inventory now has Inventory & Gear and Character Sheet tabs. The bag, paper doll and selected item have clearer
-  contrast and hierarchy; the character sheet groups attributes, key combat values and an expandable full stat list.
-- The storage chest filters by item type or name, and the Reliquary vault searches by name. Both show a selected item
-  and a visible Take to backpack action for touch. Shops show prices on stock and a dedicated sell drop zone.
-- Verified with `tools/tests/ui_facelift.js` in Chromium at 1440×900, 1068×658 and 844×390 touch, including panel
-  movement, paired window placement, chest transfers and touch selection; `tools/tests/stash.js` also passes.
-
 ## October 30, 2026 — the lowered drawbridge floated short of the pier (every castle)
 - **Request:** the bridge on the Cinderhold castle map is broken (a player's screenshot: the lowered drawbridge hangs
   up by the gate with a gap over the moat before the stone pier); fix it, then check the other bridges.
@@ -502,8 +700,8 @@ Player request: look the way you want without giving up stats.
   - Pathing everywhere: `rooms.js` on all 33 dungeon biomes x 4 levels (every floor tile, exit and chest reachable),
     `mobs.js 41` (every one of the 41 biomes: 1,239 monsters, 5 stuck = 0.4%, every guardian arrives; the test now loads
     each biome's art with `game.loadLevelArt`, it threw on the Dark Forest past its first ten levels),
-    `biome_scenarios.js` on all 32 biomes (640 scenarios, all finish), `dagyr.js noauto`, `raid.js 30`.
-  - `mode_cpu.js dungeons,raid,Velscour,unbound` (every dungeon biome, a BOSS ROOM, Velscour, Unbound; new modes and
+    `biome_scenarios.js` on all 32 biomes (640 scenarios, all finish), `velscour.js noauto`, `raid.js 30`.
+  - `mode_cpu.js dungeons,raid,velscour,unbound` (every dungeon biome, a BOSS ROOM, Velscour, Unbound; new modes and
     `PHONE=portrait`): 6-15 ms of update a frame at 4x, render script 8-24 ms, spread over many small loops (no single
     lever left; the particle cap is already 1,400 on touch). Portrait runs in line with landscape.
   - **Velscour's demons:** his summons' looks were chosen (and their sprites built) on the frame the first one stepped
@@ -558,7 +756,7 @@ Player request: look the way you want without giving up stats.
 - **Not verified:** real iPhones and Safari (Chromium with an iPhone viewport and touch only); human play balance
   (the curve is fitted to auto-play).
 
-## October 29, 2026 — VELSCOUR DEFENSE: a separate tower-defense card game behind the Riftgate (branch `feat/Velscour-defense`)
+## October 29, 2026 — VELSCOUR DEFENSE: a separate tower-defense card game behind the Riftgate (branch `feat/velscour-defense`)
 - **Request:** a bigger, crazier blue/black portal in town leading to a completely different game in the VELSCOUR
   universe, VELSCOUR DEFENSE: a gacha game with no microtransactions (heroes, gear and more to roll for), named
   characters of each class built from all of VELSCOUR's art (the newest held weapons too), everything as packs of
@@ -681,7 +879,7 @@ Player request: look the way you want without giving up stats.
   sooner (10-19 s vs 17-21 s), so it reads as chance, but watch it.
 - **Local servers:** a stray "Failed to load resource" 404 can fail a long test's exit code: `python -m http.server`
   has a listen backlog of 5, so a burst of module requests gets refused on `::1` and Chromium retries
-  `127.0.0.1:8124`, where another project's server may be listening. Serve on a free port with a bigger backlog
+  `127.0.0.1:8123`, where another project's server may be listening. Serve on a free port with a bigger backlog
   (`h.ThreadingHTTPServer.request_queue_size = 256`) and set `BASE_URL`.
 ## October 28, 2026 — the Sea of Sand's ten dune variants and their pyramids (branch `feat/sea-of-sand-variants`)
 - **Request:** ten new Sea of Sand variants: rolling dunes from height mapping, smooth transitions and desert
@@ -756,7 +954,7 @@ Player request: look the way you want without giving up stats.
 ## October 28, 2026 — the castles on phones (branch `fix/castle-phone-pass`)
 - **Request:** test the new castles, especially on phones. No real phone was available: Chromium emulating one
   (`tools/tests/castle_phone.js`: touch, 844 x 390 and 390 x 844 at DPR 2, the CPU slowed 4x, the machine's GPU), plus the
-  live site in a phone-sized browser (all eleven castles' pages served from the `/Velscour/` path; Hoarfrost played in
+  live site in a phone-sized browser (all eleven castles' pages served from the `/velscour/` path; Hoarfrost played in
   portrait: name card, log, touch controls fine).
 - **Found and fixed:** Goldspire ran at 0.6 fps (1.4 s a frame). Its five 4096 px pages (about 320 MB of textures) each
   held pieces from all over the castle, so every frame drew from all of them, and past the GPU's texture budget they were
@@ -830,7 +1028,7 @@ Player request: look the way you want without giving up stats.
   four suggestions (not the later options: hardcore, seasons, affix rerolls), balance them over several iterations, check
   the whole game's balance with the recent additions, test thoroughly, and summarize with screenshots before pushing/merging.
 - **Design and reference:** [`ENDGAME.md`](ENDGAME.md) (every rule, number and file). The Endgame opens for every hero on
-  the browser once any hero kills Velscour for real (`src/game/endgame.js`, localStorage `Velscour_endgame_v1`, merged
+  the browser once any hero kills Velscour for real (`src/game/endgame.js`, localStorage `velscour_endgame_v1`, merged
   three ways with Firestore `users/{uid}/account/endgame`).
   - **Heresies** (`src/data/heresies.js`, `src/game/heresies.js`, `src/ui/heresies.js`): 12 modifiers, ranks to 26, at the
     Altar of Heresy by the plaza; rank pays drops/MF/gold/XP/Sigils/relics; rank 10 lets Abyssal Keys drop past depth 600,
@@ -838,25 +1036,25 @@ Player request: look the way you want without giving up stats.
   - **Abyssal Rifts** (`src/data/rifts.js`, `src/game/rifts.js`, `src/ui/rifts.js`, `src/game/leaderboard.js`,
     `firestore.rules`): a third town portal; tier T = depth 500 + 10T; 420 s clock, 60% quota, then the Guardian; tier
     jumps by time; Abyssal rarity (`RARITY[6]`, weight 0, worth 21 item levels) from Guardians; honour board per class.
-  - **Velscour Unbound** (`src/game/unbound.js`, Unbound branches of `src/game/dagyr.js`, Unbound Heirlooms and the
+  - **Velscour Unbound** (`src/game/unbound.js`, Unbound branches of `src/game/velscour.js`, Unbound Heirlooms and the
     Crown of the Demon Lord in `src/data/relics.js`): three Abyssal Keys; two signature raid bosses as his court; the Pact.
   - **Infernal Marks** (`src/game/marks.js`, `src/ui/marks.js`): XP past the level cap (3000 since Oct 30; was 600), rift clears (ceil(T/10)), Heresy 20;
     four tapering, uncapped categories; auto-play spends them.
 - **Balance iterations** (numbers in ENDGAME.md): Abyssal +2 power levels and a perk (worth 17.2 -> 21); rift quota 0.7 ->
   0.6, density 0.8, Guardian 0.6x; rift Marks tier/4 -> tier/10; Gaze aggro x2.5 -> x2 (frame cost); Unbound court
   1.2x -> 0.8x life, 0.8x -> 0.65x hits, self-healing 35%, each courtier's Pact wanes after 120 s, auto-play turns back to
-  him then. Without god mode (`Velscour_real.js ... unbound`, depth-600 gear): 1/4 -> 5/9 -> 5/9 -> 6/9 wins, no stalls.
+  him then. Without god mode (`velscour_real.js ... unbound`, depth-600 gear): 1/4 -> 5/9 -> 5/9 -> 6/9 wins, no stalls.
 - **Whole game:** endgame.js (5 classes), tuning.js (16 classes, depths 1-500), raid.js, balance.js 30/146/300,
-  Velscour_real.js, rarity.js, relic_balance.js. Class damage past level 160 was flat: a level-300 knot in `DMG_TUNE_AT`
+  velscour_real.js, rarity.js, relic_balance.js. Class damage past level 160 was flat: a level-300 knot in `DMG_TUNE_AT`
   takes the Dragoon (x0.42 over two steps), Boomerang Knight (x0.40), Carrion Witch (x1.56) and Gunner (x1.44) from
   0.28x/0.34x/2.4x/2.1x the mean kill time at depths 400-500 to ~0.6x/0.6x/1.3x/1.0x.
-- **Test fixes found on the way:** `Velscour_real.js` let a lost attempt's death screen land in the next fight (fake
-  2-second deaths); `Velscour_probe.js` (new) traces a fight's first seconds or every N s.
+- **Test fixes found on the way:** `velscour_real.js` let a lost attempt's death screen land in the next fight (fake
+  2-second deaths); `velscour_probe.js` (new) traces a fight's first seconds or every N s.
 - **Open:** deploy `firestore.rules` by hand (Firebase console) or the board is refused; the board is an honour board;
   rifts wall at tier ~20-30 for a hero of the tier's level (intended, like the Endless Torment); `tuning.js`'s
   single-target number is broken for the Slime Lord (and sometimes Lancer/Necromancer) on `main` too.
 
-## October 25, 2026 — Velscour faces the hero, sits on his throne, summons demons (branch `fix/Velscour-throne`)
+## October 25, 2026 — Velscour faces the hero, sits on his throne, summons demons (branch `fix/velscour-throne`)
 - **Request (user):** Velscour didn't face the right way in the final fight; put the Castle biome's throne in his throne
   room, palette-swapped to match him, on 2 x 2 floor tiles so he can sit on it; make him summon demons in a phase.
 - **Cause of the facing:** the painted replacement atlas (`assets/sprites/replacements/atlas.json`) stores `fx` as a
@@ -864,16 +1062,16 @@ Player request: look the way you want without giving up stats.
   threw it a whole width sideways. `core/replacementart.js` now measures each cell's feet column from its bottom
   eighth (Velscour: 0.35 of his width). This also re-centres raid crystals, totems, turrets and other va_ art.
   Velscour also turns to the hero every frame now (his boss AI only turned while walking or swinging).
-- **Throne:** `tools/Velscourthrone.py` cuts `furniture_01_throne_dais` from the Castle pack, recolours it (blood-red
-  velvet, bone-gold trim, blackened iron, charcoal stone) and writes `assets/tiles/throne/Velscour_throne.webp/.json`;
-  `gfx/Velscourthrone.js` loads it with the throne level; `generateThrone` blocks tiles 21-22 x 10-11 and places it.
-  He sits on it (`SEAT`, `SEAT_Z` in game/dagyr.js) until the fight begins, leaps down, and hovers over it in phase 2.
+- **Throne:** `tools/velscourthrone.py` cuts `furniture_01_throne_dais` from the Castle pack, recolours it (blood-red
+  velvet, bone-gold trim, blackened iron, charcoal stone) and writes `assets/tiles/throne/velscour_throne.webp/.json`;
+  `gfx/velscourthrone.js` loads it with the throne level; `generateThrone` blocks tiles 21-22 x 10-11 and places it.
+  He sits on it (`SEAT`, `SEAT_Z` in game/velscour.js) until the fight begins, leaps down, and hovers over it in phase 2.
 - **Legion of the Pit:** phases 3 and 5 (and while bound to the obelisks): a hellgate opens beside him and up to four
   Pit Demons / Imps climb out (at most eight alive).
-- **Verified:** `dagyr.js` (new checks: throne, anchor, legion), `flow`, `boss`, `raid`, `rims`, `enemies`,
+- **Verified:** `velscour.js` (new checks: throne, anchor, legion), `flow`, `boss`, `raid`, `rims`, `enemies`,
   `familiars`, `skills` (totem master, gunner, necromancer).
 
-## October 25, 2026 — Heirlooms, Covenants, Sigils and Glyphwords; the Reliquary; Town Commissions; Velscour's last stand (branch `feat/loot-codex-Velscour-finale`)
+## October 25, 2026 — Heirlooms, Covenants, Sigils and Glyphwords; the Reliquary; Town Commissions; Velscour's last stand (branch `feat/loot-codex-velscour-finale`)
 - **Request (user, from a player's comment):** Diablo II style uniques, sets and runewords under new names, a larger
   long-term stash / collection, long-form quest lines from town that add objectives when you reach a biome, a much more
   interesting final fight with Velscour (5-10 minutes), and "final boss" in the skull's message box to jump straight to it.
@@ -898,16 +1096,16 @@ Player request: look the way you want without giving up stats.
     by depth reached; relic chapters place glowing objects in a level of the named biome, elite/raid/clear chapters
     count kills or clears there; the three-portal choice favours a waiting biome (and auto-play picks it). Chapter
     rewards: gold, two Sigils, often a Covenant piece; a finished line: a Heirloom. Quest Log section.
-  - **Velscour** (`src/game/dagyr.js`): five phases (Throne; Four Seals with Wardens and flame walls; Crown of
+  - **Velscour** (`src/game/velscour.js`): five phases (Throne; Four Seals with Wardens and flame walls; Crown of
     Hellfire with a lava tide, Doom Brand, Mirror of Sin; Into the Abyss with Heart Shards, shades, lanterns and the
     dark; True Form with APOCALYPSE safe circles, then bound to the four obelisks at 10%). Life gates + a damage cap
     (`PACE`, applied in combat.hit via `absorb`) keep it 5+ minutes for anyone; `HP_MUL` 2. The arena
-    seals. Executes at 15:00; `DMG_MUL` 0.7. Without god mode (`Velscour_real.js`, depth-500 gear) paladins and wizards won
-    6/7 in 6-8 min, rangers 3/5 in 8-12 min. A real win drops a Heirloom, a Covenant piece and a deep Sigil. "final boss" (or "Velscour") in the skull's
+    seals. Executes at 15:00; `DMG_MUL` 0.7. Without god mode (`velscour_real.js`, depth-500 gear) paladins and wizards won
+    6/7 in 6-8 min, rangers 3/5 in 8-12 min. A real win drops a Heirloom, a Covenant piece and a deep Sigil. "final boss" (or "velscour") in the skull's
     box: `game.finalBoss()`, the throne at the hero's depth (`world.practice`: no victory screen, no relic hoard).
   - **Auto-play**: commission objects, Glyphwords at the jeweler (`glyphwork`), relics are kept (never sold), the
     Velscour arena counts as sealed, and his hazards expose `danger`/`safeAt`/`autoGoal`.
-- **Verified:** `relics.js`, `relic_balance.js`, `dagyr.js` (auto-play beat him at depth 500 in 7.0 min, every
+- **Verified:** `relics.js`, `relic_balance.js`, `velscour.js` (auto-play beat him at depth 500 in 7.0 min, every
   phase), plus the regression list in the PR.
 - **Design calls made without asking:** relic numbers scale with item level (unlike D2's fixed items) so they last 500
   depths; Glyphword recipes are public; practice fights scale to the hero's depth; relics go to the storage chest
@@ -1084,7 +1282,7 @@ Player request: look the way you want without giving up stats.
   and sells the bag's gear for the "player" when auto-play waits in town. The chest summary prints every 5 minutes.
 
 ## October 23, 2026 — cloud saves with Google sign-in (branch `feat/cloud-saves`)
-- **Request (user):** cloud saves via Google (Apple later). The user made the Firebase project `Velscour` (Google
+- **Request (user):** cloud saves via Google (Apple later). The user made the Firebase project `velscour` (Google
   sign-in on, `agilancer.github.io` authorized, Firestore with per-user rules) and gave the web config.
 - **Built:** `src/game/cloud.js` (lazy Firebase SDK from gstatic, one Firestore document per class, three-way merge
   against what the device last synced, pushes at most once a minute while playing, offline retries). The UI is in
@@ -1098,7 +1296,7 @@ Player request: look the way you want without giving up stats.
   damaged cloud copies change nothing; a failed local write isn't counted as synced. The rules are in
   docs/CLOUD_SAVES.md.
 - **Follow-up (user):** guard the game's own saving: unreadable saves (truncated, not a list) were overwritten by the
-  next autosave. Now `writeAll` sets the old text aside first (`Velscour_saves_v1_unreadable_<time>`, or IndexedDB's
+  next autosave. Now `writeAll` sets the old text aside first (`velscour_saves_v1_unreadable_<time>`, or IndexedDB's
   `raw` store when localStorage is full) and refuses to save until a copy exists (a "Not saving" warning); the title
   explains, Settings > Hero backups downloads it. New `savesafe.js` (12 checks).
 - **Tests:** new `cloud.js` (4 devices on a fake Firebase: 43 checks, including lost, corrupt, damaged, no-IndexedDB
@@ -2104,7 +2302,7 @@ blades circling him become larger blue boomerangs.
   Rime; signature hits, so they never charge the runes), a fast-move trail, a floor shadow, drawn behind him when it is
   further from the camera. Details and numbers: [RUNEBLADE_3D.md](RUNEBLADE_3D.md#the-familiar).
 - **Death Knight, the skulls**: the skulls from his casts/hits and Death Coil now use the Velscour contact skull art
-  (`assets/ui/Velscour_contact_skull.png`) recoloured to his frost palette at load, red eye dots removed (`src/gfx/dkskull.js`).
+  (`assets/ui/velscour_contact_skull.png`) recoloured to his frost palette at load, red eye dots removed (`src/gfx/dkskull.js`).
 - **Balance call, not measured**: the sword skills add damage (roughly 0.5x `power` per 2.6 s plus the AoE skills).
   Worth a `balance.js death_knight` pass if the Death Knight now feels too strong.
 - **Follow-up**: the familiar is bigger (52 px, `RUNEBLADE_LEN` in `runeblade3d.js`), 3 far patterns (rove, dance,
@@ -2149,7 +2347,7 @@ blades circling him become larger blue boomerangs.
   bass, contrary line, broken chords, rolled arpeggios, oom-pah, march, drone + octave pulse, ostinato with a b2
   neighbour, lament bass, block chords, toccata pedal; always under the right hand), then the finishing bar from a
   compatible melody never heard after this one (`pickFinish`; heard songs persist in localStorage
-  `Velscour_bard_heard`, 6,000 kept), ending on a low octave + rolled tonic. **Lockout**: casts write nothing only
+  `velscour_bard_heard`, 6,000 kept), ending on a low octave + rolled tonic. **Lockout**: casts write nothing only
   while the written bar plays (4 beats, as before minus the old landing ring); during the finishing bar they write the
   next bar silently, and a bar completed then waits (`sc.pending`) and starts on the exact downbeat (if the audio clock
   agrees with game time within 120 ms). Gameplay unchanged: treble notes launch as played, the bass chord lands on
@@ -2761,7 +2959,7 @@ changes; each fix cites the commit that made the change.
   (100 deterministic map seeds), JavaScript parse checks, and `git diff
   --check`. Browser Playwright could not launch because the local Chromium
   headless-shell binary is absent; repository guidance says not to install it.
-- Work is on `feat/sea-of-sand-overworld`; PR: https://github.com/Agilancer/Velscour/pull/82.
+- Work is on `feat/sea-of-sand-overworld`; PR: https://github.com/Agilancer/velscour/pull/82.
 
 ## October 15, 2026 — Town approaches and neighborhood alignment
 
@@ -3039,7 +3237,7 @@ Requirements, as stated (✅ = implemented in the draft):
   replays the intro without the prompt. Returning from a sub-menu while the Hymn still plays shows the logo lit. Any
   click or key during the intro skips to the burst (it seeks the song to just before the hit). The tar drips and pile
   explosions were removed at the user's request.
-- **Level-up (user request):** Velscour now says one of 2,000 two-line taunts in six moods (dread, mock, cheer, rage, unhinged, sulk; `src/data/taunts.js`, plus class and milestone lines); the second line takes the mood's colour and motion (`#levelup[data-mood]` in style.css), a mood never repeats back to back and lines do not repeat until the pool is spent (deck in localStorage `Velscour_taunts_v1`). no voice line any more (the wav and `tools/levelup_voice.py` were removed). `levelUpFanfare()` is a grim bell toll + choir drone, the banner bleeds in from blur over a dark vignette, crit damage numbers drip blood (`drawDrips` in vfx.js). Old notes below may still mention the voice.
+- **Level-up (user request):** Velscour now says one of 2,000 two-line taunts in six moods (dread, mock, cheer, rage, unhinged, sulk; `src/data/taunts.js`, plus class and milestone lines); the second line takes the mood's colour and motion (`#levelup[data-mood]` in style.css), a mood never repeats back to back and lines do not repeat until the pool is spent (deck in localStorage `velscour_taunts_v1`). no voice line any more (the wav and `tools/levelup_voice.py` were removed). `levelUpFanfare()` is a grim bell toll + choir drone, the banner bleeds in from blur over a dark vignette, crit damage numbers drip blood (`drawDrips` in vfx.js). Old notes below may still mention the voice.
   pre-renders it, because a browser can't synthesize intelligible speech through WebAudio (speechSynthesis can't be
   routed through effects). The fanfare before it is procedural (`levelUpFanfare()` in `src/core/audio.js`).
 - **Dragoon leap art (user request):** every Dragoon leap skill (9) shows a glowing energy lance aimed along the jump arc (tipped up on the rise, diving on the fall, planted in the ground on landing, then shattering), with its own trail: Jump wind streaks, Aerial Strike afterimages, Dragon Dive twin fire helix, High Jump contrail + sonic boom + feathers, Comet Dive comet tail, Stardive constellation, Storm Dive lightning, Dragonfall burning wings, Cyclone Dive wind spiral. `src/gfx/lancefx.js` (styles keyed by skill name in `STYLES`), hooked from the `leap` case in `castSkill`; verified by `tools/tests/lance.js`.
@@ -3137,11 +3335,11 @@ See [SPRITE_REPLACEMENTS.md](SPRITE_REPLACEMENTS.md) for coverage, reproduction 
 Source: `assets/source/replacements/`; rebuild with `python tools/replacementart.py`.
 The older branch/status notes below describe earlier sessions.
 
-**Branch / PR:** all work is on `claude/amazing-rubin-kguehz`. PR https://github.com/Agilancer/Velscour/pull/1
+**Branch / PR:** all work is on `claude/amazing-rubin-kguehz`. PR https://github.com/Agilancer/velscour/pull/1
 (→ `main`) is open, and the user is to click Merge. The auto-mode permission check blocked Claude from merging,
 with the reason "Merge Without Review". GitHub Pages is already enabled on the repo and deploys from `main` (an
 earlier "pages build and deployment" run deployed the initial README commit), so merging PR #1 publishes the game
-at https://agilancer.github.io/Velscour/.
+at https://agilancer.github.io/velscour/.
 → **First thing in a new session:** check whether PR #1 is merged. If it is, restart the branch from `origin/main`
 before new work, as `CLAUDE.md` explains.
 
@@ -3581,7 +3779,7 @@ Do these in order, unless the user asks for something else. Their feedback after
 0. Get the user's feedback on item 21: town variety, ring power (augment numbers are first guesses in rings.js and
    augments.js), mastery speed (`masteryNeed`, cast XP in `Player.tryUseSkill`), and whether deaths now happen often
    enough. Then the boss rooms (item 16).
-1. Get PR #1 merged (by the user) and confirm the Pages deploy works at https://agilancer.github.io/Velscour/.
+1. Get PR #1 merged (by the user) and confirm the Pages deploy works at https://agilancer.github.io/velscour/.
 2. Act on the user's playtest feedback.
 3. Pre-release hardening, which was offered to the user but not yet run:
    - an iOS Safari / Firefox compatibility pass (static API audit plus fixes)
@@ -3662,7 +3860,7 @@ Do these in order, unless the user asks for something else. Their feedback after
     - `hover` (controls.js:77); `lootBoxes` (render.js:299).
     - `showAutomap` (game.js:328); `ui` (ui.js:16); `touchUI` (touch.js:19).
   - Settings keys that exist only through the settings dialog (screens.js:139-141): `autoLoot`, `pauseMenus` (read as `!== false`, so it defaults to on), `showGoldLabels`.
-  - `SETTINGS_KEY='Velscour_settings_v1'` (:29). `loadSettings()` (:31) uses `Object.assign`, so unknown keys survive. `saveSettings()` (:37).
+  - `SETTINGS_KEY='velscour_settings_v1'` (:29). `loadSettings()` (:31) uses `Object.assign`, so unknown keys survive. `saveSettings()` (:37).
 - **util.js**
   - `TAU`, `DEG`; `clamp`, `lerp`.
   - `rand(a=1,b?)`: with one arg returns [0,a); with two returns [a,b). `randi(a,b)` is inclusive.
@@ -3717,7 +3915,7 @@ Do these in order, unless the user asks for something else. Their feedback after
   - `potionIcon(color,size=48)` (:100): **uncached**, makes a new canvas on every call.
 - **pixelart.js**
   - `SPRITES` (:8), 68 entries:
-    - Monsters (:9-357): skeleton … abomination, Velscour.
+    - Monsters (:9-357): skeleton … abomination, velscour.
     - Summons (:359-505): totem, turret, drone, bird, dragon, banner, cauldron, tesla, scarecrow, lantern, drum, cloud, hydra, hive.
     - Props (:507-611): tree, pine, barrel, crate, lamp, well, grave, rock, bush, anvil.
     - Item icons (:613-859): sword … boots.
@@ -4040,7 +4238,7 @@ Data-only ES modules in `src/data/`. They have no side effects except the skill 
 - `src/data/skilldata.js` (376 lines): `SKILLDATA[classId] = [tree0[20], tree1[20], tree2[20]]`. That is 960 one-line DSL strings `"Name|kind|element|fx|mods"`.
 - `src/data/skills.js` (191 lines): parses SKILLDATA into `SKILLS` and `CLASS_SKILLS` on import. Holds the damage, mana, cooldown, range and duration formulas, `GRANTS`, and `describe()` (the tooltip text). Imports `ELEM` from `src/gfx/vfx.js`.
 - `src/data/summons.js`: `SUMMONS` has 105 minion, totem and turret definitions, keyed by the skill mod `sum=`.
-- `src/data/enemies.js` (66 lines): `ARCH` (22 monster archetypes plus `Velscour`), `GORE`, `ELITE_AFFIXES` (names only), `bossName()`, `uniqueName()`.
+- `src/data/enemies.js` (66 lines): `ARCH` (22 monster archetypes plus `velscour`), `GORE`, `ELITE_AFFIXES` (names only), `bossName()`, `uniqueName()`.
 - `src/data/biomes.js` (139 lines): `BIOMES` (20, including `throne`), `BIOME_BY_ID`, `randomBiome()`, `TOWN_BIOME`.
 - `src/data/items.js` (350 lines): rarities, materials, bases, `AFFIXES` (48), `LEGENDARY` (22), `GEMS` (12 normal + 9 special), item and gem rolling, names, stats, prices, service costs, potions.
 
@@ -4213,7 +4411,7 @@ Summon attacks (`monster.js:416 summonAttack`) by `atk.type`:
   - Pack size = `ARCH.pack`, +1 at 40% chance when depth > 30.
   - Champion packs: `2+floor(depth/15)`. Unique packs: `1+floor(depth/30)`.
   - Boss arch is from the roster minus bat/spider/beetle.
-  - Depth 100 uses `generateThrone` with arch `Velscour`.
+  - Depth 100 uses `generateThrone` with arch `velscour`.
 
 **Biomes.**
 - `palette` is the parameter set for `recolor()` (`core/util.js:141`), applied to the floor and wall atlases via `biomeTileSet` (`core/assets.js:65`, caches 2 sets). Keys: `hue` (deg), `sat` (x), `light` (+), `contrast` (x around .5), `tint:[r,g,b,amt]`, `colorize:[hueDeg, sat]`. `null` means the raw art. `TOWN_BIOME.wallPalette` overrides walls.
@@ -4428,7 +4626,7 @@ Dungeon algorithm (dungeon.js):
 11. Exit (:193): toward the exit-room side away from the start room, inset 1.5; fallback centre.
 `game.js:187 buildDungeon` turns this into a World: chests get `opened/reach/use`, town portal at start+(1.6,-0.6), exit portal sealed until `onBossKilled`, monsters via `makeMonster` (boss level depth+2, elites depth+1; unique pack members become "Minion" normals). Seed is `Math.random()` per entry -> levels are not reproducible across visits/saves.
 
-Throne (dungeon.js:212): fixed 44x80 map: entrance hall (17,68,10x9), gauntlet rects, elliptical arena 32x27 at (6,4); fixed spawns incl. `Velscour` boss at (22,14); 12% torches; 4 funerary obelisks; one rare chest (22.5,72.5); start (22,73), exit (22,7). `biome` arg unused. Depths >100 ("Endless Torment") use the normal generator with sizes capped.
+Throne (dungeon.js:212): fixed 44x80 map: entrance hall (17,68,10x9), gauntlet rects, elliptical arena 32x27 at (6,4); fixed spawns incl. `velscour` boss at (22,14); 12% torches; 4 funerary obelisks; one rare chest (22.5,72.5); start (22,73), exit (22,7). `biome` arg unused. Depths >100 ("Endless Torment") use the normal generator with sizes capped.
 
 Town (`generateTown`): 44x44, all floor; a per-tile material grid (`MATS`: grass, gravel, dirt, mud, stone) is painted, then each tile next to a softer material takes the pack transition with that material on the shared side (one side: axis shape; two adjacent sides: diagonal). Stone plaza 14..30 with a gravel kerb on its open sides, well at the centre (22,22). The 8 vendor shops ring the plaza: a north row (centres y 11.5, x 15.5..27.5, doors on the +y face) and a west row (x 11.5, doors on +x), with an inn in the corner; NPCs stand 0.8 tiles out from their door (`SHOPS`, `DOOR_X`). Buildings are drawn 1.5x (`BS`): a 3x3 blocked footprint, `{cx, cy, spr, k, depth: cx+cy}`; each door torch is a `kind:'flame'` prop (lit). Bakery and stables to the east, two cottages to the south, dirt road SE to the portal (39,39) on a stone/gravel yard, two dirt lanes out. The outer 3 tiles are a blocked ring of trees; more trees, shop dressing and brush from the pack; lamps are the catacombs pack's torch stands (`light: 4.5`). Generated once and cached in `game.js townCache`; `seen` is cleared per visit; villagers wander near `t.center`. Check: `node tools/tests/town.js` (vendors + portal reachable, screenshots).
 
@@ -4487,7 +4685,7 @@ Caches: `lightCanvas` + `vignette` (module level, keyed by size), `townCache`/`t
 ### Open issues noticed
 - src/game/render.js:177 - `lights.length = 0` is executed at the start of renderWorld, before drawLighting consumes `lights` at render.js:329; all addLight calls happen during World.update (world.js:148/153/158, loot.js:58/61, hazards.js:127/309/567/649, monster.js:103, gfx/shapes.js:248), so only the player light ever appears in the lighting overlay. Fix: clear lights at the start of World.update (or snapshot after drawLighting), keeping paused frames in mind.
 - src/world/map.js:60 - los() uses isFloor and ignores `block`, so monsters/ranged checks see through towers, trees and town buildings, while losWide/walkable treat them as solid.
-- src/world/map.js:29-31 - circleFree samples only 4 bounding-box corners; for creatures with r*0.8 > 0.5 (e.g. Velscour r=0.9, enemies.js:27) a single blocked tile can sit between the corners undetected.
+- src/world/map.js:29-31 - circleFree samples only 4 bounding-box corners; for creatures with r*0.8 > 0.5 (e.g. velscour r=0.9, enemies.js:27) a single blocked tile can sit between the corners undetected.
 - src/game/world.js:120-123 - separate() only resolves pairs within the same CELL=2 bucket (overlaps across cell borders persist) and skips any pair whose first element is static, so static-vs-mobile separation depends on array order.
 - src/game/world.js:50-51 - query() picks cells from r only (not r + creature radius) although the hit test uses r + c.r; large creatures just outside the scanned cells are missed.
 - src/world/town.js:67-68 - shopSpots/palettes are index-aligned with VENDORS and hold exactly 8 entries; adding a 9th vendor throws (s undefined).

@@ -10,6 +10,7 @@ import { sfx } from '../core/audio.js';
 import { spawn, updateVfx, addLight, sparkle, smoke, lights } from '../gfx/vfx.js';
 import { bodyR } from '../world/map.js';
 import { DuelManager, isDuelTarget } from './duel.js';
+import { sheerUpdate } from './sheer.js';
 
 const CELL = 2;
 
@@ -286,6 +287,7 @@ export class World {
       else if (h.o && h.o.aug) augHazard(h, dt);
     }
     this.separate();
+    if (this.map.sheer) sheerUpdate(this, dt); // over a Sheer Drop's brinks (game/sheer.js)
     for (let i = this.creatures.length - 1; i >= 0; i--) {
       const c = this.creatures[i];
       if (c.dead && c !== p && (c.removeT = (c.removeT || 0) + dt) > 0.05) this.creatures.splice(i, 1);

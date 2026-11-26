@@ -2,7 +2,8 @@
 import { BREACH_ARCHS } from './breach.js';
 // palette -> recolor() params applied to the biome's art (null = as drawn).
 // mon -> hue/sat/light shift applied to monster palettes.
-import { FINAL_DEPTH } from './depth.js';
+import { FINAL_DEPTH, getActForDepth, ACTS } from './depth.js';
+import { SHEER } from './sheer.js';
 export const BIOMES = [
   {
     id: 'catacombs', name: 'Skull-Lined Catacombs', palette: null, dark: 0.82, light: 7.5,
@@ -457,6 +458,12 @@ for (const b of BIOMES) {
   if (!b.pack) b.pack = CAT;
   b.wallPack = b.wallPack || null;
 }
+// the ten Sheer Drop biomes (data/sheer.js): their base's floors, props and monsters, cliffs into the void for walls
+for (const v of SHEER) {
+  const B = BIOMES.find((b) => b.id === v.base);
+  BIOMES.splice(BIOMES.indexOf(B) + 1, 0, { ...B, id: v.id, name: v.name, base: v.base, sheer: v, adj: v.adj, dark: v.dark, light: v.light, fog: v.fog,
+    ambient: v.motes.kind === 'gold' || v.motes.kind === 'glint' ? { type: 'glitter', color: v.motes.color } : B.ambient, wallPack: null });
+}
 
 // Colour families: a level can mix its palette with another biome of the same family (mixPartner), e.g. a
 // Frozen Ossuary whose far rooms are paved like the Crystal Caverns.
@@ -586,12 +593,22 @@ export const DEPTH_BIOME_RANGES = [
 ];
 
 export const DEPTH_DUNGEON_RANGES = [
-  { start: 1, end: 96, ids: ['catacombs', 'necropolis', 'plague', 'sewers', 'library', 'sunken'] },
-  { start: 96, end: 192, ids: ['desert_temple', 'desert', 'gilded', 'amber'] },
-  { start: 192, end: 288, ids: ['ice_temple', 'frozen', 'crystal'] },
-  { start: 288, end: 360, ids: ['heavenly', 'astral_plane', 'storm', 'shattered', 'cathedral'] },
-  { start: 360, end: 456, ids: ['molten', 'hell', 'forge', 'abyss', 'obsidian', 'blood', 'flesh', 'void'] },
+  { start: 1, end: 96, ids: ['catacombs', 'necropolis', 'plague', 'sewers', 'library', 'sunken', 'sheer_ossuary', 'sheer_drowned'] },
+  { start: 96, end: 192, ids: ['desert_temple', 'desert', 'gilded', 'amber', 'sheer_canyon', 'sheer_gilded'] },
+  { start: 192, end: 288, ids: ['ice_temple', 'frozen', 'crystal', 'sheer_rime', 'sheer_crystal'] },
+  { start: 288, end: 360, ids: ['heavenly', 'astral_plane', 'storm', 'shattered', 'cathedral', 'sheer_cloister', 'sheer_storm'] },
+  { start: 360, end: 456, ids: ['molten', 'hell', 'forge', 'abyss', 'obsidian', 'blood', 'flesh', 'void', 'sheer_cinder', 'sheer_starless'] },
 ];
+
+/** Thematic biomes per campaign Act */
+export const ACT_BIOMES = {
+  1: ['catacombs', 'dark_forest', 'castle', 'castle_keep', 'overworld', 'necropolis', 'plague', 'sewers', 'library', 'sunken'],
+  2: ['sea_of_sand', 'desert_temple', 'desert', 'gilded', 'amber', 'serpentine_tower'],
+  3: ['mountainside', 'snowy_summit', 'ice_temple', 'frozen', 'crystal'],
+  4: ['heavenly', 'astral_plane', 'skyship', 'storm', 'shattered', 'cathedral'],
+  5: ['molten', 'hell', 'forge', 'abyss', 'obsidian', 'blood', 'flesh', 'void'],
+};
+for (const v of SHEER) ACT_BIOMES[v.act].push(v.id); // two Sheer Drops an Act
 
 /** Biomes eligible at a campaign depth. Shared endpoints intentionally include both adjacent bands. */
 export function biomesForDepth(depth) {

@@ -1,7 +1,7 @@
 // World renderer: floors, decals, depth-sorted walls/entities, effects, lighting, minimap.
 import { G } from '../state.js';
 import { camera, isoX, isoY, HW, HH, TW, TH, elevationAt } from '../core/view.js';
-import { makeCanvas, TAU, clamp, rgba, shade, hexToRgb, measureCtx } from '../core/util.js';
+import { makeCanvas, TAU, clamp, rgba, shade, hexToRgb, measureCtx, rasterSprites } from '../core/util.js';
 import { drawDecals, drawEffects, drawParticles, drawTexts, lights, glowSprite, stampDecals, bakedDecals } from '../gfx/vfx.js';
 import { orbitShieldDepth } from '../gfx/lancershields.js';
 import { drawWallTorch, wallTorchRect } from '../gfx/walltorches.js';
@@ -23,6 +23,7 @@ import { drawLootLabels } from './loot.js';
 import { castleTileDressing, drawCastleParticles, drawCastleWater } from '../gfx/castleground.js';
 import { drawRim, RIM, xray, drawXray } from './creature.js';
 import { drawNebula } from '../gfx/breach.js';
+import { drawAbyss, drawSheerTiles, drawPlunge, FACE_H } from '../gfx/sheer.js';
 import { drawWyrm } from '../gfx/breachdragon.js';
 import { skyBack, skyWorld, skyFx, skyFront, drawSkyGate } from '../gfx/skyship.js';
 import { drawCine } from './cinema.js';
@@ -31,6 +32,7 @@ import { endgameUnlocked } from './endgame.js';
 import { heresyRankOf } from './heresies.js';
 import { DuelManager } from './duel.js';
 import { addLight } from '../gfx/vfx.js';
+import { drawHeresyAltar } from '../gfx/heresyaltar.js';
 import { drawTerrain, drawColumn, occludersFor, occludersOfRect, occluderObj, clipAdd, hiddenBehind, standKey, hopZ, drawSky, terrainShade, HS } from '../gfx/terrain.js';
 import { hopArc } from './alpine.js';
 
@@ -438,28 +440,15 @@ function drawCorpse(ctx, c) {
 }
 
 function drawNpc(ctx, n) {
-  if (n.altar) { // the Altar of Heresy: the reference-based crimson shrine landmark in the town plaza
-    const x = isoX(n.x, n.y), y = isoY(n.x, n.y), open = endgameUnlocked(), lit = open && heresyRankOf() > 0;
-    const heresyAltarSprite = A.heresyAltar;
-    const ready = heresyAltarSprite && heresyAltarSprite.complete && heresyAltarSprite.naturalWidth > 0;
-    if (ready) {
-      const h = 112, w = h * heresyAltarSprite.naturalWidth / heresyAltarSprite.naturalHeight;
-      if (open) {
-        ctx.save(); ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = lit ? 0.24 + Math.sin(G.time * 2.5) * 0.08 : 0.12;
-        ctx.drawImage(glowSprite('#ff3020'), x - w * 0.45, y - h * 0.78, w * 0.9, h * 0.72);
-        ctx.restore();
-      }
-      ctx.save(); ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(heresyAltarSprite, x - w / 2, y - h + 6, w, h);
-      ctx.restore();
-      n.sbox = [x - w / 2 - 8, y - h - 8, x + w / 2 + 8, y + 12];
-    } else {
-      if (lit) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.3 + Math.sin(G.time * 2.5) * 0.12; ctx.drawImage(glowSprite('#ff3020'), x - 48, y - 70, 96, 80); ctx.restore(); }
-      obelisk(ctx, x, y, open ? '#ff3020' : '#606070', open, 44);
-      n.sbox = [x - 18, y - 56, x + 18, y + 6];
-    }
-    if (open) addLight(n.x, n.y, 3.4, lit ? 1.15 : 0.7, 36, '#ff3020');
+  if (n.keepHero) { drawKeepHero(ctx, n, isoX(n.x, n.y), isoY(n.x, n.y), G.time); return; }   // your other heroes in Tessariel's Keep
+  if ((n.keepFlame || n.keepMarker) && drawKeepNpc(ctx, n, isoX(n.x, n.y), isoY(n.x, n.y), G.time)) return;
+  if (n.altar) { // the Altar of Heresy (docs/ENDGAME.md, gfx/heresyaltar.js): sealed stone, awake once the Endgame opens, ablaze while Heresies are on
+    const x = isoX(n.x, n.y), y = isoY(n.x, n.y), open = endgameUnlocked(), rank = open ? heresyRankOf() : 0, lit = rank > 0;
+    if (drawHeresyAltar(ctx, n, x, y, open, rank)) return;
+    if (lit) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.3 + Math.sin(G.time * 2.5) * 0.12; ctx.drawImage(glowSprite('#ff3020'), x - 48, y - 70, 96, 80); ctx.restore(); }
+    obelisk(ctx, x, y, open ? '#ff3020' : '#606070', open, 44);
+    if (open) addLight(n.x, n.y, 2.6, lit ? 0.9 : 0.5, 30, '#ff3020');
+    n.sbox = [x - 18, y - 56, x + 18, y + 6];
     return;
   }
   if (n.stash) {
@@ -564,9 +553,10 @@ const castleDressWith = (force) => (g, w, tx, ty, px, py, f) => {
 };
 const castleDress = castleDressWith(false), castleDressBake = castleDressWith(true);
 let chunkBudgetFrame = -1, chunkBudget = 0;
-function drawFloorTiles(ctx, world, x0, y0, x1, y1, force) {
+function drawFloorTiles(ctx, world, x0, y0, x1, y1, force, minD) {
   const map = world.map;
   if (map.hgt) return drawTerrain(ctx, world, x0, y0, x1, y1, floorEntry, map.castleMat ? (force ? castleDressBake : castleDress) : null); // height map: lifted columns and cliffs
+  if (map.sheer) return drawSheerFloor(ctx, world, x0, y0, x1, y1, force, minD); // a Sheer Drop: cliffs under the brinks
   const tl = [(x0 / HW + y0 / HH) / 2, (y0 / HH - x0 / HW) / 2], br = [(x1 / HW + y1 / HH) / 2, (y1 / HH - x1 / HW) / 2];
   const tr = [(x1 / HW + y0 / HH) / 2, (y0 / HH - x1 / HW) / 2], bl = [(x0 / HW + y1 / HH) / 2, (y1 / HH - x0 / HW) / 2];
   const tx0 = clamp(Math.floor(tl[0]) - 1, 0, map.w - 1), tx1 = clamp(Math.ceil(br[0]) + 1, 0, map.w - 1);
@@ -584,6 +574,20 @@ function drawFloorTiles(ctx, world, x0, y0, x1, y1, force) {
       if (map.castleMat) castleTileDressing(ctx, world, tx, ty, px, py, floorEntry);
     }
   }
+}
+/** A Sheer Drop's floor (gfx/sheer.js): the cliffs hang FACE_H below their brinks, so tiles that far above the rect
+ *  still reach into it. minD: only tiles that deep or nearer (a plunge redraws what stands in front of it). */
+function drawSheerFloor(ctx, world, x0, y0, x1, y1, force, minD) {
+  const map = world.map, ya = y0 - FACE_H - TH;
+  const tx0 = clamp(Math.floor((x0 / HW + ya / HH) / 2) - 1, 0, map.w - 1), tx1 = clamp(Math.ceil((x1 / HW + y1 / HH) / 2) + 1, 0, map.w - 1);
+  const ty0 = clamp(Math.floor((ya / HH - x1 / HW) / 2) - 1, 0, map.h - 1), ty1 = clamp(Math.ceil((y1 / HH - x0 / HW) / 2) + 1, 0, map.h - 1);
+  const inView = (px, py, cliff) => px >= x0 - TW && px <= x1 + TW && py <= y1 + TH && py >= (cliff ? ya - TH : y0 - TH);
+  drawSheerTiles(ctx, map, tx0, ty0, tx1, ty1, (g, tx, ty, px, py) => {
+    const i = ty * map.w + tx, f = floorEntry(world, map.v[i]);
+    g.drawImage(f.img, f.sx, f.sy, f.w, f.h, px - HW - 0.6, py - 0.6, TW + 1.2, TH + 1.2);
+    const gr = gritAt(world, f, map.v[i], tx, ty, force);
+    if (gr) g.drawImage(gr, px - HW, py);
+  }, inView, minD);
 }
 const chunkKey = (cx, cy) => (cx + 32768) * 65536 + (cy + 32768);
 /** Is a baked decal (vfx.js) already in every on-screen floor chunk it touches? Then the chunks draw it and drawDecals
@@ -728,18 +732,20 @@ export function renderWorld(ctx, world) {
   const W = G.W * G.dpr, H = G.H * G.dpr;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-  if (!world.map.voidFace || world.sky) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); }   // (the Breach's void is opaque)
+  if ((!world.map.voidFace && !world.map.sheer) || world.sky) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); }   // (the Breach's void and a Sheer Drop's abyss are opaque)
   if (world.tower) world.tower.draw(ctx); // the Serpentine Tower in three.js (gfx/tower3d.js), turning with the hero
   else if (world.cave) world.cave.draw(ctx); // the Depth's Edge Caverns in three.js (gfx/cave3d.js)
   else if (world.sky) skyBack(ctx, W, H, world); // the Sky Battle's sky and clouds (gfx/skyship.js)
   else if (world.map.voidFace) drawNebula(ctx, W, H, camera.x * camera.zoom * G.dpr, camera.y * camera.zoom * G.dpr); // the Breach's void
+  else if (world.map.sheer) drawAbyss(ctx, W, H, camera.x * camera.zoom * G.dpr, camera.y * camera.zoom * G.dpr, world.map.sheer, G.time || 0, Math.min(0.05, G.dt || 0.016)); // a Sheer Drop's abyss (gfx/sheer.js)
   else if (world.map.hgt && !world.map.castleMat && !world.map.noSky) drawSky(ctx, W, H, camera.x * camera.zoom * G.dpr, camera.y * camera.zoom * G.dpr, world.night);
   camera.apply(ctx);
   const camT = ctx.getTransform();
   ctx.imageSmoothingEnabled = true;
   // 'medium' (mipmapped) downscaling of the big floor/wall atlases costs several times 'low' per draw, and those are
-  // most of the frame: tiles and walls always draw 'low'; sprites use 'low' on touch or when resolution is reduced.
-  const hq = G.touch || (G.resScale || 1) < 0.95 ? 'low' : 'medium';
+  // most of the frame: tiles and walls always draw 'low'; sprites use 'low' on touch or when resolution is reduced
+  // (raster sprites, util.js spriteCanvas, cost no more 'medium': where they are on, sprites keep it at any resolution).
+  const hq = G.touch || ((G.resScale || 1) < 0.95 && !rasterSprites()) ? 'low' : 'medium';
   ctx.imageSmoothingQuality = 'low';
   const vr = camera.viewRect(40);
   const map = world.map;
@@ -920,9 +926,10 @@ export function renderWorld(ctx, world) {
     if (!closeEnough(n.x, n.y)) { n.sbox = null; continue; }
     enqueue(n.x + n.y, 7, n);
   }
-  for (const l of world.loot) if (closeEnough(l.x, l.y, 50, 75)) { enqueue(l.x + l.y - 0.2, 8, l); if (tall) occludeStatic(l, null, l.x, l.y, true); }
-  for (const c of world.chests) if (closeEnough(c.x, c.y, 70, 80)) { enqueue(c.x + c.y, 9, c); if (tall) occludeStatic(c, null); }
-  for (const po of world.portals) if (closeEnough(po.x, po.y, 95, 150)) { enqueue(po.x + po.y, 10, po); if (tall) occludeStatic(po, null); }
+  if (world.plunges) for (const f of world.plunges) if (closeEnough(f.x, f.y, 90, 400)) enqueue(f.x + f.y, 15, f); // over a Sheer Drop's brink (game/sheer.js)
+  for (const l of world.loot) if (closeEnough(l.x,l.y,50,75)) { enqueue(l.x + l.y - 0.2, 8, l); if (tall) occludeStatic(l, null, l.x, l.y, true); }
+  for (const c of world.chests) if (closeEnough(c.x,c.y,70,80)) { enqueue(c.x + c.y, 9, c); if (tall) occludeStatic(c, null); }
+  for (const po of world.portals) if (closeEnough(po.x,po.y,95,150)) { enqueue(po.x + po.y, 10, po); if (tall) occludeStatic(po, null); }
   if (map.hgt) {
     // a height map sorts by the tile stood on (gfx/terrain.js standKey), so a column rising in front of someone can
     // be drawn again over them; offsets in the keys (fliers, loot) are kept
@@ -1002,11 +1009,21 @@ export function renderWorld(ctx, world) {
       case 8: o.draw(ctx); break;
       case 9: drawChest(ctx, o); break;
       case 10: drawPortal(ctx, o); break;
-      case 11: o.drawShield(ctx, it.index); break;
-      case 12: drawWallTorch(ctx, o, world.biome, G.time,
-        cutaway(wallTorchRect(o), it.d)); break;
-      case 13: drawWallHanging(ctx, o, world.biome,
-        cutaway(wallHangingRect(o, world.biome), it.d)); break;
+      case 11: o.drawShield(ctx,it.index); break;
+      case 12: drawWallTorch(ctx,o,world.biome,G.time,
+        cutaway(wallTorchRect(o),it.d)); break;
+      case 13: drawWallHanging(ctx,o,world.biome,
+        cutaway(wallHangingRect(o,world.biome),it.d)); break;
+      case 15: {
+        // a body plunging into a Sheer Drop: the floor and cliffs in front of it drawn again over it
+        xray.on = false;
+        const [sx, sy] = drawPlunge(ctx, o);
+        xray.on = true;
+        ctx.save(); ctx.beginPath(); ctx.rect(sx - 80, sy - 170, 160, 200); ctx.clip();
+        drawFloorTiles(ctx, world, sx - 80, sy - 170, sx + 80, sy + 30, false, Math.floor(o.x) + Math.floor(o.y) + 1);
+        ctx.restore();
+        break;
+      }
       case 14: {
         // a column redrawn over what stands behind it (on the Castle clipped to those things: whole, its faces would
         // spill over neighbours in front that aren't redrawn)

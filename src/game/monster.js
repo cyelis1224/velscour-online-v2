@@ -12,12 +12,14 @@ import { Projectile, Delayed, NovaWave, Area, Fissure, explode, lineTargets, con
 import { ARCH, ARCH_MOVES, ELITE_AFFIXES, bossName, uniqueName } from '../data/enemies.js';
 import { SUMMONS } from '../data/summons.js';
 import { turretMuzzle } from '../gfx/gunner3d.js';
-import { bodyR } from '../world/map.js';
+import { bodyR, aloft } from '../world/map.js';
 import { toughness, danger, densityXp, riftHold, dmgScale } from '../data/depth.js';
 import { attachSlime, slimeUpdate, courtDef } from './slimecourt.js';
 import { ART_BY_ID, REVIVED, greaterSwap, rollLooks, uniqueSwap } from '../data/bestiary.js';
 import { skillMorphFor } from '../data/talents.js';
 import { isDuelTarget } from './duel.js';
+import { UNIQUE_HEALTH_MULTIPLIER, rollUniqueAffixes } from './uniqueBalance.js';
+import { applyToughHealthModifier } from './championBalance.mjs';
 
 const LEASH = 10; // minions fight what's within this many tiles of the hero
 const CHASE = 1.3, CHASE_MAX = 4.6; // monsters' pursuit pace: x1.3, up to 4.6 tiles/s (the hero runs 4.2) unless faster already
@@ -398,6 +400,7 @@ export class Monster extends Creature {
     const w = this.world, map = w.map;
     const d = dist(this.x, this.y, gx, gy);
     if (this.ghost) { this.moveToward(gx, gy, dt, speed); return d; }
+    if (this.voidFly && map.sheer && aloft(this) && map.leapOk(this.x, this.y, gx, gy, 0)) { this.moveToward(gx, gy, dt, speed); return d; } // a Sheer Drop's flyer: over the gaps
     const N = this.nav || (this.nav = { t: 0, path: null, part: false, gx, gy, cx: this.x, cy: this.y, ct: 0, last: 0, stuck: 0, side: 0, sa: 0, force: false });
     const r = bodyR(this) + 0.03;
     // progress check: no headway for half a second means stuck
@@ -967,7 +970,7 @@ export class Monster extends Creature {
     switch (k) {
       case 'lunge': {
         const L = Math.max(0, d - 0.7), tx = this.x + Math.cos(ang) * L, ty = this.y + Math.sin(ang) * L;
-        if (!map.losWide(this.x, this.y, tx, ty, bodyR(this) + 0.03)) return false;
+        if (!map.leapOk(this.x, this.y, tx, ty, bodyR(this) + 0.03)) return false; // (a Sheer Drop's gaps it leaps, but lands on floor)
         tele({ kind: 'circle', x: tx, y: ty, r: 1.1 * big, dur: 0.45 });
         this.startAction('mv_lunge', 0.45, { tx, ty, ang });
         break;
@@ -1167,9 +1170,11 @@ export class Monster extends Creature {
       case 'mv_lunge': {
         const k = Math.min(1, a.t / 0.35);
         const want = dist(this.x, this.y, a.tx, a.ty), step = Math.min(want, dist(a.sx, a.sy, a.tx, a.ty) / 0.35 * dt);
+        this.leaping = k < 1; // over a Sheer Drop's gaps (game/sheer.js)
         if (want > 0.01) w.map.move(this, (a.tx - this.x) / want * step, (a.ty - this.y) / want * step, this.ghost);
         this.z = 50 * 4 * k * (1 - k); this.moving = true;
         if (k >= 1) {
+          if (w.map.sheer && !w.map.isFloor(this.x, this.y) && w.map.circleFree(a.tx, a.ty, bodyR(this))) { this.x = a.tx; this.y = a.ty; } // short of the far side: it was always going to make it
           explode(w, this, this.x, this.y, 1.1 * big, dmg * 1.3, el, { knock: 0.6, melee: true }, 'eruption');
           sfx('thud', 0.6);
           done();
@@ -1549,8 +1554,8 @@ export function makeElite(m, rank, depth, world, rnd = Math.random) {
     m.affixes = shuffle(keys, rnd).slice(0, depth > 40 ? 2 : 1);
     m.name = 'Champion ' + m.name;
   } else if (rank === 'unique') {
-    m.maxHp *= 6; m.dmg *= 1.5; m.xp *= 7; m.aura = '#ffb030'; m.scale = 1.3;
-    m.affixes = shuffle(keys, rnd).slice(0, depth > 50 ? 3 : 2);
+    m.maxHp *= UNIQUE_HEALTH_MULTIPLIER; m.dmg *= 1.5; m.xp *= 7; m.aura = '#ffb030'; m.scale = 1.3;
+    m.affixes = rollUniqueAffixes(keys, depth > 50 ? 3 : 2, rnd);
     m.name = uniqueName(rnd);
     if (m.art) m.swap = uniqueSwap(rnd);
   } else if (rank === 'boss') {
@@ -1578,9 +1583,14 @@ export function makeElite(m, rank, depth, world, rnd = Math.random) {
   if (m.affixes) {
     if (m.affixes.includes('strong')) m.dmg *= 1.5;
     if (m.affixes.includes('fast')) { m.speed *= 1.4; m.atkCd *= 0.75; }
-    if (m.affixes.includes('tough')) { m.maxHp *= 1.5; for (const k of ['phys', 'fire', 'cold', 'light', 'poison']) m.res[k] = (m.res[k] || 0) + 0.15; }
+    if (m.affixes.includes('tough')) { applyToughHealthModifier(m); for (const k of ['phys', 'fire', 'cold', 'light', 'poison']) m.res[k] = (m.res[k] || 0) + 0.15; }
     if (m.affixes.includes('fiery')) m.res.fire = (m.res.fire || 0) + 0.4;
     if (m.affixes.includes('frozen')) m.res.cold = (m.res.cold || 0) + 0.4;
+  }
+  // Multiplayer co-op scaling: scale champion/unique/boss HP by active room party size so 4-player groups don't melt elites
+  const partySize = G.room?.players?.length || 1;
+  if (partySize > 1 && (rank === 'champion' || rank === 'unique' || rank === 'boss')) {
+    m.maxHp *= 1 + 0.45 * (partySize - 1);
   }
   m.hp = m.maxHp;
 }

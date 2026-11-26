@@ -20,6 +20,7 @@ import { maybeRelic } from '../data/relics.js';
 import { heresyAllows } from './heresies.js';
 import { keyChance } from './unbound.js';
 import { CHEST_RARITIES } from '../data/treasurechests.js';
+import { canDropNaturalSigil, naturalSigilDropChance, recordNaturalSigilDrop } from './sigildrops.mjs';
 
 /** Highest quality unlocked for ground drops at this campaign depth. */
 export function groundDropRarityCap(depth) { return qualityAtDepth(Math.max(1, depth || 1)); }
@@ -413,9 +414,14 @@ export function dropLoot(world, m) {
     const item = maybeRelic(rollGroundItem(ilvl, { mf: st.magicFind + (world.mfAdd || 0), bonus }), boost);
     add('item', { item, fades: fadeOf(item) });
   }
-  // Sigil Stones: rare from the rank and file, common from guardians (Heresies: world.sigilMul)
-  const sig = { normal: 0.004, champion: 0.03, unique: 0.08, boss: 0.45 }[rank] * (world.lootMul || 1) * (world.sigilMul || 1) * q;
-  if (world.depth && chance(sig)) add('item', { item: rollSigil(world.depth, rank === 'boss' ? 1 : 0) });
+  // Natural Sigils use the tuned 95% reduction and share a persisted one-per-generated-level
+  // cap across ordinary drops, bosses, and chests.
+  const sigilBase = { normal: 0.004, champion: 0.03, unique: 0.08, boss: 0.45 }[rank];
+  if (sigilBase && world.depth && canDropNaturalSigil(world, G.char)
+      && chance(naturalSigilDropChance(sigilBase, world, st, { includeBreachReward: true }))) {
+    const dropped = add('item', { item: rollSigil(world.depth, rank === 'boss' ? 1 : 0) });
+    if (dropped && recordNaturalSigilDrop(world, G.char)) G.game?.autosave?.();
+  }
   // an Abyssal Key (docs/ENDGAME.md): BOSS ROOM bosses past depth 600 under Heresy rank 10, rift guardians from tier 10
   if (m.isRaid && chance(keyChance(world, m))) add('key', {}); // (keyChance rolls once a boss: a raid boss pays out three dropLoots)
   // rings: a guardian usually drops one
@@ -442,7 +448,11 @@ export function dropChest(world, chest, depth) {
     add('item', { item: maybeRelic(rollGroundItem(depthLevel(depth) + 1, { mf: st.magicFind + (world.mfAdd || 0), bonus: rarityBonus })) });
   }
   const sigilChance = rarity ? rarity.sigilChance : chest.rare ? 0.25 : 0.06;
-  if (!goldOnly && !gemsOnly && chance(sigilChance)) add('item', { item: rollSigil(depth) });
+  if (!goldOnly && !gemsOnly && canDropNaturalSigil(world, G.char)
+      && chance(naturalSigilDropChance(sigilChance, world, st))) {
+    const dropped = add('item', { item: rollSigil(depth) });
+    if (dropped && recordNaturalSigilDrop(world, G.char)) G.game?.autosave?.();
+  }
   const goldPiles = gemsOnly ? 0 : randi(goldRange[0], goldRange[1]) + (goldOnly ? 2 : 0);
   if (!gemsOnly) for (let i = 0; i < goldPiles; i++) add('gold', { amount: Math.round((10 + depthLevel(depth) * 4) * goldScale(depthLevel(depth)) * rand(0.6, 1.4) * (1 + st.goldFind / 100)) });
   const gemChance = rarity ? rarity.gemChance : chest.rare ? 0.8 : 0.3;

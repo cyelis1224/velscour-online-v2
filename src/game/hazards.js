@@ -10,6 +10,7 @@ import { bardProjInit, bardProjUpdate, bardProjHit, bardProjDraw, bardOrbitDraw,
 import { drawLancerOrbitShield, drawLancerThrownShield, drawThrownShield } from '../gfx/lancershields.js';
 import { drawCosmicBeam } from '../gfx/cosmos.js';
 import { drawFlyingRang, drawRang3D, rangSkin, groundHeading } from '../gfx/boomerang3d.js';
+import { drawStarShadow } from '../gfx/blades3d.js';
 import { screenAngle } from '../gfx/vfx.js';
 import { hit, aoe, chainHit, leechHeal } from './combat.js';
 
@@ -132,10 +133,10 @@ export class Projectile {
     }
     const nx = this.x + this.vx * dt, ny = this.y + this.vy * dt;
     if (this.returning) { this.x = nx; this.y = ny; }
-    else if (!w.map.isFloor(nx, ny)) {
+    else if (w.map.solid(nx, ny)) {   // (a Sheer Drop's shots fly on over the void)
       if (this.bounce > 0) {
-        if (!w.map.isFloor(nx, this.y)) this.vx = -this.vx;
-        if (!w.map.isFloor(this.x, ny)) this.vy = -this.vy;
+        if (w.map.solid(nx, this.y)) this.vx = -this.vx;
+        if (w.map.solid(this.x, ny)) this.vy = -this.vy;
         this.bounce--; this.hitSet.clear();
       } else if (this.ret) {
         this.turnBack();
@@ -259,7 +260,7 @@ export class Projectile {
     if (this.lob) {
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
       ctx.beginPath(); ctx.ellipse(px, isoY(this.x, this.y), 5, 2.5, 0, 0, TAU); ctx.fill();
-    }
+    } else if (this.fx === 'shuriken') drawStarShadow(ctx, px, py + this.z, this.z, this.size, this.t); // a throwing star's shadow skims the ground
     if (this.note) return bardProjDraw(ctx, this, px, py);
     if ((this.fx === 'rang' || this.fx === 'chakram') && drawFlyingRang(ctx, this)) return; // the 3D boomerang
     if (this.fx === 'tshield' && drawLancerThrownShield(ctx, this)) return; // the Lancer's spinning 3D shield
@@ -526,6 +527,7 @@ export class Orbit {
       for (const [x, y, a] of this.pos) drawRang3D(ctx, isoX(x, y), isoY(x, y) - 26, { skin: sk, size: this.size, spin: this.t * 15, head: groundHeading(-Math.sin(a), Math.cos(a)), bank: 0.3, lift: 26 });
       return;
     }
+    if (this.fx === 'shuriken') for (const [x, y] of this.pos) drawStarShadow(ctx, isoX(x, y), isoY(x, y), 24, this.size, this.t);
     const each = this.fx === 'planet' || this.fx === 'zodiac' || this.fx === 'accretion'; // the Astronomer's orbiters differ one by one
     this.pos.forEach(([x, y, a], i) => drawShape(ctx, this.fx, isoX(x, y), isoY(x, y) - 24, screenAngle(a + Math.PI / 2), this.size, this.E, this.t, each ? { i } : this.o));
   }
@@ -651,12 +653,14 @@ export class Leap {
     this.E = elem(this.el);
     this.src.channel = this;
     this.sx = this.src.x; this.sy = this.src.y;
-    const d = dist(this.sx, this.sy, this.tx, this.ty);
+    const d = dist(this.sx, this.sy, this.tx, this.ty), map = this.world.map;
     // clamp landing to floor along the path
     const a = angleTo(this.sx, this.sy, this.tx, this.ty);
     let best = 0;
-    for (let s = 0; s <= d; s += 0.2) if (this.world.map.walkable(this.sx + Math.cos(a) * s, this.sy + Math.sin(a) * s)) best = s;
+    for (let s = 0; s <= d; s += 0.2) if (map.walkable(this.sx + Math.cos(a) * s, this.sy + Math.sin(a) * s)) best = s;
     this.tx = this.sx + Math.cos(a) * best; this.ty = this.sy + Math.sin(a) * best;
+    // a Sheer Drop: it clears any gap on the way, and comes down with its whole body on floor, never over the drop
+    if (map.sheer) { const f = map.nearestFloor(this.tx, this.ty, 0.3, 1.5); if (f) [this.tx, this.ty] = f; }
     this.src.face(a);
     this.src.invuln = this.dur;
   }
@@ -667,6 +671,7 @@ export class Leap {
     const k = (this.k = Math.min(1, this.t / this.dur));
     s.x = this.sx + (this.tx - this.sx) * k; s.y = this.sy + (this.ty - this.sy) * k;
     s.z = 4 * (this.fx === 'dragon' || this.fx === 'meteor' ? 120 : 70) * k * (1 - k);
+    s.leaping = k < 1; // in the air over a Sheer Drop's gaps (game/sheer.js)
     if (!this.lance && chance(dt * 30)) trail(this.fx === 'dragon' || this.fx === 'meteor' ? 'fireball' : 'bolt', s.x, s.y, s.z + 20, this.E, dt);
     if (k >= 1) {
       s.z = 0; s.channel = null; this.done = true;
@@ -991,6 +996,7 @@ export class Rain {
       const k = f.z / 300;
       const x = f.x + f.ox * k * 0.5, y = f.y + f.ox * k * 0.5;
       if (this.fx?.startsWith('n_')) bardRainDraw(ctx, this, f, x, y);
+      if (this.fx === 'shuriken') drawStarShadow(ctx, isoX(x, y), isoY(x, y), f.z, 1, this.t);
       drawShape(ctx, this.fx === 'ice' ? 'shard' : this.fx === 'acid' ? 'blob' : this.fx, isoX(x, y), isoY(x, y) - f.z, Math.PI / 2 + 0.25, this.fx === 'meteor' ? 0.9 : 1, this.E, this.t, this.o);
     }
   }

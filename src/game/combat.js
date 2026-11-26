@@ -23,6 +23,7 @@ import { SKILLS } from '../data/skills.js';
 import { skillMorphFor } from '../data/talents.js';
 import { DuelManager, isDuelTarget } from './duel.js';
 import { EXTRA_AFFIX_DEATHS } from './affixcatalogruntime.js';
+import { uniqueDamageAfterDefense } from './uniqueBalance.js';
 
 const PLAYER_RES = { fire: 'fire', cold: 'cold', light: 'light', poison: 'poison', acid: 'poison' };
 const LEECH_K = 2; // life/mana leech: a whole monster's life taken returns LEECH_K x leech% of the hero's own
@@ -152,6 +153,7 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
         floatText(tgt.x, tgt.y, 38, 'Dodged', '#d9e8f2', 12);
         return 0;
       }
+      const dmgBeforeDefense = dmg;
       let res = (tgt.res && tgt.res[el === 'astral' ? 'arcane' : el]) || 0;
       if (el === 'arcane' || el === 'astral') res *= 0.5;
       dmg *= 1 - clamp(res, -1, 0.9);
@@ -165,6 +167,7 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
         }
       }
       if (tgt.dmgReduce) dmg *= 1 - clamp(tgt.dmgReduce, 0, 0.75);
+      dmg = uniqueDamageAfterDefense(tgt.rank, dmgBeforeDefense, dmg);
       if (el === 'holy' && (tgt.undead || tgt.demon)) dmg *= 1.5;
       const C = tgt.curses || {};
       if (C.amp && C.amp.t > 0) dmg *= 1 + C.amp.amt / 100;
@@ -694,7 +697,7 @@ export function kill(tgt, src, info = {}) {
   const big = tgt.r > 0.45 || tgt.rank === 'boss';
   const overkill = info.overkill > 0.5 || info.aoe && info.overkill > 0.25 || (info.crit && info.overkill > 0.3);
   const goreMul = G.settings.gore === 2 ? 1.4 : 1;
-  if (G.settings.gore > 0) {
+  if (G.settings.gore > 0 && !info.fell) { // (a fall into a Sheer Drop leaves nothing on the brink: game/sheer.js)
     bloodSpray(tgt.x, tgt.y, 26, src ? angleTo(src.x, src.y, tgt.x, tgt.y) : rand(TAU), Math.round((big ? 40 : 22) * goreMul), blood, big ? 1.6 : 1.2);
     if (overkill || big || chance(0.35)) {
       gibs(tgt.x, tgt.y, 16, Math.round((overkill ? 14 : 6) * (big ? 1.8 : 1)), gore.gib || shade3(blood), gore.bones ? '#e8dcc0' : '#d8ccb0', overkill ? 1.4 : 1, gibSets(tgt),
@@ -702,8 +705,8 @@ export function kill(tgt, src, info = {}) {
     }
     if (gore.blood !== '#ffcc40') addDecal(tgt.x, tgt.y, blood, (big ? 1.1 : 0.7) * rand(0.8, 1.2), 'pool', 0.92);
   }
-  sfx(gore.bones ? 'bones' : overkill ? 'gore' : 'squish', 0.8);
-  if (!overkill && tgt.sprite && world && world.corpses) world.corpses.push({ x: tgt.x, y: tgt.y, sprite: tgt.sprite, pal: tgt.pal, art: tgt.art, swap: tgt.swap, artH: tgt.artH, px: tgt.px, scale: tgt.scale, flip: tgt.flip, t: 0, maxHp: tgt.maxHp, arch: tgt.arch, level: tgt.level, fly: tgt.fly });
+  if (!info.fell) sfx(gore.bones ? 'bones' : overkill ? 'gore' : 'squish', 0.8);
+  if (!overkill && !info.fell && tgt.sprite && world && world.corpses) world.corpses.push({ x: tgt.x, y: tgt.y, sprite: tgt.sprite, pal: tgt.pal, art: tgt.art, swap: tgt.swap, artH: tgt.artH, px: tgt.px, scale: tgt.scale, flip: tgt.flip, t: 0, maxHp: tgt.maxHp, arch: tgt.arch, level: tgt.level, fly: tgt.fly });
   // elite death affix
   if (tgt.affixes && tgt.affixes.includes('fiery')) {
     explosionFx(tgt.x, tgt.y, 1.6, 'fire', 'explosion');

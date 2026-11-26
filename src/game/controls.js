@@ -99,6 +99,8 @@ export const controls = {
     G.hover = useMouse && mouse.inside ? creatureAt(mouse.x, mouse.y) : null;
     if (G.hover && G.hover.team === 'player' && !isDuelTarget(G.hover)) G.hover = null;
     if (p.dead || blocked) {
+      this.leftCombatPress = false;
+      this.rightShiftPress = false;
       p.moveVec = [0, 0];
       p.moveTarget = null;
       p.path = null;
@@ -135,43 +137,61 @@ export const controls = {
     }
 
     // ---- mouse
+    if (!mouse.left) this.leftCombatPress = false;
+    if (!mouse.right) this.rightShiftPress = false;
     if (useMouse && !G.touch) {
       const [tx, ty] = camera.screenToTile(mouse.x, mouse.y);
+      const shift = input.down('ShiftLeft') || input.down('ShiftRight');
+      const hoverHostile = G.hover && (G.hover.team === 'enemy' || isDuelTarget(G.hover));
       if (mouse.leftPressed) {
         this.holdLeft = 0;
-        const loot = lootAt(mouse.x, mouse.y);
-        const it = interactableAt(tx, ty, mouse.x, mouse.y);
-        const shift = input.down('ShiftLeft') || input.down('ShiftRight');
-        if (loot) { p.lootTarget = loot; p.interact = null; p.attackTarget = null; p.setMoveTarget(loot.x, loot.y); this.mode = 'loot'; }
-        else if (G.hover && (G.hover.team === 'enemy' || isDuelTarget(G.hover))) { this.mode = 'attack'; this.attack(G.hover, tx, ty); }
-        else if (it && !shift) { this.mode = 'interact'; p.attackTarget = null; p.interact = it; }
-        else if (shift) { this.mode = 'attack'; this.useSlot(0, [tx, ty]); }
-        else { this.mode = 'move'; p.attackTarget = null; p.interact = null; p.setMoveTarget(tx, ty); }
+        this.leftCombatPress = shift;
+        if (shift) {
+          // Shift-click is an explicit combat command: prioritize attack over ground loot
+          p.lootTarget = null; p.interact = null; p.moveTarget = null; p.path = null; p.attackTarget = null;
+          this.mode = 'attack';
+          if (hoverHostile) this.attack(G.hover, tx, ty);
+          else this.useSlot(0, [tx, ty]);
+        } else {
+          const loot = lootAt(mouse.x, mouse.y);
+          const it = interactableAt(tx, ty, mouse.x, mouse.y);
+          if (loot) { p.lootTarget = loot; p.interact = null; p.attackTarget = null; p.setMoveTarget(loot.x, loot.y); this.mode = 'loot'; }
+          else if (hoverHostile) { this.mode = 'attack'; this.leftCombatPress = true; this.attack(G.hover, tx, ty); }
+          else if (it) { this.mode = 'interact'; p.attackTarget = null; p.interact = it; }
+          else { this.mode = 'move'; p.attackTarget = null; p.interact = null; p.setMoveTarget(tx, ty); }
+        }
       } else if (mouse.left) {
         this.holdLeft += dt;
-        if (this.mode === 'move' && this.holdLeft > 0.12) {
-          if (G.hover && (G.hover.team === 'enemy' || isDuelTarget(G.hover)) && this.holdLeft > 0.4) { this.mode = 'attack'; }
+        if (this.leftCombatPress) {
+          if (this.mode === 'attack' && p.castLock <= 0 && !p.attackTarget && !isMovementSkill(SKILLS[G.char.bar[0]])) {
+            if (hoverHostile) this.attack(G.hover, tx, ty);
+            else this.useSlot(0, [tx, ty]);
+          }
+        } else if (this.mode === 'move' && this.holdLeft > 0.12) {
+          if (hoverHostile && this.holdLeft > 0.4) { this.mode = 'attack'; this.leftCombatPress = true; }
           else if (!p.moveTarget || dist(p.moveTarget[0], p.moveTarget[1], tx, ty) > 0.6) p.setMoveTarget(tx, ty);
         } else if (this.mode === 'attack' && p.castLock <= 0 && !p.attackTarget && !isMovementSkill(SKILLS[G.char.bar[0]])) {
-          if (G.hover && (G.hover.team === 'enemy' || isDuelTarget(G.hover))) this.attack(G.hover, tx, ty);
-          else if (input.down('ShiftLeft') || input.down('ShiftRight')) this.useSlot(0, [tx, ty]);
+          if (hoverHostile) this.attack(G.hover, tx, ty);
           else this.useSlot(0, [tx, ty]);
         }
       }
       const rmbId = G.char.bar[RMB];
       const rmbSk = rmbId && SKILLS[rmbId];
       if (mouse.rightPressed || (mouse.right && p.castLock <= 0 && !isMovementSkill(rmbSk))) {
+        if (mouse.rightPressed) this.rightShiftPress = shift;
         if (G.world?.kind === 'town') {
           const rp = remotePlayerAt(mouse.x, mouse.y);
           if (rp && !rp.isDuelOpponent) {
             mouse.rightPressed = false;
             mouse.right = false;
             openPlayerContextMenu(rp, mouse.x, mouse.y);
-          } else {
-            if (rmbId) { p.moveTarget = null; this.useSlotAt(RMB, tx, ty); }
+          } else if (rmbId) {
+            if (this.rightShiftPress) { p.lootTarget = null; p.interact = null; p.moveTarget = null; p.path = null; p.attackTarget = null; this.mode = 'attack'; }
+            p.moveTarget = null; this.useSlotAt(RMB, tx, ty);
           }
-        } else {
-          if (rmbId) { p.moveTarget = null; this.useSlotAt(RMB, tx, ty); }
+        } else if (rmbId) {
+          if (this.rightShiftPress) { p.lootTarget = null; p.interact = null; p.moveTarget = null; p.path = null; p.attackTarget = null; this.mode = 'attack'; }
+          p.moveTarget = null; this.useSlotAt(RMB, tx, ty);
         }
       }
     }

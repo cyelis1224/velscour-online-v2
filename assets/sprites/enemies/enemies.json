@@ -1,4 +1,17 @@
 {
+ "special/mimic": {
+  "file": "mimic.webp",
+  "cells": [
+   {
+    "x": 0,
+    "y": 0,
+    "w": 384,
+    "h": 341,
+    "fx": 192,
+    "oh": 341
+   }
+  ]
+ },
  "familiars/blue_01": {
   "file": "familiars_blue_01.webp",
   "cells": [
