@@ -2,6 +2,7 @@
 import { G } from '../state.js';
 import { net } from '../net/network.js';
 import { emptyEquipSlot } from './autoequip.js';
+import { keepGold, keepItem, keepPotion, keepBonuses, keepLevel } from './keep.js';
 import { rand, chance, clamp, angleTo, dist, TAU, fmtInt } from '../core/util.js';
 import { sfx, levelUpFanfare } from '../core/audio.js';
 import { camera } from '../core/view.js';
@@ -140,7 +141,7 @@ export class Player extends Creature {
     const hb = heroBonus(c);
     buffDmg += hb.dmg; buffLife += hb.life; buffReduce += hb.reduce; buffMf += hb.mf + (this.codexMf = codexMf()); buffGf += hb.gf; buffXp += hb.xp;
     // the Endgame (docs/ENDGAME.md): Infernal Marks (every hero's) and the Glass Cannon Heresy (this hero's)
-    const mk = this.marks = markBonuses(), hh = heresyHero(c);
+    const mk = this.marks = markBonuses(), hh = heresyHero(c), kb = keepBonuses(c); // kb: Tessariel's Keep's Renown and Kindled (game/keep.js)
     buffLife += hh.life; buffDmg += hh.dmg; // (Marks' life multiplies maxHp below; their Fortune is st.drops, game/loot.js)
     const attr = (k) => c.attrs[k] + (add[k] || 0) + (add.allAttr || 0);
     const str = attr('str'), dex = attr('dex'), vit = attr('vit'), int = attr('int');
@@ -167,10 +168,10 @@ export class Player extends Creature {
       // on the shown scale (combat.js), x Fortitude like life: one affix kills a normal in ~40 reflected blows at any depth,
       // a thorns buff (Vengeance Aura...) in ~8-16 (it was level x 0.2 against raw life: nothing past the first depths)
       thorns: ((add.thorns || 0) + buffThorns * c.level * 0.03) * fortitude(c.level),
-      goldFind: (add.goldFind || 0) + buffGf,
-      magicFind: (add.magicFind || 0) + buffMf,
+      goldFind: (add.goldFind || 0) + buffGf + kb.gf,
+      magicFind: (add.magicFind || 0) + buffMf + kb.mf,
       drops: mk.mf,
-      xpPct: (add.xpPct || 0) + buffXp,
+      xpPct: (add.xpPct || 0) + buffXp + kb.xp,
       reduce: Math.min(60, (add.reduce || 0) + buffReduce),
       fortitude: fortitude(c.level),
       cdr: Math.min(60, (add.cdr || 0) + buffCdr / 2),
@@ -328,10 +329,12 @@ export class Player extends Creature {
     const gain = Math.round(n * pen * (1 + this.st.xpPct / 100));
     if (c.level >= MAX_LEVEL) { gainMarkXp(gain); return; } // at the cap XP becomes Infernal Marks (game/marks.js)
     c.xp += gain;
+    const was = c.level;
     while (c.level < MAX_LEVEL && c.xp >= xpToNext(c.level)) {
       c.xp -= xpToNext(c.level);
       this.levelUp();
     }
+    if (c.level > was) keepLevel(c);   // Tessariel's Keep: the Sagas and deeds that read the hero's level
     if (c.level >= MAX_LEVEL && c.xp > 0) { gainMarkXp(c.xp); c.xp = 0; } // the last level's spare XP counts too
   }
   levelUp() {
@@ -431,7 +434,7 @@ export class Player extends Creature {
     const c = this.char;
     switch (g.kind) {
       case 'gold':
-        c.gold += g.amount; sfx('gold');
+        c.gold += g.amount; sfx('gold'); keepGold(g.amount);
         floatText(this.x, this.y, 46, `+${fmtInt(g.amount)} gold`, '#ffd34a', 12);
         if (G.room && g.lootId) net.sendLootPickup(g.lootId);
         G.ui && G.ui.refresh();
@@ -481,6 +484,7 @@ export class Player extends Creature {
         const slot = G.settings.autoEquip !== false ? emptyEquipSlot(c, g.item) : null;
         if (slot) {
           noteFind(g.item);
+          keepItem(g.item); // Tessariel's Keep counts the finds (game/keep.js)
           c.equip[slot] = g.item;
           this.recompute();
           if (G.game) {
@@ -498,11 +502,14 @@ export class Player extends Creature {
             sfx('error');
           }
           return false;
-        } else if (G.game) {
-          if ((g.item.rarity || 0) >= 3 || g.item.legendary || g.item.sealed) {
-            G.game.autosave();
-          } else if (G.game.autosaveSoon) {
-            G.game.autosaveSoon(1500);
+        } else {
+          keepItem(g.item); // Tessariel's Keep counts the finds (game/keep.js)
+          if (G.game) {
+            if ((g.item.rarity || 0) >= 3 || g.item.legendary || g.item.sealed) {
+              G.game.autosave();
+            } else if (G.game.autosaveSoon) {
+              G.game.autosaveSoon(1500);
+            }
           }
         }
         sfx('pickup');
@@ -521,6 +528,7 @@ export class Player extends Creature {
     if (!c.potions[kind]) { floatText(this.x, this.y, 50, 'No potions', '#ccc', 11); sfx('error'); return; }
     c.potions[kind]--;
     this.potionCd = 0.9;
+    keepPotion();
     sfx('potion');
     switch (kind) {
       case 'hp': this.potionRegen.push({ hp: this.maxHp * 0.45 / 2, mp: 0, t: 2 }); break;

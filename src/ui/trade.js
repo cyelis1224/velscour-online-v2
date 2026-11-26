@@ -262,6 +262,11 @@ class TradeManagerClass {
       sfx('error');
       return false;
     }
+    if (it.accountBound || it.heirloom) {
+      UI.log('Account-bound items cannot be traded.', '#ff8080');
+      sfx('error');
+      return false;
+    }
 
     // Check if already in offer
     const alreadyIdx = this.activeTrade.myOffer.items.findIndex((item) => item && item.bagIndex === dragData.idx);
@@ -284,6 +289,11 @@ class TradeManagerClass {
     if (!it) return false;
     if (it.locked) {
       UI.log('Item is locked. Unlock it before trading.', '#ffd34a');
+      sfx('error');
+      return false;
+    }
+    if (it.accountBound || it.heirloom) {
+      UI.log('Account-bound items cannot be traded.', '#ff8080');
       sfx('error');
       return false;
     }

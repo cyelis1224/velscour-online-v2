@@ -33,8 +33,13 @@ import { heresyRankOf } from './heresies.js';
 import { DuelManager } from './duel.js';
 import { addLight } from '../gfx/vfx.js';
 import { drawHeresyAltar } from '../gfx/heresyaltar.js';
-import { drawTerrain, drawColumn, occludersFor, occludersOfRect, occluderObj, clipAdd, hiddenBehind, standKey, hopZ, drawSky, terrainShade, HS } from '../gfx/terrain.js';
+import { terrainOf, drawTerrain, drawColumn, occludersFor, occludersOfRect, occluderObj, clipAdd, hiddenBehind, standKey, hopZ, drawSky, terrainShade, HS } from '../gfx/terrain.js';
 import { hopArc } from './alpine.js';
+import { drawKeepGate } from '../gfx/keepgate.js';
+import { drawLightShafts } from '../gfx/keepart.js';
+import { drawKeepHero, folkMark } from './keepfolk.js';
+import { drawKeepNpc } from './keepgame.js';
+import { castellanMark } from './keep.js';
 
 let lightCanvas = null, glowCanvas = null, vignette = null, vigKey = '';
 const transitionSprites = new Map();
@@ -256,6 +261,7 @@ function drawProp(ctx, pr, alpha) {
     const s = pr.spr, w = s.w * pr.k, h = s.h * pr.k, dy = y + s.oy * pr.k;
     if (pr.flip) { ctx.save(); ctx.translate(x, 0); ctx.scale(-1, 1); ctx.drawImage(s.img, s.sx, s.sy, s.w, s.h, s.ox * pr.k, dy, w, h); ctx.restore(); }
     else ctx.drawImage(s.img, s.sx, s.sy, s.w, s.h, x + s.ox * pr.k, dy, w, h);
+    if (pr.fx) pr.fx(ctx, x, y, G.time);   // Tessariel's Keep: live flames on its braziers, candles and chandeliers
   } else if (pr.sprite) {
     const img = pr._img || (pr._img = pixelSprite(pr.sprite, pr.pal || {}, 4));
     const px = pr.px || 2.4;
@@ -398,6 +404,7 @@ function drawScenarioGlyph(ctx, p) {
 function drawPortal(ctx, p) {
   if (p.skygate) return drawSkyGate(ctx, p);
   if (p.seagate) return; // the Pirate Seas: the Dawnwake's bell-tower door is the portal, in three.js (gfx/seabattle3d.js)
+  if (p.keepGate) return drawKeepGate(ctx, p);
   if (p.type === 'objective' && G.cine && G.world && G.world.seaRun) return; // the Pirate Seas: no gameplay marks in a cut scene
   if (p.type === 'shrine' || p.type === 'objective') return drawScenarioGlyph(ctx, p);
   const x = isoX(p.x, p.y), y = isoY(p.x, p.y);
@@ -691,6 +698,14 @@ function occludeStatic(o, r, x = o.x, y = o.y, live = false) {
   }
 }
 
+/** Does column i's screen box cover the hero's view (views[0], render's see-through list)? */
+function heroUnder(map, i, views) {
+  const v = views[0];
+  if (!v || !v.hero) return false;
+  const b = terrainOf(map).box, k = i * 4;
+  return v.x + v.hw > b[k] && v.x - v.hw < b[k + 2] && v.y1 > b[k + 1] && v.y0 < b[k + 3];
+}
+
 /** Main world render. */
 // the Castle's roofs: each building's whole roof eases out while the hero is inside it and back in once they leave
 // (real time, so it reads the same at auto-play speed); a[bld] is that roof's opacity
@@ -964,7 +979,8 @@ export function renderWorld(ctx, world) {
           drawProp(ctx, o, Math.min(ra, hides([rx, ry, s.w * o.k, s.h * o.k], it.d) ? 0.32 : 1));
           break;
         }
-        if (!o.c3move && (o.spr || (o.sprite === 'tree' || o.sprite === 'pine'))) {
+        if (o.alpha != null) a = o.alpha;   // the keep's uncarved Elders: a shade on the plinth
+        else if (!o.c3move && !o.noHide && (o.spr || (o.sprite === 'tree' || o.sprite === 'pine'))) {
           const px = isoX(o.x, o.y), py = isoY(o.x, o.y);
           for (const v of views) {
             const fy = v.y1 + 4;
@@ -1029,7 +1045,11 @@ export function renderWorld(ctx, world) {
         // spill over neighbours in front that aren't redrawn)
         const c = o.clip;
         if (c) { ctx.save(); ctx.beginPath(); ctx.rect(c[0], c[1], c[2] - c[0], c[3] - c[1]); ctx.clip(); }
+        // Tessariel's Keep: its front balconies go see-through where they stand over the hero (world/keepworld.js cutFront)
+        const cut = map.cutFront && map.cutFront[o.ti] && heroUnder(map, o.ti, views);
+        if (cut) ctx.globalAlpha = 0.3;
         drawColumn(ctx, world, o.ti, floorEntry, map.castleMat ? castleDress : null, !!o.over);
+        if (cut) ctx.globalAlpha = 1;
         if (c) ctx.restore();
         break;
       }
@@ -1044,6 +1064,7 @@ export function renderWorld(ctx, world) {
     ctx.globalAlpha = 1;
   }
   if (world.tower) world.tower.front(ctx); // the tower's railings and chandeliers over whoever stands behind them
+  if (world.keep) drawLightShafts(ctx, world, G.time); // Tessariel's Keep: the stained glass's light down into the hall
   if (G.debugWalk) {
     // test shots only: blocked tiles red and the tiles a test points at (G.debugMarks) cyan, to check art against collision
     const tile = (tx, ty, c) => {
@@ -1142,7 +1163,7 @@ function drawWallBases(oc, map, camT, tx0, ty0, tx1, ty1) {
 /** Shading on the perimeter of the map so the world fades seamlessly into the black void. */
 function drawMapEdgeFade(ctx, world, camT, tx0, ty0, tx1, ty1) {
   const map = world.map;
-  if (!map || world.tower || world.cave || world.sky || map.voidFace) return;
+  if (!map || world.tower || world.cave || world.sky || world.keep || map.voidFace) return;   // (Tessariel's Keep: its back walls stand where the fade would fall)
   if (world.kind === 'dungeon' && !world.biome?.overworld) return;
   const W = map.w, H = map.h;
   const F = 6; // fade width in tiles
@@ -1361,14 +1382,45 @@ function drawOverheadNames(ctx, world) {
   // townsfolk names: only the one nearest the hero (a crowd of labels hides the crowd)
   const hero = world.player;
   let nearest = null, nd = 2.6;
-  if (hero) for (const n of world.npcs) if (!n.vendor && !n.stash && !n.altar && !n.hidden && n.sbox) { const q = Math.hypot(hero.x - n.x, hero.y - n.y); if (q < nd) { nd = q; nearest = n; } }
+  if (hero) for (const n of world.npcs) if (!n.vendor && !n.stash && !n.altar && !n.hidden && !n.decorSlot && n.sbox) { const q = Math.hypot(hero.x - n.x, hero.y - n.y); if (q < nd) { nd = q; nearest = n; } }
+  if (world.keep) {
+    // Tessariel's Keep: a plate under every hero of yours' name, faint names on the stations, the Castellan's mark
+    const small = `600 ${Math.round(9.5 * d)}px "Alegreya Sans", sans-serif`;
+    for (const n of world.npcs) {
+      if (!n.sbox || n.hidden) continue;
+      const [sx, sy] = camera.toScreen((n.sbox[0] + n.sbox[2]) / 2, n.sbox[1] - 10);
+      if (n.keepHero && !(n.talkT > 0)) {
+        if (n !== nearest) drawLabel(ctx, n.name, sx * d, sy * d, nameFont, '#e8d8a0', 3 * d);
+        drawLabel(ctx, n.plate, sx * d, (sy + 11) * d, small, '#a8a088', 2 * d);
+      } else if (n.keepMarker && n.pedestal == null && !n.decorSlot && n !== nearest) {
+        ctx.globalAlpha = 0.62; drawLabel(ctx, n.name, sx * d, sy * d, nameFont, '#d8c890', 3 * d); ctx.globalAlpha = 1;
+      } else if (n.keepFlame && n !== nearest) {
+        ctx.globalAlpha = 0.7; drawLabel(ctx, n.name, sx * d, sy * d, nameFont, '#d8f080', 3 * d); ctx.globalAlpha = 1;
+      }
+      if (n.keepFolk && !(n.talkT > 0)) {   // the keep's folk: who they are, always (the Sagas name their givers)
+        if (n !== nearest) drawLabel(ctx, n.name, sx * d, sy * d, nameFont, '#d8d0b8', 3 * d);
+        drawLabel(ctx, n.role, sx * d, (sy + 11) * d, small, '#a8a088', 2 * d);
+      }
+      if (n.keepCastellan || n.keepFolk) {
+        const mark = n.keepCastellan ? castellanMark() : folkMark(n);
+        if (mark) {   // a gold "!" (rewards wait) or a green "?" (a Saga to take up), bobbing over her
+          const by = (sy - (n.talkT > 0 ? 62 : 26) + Math.sin(G.time * 3.2) * 3) * d, col = '#ffd24a';
+          ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.5 + Math.sin(G.time * 3.2) * 0.15;
+          ctx.drawImage(glowSprite(col), sx * d - 22 * d, by - 26 * d, 44 * d, 44 * d); ctx.restore();
+          drawLabel(ctx, mark === 'claim' ? '?' : '!', sx * d, by,   // as quest hubs have it: "!" a quest to take up, "?" one to hand in
+            `900 ${Math.round(26 * d)}px Cinzel, Georgia, serif`, col, 4 * d);
+        }
+      }
+    }
+  }
   for (const n of world.npcs) {
     if (!n.sbox || n.hidden) continue;
-    if (!n.vendor && !n.stash && !n.altar && (n !== nearest || n.talkT > 0)) continue;
+    if (!n.vendor && !n.stash && !n.altar && !n.keepCastellan && (n !== nearest || n.talkT > 0)) continue;
     const x = (n.sbox[0] + n.sbox[2]) / 2;
     const [sx, sy] = camera.toScreen(x, n.sbox[1] - 10);
     const label = n.vendor ? n.vendor.name : n.name;
-    if (label) drawLabel(ctx, label, sx * d, sy * d, nameFont, n.altar ? '#ff8060' : n.vendor || n.stash ? '#ffe090' : '#c8c0b0', 3 * d);
+    if (label) drawLabel(ctx, label, sx * d, sy * d, nameFont, n.altar ? '#ff8060' : n.keepCastellan || n.keepFlame ? '#d8f080' : n.keepHero ? '#ffe9a8' : n.vendor || n.stash ? '#ffe090' : '#c8c0b0', 3 * d);
+    if (n.keepCastellan && n.title) drawLabel(ctx, 'Keeper of the Flame', sx * d, (sy + 12) * d, `${Math.round(10 * d)}px "Alegreya Sans", sans-serif`, '#b0b080', 0);
     if (n.vendor && n.vendor.title) drawLabel(ctx, n.vendor.title, sx * d, (sy + 12) * d, `${Math.round(10 * d)}px "Alegreya Sans", sans-serif`, '#b0a080', 0);
   }
   // portal labels
@@ -1440,7 +1492,16 @@ export function drawMinimap(world, dt, canvas, big = false) {
   const dot = (x, y, col, r) => { const [sx, sy] = toS(x, y); c.fillStyle = col; c.beginPath(); c.arc(sx, sy + s * 0.3, r, 0, TAU); c.fill(); };
   for (const po of world.portals) if (map.seen[Math.floor(po.y) * map.w + Math.floor(po.x)] || world.kind === 'town') dot(po.x, po.y, po.active ? po.color || '#ff5020' : '#888', big ? 6 : 4);
   for (const ch of world.chests) if (!ch.opened && map.seen[Math.floor(ch.y) * map.w + Math.floor(ch.x)]) dot(ch.x, ch.y, ch.dot || '#ffd040', big ? 4 : 2.5);
-  for (const n of world.npcs) dot(n.x, n.y, '#ffe090', big ? 4 : 2.5);
+  if (world.keep) {   // Tessariel's Keep: the Flame, the Castellan (pulsing when she has something for the hero), your heroes; not every pedestal
+    for (const n of world.npcs) {
+      if (n.hidden || n.pedestal != null || n.decorSlot) continue;
+      if (n.keepFlame) dot(n.x, n.y, '#8cff5a', big ? 6 : 4);
+      else if (n.keepCastellan) { const mk = castellanMark(); dot(n.x, n.y, mk ? '#ffd24a' : '#ffe090', (big ? 5 : 3.2) + (mk ? Math.sin(G.time * 4) * 1 + 1 : 0)); }
+      else if (n.keepHero) dot(n.x, n.y, '#e8d8a0', big ? 3.5 : 2.2);
+      else if (n.keepFolk && folkMark(n)) dot(n.x, n.y, '#b8f060', big ? 4.5 : 3);
+      else dot(n.x, n.y, n.keepFolk ? '#a8a088' : '#ffe090', big ? 3 : 2);
+    }
+  } else for (const n of world.npcs) dot(n.x, n.y, '#ffe090', big ? 4 : 2.5);
   for (const m of world.creatures) {
     if (m.dead || m === p || m.clutter) continue;
     const d = Math.hypot(m.x - p.x, m.y - p.y);
