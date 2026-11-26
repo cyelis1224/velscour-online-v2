@@ -13,6 +13,7 @@ import { savedGearPreview, heroPortrait, heroLook, loadGearArt, characterPaperdo
 import { heldPortraitArgs, loadHeld } from '../gfx/heldart.js';
 import { attachTitleFx } from './titlefx.js';
 import { creditsScreen } from './credits.js';
+import { openCustomizeUI } from './layoutcustomizer.js';
 import { RARITY, shownEquip, SLOTS, SLOT_NAMES } from '../data/items.js';
 import { DOLL } from './inventory.js';
 import { itemCell, rarityClass, itemTooltip } from './itemui.js';
@@ -1327,6 +1328,7 @@ export function settingsDialog() {
       <label>Hide dropped item names</label><input type="checkbox" data-k="hideItemNames" ${st.hideItemNames ? 'checked' : ''}>
       <label title="Off: the best drops are named first and lesser ones only close by, so a big fight's loot doesn't bury the screen; hover any item for its name">Show every item name</label><input type="checkbox" data-k="allItemNames" ${st.allItemNames ? 'checked' : ''}>
       <label>Standard skill bar on mobile (landscape)</label><input type="checkbox" data-k="mobileSkillBar" ${st.mobileSkillBar !== false ? 'checked' : ''}>
+      <label title="Drag, resize, hide, and save profiles for HUD elements">HUD &amp; UI Layout</label><button class="btn small" data-customize-ui>Customize UI</button>
     </div>
   </div>
   <div class="settings-tab-pane" data-pane="autoplay">
@@ -1358,6 +1360,8 @@ export function settingsDialog() {
   d.box.querySelector('[data-k=gore]').value = String(st.gore ?? 0);
   d.box.querySelector('[data-k=fpsCap]').value = String(st.fpsCap ?? 30);
   d.box.querySelector('[data-backups]').onclick = () => { sfx('ui'); backupsDialog(); };
+  const cui = d.box.querySelector('[data-customize-ui]');
+  if (cui) cui.onclick = () => { sfx('ui'); d.close(); openCustomizeUI(); };
   const ub = d.box.querySelector('[data-check-update]');
   if (ub) {
     ub.onclick = async () => {
@@ -1487,6 +1491,7 @@ export function pauseMenu() {
       { label: 'Resume' },
       { label: 'Settings', fn: settingsDialog },
       { label: 'Macros', fn: () => G.ui.macros.open() },
+      { label: 'Customize UI', keepOpen: true, fn: () => openCustomizeUI() },
       // { label: 'Classes', fn: () => window.open('classes.html', '_blank') },
       // { label: 'Bestiary', fn: () => window.open('bestiary.html', '_blank') },
       { label: 'How to Play', fn: helpDialog },

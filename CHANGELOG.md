@@ -27,8 +27,6 @@ All notable changes to Velscour Online are documented in this file.
   - Fixed Paladin Blessed Shield multiplayer rendering & duel self-hit, PvP duel rematch invulnerability, 3-player duel isolation, duel "ghost" summons, and Totem Master Ancestral Bolt PvP homing.
   - Applied Unique & Champion durability tuning plus co-op party HP scaling (`1 + 0.45 * (partySize - 1)`), 95% natural Sigil drop rate tuning + one-per-level cap, hit-stop slow-motion fix, and Shift-attack priority over ground loot.
 
----
-
 ## [0.3.0] - 2026-11-20
 
 ### Added

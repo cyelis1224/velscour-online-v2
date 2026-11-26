@@ -4,9 +4,9 @@ import { MANA_POOL_COLORS, manaPoolColor } from '../data/mana-pool-colors.js';
 // this liquid circle are transformed; frames, labels, and adjacent HUD art stay intact.
 export const MANA_ART_GEOMETRY = Object.freeze({
   // Include the narrow blue edge visible around the glass, while staying inside
-  // the gold bezel. The CSS orb cover and its display dimensions are unchanged.
-  'assets/ui/hud.webp': Object.freeze({ cx: 1768, cy: 144, radius: 99 }),
-  'assets/ui/hud-orb-mana.webp': Object.freeze({ cx: 115, cy: 144, radius: 99 }),
+  // the gold bezel (aligned to assets/ui/hud.json: orbs[1] cx=1845, cy=144, r=93).
+  'assets/ui/hud.webp': Object.freeze({ cx: 1845, cy: 144, radius: 97 }),
+  'assets/ui/hud-orb-mana.webp': Object.freeze({ cx: 115, cy: 144, radius: 97 }),
 });
 
 const SOURCE_SATURATION = 0.7273; // Royal Blue #4169E1

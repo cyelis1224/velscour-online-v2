@@ -390,8 +390,21 @@ export const HUD = {
       }
       this.placeOrbs(A.hudGeo);
 
-      if (xp) xp.removeAttribute('style');
+      if (xp) {
+        xp.removeAttribute('style');
+        const g = A.hudGeo;
+        if (g?.xp) {
+          const pct = (a, b) => (a / b * 100).toFixed(3) + '%';
+          xp.style.left = pct(g.xp.x, g.w);
+          xp.style.width = pct(g.xp.w, g.w);
+          xp.style.top = pct(g.xp.y, g.h);
+          xp.style.height = pct(g.xp.h, g.h);
+        }
+      }
       if (xpText) xpText.removeAttribute('style');
+      if (G.player?.classId) {
+        applyManaTexture(img, 'assets/ui/hud.webp', G.player.classId);
+      }
       const gaugeBox = $('#gauge-box');
       if (gaugeBox) {
         gaugeBox.style.top = '';

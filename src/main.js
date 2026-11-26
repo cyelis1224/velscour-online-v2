@@ -8,6 +8,7 @@ import { loadEnemyArt, loadPetArt } from './core/enemyart.js';
 import { rand, TAU, rasterSprites, rasterFallback, rasterFallbackOn } from './core/util.js';
 import { UI, $ } from './ui/ui.js';
 import { HUD } from './ui/hud.js';
+import { applyUILayoutSettings } from './ui/layoutcustomizer.js';
 import { TouchUI } from './ui/touch.js';
 import { GameChat } from './ui/chat.js';
 import { LoadingScreen } from './ui/loading.js';
@@ -438,6 +439,7 @@ async function boot() {
     return;
   }
   HUD.init();
+  applyUILayoutSettings();
   if (G.touch) TouchUI.init();
   applyVolumes();
   titleScreen();
