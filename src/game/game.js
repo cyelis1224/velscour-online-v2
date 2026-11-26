@@ -7,6 +7,8 @@ import { rand, pick, randi, escapeHtml, dist, dist2, RNG, makeCanvas, fmtInt, sw
 import { biomeTileSet, loadBiomeArt, mixedTileSet, keepTileSets } from '../core/assets.js';
 import { loadArtFor, loadEnemySheets, enemyImage, markArtCaches, trimArtCaches } from '../core/enemyart.js';
 import { findMimicSpawn } from './mimic.mjs';
+import { setupEnvironmentalTraps } from './environmenttraps.js';
+import { assignPackLeader } from './packleaders.js';
 import { loadClassArt } from '../core/classart.js';
 import { preloadSkillSheets } from '../ui/icons.js';
 import { loadGearArt } from '../core/gearart.js';
@@ -1622,6 +1624,7 @@ export const game = {
     useDunes(world); // so do the Sea of Sand's dunes and pyramids (game/dunes.js)
     useAlpine(world); // and the mountains: the Mountainside and the Snowy Summit (game/alpine.js)
     useSea(world); // the Pirate Seas' three.js scene goes when the hero leaves the Dawnwake (game/seabattle.js)
+    setupEnvironmentalTraps(world, start);
     camera.computeZoom();
     if (p) {
       camera.follow(p.x, p.y, 0, true);
@@ -3095,6 +3098,7 @@ export const game = {
       const n = s.n;
       const variant = rndVal() < Math.min(0.5, 0.2 + depth * 0.005) ? 1 : 0;
       const trait = rollTrait(world, depth, false, rndVal) || (s.trait ? rollTrait(world, depth, true, rndVal) : null);
+      const packMembers = [];
       for (let i = 0; i < n; i++) {
         const [x, y] = i === 0 ? [s.x, s.y] : gen.map.randomNear(s.x, s.y, 1.6, rndVal);
         const rank = s.rank === 'unique' ? (i === 0 ? 'unique' : 'normal') : s.rank;
@@ -3106,7 +3110,9 @@ export const game = {
         if (trait && (i === 0 || ['hunter', 'phaser', 'burrower'].includes(trait))) applyTrait(m, trait);
         if (s.champ && i === 0) makeElite(m, 'champion', depth, world, rndVal);
         world.add(m);
+        packMembers.push(m);
       }
+      assignPackLeader(world, packMembers, biome, depth, s);
     }
     purgeKilledMonstersFromWorld(world);
     if ((world.boss && (

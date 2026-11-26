@@ -20,6 +20,7 @@ import { skillMorphFor } from '../data/talents.js';
 import { isDuelTarget } from './duel.js';
 import { UNIQUE_HEALTH_MULTIPLIER, rollUniqueAffixes } from './uniqueBalance.js';
 import { applyToughHealthModifier } from './championBalance.mjs';
+import { updatePackLeader } from './packleaders.js';
 
 const LEASH = 10; // minions fight what's within this many tiles of the hero
 const CHASE = 1.3, CHASE_MAX = 4.6; // monsters' pursuit pace: x1.3, up to 4.6 tiles/s (the hero runs 4.2) unless faster already
@@ -313,6 +314,7 @@ export class Monster extends Creature {
       const side = this.strafe || 1, ang = angleTo(this.x, this.y, target.x, target.y) + side * 0.65;
       w.map.move(this, Math.cos(ang) * this.speed * 0.45 * dt, Math.sin(ang) * this.speed * 0.45 * dt, this.ghost);
     }
+    if (this.packLeaderType) updatePackLeader(this, dt, target);
     if (this.moves) {
       if (!this.frenzy && this.hp < this.maxHp * 0.4 && this.moves.includes('frenzy')) this.goFrenzy();
       if ((this.moveCd -= dt) <= 0 && this.trySpecial(target, d)) return;

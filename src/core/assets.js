@@ -34,6 +34,7 @@ export const A = {
   gibImg: null, gibMeta: null, // assets/sprites/gibs.* (tools/gibpack.py): { set: [[x, y, w, h], ...] }
   boneImg: null, boneMeta: null, // assets/sprites/bones.* (tools/bones3d_bake.js): bone gibs' data sheet (gfx/bonegibs.js)
   heresyAltar: null, // the town Altar of Heresy (assets/sprites/props/heresy_altar.png)
+  environmentTrapAtlases: {}, // physical environmental trap fixtures and their idle/warning/active/destroyed frames
   biomeSets: {}, // `${biome}|${pack}` -> recoloured tile set (biomeTileSet)
 };
 
@@ -93,6 +94,9 @@ export async function loadAssets(progress) {
   jobs.push(track(loadImage('assets/sprites/bones.webp').then((i) => { A.boneImg = i; })));
   jobs.push(track(loadJSON('assets/sprites/bones.json').then((j) => { A.boneMeta = j; })));
   jobs.push(track(loadImage('assets/sprites/props/heresy_altar.png').then((i) => { A.heresyAltar = i; })));
+  jobs.push(track(Promise.all(['mechanical', 'elemental', 'nature', 'environment-variations', 'dart-wall'].map(async (id) => [
+    id, await loadImage(`assets/sprites/environment-traps/${id}.png`),
+  ])).then((pairs) => { A.environmentTrapAtlases = Object.fromEntries(pairs); }).catch(() => {})));
   jobs.push(track(loadJSON('assets/props/chests.json').then((j) => { A.chestMeta = j; })));
   await Promise.all(jobs);
 }

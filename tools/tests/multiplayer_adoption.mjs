@@ -20,7 +20,8 @@ import { SHEER } from '../../src/data/sheer.js';
 import { keepState, buyArmor, vaultOffer, claimVault, today } from '../../src/game/keep.js';
 import { TRADE } from '../../src/data/keep.js';
 import { reliquary, resetReliquaryCache, transferReliquaryGold, reliquaryGold, accountJewelBox } from '../../src/game/reliquary.js';
-import { markXp, gainMarkXp, markBonuses, spendMark, resetMarks, grantMarks, PVP_MARK_CAPS } from '../../src/game/marks.js';
+import { markXp, gainMarkXp, markBonuses, purchaseUpgrade, resetMarks, grantMarks, PVP_MARK_CAPS } from '../../src/game/marks.js';
+import { unlockEndgame } from '../../src/game/endgame.js';
 import { heresyBegin } from '../../src/game/heresies.js';
 import { manaPoolColor, MANA_POOL_COLORS } from '../../src/data/mana-pool-colors.js';
 import { shrineFloatingMessage } from '../../src/game/shrineeffects.js';
@@ -98,21 +99,25 @@ test('Phase 4: Account-wide Reliquary Gold, Shared Jewel Box migration, Progress
   assert.equal(char.jewelBox[0], null, 'Legacy per-character jewelBox slot cleared after migration');
 
   // Progressive Mark XP & PvP Arena normalization
+  unlockEndgame();
   const cost0 = markXp(0);
   const cost1 = markXp(1);
   assert.ok(cost1 > cost0, 'Each post-100 Mark should cost more XP than the previous');
-  const gained = gainMarkXp(cost0 + 10, char);
+  const gained = gainMarkXp(cost0 + 10, { rift: true }, char);
   assert.equal(gained, 1);
   assert.equal(char.experienceMarks.earned, 1);
 
   resetMarks();
-  grantMarks(500);
-  spendMark('life', 250);
-  spendMark('crit', 250);
+  grantMarks(10000, 'test', { rift: true });
+  purchaseUpgrade('vitality', 20);
+  purchaseUpgrade('might', 20);
+  purchaseUpgrade('crit', 15);
+  purchaseUpgrade('ferocity', 15);
   const pve = markBonuses({ kind: 'dungeon' });
   const pvp = markBonuses({ kind: 'arena' });
   assert.equal(pvp.pvpNormalized, true);
   assert.ok(pvp.life <= PVP_MARK_CAPS.life && pvp.life < pve.life);
+  assert.ok(pvp.might <= PVP_MARK_CAPS.might && pvp.might < pve.might);
   assert.ok(pvp.crit <= PVP_MARK_CAPS.crit && pvp.crit < pve.crit);
   assert.ok(pvp.critDmg <= PVP_MARK_CAPS.critDmg && pvp.critDmg < pve.critDmg);
 
@@ -141,4 +146,30 @@ test('Phase 5: Class mana pool colors, Shrine floating text, and Dynamic potion 
   f.dynamicPotionLabels = true;
   assert.equal(shouldSuppressPotionLabelForCapacity(char, 'hp'), true);
   assert.equal(shouldSuppressPotionLabelForCapacity(char, 'mp'), false);
+});
+
+import { INFERNAL_UPGRADES, MARK_CATEGORIES } from '../../src/data/infernalupgrades.js';
+import { selectDungeonChestVariant } from '../../src/data/chestappearances.js';
+import { townStorageChestArtFor } from '../../src/data/town-storage-chests.js';
+import { IMP_BY_ID } from '../../src/data/treasureimps.js';
+import { CRITTERS } from '../../src/game/critters.js';
+import { PACK_LEADERS } from '../../src/data/packleaders.js';
+import { ENVIRONMENT_TRAP_TYPES } from '../../src/game/environmenttraps.js';
+import { HERESY_MAX_RANK } from '../../src/data/heresies.js';
+
+test('Deep Velscour-PC integration: 40+ Marks, 20 Chest Variants, Jewel Box art, 20 Treasure Imps, Gilded Critters, 15 Pack Leaders, Traps, Heresy 75', () => {
+  assert.ok(INFERNAL_UPGRADES.length >= 40, `Expected >=40 Infernal upgrades, got ${INFERNAL_UPGRADES.length}`);
+  assert.equal(MARK_CATEGORIES.length, 6);
+
+  const variant = selectDungeonChestVariant({ biomeId: 'crypt', seed: 42, x: 5, y: 5 });
+  assert.ok(Number.isInteger(variant) && variant >= 0 && variant < 20);
+  assert.equal(townStorageChestArtFor({ jewelBox: true }).townStorageChest, 'jewel-box');
+  assert.equal(townStorageChestArtFor({ reliquary: true }).townStorageChest, 'reliquary');
+  assert.equal(townStorageChestArtFor({ stash: true }).townStorageChest, 'storage');
+
+  assert.equal(Object.keys(IMP_BY_ID).length, 20);
+  assert.ok(Object.keys(CRITTERS).length >= 10);
+  assert.equal(Object.keys(PACK_LEADERS).length, 15);
+  assert.ok(Object.keys(ENVIRONMENT_TRAP_TYPES).length >= 15);
+  assert.equal(HERESY_MAX_RANK, 75);
 });
