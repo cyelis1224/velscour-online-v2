@@ -42,9 +42,38 @@ import { drawKeepNpc } from './keepgame.js';
 import { castellanMark } from './keep.js';
 import { townStorageChestArtFor } from '../data/town-storage-chests.js';
 import { CURSED_CHEST_VARIANT, selectDungeonChestVariant } from '../data/chestappearances.js';
+import { findTrapGroundAnchor, trapAnchorFrame, trapAtlasFrameRect } from './trapgeometry.mjs';
 
 let lightCanvas = null, glowCanvas = null, vignette = null, vigKey = '';
 const transitionSprites = new Map();
+const trapGroundAnchorCache = new WeakMap();
+let trapAnchorCanvas = null, trapAnchorContext = null;
+
+function trapGroundAnchor(img, row, frame, sx, sy, sw, sh) {
+  let anchors = trapGroundAnchorCache.get(img);
+  if (!anchors) { anchors = new Map(); trapGroundAnchorCache.set(img, anchors); }
+  const key = `${row}:${frame}`;
+  if (anchors.has(key)) return anchors.get(key);
+  try {
+    trapAnchorCanvas ||= document.createElement('canvas');
+    if (!trapAnchorContext) trapAnchorContext = trapAnchorCanvas.getContext('2d', { willReadFrequently: true });
+    if (!trapAnchorContext) return { x: sw / 2, y: sh };
+    if (trapAnchorCanvas.width !== sw || trapAnchorCanvas.height !== sh) {
+      trapAnchorCanvas.width = sw; trapAnchorCanvas.height = sh;
+      trapAnchorContext = trapAnchorCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    trapAnchorContext.clearRect(0, 0, sw, sh);
+    trapAnchorContext.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    const data = trapAnchorContext.getImageData(0, 0, sw, sh).data;
+    const anchor = findTrapGroundAnchor(data, sw, sh) || { x: sw / 2, y: sh };
+    anchors.set(key, anchor);
+    return anchor;
+  } catch {
+    const anchor = { x: sw / 2, y: sh };
+    anchors.set(key, anchor);
+    return anchor;
+  }
+}
 /**
  * Forget the canvases render.js baked (floor chunks, light falloff, vignette, labels): a GPU reset (the computer
  * slept, the tab sat in the background) can wipe accelerated canvases, and the floor would then draw black for good.
@@ -258,11 +287,44 @@ function drawProp(ctx, pr, alpha) {
     ctx.globalCompositeOperation = 'source-over';
     return;
   }
-  if (pr.k) {
+  if (pr.kind === 'environmentTrapFixture' && pr.trapSheet) {
+    const img = A.environmentTrapAtlases?.[pr.trapSheet];
+    if (img?.complete && img.naturalWidth) {
+      const frame = ({ idle: 0, warning: 1, active: 2, destroyed: 3 })[pr.trapState] ?? 0;
+      const columns = pr.trapColumns || 4, rows = pr.trapRows || 12;
+      const rect = trapAtlasFrameRect(img.naturalWidth, img.naturalHeight, columns, rows, frame, pr.trapRow);
+      if (rect) {
+        const { sx, sy, sw, sh } = rect;
+        const scale = Math.max(52, 148 * (pr.k || 0.4)) / sw;
+        const dw = sw * scale, dh = sh * scale;
+        const anchorFrame = trapAnchorFrame(pr.trapKind, frame);
+        const anchorRect = trapAtlasFrameRect(img.naturalWidth, img.naturalHeight, columns, rows, anchorFrame, pr.trapRow);
+        const anchor = anchorRect
+          ? trapGroundAnchor(img, pr.trapRow, anchorFrame, anchorRect.sx, anchorRect.sy, anchorRect.sw, anchorRect.sh)
+          : { x: sw / 2, y: sh };
+        const ax = anchor.x * scale, ay = anchor.y * scale;
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        if (pr.trapRotation) {
+          ctx.translate(x, y); ctx.rotate(pr.trapRotation);
+          if (pr.flip) ctx.scale(-1, 1);
+          ctx.drawImage(img, sx, sy, sw, sh, -ax, -ay, dw, dh);
+        } else if (pr.flip) { ctx.translate(x, y); ctx.scale(-1, 1); ctx.drawImage(img, sx, sy, sw, sh, -ax, -ay, dw, dh); }
+        else ctx.drawImage(img, sx, sy, sw, sh, x - ax, y - ay, dw, dh);
+        ctx.restore();
+      }
+    }
+    if (alpha < 1) ctx.globalAlpha = 1;
+    return;
+  }
+  if (pr.draw) { pr.draw(ctx, x, y, alpha); if (alpha < 1) ctx.globalAlpha = 1; return; }
+  if (pr.k && pr.spr) {
     // biome pack scatter: drawn from its ground pivot (ox/oy in native px), maybe mirrored about it
     const s = pr.spr, w = s.w * pr.k, h = s.h * pr.k, dy = y + s.oy * pr.k;
-    if (pr.flip) { ctx.save(); ctx.translate(x, 0); ctx.scale(-1, 1); ctx.drawImage(s.img, s.sx, s.sy, s.w, s.h, s.ox * pr.k, dy, w, h); ctx.restore(); }
-    else ctx.drawImage(s.img, s.sx, s.sy, s.w, s.h, x + s.ox * pr.k, dy, w, h);
+    if (s.img) {
+      if (pr.flip) { ctx.save(); ctx.translate(x, 0); ctx.scale(-1, 1); ctx.drawImage(s.img, s.sx, s.sy, s.w, s.h, s.ox * pr.k, dy, w, h); ctx.restore(); }
+      else ctx.drawImage(s.img, s.sx, s.sy, s.w, s.h, x + s.ox * pr.k, dy, w, h);
+    }
     if (pr.fx) pr.fx(ctx, x, y, G.time);   // Tessariel's Keep: live flames on its braziers, candles and chandeliers
   } else if (pr.sprite) {
     const img = pr._img || (pr._img = pixelSprite(pr.sprite, pr.pal || {}, 4));
