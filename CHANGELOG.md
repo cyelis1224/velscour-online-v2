@@ -4,6 +4,31 @@ All notable changes to Velscour Online are documented in this file.
 
 ---
 
+## [0.3.1] - 2026-11-26
+
+### Added
+- **Tessariel's Keep (Personal Online Hall, PRs #267–#274)**:
+  - Added the baked 3D Great Hall with Sagas, daily Bounties, Deeds, Renown, Embers, Furnishings, Trophies, War Table, Sacred Flame, and Elder Dragons.
+  - Adapted for multiplayer as a personal per-player instance (`isSameWorld` isolation + `worldKind: 'keep'` network sync), populated with your online account's character roster, and marked Keep Ember-forged & Vault gear as `accountBound` (non-tradable).
+- **51-Upgrade Infernal Marks Library & PvP Arena Normalization**:
+  - Replaced the 4-stat Marks panel with a 6-tab upgrade library (`Offensive`, `Defensive`, `Resources`, `Loot`, `Utility`, `Endgame`) featuring 51 upgrades, bulk buy/refund (`1`/`5`/`10`/`Max`), progressive per-character post-100 Mark XP, and PvP Arena normalization (`0.25×` with hard caps inside duels).
+- **Account-Wide Reliquary Gold, Shared Jewel Box & Custom Chest Art**:
+  - Added server-synced Reliquary Gold deposits/withdrawals and an account-wide Jewel Box (with automatic migration of legacy per-character gems and Deposit All).
+  - Added 20 dungeon chest visual variants (`assets/props/chest-variants/`) and custom closed/open artwork for the town Storage Chest, Reliquary, and Jewel Box (`assets/props/town-storage-chests/`).
+- **Sheer Drops, 20 Treasure Imps, Gilded Critters, 15-Role Pack Leaders & Environmental Traps**:
+  - Added 10 Sheer Drop void-cliff biomes (PR #275) with remote-player/summon plunge immunity.
+  - Added 20 Treasure Imp variants with custom sprites, flee loot trails, Imp Gatherings, and Jackpots; overhauled Gilded Critters with 4 new sprite rows; added 15-role Enemy Pack Leaders, Environmental Traps, and dedicated Mimic art with collision-safe reveal.
+- **Altar of Heresy Rank 75 & Engine Polish**:
+  - Expanded the Altar of Heresy to Rank 75 with a 3-column desktop layout, 3D Blender altar (PR #278), and co-op host-authoritative Heresy sync.
+  - Added desktop 2–4× raster sprites (PRs #270–#271), Ninja throwing star ground shadows (PR #277), Caverns waterfall/camera fix (PR #266), flashing-lights "Don't show again" toggle (PR #276), class-specific mana orb colors, shrine floating effects, and opt-in dynamic potion ground labels.
+
+### Fixed & Improved
+- **Combat, Co-op Balance & PvP Duels**:
+  - Fixed Paladin Blessed Shield multiplayer rendering & duel self-hit, PvP duel rematch invulnerability, 3-player duel isolation, duel "ghost" summons, and Totem Master Ancestral Bolt PvP homing.
+  - Applied Unique & Champion durability tuning plus co-op party HP scaling (`1 + 0.45 * (partySize - 1)`), 95% natural Sigil drop rate tuning + one-per-level cap, hit-stop slow-motion fix, and Shift-attack priority over ground loot.
+
+---
+
 ## [0.3.0] - 2026-11-20
 
 ### Added
