@@ -3,7 +3,9 @@
 // more life, more damage, less damage taken. Clearing the block's BOSS ROOM (a new threshold) spends it. So a wall
 // can cost a few deaths, but each try is easier, and by the 6th-8th the hero breaks through.
 // Blessings: a town happening (game/happenings.js) can bless the hero for the next few depths.
-import { blockStart } from '../data/depth.js';
+import { blockStart, FINAL_DEPTH } from '../data/depth.js';
+
+export const TOWN_REWARD_MAX_DEPTH = FINAL_DEPTH;
 
 export const MAX_DEFIANCE = 8;
 export const DEFIANCE = { life: 10, dmg: 8, reduce: 5 }; // per stack

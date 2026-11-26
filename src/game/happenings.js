@@ -5,6 +5,8 @@
 // Wiring: game.buildDungeon -> setupHappenings, game.update -> happeningsTick, combat kill -> world.onKill,
 // game.enterTown -> townHappening, loot.dropLoot reads world.lootMul / world.goldMul. Shrines, remains and cursed
 import { G } from '../state.js';
+import { changePotionCount } from './potionpurchase.js';
+import { CURSED_CHEST_VARIANT } from '../data/chestappearances.js';
 import { rand, randi, chance, pick, TAU, dist } from '../core/util.js';
 import { sfx } from '../core/audio.js';
 import { camera, isoX, isoY } from '../core/view.js';
@@ -13,8 +15,8 @@ import { explosionFx } from '../gfx/shapes.js';
 import { hit, aoe } from './combat.js';
 import { makeMonster, makeElite, monsterBase } from './monster.js';
 import { ambush } from './mayhem.js';
-import { GroundItem, dropChest, rollGroundItem, rollGroundGem, rollOrbKind } from './loot.js';
-import { rollItem, rollGem, potionItem, itemName, itemColor, rarityAt, goldScale } from '../data/items.js';
+import { GroundItem, dropChest, groundRewardDepth, rollGroundItem, rollGroundGem, rollGroundSigil, rollOrbKind } from './loot.js';
+import { rollItem, rollGem, potionItem, itemName, itemColor, rarityAt, qualityAtDepth, goldScale } from '../data/items.js';
 import { depthLevel, FINAL_DEPTH } from '../data/depth.js';
 import { addToBag } from './player.js';
 import { UI } from '../ui/ui.js';
@@ -23,22 +25,55 @@ import { drawFolkPose } from './render.js';
 import { TOWNSFOLK } from '../data/townsfolk.js';
 import { setupScenario, scenarioTick } from './scenarios.js';
 import { smiteKill } from './smite.js';
-import { greedTick } from './greed.js';
 import { worldHeresies } from './heresies.js';
 import { DUNGEON_AFFIX_BY_ID, DUNGEON_AFFIX_CONFIG } from '../data/dungeonaffixes.js';
 import { setupWorldObjects } from './worldobjects.js';
 import { setupDungeonEvent } from './dungeonevents.js';
-import { LEGACY_SHRINE_DESCRIPTIONS, shrineFloatingMessage } from './shrineeffects.js';
+import { LEGACY_SHRINE_DESCRIPTIONS, shrineFloatingMessage, showShrineActivationMessage } from './shrineeffects.js';
+import { grantMarksWithBonus } from './marks.js';
+import { IMP_BY_ID, IMP_SPRITE_PATH, TREASURE_IMP_ESCAPE_DURATION, TREASURE_IMP_SPAWN_DELAY_MAX, TREASURE_IMP_SPAWN_DELAY_MIN, TREASURE_IMP_SPAWN_RETRY_DELAY, advanceTreasureImpSpawnTimer, canSpawnTreasureImp, hasActiveTreasureImp, hasTreasureImpArea, selectImpMovementPattern, selectPrismaticRewards, selectTreasureImp, treasureImpAreaKey, treasureImpDeathGoldPayout, treasureImpGoldReserve, treasureImpPayoutMultiplier, treasureImpSpawnDelay, treasureImpSpriteScale, treasureImpTrailInterval, treasureImpTrailType } from '../data/treasureimps.js';
+import { endgameUnlocked, canEarnInfernalMarks } from './endgame.js';
+import { makeCovenant } from '../data/relics.js';
+import { grantMarks } from './marks.js';
+import { rollTreasureImpSigilDrop } from './sigildrops.mjs';
+import { TOWN_REWARD_MAX_DEPTH } from './defiance.js';
+
+const IMP_ESCAPE_SECONDS = TREASURE_IMP_ESCAPE_DURATION;
+const IMP_WARNING_SECONDS = 6;
+const IMP_GATHERING_CHANCE = 0.025;
+const IMP_JACKPOT_CHANCE = 0.025;
+const IMP_IMAGES = new Map();
+const IMP_EFFECT_COLORS = Object.freeze({
+  goldfall: ['#ffd040', '#fff0a0'], blood: ['#d02030', '#ff5060'], metal: ['#ffb040', '#e0e8f0'], copper: ['#c87840', '#ffd080'],
+  loot: ['#d0a060', '#80e0c0'], crystal: ['#70e8ff', '#ff50d0', '#80ff90', '#ffd040'], potion: ['#70ff70', '#ff60b0'],
+  leaf: ['#70d040', '#b0ff70'], fortune: ['#40d8c0', '#ffd040'], sigil: ['#40e8ff', '#a0ffff'], mana: ['#4080ff', '#80d8ff'],
+  armor: ['#6878d8', '#c0a0ff'], arcane: ['#b040ff', '#e0a0ff'], lucky: ['#ff60c0', '#ffe080'], holy: ['#fff4c0', '#ffd050'],
+  shadow: ['#302038', '#e03030'], prismatic: ['#ff4050', '#40d8ff', '#a0ff50', '#ffd040', '#c050ff'],
+});
+function treasureImpSprite(id) {
+  if (typeof Image === 'undefined') return null;
+  let image = IMP_IMAGES.get(id);
+  if (!image) { image = new Image(); image.src = IMP_SPRITE_PATH(id); IMP_IMAGES.set(id, image); }
+  return image.complete && image.naturalWidth ? image : null;
+}
+function impParticle(m) {
+  const colors = IMP_EFFECT_COLORS[m.impEffect] || [m.impColor || '#ffd040'];
+  const color = pick(colors);
+  const type = m.impEffect === 'shadow' ? 'smoke' : m.impEffect === 'blood' ? 'blood' : 'glow';
+  spawn({ type, x: m.x + rand(-0.2, 0.2), y: m.y + rand(-0.2, 0.2), z: rand(10, 24),
+    vx: rand(-0.25, 0.25), vy: rand(-0.25, 0.25), vz: rand(7, 22), g: type === 'blood' ? 36 : 0,
+    life: rand(0.35, 0.65), size: rand(1.8, 3.2), size1: type === 'smoke' ? 5 : 0, color, add: type !== 'smoke' });
+}
 
 // ------------------------------------------------------------------------------------------------ shrines
 export const SHRINES = {
-  frenzy: { name: 'Shrine of Frenzy', color: '#ff7030', el: 'fire', buff: { as: 40 }, t: 40, msg: '+40% attack and cast speed' },
+  frenzy: { name: 'Shrine of Frenzy', color: '#ff7030', el: 'fire', buff: { as: 40 }, t: 20, msg: '+40% attack and cast speed' },
   fortune: { name: 'Shrine of Fortune', color: '#ffd040', el: 'holy', buff: { mf: 150, gf: 150 }, t: 60, msg: '+150% magic and gold find' },
-  bulwark: { name: 'Shrine of the Bulwark', color: '#a0c0ff', el: 'cold', buff: { life: 40, reduce: 15 }, t: 60, msg: '+40% life, 15% less damage taken' },
+  bulwark: { name: 'Shrine of the Bulwark', color: '#a0c0ff', el: 'cold', buff: { life: 40, reduce: 15 }, t: 45, msg: '+40% life, 15% less damage taken' },
   wisdom: { name: 'Shrine of Wisdom', color: '#60e0ff', el: 'arcane', buff: { xp: 75 }, t: 90, msg: '+75% experience' },
-  wrath: { name: 'Shrine of Wrath', color: '#ff3050', el: 'blood', buff: { dmg: 50, crit: 40 }, t: 40, msg: '+50% damage, +10% critical chance' },
+  wrath: { name: 'Shrine of Wrath', color: '#ff3050', el: 'blood', buff: { dmg: 50, crit: 40 }, t: 25, msg: '+50% damage, +10% critical chance' },
   storm: { name: 'Storm Shrine', color: '#b0a0ff', el: 'light', buff: {}, t: 30, msg: 'lightning lashes nearby foes', storm: true },
-  renewal: { name: 'Shrine of Renewal', color: '#60ff80', el: 'poison', buff: { regen: 30 }, t: 30, msg: 'life and mana restored', heal: true },
+  renewal: { name: 'Shrine of Renewal', color: '#60ff80', el: 'poison', buff: { regen: 30 }, t: 45, msg: 'life and mana restored', heal: true },
 };
 
 const EPITAPHS = [
@@ -117,15 +152,24 @@ export function setupHappenings(world, start, gen) {
     if (c && c.nemesis && spots.length) spawnNemesis(world, spots.pop(), c.nemesis);
     return;
   }
-  if (depth >= FINAL_DEPTH) return;
-  setupScenario(world, start); // biome set pieces remain independent of affixes
+  if (depth === FINAL_DEPTH) return; // keep the Throne's finale authored; infinite dungeons retain ordinary happenings
+  const npcClaimKey = `${world.biome.id}:${Math.max(1, depth | 0)}`;
+  const npcClaims = G.char?.npcEncounterDepths || {};
+  setupScenario(world, start, undefined, { allowNpcQuest: !npcClaims[npcClaimKey] }); // biome set pieces remain independent of affixes
+  // Captive and escort set pieces already occupy the one optional NPC encounter slot on this depth.
+  // Record that claim so rebuilding the same depth cannot roll a second quest NPC.
+  if (['captives', 'escort'].includes(world.scenario?.mech) && G.char) {
+    (G.char.npcEncounterDepths ||= {})[npcClaimKey] = `scenario:${world.scenario.mech}`;
+    G.game?.autosave?.();
+  }
   const want = 1 + (chance(0.6) ? 1 : 0) + (chance(0.35) ? 1 : 0);
   const spots = roomSpots(world, start, want + 3);
   const c = G.char, nemSpot = c && c.nemesis && (depth >= c.nemesis.depth - 5 || affixCascade) ? spots.pop() : null;
   if (spots.length && chance(0.35)) addRemains(world, spots.pop());
   if (spots.length && chance(0.22 + Math.min(0.15, depth * 0.002))) addCursed(world, spots.pop());
   addEncounters(world, roomSpots(world, start, 4));
-  if (chance(0.3)) H.impT = rand(25, 70);
+  // Keep the existing additional-imp eligibility point; the saved spawn scheduler rolls its chance once.
+  world.impRandomEligible = true;
   if (chance(0.3)) H.challengeAt = randi(12, 30);
   if (nemSpot) spawnNemesis(world, nemSpot, c.nemesis);
   if (torment) return;
@@ -137,14 +181,15 @@ export function announceDungeonAffixes(world) {
   clearDungeonAffixBuff();
   const affixes = (world.dungeonAffixes || []).map((id) => DUNGEON_AFFIX_BY_ID[id]).filter(Boolean);
   if (affixes.some((affix) => affix.id === 'surge') && p && typeof p.addBuff === 'function') {
-    p.addBuff({ id: 'dungeon_affix_surge', name: 'Arcane Surge', el: 'arcane', stats: DUNGEON_AFFIX_CONFIG.surge.playerStats, t: 1e6, max: 1e6, aura: true });
+    p.addBuff({ id: 'dungeon_affix_surge', name: 'Arcane Surge', el: 'arcane', stats: DUNGEON_AFFIX_CONFIG.surge.playerStats, t: 60, max: 60, aura: true });
   }
   if (!affixes.length) return;
   const names = affixes.map((affix) => affix.name);
   setTimeout(() => {
     if (G.world !== world) return;
     UI.centerMsg(names.length === 1 ? names[0].toUpperCase() : 'AFFIXES ACTIVE', names.join(' · '), 3);
-    UI.log(`Affixes active: <b>${names.map((name) => name.replace(/&/g, '&amp;').replace(/</g, '&lt;')).join(' · ')}</b>`, '#ffb060');
+    UI.log(`Affixes active: <b>${names.map((name) => name.replace(/&/g, '&amp;').replace(/</g, '&lt;')).join(' · ')}</b>`, '#ffb060', { category: 'dungeon.affix', important: true });
+    UI.event({ category: 'debug.affix', text: `Dungeon affixes activated: ${names.join(', ')}.` });
   }, 2600);
 }
 // ------------------------------------------------------------------------------------------------ interactables
@@ -175,10 +220,10 @@ export function addShrine(world, [x, y], key) {
       burst(p.x, p.y, 30, S.el, 30, 5, { up: 2 });
       sfx('levelup', 0.6);
       if (S.heal) { p.hp = p.maxHp; p.mana = p.maxMana; }
-      const buff = typeof p?.addBuff === 'function' ? p.addBuff({ id: 'shrine_' + key, name: S.name, el: S.el, stats: S.buff, t: S.t, max: S.t, storm: S.storm, floorOnly: true, worldObject: true }) : null;
+      const buff = typeof p?.addBuff === 'function' ? p.addBuff({ id: 'shrine_' + key, name: S.name, iconKey: 'shrine:' + key, el: S.el, stats: S.buff, t: S.t, max: S.t, storm: S.storm, floorOnly: true, worldObject: true }) : null;
       if (buff) buff.description = LEGACY_SHRINE_DESCRIPTIONS[key] || S.msg;
-      floatText(x, y, 112, shrineFloatingMessage(key, buff), S.color, 12, { life: 2.5, vz: 18 });
-      UI.log(`<b style="color:${S.color}">${S.name}</b>: ${S.msg} for ${S.t} s.`, S.color);
+      showShrineActivationMessage(x, y, shrineFloatingMessage(key,buff), S.color);
+      UI.log(`<b style="color:${S.color}">${S.name}</b><br><b>Effect Granted:</b><br>${buff?.description || S.msg}<br><b>Duration:</b> ${Math.ceil(buff?.t || S.t)} seconds.`, S.color, { category: 'dungeon.shrine', important: true });
     },
   });
 }
@@ -188,7 +233,7 @@ const FALLEN_LOOKS = () => TOWNSFOLK.filter((v) => v.knight || v.guard || v.cast
 export function addRemains(world, [x, y]) {
   const who = pick(FALLEN_NAMES), why = pick(EPITAPHS), depth = world.depth, look = pick(FALLEN_LOOKS()), flip = chance(0.5);
   world.chests.push({
-    x, y, opened: false, reach: 1.4, far: 22, label: `Remains of ${who}`, dot: '#e8dcc0',
+    x, y, opened: false, reach: 1.4, far: 22, label: `Remains of ${who}`, dot: '#e8dcc0', labelColor: '#d4b8df', labelHeight: 82,
     draw(ctx, sx, sy) {
       ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(sx, sy, 20, 7, 0, 0, TAU); ctx.fill();
       if (drawFolkPose(ctx, look, 'dead', sx, sy + 2, flip, this.opened ? 0.85 : 1)) {
@@ -214,7 +259,7 @@ export function addRemains(world, [x, y]) {
 export function addCache(world, [x, y]) {
   const depth = world.depth;
   const cache={
-    x, y, opened: false, reach: 1.3, rare: true, far: 30,
+    x, y, opened: false, reach: 1.3, rare: true, far: 30, label: 'Treasure Cache', labelColor: '#d4b8df', labelHeight: 66, eventLabel: true,
     use() { if (this.opened) return; this.opened = true; sfx('chest'); sfx('gold'); dropChest(world, this, depth); sparkle(x, y, 20, '#ffd060', 20, 0.5); },
   };
   world.chests.push(cache);
@@ -225,19 +270,11 @@ export function addCache(world, [x, y]) {
 export function addCursed(world, [x, y]) {
   const depth = world.depth;
   const ch = {
-    x, y, opened: false, reach: 1.4, far: 30, label: 'Cursed Chest', dot: '#ff3060', waves: 0, waveT: 0, done: false,
-    draw(ctx, sx, sy) {
-      ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.ellipse(sx, sy, 17, 7, 0, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#3a1020'; ctx.beginPath(); ctx.moveTo(sx - 15, sy - 4); ctx.lineTo(sx, sy + 3); ctx.lineTo(sx + 15, sy - 4); ctx.lineTo(sx + 15, sy - 17); ctx.lineTo(sx, sy - 24); ctx.lineTo(sx - 15, sy - 17); ctx.fill();
-      ctx.strokeStyle = '#ff4070'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(sx - 15, sy - 11); ctx.lineTo(sx, sy - 4); ctx.lineTo(sx + 15, sy - 11); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(sx, sy + 3); ctx.lineTo(sx, sy - 10); ctx.stroke();
-      if (!this.done) {
-        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35 + Math.sin(G.time * 4) * 0.2;
-        ctx.drawImage(glowSprite('#ff2050'), sx - 30, sy - 46, 60, 52);
-        ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-        if (chance(0.15)) spawn({ type: 'glow', x: this.x + rand(-0.4, 0.4), y: this.y + rand(-0.4, 0.4), z: rand(10, 30), vz: rand(20, 50), life: 0.6, size: 3, size1: 0, color: '#ff3060', add: true });
-      }
+    x, y, opened: false, reach: 1.4, far: 30, label: 'Cursed Chest', dot: '#ff3060', labelColor: '#d4b8df', labelHeight: 66,
+    chestType: 'cursed', chestVariant: CURSED_CHEST_VARIANT, glow: '#ff2050', tint: '#e32e45', glowWhileOpen: true,
+    waves: 0, waveT: 0, done: false,
+    drawOverlay() {
+      if (!this.done && chance(0.15)) spawn({ type: 'glow', x: this.x + rand(-0.4, 0.4), y: this.y + rand(-0.4, 0.4), z: rand(10, 30), vz: rand(20, 50), life: 0.6, size: 3, size1: 0, color: '#ff3060', add: true });
     },
     use() {
       if (this.opened) return;
@@ -264,7 +301,7 @@ export function addCursed(world, [x, y]) {
           this.done = true;
           dropChest(world, { x, y, rare: true }, depth);
           dropChest(world, { x, y, rare: true }, depth);
-          if (chance(0.5)) world.addLoot(new GroundItem(x, y + 0.3, 'item', { item: rollGroundItem(depthLevel(depth) + 2, { rarity: rarityAt(depthLevel(depth) + 2, chance(0.03) ? 5 : chance(0.3) ? 4 : 3), mf: p.st.magicFind }) }));
+          if (chance(0.5)) world.addLoot(new GroundItem(x, y + 0.3, 'item', { item: rollGroundItem(depthLevel(depth) + 2, { world, rarity: rarityAt(depthLevel(depth) + 2, chance(0.03) ? 5 : chance(0.3) ? 4 : 3), mf: p.st.magicFind }) }));
           explosionFx(x, y, 2, 'holy', 'eruption');
           sfx('gate'); UI.centerMsg('CURSE BROKEN', 'The hoard is yours', 2.2);
           world.happen.cursed = null;
@@ -289,7 +326,8 @@ export function markNemesis(c, src, depth) {
 export function spawnNemesis(world, [x, y], N) {
   const lvl = depthLevel(world.depth);
   const m = makeMonster(world, N.arch, world.biome, lvl + 2, 'unique', x, y, 1, N.art ? { art: N.art, swap: N.swap } : undefined);
-  makeElite(m, 'unique', world.depth, world);
+  // makeMonster already created this Nemesis as a unique; applying the rank
+  // again multiplied its health and left a second layer of rolled defenses.
   m.name = `${N.name} ${N.title}`;
   m.maxHp *= 1.3 + 0.15 * Math.min(4, N.kills - 1); m.hp = m.maxHp; m.dmg *= 1.1; m.xp *= 3; m.scale = 1.45; m.aura = '#ff2a2a';
   m.nemesis = true;
@@ -299,7 +337,7 @@ export function spawnNemesis(world, [x, y], N) {
     UI.centerMsg('REVENGE!', `${m.name} is slain`, 3);
     UI.log(`<b style="color:#ff4a3a">Revenge!</b> ${m.name} will not gloat again.`, '#ff8070');
     addEffect(new Column(m.x, m.y, '#ff4030', 1, 40, 420)); camera.shake(6); sfx('gate');
-    for (let i = 0; i < 4; i++) world.addLoot(new GroundItem(m.x, m.y, 'item', { item: rollGroundItem(lvl + 3, { mf: p.st.magicFind, bonus: 1.5 }) }));
+    for (let i = 0; i < 4; i++) world.addLoot(new GroundItem(m.x, m.y, 'item', { item: rollGroundItem(lvl + 3, { world, mf: p.st.magicFind, bonus: 1.5 }) }));
     for (let i = 0; i < 8; i++) world.addLoot(new GroundItem(m.x, m.y, 'gold', { amount: Math.round((20 + lvl * 5) * goldScale(lvl) * rand(0.7, 1.4)) }));
   };
   world.add(m);
@@ -308,59 +346,426 @@ export function spawnNemesis(world, [x, y], N) {
 }
 
 // ------------------------------------------------------------------------------------------------ treasure imp
-/** A Treasure Imp's coins: `base` on the old line, kept up with prices (goldScale), gold find and the Greed lever. */
-const impGold = (world, lvl, base) => Math.round(base * goldScale(lvl) * rand(0.7, 1.5) * (1 + ((G.player && G.player.st.goldFind) || 0) / 100) * (world.goldMul || 1));
-export function spawnImp(world) {
-  const p = world.player, map = world.map;
-  let at = null;
-  for (let i = 0; i < 30 && !at; i++) {
-    const a = rand(TAU), r = rand(6, 9), x = p.x + Math.cos(a) * r, y = p.y + Math.sin(a) * r;
-    if (map.circleFree(x, y, 0.35) && map.flowAt(x, y) >= 0 && (i > 20 || map.los(p.x, p.y, x, y))) at = [x, y];
+/** Treasure Imp coins respect the same additive Greed gold bonus as other endgame ground rewards. */
+const impGoldModifier = (world) =>
+  (1 + (((G.player && G.player.st.goldFind) || 0) + ((G.player && G.player.st.markGold) || 0)) / 100) * (world.goldMul || 1) + ((world.greedGoldPct || 0) + (world.heresyGoldPct || 0)) / 100;
+const impGold = (world, lvl, base, modifier = impGoldModifier(world)) => Math.round(base * goldScale(lvl) * rand(0.7, 1.5) * modifier);
+const IMP_JACKPOT_REWARDS = new Set(['gold', 'relic', 'merchant', 'hoarder', 'jackpot', 'jewel', 'alchemist', 'sigil', 'set', 'enchanted', 'mystic', 'fortune', 'artisan', 'abyssal']);
+function impEncounteredInArea(world) {
+  return hasTreasureImpArea(treasureImpAreaKey(world), G.char?.treasureImpRandomAreas);
+}
+function recordImpEncounter(world) {
+  const c = G.char;
+  if (!c) return;
+  const key = treasureImpAreaKey(world);
+  if (!Array.isArray(c.treasureImpRandomAreas)) c.treasureImpRandomAreas = [];
+  c.treasureImpRandomPending ||= {};
+  delete c.treasureImpRandomPending[key];
+  if (!c.treasureImpRandomAreas.includes(key)) { c.treasureImpRandomAreas.push(key); G.game?.autosave?.(); }
+}
+function recordGuaranteedImp(world) {
+  const c = G.char;
+  if (!c) return;
+  const key = treasureImpAreaKey(world);
+  if (!Array.isArray(c.treasureImpGuaranteedAreas)) c.treasureImpGuaranteedAreas = [];
+  c.treasureImpGuaranteedPending ||= {};
+  delete c.treasureImpGuaranteedPending[key];
+  if (!c.treasureImpGuaranteedAreas.includes(key)) { c.treasureImpGuaranteedAreas.push(key); G.game?.autosave?.(); }
+}
+function impContext(world) {
+  return { depth: groundRewardDepth(world, world.depth || 1), endgameUnlocked: endgameUnlocked(G.char), canEarnMarks: canEarnInfernalMarks(world, G.char) };
+}
+function impQuantity(count, multiplier) { const n = count * multiplier; return Math.max(1, Math.floor(n) + (chance(n % 1) ? 1 : 0)); }
+function impDropPosition(world, m, trail = false) {
+  const map = world.map;
+  for (let i = 0; i < 12; i++) {
+    let x, y;
+    if (trail) {
+      const back = (Number.isFinite(m.impFleeAngle) ? m.impFleeAngle : 0) + Math.PI;
+      const side = rand(-0.32, 0.32), distance = rand(0.55, 0.95);
+      x = m.x + Math.cos(back) * distance + Math.cos(back + Math.PI / 2) * side;
+      y = m.y + Math.sin(back) * distance + Math.sin(back + Math.PI / 2) * side;
+    } else {
+      const a = rand(TAU), r = rand(0.35, 1.3);
+      x = m.x + Math.cos(a) * r; y = m.y + Math.sin(a) * r;
+    }
+    if (map?.walkable?.(x, y) && (!map.circleFree || map.circleFree(x, y, 0.22)) && (!map.flowAt || map.flowAt(x, y) >= 0)) return [x, y];
   }
-  if (!at) return;
-  const lvl = depthLevel(world.depth);
-  const m = makeMonster(world, 'imp', world.biome, lvl + 1, 'normal', at[0], at[1], 0, null);
-  Object.assign(m, { name: 'Treasure Imp', goblin: true, aura: '#ffd040', scale: 0.9, dmg: 0, xp: m.xp * 8, awake: true, rank: 'unique', affixes: [] });
-  m.maxHp *= 15; m.hp = m.maxHp; m.speed = 3.5; // tougher to mow down; its fear run is near the hero's pace.
+  return trail ? null : [m.x, m.y];
+}
+function impDrop(world, m, kind, data = {}, trail = false) {
+  const position = impDropPosition(world, m, trail);
+  if (!position) return false;
+  const [x, y] = position;
+  // Trail drops remain collectible for the usual two-minute ground-loot window and can be
+  // evicted by the world's existing loot cap if several rare multi-imp encounters overlap.
+  world.addLoot(new GroundItem(x, y, kind, trail ? { ...data, fades: data.fades ?? 120 } : data));
+  return true;
+}
+function impDropGoldReserve(world, m, total) {
+  const amount = Math.max(0, Math.floor(Number(total) || 0));
+  if (!amount) return 0;
+  // A handful of reachable piles gives the death payout a visible burst without flooding loot entities.
+  const piles = Math.min(5, amount), each = Math.floor(amount / piles), extra = amount % piles;
+  for (let i = 0; i < piles; i++) {
+    const pile = each + (i < extra ? 1 : 0);
+    if (pile > 0) impDrop(world, m, 'gold', { amount: pile });
+  }
+  return amount;
+}
+function impDropSigil(world, m) {
+  const stats = G.player?.st || {};
+  if (!rollTreasureImpSigilDrop(world, G.char, stats)) return false;
+  // This reward is intentionally outside the natural one-Sigil-per-level cap:
+  // Imp Sigils neither check nor record that separate allowance.
+  const dropped = impDrop(world, m, 'item', { item: rollGroundSigil(world, world.depth || 1, 0) });
+  if (dropped) G.game?.autosave?.();
+  return dropped;
+}
+function impDropGold(world, m, lvl, base, count, multiplier = 1) {
+  for (let i = 0; i < impQuantity(count, multiplier); i++) impDrop(world, m, 'gold', { amount: impGold(world, lvl, base) });
+}
+function impDropGear(world, m, lvl, count, options = {}, multiplier = 1) {
+  for (let i = 0; i < impQuantity(count, multiplier); i++) {
+    const item = rollGroundItem(lvl + (options.levelBonus || 2), { world, mf: options.mf || 0, bonus: options.bonus || 0 });
+    if (options.vendorValueMult) item.vendorValueMult = options.vendorValueMult;
+    impDrop(world, m, 'item', { item });
+  }
+}
+function impDropGems(world, m, lvl, count, multiplier = 1, levelBonus = 6) {
+  for (let i = 0; i < impQuantity(count, multiplier); i++) impDrop(world, m, 'item', { item: rollGroundGem(lvl + levelBonus, world) });
+}
+function scaleImpBlessing(stats) {
+  const scale = 1 + (G.player?.st?.markImpReward || 0) / 100;
+  return scale === 1 ? stats : Object.fromEntries(Object.entries(stats).map(([key, value]) => [key, typeof value === 'number' ? value * scale : value]));
+}
+function impBlessing(id, name, color, stats, seconds, extra = {}) {
+  const p = G.player;
+  if (!p || typeof p.addBuff !== 'function') return false;
+  stats = scaleImpBlessing(stats);
+  p.addBuff({ id: `treasure_imp_${id}`, name, iconKey: `imp-blessing:${id}`, el: 'holy', stats, t: seconds, max: seconds, ...extra });
+  UI.log(`<b style="color:${color}">${name}</b> — ${seconds} seconds.`, color);
+  return true;
+}
+function grantImpReward(world, m, variant, options = {}) {
+  const lvl = depthLevel(world.depth), qty = (options.qty || 1) * (1 + (G.player?.st?.markImpReward || 0) / 100), p = G.player;
+  switch (variant.reward) {
+    case 'gold':
+      impDropGold(world, m, lvl, 25 + lvl * 6, 24, qty);
+      impDropGear(world, m, lvl, randi(3, 5), { mf: 1.3, bonus: 0.4 }, qty);
+      if (chance(0.5)) impDropGems(world, m, lvl, 1, qty);
+      break;
+    case 'blood': impBlessing('blood', 'Blood Rush', variant.color, { dmg: 24, as: 20, crit: 16, speed: 10 }, 20); break;
+    case 'relic': impDropGear(world, m, lvl, 2, { mf: 1.1, bonus: 0.5 }, qty); break;
+    case 'merchant':
+      impDropGear(world, m, lvl, 2, { mf: 0.4, vendorValueMult: 2.5 }, qty);
+      impDropGold(world, m, lvl, 15 + lvl * 2, 5, qty);
+      break;
+    case 'hoarder':
+      impDropGold(world, m, lvl, 12 + lvl * 2.5, 7, qty); impDropGems(world, m, lvl, 1, qty);
+      impDropGear(world, m, lvl, 1, { mf: 0.5 }, qty); break;
+    case 'jackpot':
+      impDropGold(world, m, lvl, 30 + lvl * 7, 24, qty); impDropGems(world, m, lvl, 5, qty, 10);
+      impDropGear(world, m, lvl, 4, { mf: 2.2, bonus: 1.1 }, qty); break;
+    case 'jewel': impDropGems(world, m, lvl, randi(4, 6), qty, 8); break;
+    case 'alchemist':
+      for (let i = 0; i < impQuantity(randi(2, 3), qty); i++) impDrop(world, m, 'potion', { item: potionItem(pick(['hp', 'mp', 'rejuv', 'fury'])) });
+      impBlessing('alchemist', 'Alchemical Renewal', variant.color, { regen: 18 }, 45); break;
+    case 'vitality':
+      for (let i = 0; i < impQuantity(randi(7, 10), qty); i++) impDrop(world, m, 'orb_hp');
+      impBlessing('vitality', 'Verdant Vitality', variant.color, { regen: 38, life: 8 }, 45); break;
+    case 'prosperity':
+      impDropGold(world, m, lvl, 18 + lvl * 3, 8, qty);
+      impBlessing('prosperity', 'Prosperity', variant.color, { gf: 55, mf: 35 }, 60); break;
+    case 'sigil': impDropSigil(world, m); break;
+    case 'arcane':
+      for (let i = 0; i < impQuantity(8, qty); i++) impDrop(world, m, 'orb_mp');
+      impBlessing('arcane', 'Arcane Reserve', variant.color, { manaRegenPct: 75 }, 45); break;
+    case 'set': {
+      for (let i = 0; i < impQuantity(1, qty); i++) {
+        const rewardDepth = groundRewardDepth(world, world.depth || 1);
+        const itemLevel = Math.max(1, Math.min(G.char?.level || lvl, lvl));
+        const item = makeCovenant(itemLevel, { maxRarity: qualityAtDepth(rewardDepth) });
+        if (item) impDrop(world, m, 'item', { item });
+      }
+      break;
+    }
+    case 'enchanted': impDropGear(world, m, lvl, 2, { mf: 1.65, bonus: 1.1 }, qty); break;
+    case 'mystic': impDropGems(world, m, lvl, randi(2, 3), qty, 18); break;
+    case 'fortune': impDropGear(world, m, lvl, 2, { mf: 2.4, bonus: 1.2 }, qty); break;
+    case 'celestial': {
+      const shrine = pick(Object.entries(SHRINES));
+      const [key, S] = shrine;
+      if (S.heal && p) { p.hp = p.maxHp; p.mana = p.maxMana; }
+      impBlessing(`celestial_${key}`, `Celestial: ${S.name}`, variant.color, S.buff, S.t, { storm: S.storm });
+      if (chance(0.16)) {
+        const [key2, S2] = pick(Object.entries(SHRINES).filter(([other]) => other !== key));
+        impBlessing(`celestial_${key2}`, `Celestial: ${S2.name}`, variant.color, S2.buff, S2.t, { storm: S2.storm });
+      }
+      break;
+    }
+    case 'artisan':
+      impDropSigil(world, m);
+      impDropGems(world, m, lvl, 1, qty);
+      break;
+    case 'abyssal':
+      if (canEarnInfernalMarks(world, G.char)) grantMarksWithBonus(1, 'from an Abyssal Imp', world, Math.max(0, (qty - 1) * 100));
+      break;
+    case 'prismatic': {
+      const categories = selectPrismaticRewards(impContext(world));
+      const descriptions = categories.map((item) => item.name).join(', ');
+      for (const category of categories) grantImpReward(world, m, category, { qty: options.qty || 1 });
+      if (categories.length) UI.log(`<b style="color:${variant.color}">Prismatic cache:</b> ${descriptions}.`, variant.color);
+      break;
+    }
+  }
+}
+
+function dropImpTrailLoot(world, m, dt) {
+  if (G.paused || !m.impDiscovered || m.disabled() || !m.moving || !(m.status?.fear?.t > 0)) return;
+  m.impTrailTimer = (m.impTrailTimer ?? treasureImpTrailInterval()) - dt;
+  if (m.impTrailTimer > 0) return;
+  const type = treasureImpTrailType(m.impVariant), lvl = depthLevel(world.depth);
+  if (type === 'gems') {
+    impDrop(world, m, 'item', { item: rollGroundGem(lvl + 5, world) }, true);
+  } else if (type === 'highGems') {
+    impDrop(world, m, 'item', { item: rollGroundGem(lvl + 18, world) }, true);
+  } else {
+    // Gold is drawn from the spawn-time reserve; the final remainder and kill bonus are paid on death.
+    const reserve = Math.max(0, Number(m.impGoldReserve) || 0);
+    if (reserve > 0) {
+      const requested = impGold(world, lvl, randi(1, 3) + lvl * 0.18, m.impGoldModifier);
+      const amount = Math.min(reserve, requested);
+      if (amount > 0 && impDrop(world, m, 'gold', { amount }, true)) m.impGoldReserve = Math.max(0, reserve - amount);
+    }
+    if (type === 'mixed' && chance(0.18)) {
+      impDrop(world, m, 'item', { item: rollGroundGem(lvl + 4, world) }, true);
+    }
+  }
+  m.impTrailTimer = treasureImpTrailInterval();
+}
+
+function discoverImp(world, m) {
+  if (m.impDiscovered) return;
+  m.impDiscovered = true;
+  m.impLeft = IMP_ESCAPE_SECONDS;
+  floatText(m.x, m.y, 70, m.name, m.impColor, 15, { life: 2 });
+  UI.log(`<b style="color:${m.impColor}">${m.name}</b> spotted! Catch it before it escapes.`, m.impColor);
+  const c = G.char;
+  if (c && !c.treasureImpTutorialShown) {
+    c.treasureImpTutorialShown = true;
+    UI.centerMsg('TREASURE IMPS', 'Each color carries a different reward. They flee when found; attacks and crowd control can buy you time.', 4);
+    G.game?.autosave?.();
+  }
+}
+
+function createTreasureImp(world, at, variant, options = {}) {
+  const lvl = depthLevel(world.depth), m = makeMonster(world, 'imp', world.biome, lvl + 1, 'normal', at[0], at[1], 0, null);
+  const goldModifier = impGoldModifier(world);
+  const hasGoldTrail = ['gold', 'mixed'].includes(treasureImpTrailType(variant.id));
+  const goldReserve = hasGoldTrail ? treasureImpGoldReserve(lvl, goldScale(lvl), goldModifier) : 0;
+  Object.assign(m, { name: variant.name, impVariant: variant.id, impColor: variant.color, nameColor: variant.color,
+    goblin: true, aura: variant.color, scale: 0.9, dmg: 0, xp: m.xp * 8, awake: true, rank: 'unique', affixes: [], impEffect: variant.effect,
+    impLeft: null, impDiscovered: false, impEscapeWarned: false, impParticleT: 0, dungeonEventImp: !!options.event,
+    impSpawnSource: options.event ? 'dungeon-event' : options.specialEncounter || 'natural',
+    impGoldReserve: goldReserve, impGoldOriginalReserve: goldReserve, impGoldModifier: goldModifier, impGoldForfeited: false,
+    impMovementPattern: selectImpMovementPattern(), impPatternTimer: rand(0, 0.12), impPatternSign: chance(0.5) ? 1 : -1,
+    impTrailTimer: treasureImpTrailInterval() });
+  m.maxHp *= 30; m.hp = m.maxHp; m.speed = 3.5;
   m.moves = null; m.summoner = false; m.proj = null; m.aoeCaster = false;
+  // Match the normalized sprite foreground to the actual legacy imp sprite height.
+  // This accounts for sprite scale and any biome-specific original imp artwork.
+  const originalSpriteHeight = m.spriteDims(m.spriteImage())[1];
+  const impSpriteScale = treasureImpSpriteScale(originalSpriteHeight, m.scale);
+  m.artFrame = () => {
+    const img = treasureImpSprite(variant.id);
+    return img ? { img, frame: 0, cw: img.naturalWidth, ch: img.naturalHeight, ax: img.naturalWidth / 2, ay: img.naturalHeight - 5, k: impSpriteScale } : null;
+  };
   const base = m.onDamaged.bind(m);
-  m.onDamaged = (src, d) => {
-    base(src, d);
-    if (!m.dungeonEventImp && chance(0.45)) world.addLoot(new GroundItem(m.x, m.y, 'gold', { amount: impGold(world, lvl, 10 + lvl * 3) }));
+  m.onDamaged = (src, amount) => {
+    base(src, amount);
+    if ((src?.isPlayer || src?.team === 'player') && !m.dungeonEventImp) discoverImp(world, m);
   };
   m.onDeath = () => {
+    if (m.impRewardsClaimed) return;
+    m.impRewardsClaimed = true;
     sfx('gold'); sfx('chest'); camera.shake(5);
-    explosionFx(m.x, m.y, 1.6, 'holy', 'eruption');
-    if (!m.dungeonEventImp) {
-      for (let i = 0; i < 24; i++) world.addLoot(new GroundItem(m.x + rand(-0.6, 0.6), m.y + rand(-0.6, 0.6), 'gold', { amount: impGold(world, lvl, 25 + lvl * 6) }));
-      for (let i = 0; i < randi(3, 5); i++) world.addLoot(new GroundItem(m.x, m.y, 'item', { item: rollGroundItem(lvl + 2, { mf: G.player.st.magicFind, bonus: 1.3 }) }));
-      if (chance(0.5)) world.addLoot(new GroundItem(m.x, m.y, 'item', { item: rollGroundGem(lvl + 6) }));
+    const effect = variant.reward === 'abyssal' ? 'shadow' : variant.reward === 'blood' ? 'blood' : variant.reward === 'celestial' ? 'holy' : 'arcane';
+    explosionFx(m.x, m.y, 1.6, effect, 'eruption');
+    addEffect(new Ring(m.x, m.y, 0.2, 2.8, 0.65, variant.color, 5));
+    for (let i = 0; i < 24; i++) sparkle(m.x + rand(-0.8, 0.8), m.y + rand(-0.8, 0.8), rand(20, 34), variant.color, rand(0.8, 1.25), rand(0.25, 0.42));
+    if (!m.impGoldForfeited) {
+      const reservePayout = treasureImpDeathGoldPayout(m.impGoldReserve, m.impGoldOriginalReserve);
+      impDropGoldReserve(world, m, reservePayout);
+      m.impGoldReserve = 0;
     }
-    UI.centerMsg('TREASURE IMP SLAIN', 'It burst in a shower of gold', 2);
+    if (!m.dungeonEventImp) {
+      const jackpot = IMP_JACKPOT_REWARDS.has(variant.reward) && chance(IMP_JACKPOT_CHANCE);
+      if (jackpot) UI.log(`<b style="color:#ffd040">Jackpot!</b> ${variant.name}'s reward is increased.`, '#ffd040');
+      const payout = treasureImpPayoutMultiplier(variant) * (jackpot ? 1.5 : 1);
+      grantImpReward(world, m, variant, { qty: payout });
+      if (['blood', 'alchemist', 'vitality', 'prosperity', 'arcane', 'celestial'].includes(variant.reward)) {
+        impDropGold(world, m, lvl, 12 + lvl * 2, 3, payout * 0.5);
+      }
+    }
+    UI.centerMsg(`${variant.name.toUpperCase()} SLAIN`, `${variant.name} releases its reward`, 2);
   };
   world.add(m);
   const H = world.happen;
-  m.impLeft = 32;
-  (H.imps ||= []).push(m);
-  H.imp = m; H.impLeft = 32;
-  addEffect(new Ring(m.x, m.y, 0.2, 2, 0.5, '#ffd040', 4));
-  floatText(m.x, m.y, 70, 'Treasure Imp!', '#ffd040', 16, { life: 2 });
-  UI.log('<b style="color:#ffd040">A Treasure Imp</b> scurries past, dripping gold. Catch it before it escapes!', '#ffd040');
+  (H.imps ||= []).push(m); H.imp = m; H.impLeft = m.impLeft || 0;
+  addEffect(new Ring(m.x, m.y, 0.2, 2, 0.5, variant.color, 4));
   sfx('gold', 0.8);
+  return m;
+}
+
+export function spawnImp(world, options = {}) {
+  if (!world?.player || !world.map) return null;
+  const event = !!options.event;
+  const guaranteed = !!options.guaranteed;
+  if (!canSpawnTreasureImp(world, { event })) return null;
+  if (!event && !guaranteed && impEncounteredInArea(world)) return null;
+  const p = world.player, map = world.map;
+  let at = null;
+  let pathChecks = 0;
+  const reachable = (x, y) => !map.findPath || (pathChecks++ < 16 && !!map.findPath(p.x, p.y, x, y, 12000));
+  const canSpawnAt = (x, y) => map.walkable(x, y) && map.circleFree(x, y, 0.35) && (!map.flowAt || map.flowAt(x, y) >= 0);
+  for (let i = 0; i < 48 && !at; i++) {
+    const a = rand(TAU), r = rand(6, 9), x = p.x + Math.cos(a) * r, y = p.y + Math.sin(a) * r;
+    if (canSpawnAt(x, y) && reachable(x, y) && (i > 20 || !map.los || map.los(p.x, p.y, x, y))) at = [x, y];
+  }
+  // Search nearby reachable floor first, then use a bounded map-wide fallback for unusual layouts.
+  for (const radius of [11, 15, 20]) for (let i = 0; !at && i < 8; i++) {
+    const [x, y] = map.randomNear(p.x, p.y, radius);
+    if (dist(p.x, p.y, x, y) < 6 || !canSpawnAt(x, y)) continue;
+    if (!reachable(x, y)) continue;
+    at = [x, y];
+  }
+  for (let i = 0; !at && i < 40 && map.w && map.h; i++) {
+    const x = rand(1, map.w - 1), y = rand(1, map.h - 1);
+    if (dist(p.x, p.y, x, y) < 6 || !canSpawnAt(x, y)) continue;
+    if (!reachable(x, y)) continue;
+    at = [x, y];
+  }
+  if (!at) return null;
+  world.happen ||= { t: 0, imps: [] };
+  const context = impContext(world), variant = selectTreasureImp(context);
+  const primary = createTreasureImp(world, at, variant, { event });
+  if (!event) {
+    if (!guaranteed) recordImpEncounter(world);
+    if (chance(IMP_GATHERING_CHANCE)) {
+      const pool = Object.values(IMP_BY_ID).filter((candidate) => candidate.id !== variant.id && candidate.id !== 'prismatic' &&
+        // keep gatherings small and never make them bypass progression restrictions
+        ['common', 'uncommon', 'rare'].includes(candidate.rarity) &&
+        (candidate.endgameOnly ? context.endgameUnlocked && Number(world.depth) >= (candidate.minDepth || 1) : true) &&
+        (candidate.id !== 'abyssal' || context.canEarnMarks));
+      for (let i = 0, count = randi(1, 2); i < count && pool.length; i++) {
+        const other = pool.splice(randi(0, pool.length - 1), 1)[0];
+        let second = null;
+        for (let n = 0; n < 16 && !second; n++) {
+          const [x, y] = map.randomNear(at[0], at[1], 1.6);
+          if (dist(p.x, p.y, x, y) >= 3.5 && map.circleFree(x, y, 0.35) && map.flowAt(x, y) >= 0 && reachable(x, y)) second = [x, y];
+        }
+        if (second) createTreasureImp(world, second, other, { specialEncounter: 'imp-gathering' });
+      }
+      UI.log('<b style="color:#e9bdff">Imp Gathering!</b> A small band of different imps scatters through the area.', '#e9bdff');
+    }
+  }
+  return primary;
+}
+
+/** Schedule a one-time guaranteed imp and the existing optional extra imp for this generated environment. */
+export function spawnGuaranteedImp(world) {
+  const c = G.char;
+  if (!c || !world?.player || !world.map) return null;
+  const key = treasureImpAreaKey(world);
+  const firstSchedule = !c.treasureImpGuaranteedAreas?.includes(key) && !Object.hasOwn(c.treasureImpGuaranteedPending || {}, key);
+  let changed = false;
+  c.treasureImpGuaranteedAreas ||= [];
+  c.treasureImpGuaranteedPending ||= {};
+  c.treasureImpRandomAreas ||= [];
+  c.treasureImpRandomCheckedAreas ||= [];
+  c.treasureImpRandomPending ||= {};
+  world.happen ||= { t: 0, imps: [] };
+
+  if (!hasTreasureImpArea(key, c.treasureImpGuaranteedAreas) && firstSchedule) {
+    c.treasureImpGuaranteedPending[key] = treasureImpSpawnDelay();
+    changed = true;
+  }
+  if (world.impRandomEligible && !hasTreasureImpArea(key, c.treasureImpRandomAreas) && !c.treasureImpRandomCheckedAreas.includes(key)) {
+    c.treasureImpRandomCheckedAreas.push(key);
+    if (chance(Math.min(1, 0.3 + (G.player?.st?.markImpSpawn || 0) / 100))) c.treasureImpRandomPending[key] = treasureImpSpawnDelay();
+    changed = true;
+  }
+  world.happen.impGuaranteedT = c.treasureImpGuaranteedPending[key];
+  world.happen.impT = c.treasureImpRandomPending[key];
+  if (changed) G.game?.autosave?.();
+  return null;
+}
+
+function impSpawnTimersTick(world, dt) {
+  const c = G.char;
+  if (!c || !world?.player || world.player.dead || !world.map || G.paused) return;
+  const key = treasureImpAreaKey(world), H = world.happen ||= { t: 0, imps: [] };
+  c.treasureImpGuaranteedPending ||= {};
+  c.treasureImpRandomPending ||= {};
+  const bossAwake = !!(world.boss && world.boss.awake && !world.boss.dead);
+  if (Object.hasOwn(c.treasureImpGuaranteedPending, key) && !hasTreasureImpArea(key, c.treasureImpGuaranteedAreas)) {
+    const left = c.treasureImpGuaranteedPending[key] = advanceTreasureImpSpawnTimer(c.treasureImpGuaranteedPending[key], dt);
+    H.impGuaranteedT = left;
+    if (left <= 0 && !bossAwake) {
+      if (hasActiveTreasureImp(world)) recordGuaranteedImp(world); // discard this blocked attempt; never keep it queued behind another encounter
+      else if (spawnImp(world, { guaranteed: true })) recordGuaranteedImp(world);
+      else c.treasureImpGuaranteedPending[key] = TREASURE_IMP_SPAWN_RETRY_DELAY;
+    }
+  } else H.impGuaranteedT = undefined;
+  if (Object.hasOwn(c.treasureImpRandomPending, key) && !hasTreasureImpArea(key, c.treasureImpRandomAreas)) {
+    const left = c.treasureImpRandomPending[key] = advanceTreasureImpSpawnTimer(c.treasureImpRandomPending[key], dt);
+    H.impT = left;
+    if (left <= 0 && !bossAwake) {
+      if (hasActiveTreasureImp(world)) {
+        delete c.treasureImpRandomPending[key]; // consume, rather than defer, a chance blocked by an active event or imp
+        H.impT = undefined;
+        G.game?.autosave?.();
+      } else if (!spawnImp(world)) c.treasureImpRandomPending[key] = TREASURE_IMP_SPAWN_RETRY_DELAY;
+    }
+  } else H.impT = undefined;
 }
 
 function impTick(world, dt) {
-  const H = world.happen, imps = H.imps ||= (H.imp ? [H.imp] : []);
+  const H = world.happen, imps = H.imps ||= (H.imp ? [H.imp] : []), p = world.player;
   for (const m of imps.slice()) {
     if (m.dead) continue;
-    m.status.fear = { t: 1 }; // every imp in a multi-imp event flees from the hero
-    if (chance(dt * 8)) sparkle(m.x, m.y, 20, '#ffd040', 1, 0.3);
-    if (!m.dungeonEventImp && chance(dt * 1.2)) world.addLoot(new GroundItem(m.x, m.y, 'gold', { amount: impGold(world, depthLevel(world.depth), 5 + depthLevel(world.depth) * 1.5) }));
-    if ((m.impLeft -= dt) <= 0) {
-      addEffect(new Ring(m.x, m.y, 2, 0.1, 0.5, '#ffd040', 4)); addEffect(new Column(m.x, m.y, '#ffd040', 0.5, 20, 240));
-      floatText(m.x, m.y, 70, 'Escaped!', '#ffd040', 14, { life: 1.6 });
-      UI.log('The Treasure Imp escaped through a rift, cackling.', '#c0a060');
-      m.dungeonEventImpEscaped = true; m.dead = true; sfx('portal', 0.5);
+    const d = p ? dist(p.x, p.y, m.x, m.y) : Infinity;
+    if (!m.impDiscovered && d <= 10 && world.map.los(p.x, p.y, m.x, m.y)) discoverImp(world, m);
+    if (p) {
+      const pattern = m.impMovementPattern;
+      m.impPatternTimer -= dt;
+      if (m.impPatternTimer <= 0) {
+        const away = Math.atan2(m.y - p.y, m.x - p.x);
+        m.impPatternSign *= -1;
+        m.impFleeAngle = away + rand(-pattern.spread, pattern.spread) + m.impPatternSign * pattern.side;
+        m.impFleeSpeedMul = pattern.speed * (pattern.id === 'darting' && chance(0.3) ? 1.18 : 1);
+        m.impPatternTimer = rand(pattern.turnMin, pattern.turnMax);
+      }
+    }
+    m.status.fear = { t: 1 };
+    m.impParticleT = (m.impParticleT || 0) - dt;
+    if (m.impParticleT <= 0) { m.impParticleT = rand(0.14, 0.24); impParticle(m); }
+    dropImpTrailLoot(world, m, dt);
+    if (m.impDiscovered) {
+      if (!m.disabled()) m.impLeft -= dt;
+      if (m.impLeft <= IMP_WARNING_SECONDS && !m.impEscapeWarned) {
+        m.impEscapeWarned = true;
+        floatText(m.x, m.y, 70, 'Rift opening!', m.impColor, 13, { life: 1.4 });
+        UI.log(`<b style="color:${m.impColor}">${m.name}</b> is about to escape!`, m.impColor);
+      }
+      if (m.impLeft <= 0) {
+        addEffect(new Ring(m.x, m.y, 2, 0.1, 0.5, m.impColor, 4)); addEffect(new Column(m.x, m.y, m.impColor, 0.5, 20, 240));
+        floatText(m.x, m.y, 70, 'Escaped!', m.impColor, 14, { life: 1.6 });
+        UI.log(`<b style="color:${m.impColor}">${m.name}</b> escaped through a rift.`, '#c0a060');
+        m.impGoldReserve = 0; m.impGoldOriginalReserve = 0; m.impGoldForfeited = true;
+        m.dungeonEventImpEscaped = true; m.dead = true; sfx('portal', 0.5);
+      }
     }
   }
   H.imps = imps.filter(m => !m.dead);
@@ -370,7 +775,8 @@ function impTick(world, dt) {
 
 // Sky and sea battles skip the regular happenings simulation, but their event spawned imps still flee and escape.
 export function eventImpsTick(world, dt) {
-  if (world?.happen?.imps?.some(m => m.dungeonEventImp)) impTick(world, dt);
+  impSpawnTimersTick(world, dt);
+  if (world?.happen?.imps?.some((m) => !m.dead)) impTick(world, dt);
 }
 
 // ------------------------------------------------------------------------------------------------ challenge
@@ -397,7 +803,7 @@ function challengeTick(world, dt) {
     const lvl = depthLevel(world.depth);
     UI.centerMsg('CHALLENGE MET', 'Velscour grudgingly pays up', 2.2);
     addEffect(new Column(p.x, p.y, '#ffd040', 0.9, 30, 360));
-    for (let i = 0; i < 3; i++) world.addLoot(new GroundItem(p.x, p.y, 'item', { item: rollGroundItem(lvl + 2, { mf: p.st.magicFind, bonus: 1 }) }));
+    for (let i = 0; i < 3; i++) world.addLoot(new GroundItem(p.x, p.y, 'item', { item: rollGroundItem(lvl + 2, { world, mf: p.st.magicFind, bonus: 1 }) }));
     for (let i = 0; i < 6; i++) world.addLoot(new GroundItem(p.x, p.y, 'gold', { amount: Math.round((20 + lvl * 5) * goldScale(lvl) * rand(0.7, 1.3)) }));
     world.addLoot(new GroundItem(p.x, p.y, 'potion', { item: potionItem(pick(['rejuv', 'fury'])) }));
     sfx('gate');
@@ -438,10 +844,16 @@ export function onKill(m) {
 export function happeningsTick(world, dt) {
   const H = world.happen, p = world.player;
   if (!H || !p || p.dead) return;
+  impSpawnTimersTick(world, dt);
   H.t += dt;
-  greedTick(world, dt); // the Greed lever's tougher monsters (game/greed.js)
   if (H.streakT > 0) H.streakT -= dt;
   const affixes = new Set(world.dungeonAffixes || []);
+  // Arcane Surge is represented as a finite buff and renewed only while its
+  // floor affix is active. Leaving the floor still clears it immediately.
+  if (affixes.has('surge')) {
+    const surge = p.buffs.find((buff) => buff.id === 'dungeon_affix_surge');
+    if (!surge || surge.t < 30) p.addBuff({ id: 'dungeon_affix_surge', name: 'Arcane Surge', el: 'arcane', stats: DUNGEON_AFFIX_CONFIG.surge.playerStats, t: 60, max: 60, aura: true });
+  }
   if (affixes.has('starfall') && (H.starT -= dt) <= 0) {
     H.starT = rand(...DUNGEON_AFFIX_CONFIG.starfall.repeatDelay);
     starfall(world);
@@ -451,11 +863,10 @@ export function happeningsTick(world, dt) {
   if (p.buffs.some((b) => b.storm) && (H.zapT = (H.zapT || 0) - dt) <= 0) {
     H.zapT = 0.6;
     const foes = world.hostiles('player', p.x, p.y, 6).filter((m) => m.team === 'enemy' && !m.dead).slice(0, 2);
-    for (const m of foes) { addEffect(new Bolt(p.x, p.y, 40, m.x, m.y, 20, '#c0b0ff', 0.25, 3)); hit(p, m, Math.max(heroHit(p) * 1.4, normalLife(m) * 0.08), 'light', { noArc: true }); }
+    for (const m of foes) { addEffect(Bolt(p.x, p.y, 40, m.x, m.y, 20, '#c0b0ff', 0.25, 3)); hit(p, m, Math.max(heroHit(p) * 1.4, normalLife(m) * 0.08), 'light', { noArc: true }); }
     if (foes.length) sfx('light', 0.3);
   }
   for (const ch of world.chests) if (ch.tick && ch.opened) ch.tick(dt);
-  if (H.impT !== undefined && H.impT > 0 && (H.impT -= dt) <= 0 && !(world.boss && world.boss.awake && !world.boss.dead)) spawnImp(world);
   impTick(world, dt);
   challengeTick(world, dt);
   scenarioTick(world, dt);
@@ -486,13 +897,12 @@ function starfall(world) {
 }
 
 // ------------------------------------------------------------------------------------------------ milestones
-/** First clear of a depth: every tenth is a new record worth fireworks (and a little gift). */
+/** First clear of a depth: every tenth is a new record worth a little gift. */
 export function recordDepth(world, depth) {
   if (depth % 10 !== 0) return;
   const p = G.player;
   UI.centerMsg(`DEPTH ${depth} CONQUERED`, 'A new record descent', 3);
-  for (let i = 0; i < 6; i++) setTimeout(() => { if (G.world === world && p) firework(p.x + rand(-4, 4), p.y + rand(-4, 4)); }, i * 260);
-  world.addLoot(new GroundItem(p.x, p.y, 'item', { item: rollGroundItem(depthLevel(depth) + 2, { rarity: rarityAt(depthLevel(depth) + 2, chance(0.12) ? 4 : 3), mf: p.st.magicFind }) }));
+  world.addLoot(new GroundItem(p.x, p.y, 'item', { item: rollGroundItem(depthLevel(depth) + 2, { world, rarity: rarityAt(depthLevel(depth) + 2, chance(0.12) ? 4 : 3), mf: p.st.magicFind }) }));
 }
 
 function firework(x, y) {
@@ -507,7 +917,7 @@ function firework(x, y) {
 
 // ------------------------------------------------------------------------------------------------ town
 export const TOWN_EVENTS = {
-  festival: { name: 'Harvest Festival', color: '#ffb040', text: 'The Hollow celebrates! Free potions for the hero.', fn: (c) => { c.potions.hp += 3; c.potions.mp += 3; c.potions.rejuv += 1; return 'Received 3 healing, 3 mana and 1 rejuvenation potion.'; }, fireworks: true },
+  festival: { name: 'Harvest Festival', color: '#ffb040', text: 'The Hollow celebrates! Free potions for the hero.', fn: (c) => { changePotionCount(c, 'hp', 3); changePotionCount(c, 'mp', 3); changePotionCount(c, 'rejuv', 1); return 'Received 3 healing, 3 mana and 1 rejuvenation potion.'; } },
   priestess: { name: "The Priestess's Blessing", color: '#ffe080', text: 'Blessed for the next 3 depths: +15% damage, +15% life.', bless: { dmg: 15, life: 15 } },
   oracle: { name: 'The Fortune Teller', color: '#d080ff', text: 'Your stars align for 3 depths: +60% magic and gold find.', bless: { mf: 60, gf: 60 } },
   scholar: { name: 'A Travelling Scholar', color: '#60e0ff', text: 'Lessons in monster lore: +30% experience for 3 depths.', bless: { xp: 30 } },
@@ -538,7 +948,18 @@ function clearDungeonAffixBuff() {
 export function townHappening(world) {
   const c = G.char;
   clearDungeonAffixBuff();
-  if (!c || (c.townVisitCount || 0) < 2 || !chance(0.65)) return;
+  if (!c || world?.kind !== 'town' || world?.biome?.id !== 'town') return;
+  const savedDepth = Number(c.depth);
+  const progressionDepth = Number.isFinite(savedDepth) ? Math.max(1, Math.floor(savedDepth)) : 1;
+  if (progressionDepth > TOWN_REWARD_MAX_DEPTH) {
+    // These persisted character blessings are granted exclusively by this random town event system.
+    if (c.blessing) {
+      c.blessing = null;
+      G.player?.recompute?.();
+    }
+    return;
+  }
+  if ((c.townVisitCount || 0) < 2 || !chance(0.65)) return;
   const key = pick(TOWN_KEYS.filter((k) => k !== c.lastTownEvent));
   c.lastTownEvent = key;
   const E = TOWN_EVENTS[key];
@@ -547,19 +968,40 @@ export function townHappening(world) {
   if (E.fn) extra = E.fn(c);
   if (G.player) G.player.recompute();
   setTimeout(() => {
-    if (G.world !== world) return;
+    const currentDepth = Number(c.depth);
+    if (G.char !== c || G.world !== world || !Number.isFinite(currentDepth) || Math.floor(currentDepth) > TOWN_REWARD_MAX_DEPTH) return;
     UI.centerMsg(E.name.toUpperCase(), E.text, 3);
     UI.log(`<b style="color:${E.color}">${E.name}</b>: ${E.text}${extra ? ' ' + extra : ''}`, E.color);
     sfx('gate', 0.5);
     UI.refresh();
   }, 1800);
-  if (E.fireworks || chance(0.3)) world.happen = { t: 0, fireT: 2, fireLeft: 24 };
 }
 
-/** Town tick: fireworks over the square during a festival. */
+/** Start the one-time saved celebration after a character's first real Velscour victory. */
+export function beginVictoryTownCelebration(world, character) {
+  if (!world || world.kind !== 'town' || !character?.townVictoryFireworksPending || character.townVictoryFireworksDone) return false;
+  // Claim and save the celebration before any visual/audio work so returning, refreshing, or re-entering
+  // town cannot replay it. The normal town-entry autosave immediately following this call persists the flag.
+  character.townVictoryFireworksPending = false;
+  character.townVictoryFireworksDone = true;
+  world.victoryFireworks = { elapsed: 0, duration: 6.2, next: 0, shots: 0 };
+  const keep = world.townId === 'act4_town';
+  UI.centerMsg('VELSCOUR HAS FALLEN', 'The townsfolk celebrate your victory!', 4);
+  UI.log(keep
+    ? '<b style="color:#ffd060">Tessariel’s Keep erupts in celebration.</b> The townsfolk honor your victory over Velscour.'
+    : '<b style="color:#ffd060">The Hollow erupts in celebration.</b> The townsfolk honor your victory over Velscour.', '#ffd060');
+  return true;
+}
+
+/** Town tick: only the saved, one-time Velscour victory earns fireworks. */
 export function townTick(world, dt) {
-  const H = world.happen, p = world.player;
-  if (!H || !H.fireLeft || !p) return;
-  H.fireLeft -= dt;
-  if ((H.fireT -= dt) <= 0) { H.fireT = rand(0.5, 1.4); firework(p.x + rand(-7, 7), p.y + rand(-7, 7)); }
+  const celebration = world?.victoryFireworks, p = world?.player;
+  if (!celebration || !p) return;
+  celebration.elapsed += dt;
+  if (celebration.elapsed >= celebration.duration) { world.victoryFireworks = null; return; }
+  if (celebration.elapsed >= celebration.next && celebration.shots < 6) {
+    firework(p.x + rand(-7, 7), p.y + rand(-7, 7));
+    celebration.shots++;
+    celebration.next = celebration.elapsed + rand(0.72, 1.02);
+  }
 }

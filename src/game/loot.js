@@ -22,6 +22,16 @@ import { keyChance } from './unbound.js';
 import { CHEST_RARITIES } from '../data/treasurechests.js';
 import { canDropNaturalSigil, naturalSigilDropChance, recordNaturalSigilDrop } from './sigildrops.mjs';
 
+/** Effective reward depth for ground drops (supports campaign, rift, and breach). */
+export function groundRewardDepth(world = G.world, fallbackDepth = G.char?.depth || 1) {
+  return Math.max(1, Number(world?.depth) || Number(fallbackDepth) || 1);
+}
+
+/** Roll a ground Sigil Stone scaled to the world's reward depth. */
+export function rollGroundSigil(world = G.world, depth = null, bonus = 0) {
+  return rollSigil(groundRewardDepth(world, depth), bonus);
+}
+
 /** Highest quality unlocked for ground drops at this campaign depth. */
 export function groundDropRarityCap(depth) { return qualityAtDepth(Math.max(1, depth || 1)); }
 
