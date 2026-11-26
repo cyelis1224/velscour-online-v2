@@ -7,7 +7,8 @@ import { GEMS, SIGILS, itemName, itemColor } from '../data/items.js';
 import { codexKey, CODEX_TOTAL, HEIRLOOMS, GLYPHWORDS, PIECE_BY_ID } from '../data/relics.js';
 
 const KEY = 'Velscour_reliquary_v1';
-export const VAULT_TABS = 6, VAULT_SIZE = 96;
+export const VAULT_TABS = 6, VAULT_SIZE = 96, JEWEL_BOX_SIZE = 300;
+export const MAX_RELIQUARY_GOLD = Number.MAX_SAFE_INTEGER;
 export const MILESTONES = [
   { pct: 25, text: 'Vault III opens' },
   { pct: 40, text: '+3% Magic Find for every hero', mf: 3 },
@@ -35,7 +36,8 @@ export function reliquaryStorageKey() {
   return KEY;
 }
 
-function blank() { return { tabs: Array.from({ length: VAULT_TABS }, () => Array(VAULT_SIZE).fill(null)), codex: {}, lines: 0 }; }
+function blank() { return { tabs: Array.from({ length: VAULT_TABS }, () => Array(VAULT_SIZE).fill(null)), codex: {}, lines: 0, gold: 0, jewelBox: Array(JEWEL_BOX_SIZE).fill(null) }; }
+function safeGold(value) { return Number.isSafeInteger(value) && value >= 0 ? value : 0; }
 
 function sanitizeReliquary(r) {
   if (!r || !Array.isArray(r.tabs)) r = blank();
@@ -43,6 +45,9 @@ function sanitizeReliquary(r) {
   for (const t of r.tabs) while (t.length < VAULT_SIZE || (t.length % 12 !== 0)) t.push(null);
   r.codex = r.codex || {};
   r.lines = r.lines || 0;
+  r.gold = safeGold(r.gold);
+  if (!Array.isArray(r.jewelBox)) r.jewelBox = Array(JEWEL_BOX_SIZE).fill(null);
+  while (r.jewelBox.length < JEWEL_BOX_SIZE || (r.jewelBox.length % 10 !== 0)) r.jewelBox.push(null);
   return r;
 }
 
@@ -90,12 +95,82 @@ export function adoptOnlineReliquary(serverRel) {
   current.tabs = s.tabs;
   current.codex = Object.assign({}, current.codex, s.codex);
   current.lines = Math.max(current.lines || 0, s.lines || 0);
+  current.gold = s.gold;
+  current.jewelBox = s.jewelBox;
 
   R = current;
   const k = reliquaryStorageKey();
   try { localStorage.setItem(k, JSON.stringify(R)); } catch (e) { }
   try { localStorage.setItem(KEY, JSON.stringify(R)); } catch (e) { }
   return R;
+}
+
+/** Shared account gold stored in the Reliquary. */
+export function reliquaryGold() { return reliquary().gold || 0; }
+
+/** Transfer gold between hero and shared Reliquary; persists both atomically. */
+export function transferReliquaryGold(char, direction, rawAmount) {
+  if (!char) return { ok: false, amount: 0, error: 'No active hero.' };
+  const r = reliquary();
+  const heroGold = safeGold(Math.floor(char.gold || 0));
+  const vaultGold = safeGold(r.gold || 0);
+  const want = Math.floor(Number(rawAmount) || 0);
+  if (want <= 0) return { ok: false, amount: 0, error: 'Enter a gold amount greater than zero.' };
+
+  if (direction === 'deposit') {
+    const amount = Math.min(want, heroGold, MAX_RELIQUARY_GOLD - vaultGold);
+    if (amount <= 0) return { ok: false, amount: 0, error: heroGold <= 0 ? 'You have no gold to deposit.' : 'Reliquary gold is at capacity.' };
+    char.gold = heroGold - amount;
+    r.gold = vaultGold + amount;
+    saveReliquary();
+    if (G.game?.autosave) G.game.autosave();
+    return { ok: true, amount, heroGold: char.gold, vaultGold: r.gold };
+  }
+  if (direction === 'withdraw') {
+    const amount = Math.min(want, vaultGold, MAX_RELIQUARY_GOLD - heroGold);
+    if (amount <= 0) return { ok: false, amount: 0, error: vaultGold <= 0 ? 'The Reliquary holds no gold.' : 'Your hero gold is at capacity.' };
+    r.gold = vaultGold - amount;
+    char.gold = heroGold + amount;
+    saveReliquary();
+    if (G.game?.autosave) G.game.autosave();
+    return { ok: true, amount, heroGold: char.gold, vaultGold: r.gold };
+  }
+  return { ok: false, amount: 0, error: 'Invalid transfer direction.' };
+}
+
+/** Account-wide Jewel Box array (migrates any legacy per-character gems on first access). */
+export function accountJewelBox(char = G.char) {
+  const r = reliquary();
+  if (!Array.isArray(r.jewelBox)) r.jewelBox = Array(JEWEL_BOX_SIZE).fill(null);
+  if (char && Array.isArray(char.jewelBox) && char.jewelBox.some(Boolean)) {
+    let moved = false;
+    if (char.jewelBox.length > r.jewelBox.length) {
+      while (r.jewelBox.length < char.jewelBox.length) r.jewelBox.push(null);
+      moved = true;
+    }
+    for (let i = 0; i < char.jewelBox.length; i++) {
+      const it = char.jewelBox[i];
+      if (!it || it.type !== 'gem') continue;
+      const same = r.jewelBox.find((b) => b && b.type === 'gem' && b.gem === it.gem && b.tier === it.tier);
+      if (same) {
+        same.count = (same.count || 1) + (it.count || 1);
+        char.jewelBox[i] = null;
+        moved = true;
+        continue;
+      }
+      const empty = r.jewelBox.findIndex((b) => !b);
+      if (empty >= 0) {
+        r.jewelBox[empty] = it;
+        char.jewelBox[i] = null;
+        moved = true;
+      }
+    }
+    if (moved) {
+      saveReliquary();
+      if (G.game?.autosave) G.game.autosave();
+    }
+  }
+  return r.jewelBox;
 }
 
 if (typeof window !== 'undefined') {

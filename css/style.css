@@ -9557,3 +9557,17 @@ body.in-keep #velscour-skull { display: none !important; }
   .keep-panel .kp-note { font-size: 11px; margin-bottom: 5px; }
 }
 .kp-title .kp-ember { font-size: 13px; }
+
+/* Reliquary Account-Wide Gold Transfers */
+.reliquary-panel .rel-gold-transfer { margin: 0 0 8px; padding: 7px 8px; border: 1px solid #604822; border-radius: 5px; background: linear-gradient(110deg, rgba(74,48,20,.34), rgba(20,14,9,.7)); }
+.reliquary-panel .rel-gold-balances { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 6px; color: #c8b89d; font-size: 12px; }
+.reliquary-panel .rel-gold-balances b { color: #ffd860; font-variant-numeric: tabular-nums; }
+.reliquary-panel .rel-gold-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.reliquary-panel .rel-gold-amount { flex: 1 1 82px; width: 100px; min-width: 72px; box-sizing: border-box; padding: 5px 7px; border: 1px solid #80603a; border-radius: 4px; background: #1c140f; color: #f0dfbf; font: 13px var(--font-body); }
+.reliquary-panel .rel-gold-controls .btn { flex: 0 0 auto; }
+.reliquary-panel .rel-gold-controls .btn:disabled { opacity: .45; cursor: default; }
+
+/* Altar of Heresy 3-column desktop grid */
+@media (min-width: 860px) {
+  .heresy-panel .hx-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

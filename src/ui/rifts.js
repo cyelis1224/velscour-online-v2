@@ -47,7 +47,21 @@ export const Rifts = {
       buttons: [{ label: 'Not yet' }, { label: 'Honour Board', keepOpen: true, fn: () => this.board() }, { label: 'Enter the Rift', cls: 'red', fn: () => G.game.enterRift(+d.box.querySelector('#rift-pick').value) }],
     });
     const sel = d.box.querySelector('#rift-pick'), warn = d.box.querySelector('#rift-warn');
-    const upd = () => { const L = riftLevel(+sel.value); warn.innerHTML = L > c.level + 4 ? `<b style="color:#ff6050">Monsters there are level ${L}; you are level ${c.level}. Expect to die.</b>` : ''; };
+    let optionTop = top;
+    const refreshTiers = () => {
+      const latest = riftOpen(c);
+      if (latest !== optionTop) {
+        const cur = Math.min(latest, Math.max(1, +sel.value || latest));
+        const nextOpts = [];
+        for (let n = latest; n >= 1; n--) nextOpts.push(opt(n));
+        sel.innerHTML = nextOpts.join('');
+        sel.value = String(cur);
+        optionTop = latest;
+      }
+      return optionTop;
+    };
+    const upd = () => { refreshTiers(); const L = riftLevel(+sel.value); warn.innerHTML = L > c.level + 4 ? `<b style="color:#ff6050">Monsters there are level ${L}; you are level ${c.level}. Expect to die.</b>` : ''; };
+    sel.addEventListener('focus', upd);
     sel.addEventListener('change', upd); upd();
     return d;
   },

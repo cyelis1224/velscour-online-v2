@@ -19,8 +19,29 @@ export const CATS = {
   mf: { name: 'Fortune', per: 0.25, unit: '% more drops', color: '#b45cff', desc: 'More gear, gems and Sigil Stones from every kill, like the Greed lever.' }, // (key 'mf': saved records)
   rift: { name: 'Haste', per: 0.3, unit: ' s on the rift clock', color: '#20e0ff', desc: 'More time in Abyssal Rifts.' },
 };
-/** One Mark's worth of XP at the cap: the price of the last level (a function: player.js imports this module). */
-export const markXp = () => xpToNext(MAX_LEVEL);
+const nonNegativeFinite = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Number(v)) : 0);
+const experienceEarned = (c = G.char) => Math.max(0, Math.floor(nonNegativeFinite(c?.experienceMarks?.earned)));
+/** One Mark's worth of XP at the cap: scales along the hero-level XP curve per Mark earned by this hero. */
+export const markXp = (earned = experienceEarned(G.char)) => xpToNext(MAX_LEVEL + Math.max(0, Math.floor(nonNegativeFinite(earned))));
+/** Ensure a level-100 hero has per-character Mark XP progress (migrating any legacy shared remainder once). */
+export function prepareCharacterMarkProgress(c = G.char) {
+  if (!c) return null;
+  const progress = c.experienceMarks && typeof c.experienceMarks === 'object' && !Array.isArray(c.experienceMarks)
+    ? c.experienceMarks : (c.experienceMarks = { earned: 0, xp: 0 });
+  progress.earned = Math.max(0, Math.floor(nonNegativeFinite(progress.earned)));
+  progress.xp = nonNegativeFinite(progress.xp);
+  if (c.level >= MAX_LEVEL) {
+    const rec = endgame();
+    if (!rec.markXpMigrationV1) {
+      const legacy = nonNegativeFinite(rec.marks?.xp);
+      if (legacy > 0) progress.xp += legacy;
+      if (rec.marks) rec.marks.xp = 0;
+      rec.markXpMigrationV1 = true;
+      saveEndgame(true);
+    }
+  }
+  return progress;
+}
 /** A category's worth of n points, in its per (eff(100) ~58, eff(500) ~203, eff(1000) ~324: no cap). */
 export const eff = (n) => 140 * (Math.sqrt(1 + Math.max(0, n) / 100) - 1);
 /** What the next point adds against the first one (1 at 0 points, 0.5 at 300, ~0.3 at 1000). */
@@ -55,11 +76,21 @@ export function deductMarks(cost) {
 }
 /** A category's second bonus for n points (Precision's critical damage), or 0. */
 export const alsoAt = (k, n) => (CATS[k].also ? Math.round(CATS[k].also.per * eff(n) * 100) / 100 : 0);
+/** PvP Arena normalization caps so veteran Mark investment never one-shots opponents in duels. */
+export const PVP_MARK_SCALE = 0.25;
+export const PVP_MARK_CAPS = Object.freeze({ life: 15, crit: 6, critDmg: 25 });
+
 /** The bonuses every hero gets now: { life % more, crit %, critDmg %, mf = % more drops, rift s }. */
-export function markBonuses() {
+export function markBonuses(world = G.world) {
   const s = endgame().marks.spent, o = {};
   for (const k of MARK_CATS) o[k] = bonusAt(k, s[k]);
   o.critDmg = alsoAt('crit', s.crit);
+  if (world?.kind === 'arena') {
+    o.life = Math.min(PVP_MARK_CAPS.life, Math.round(o.life * PVP_MARK_SCALE * 100) / 100);
+    o.crit = Math.min(PVP_MARK_CAPS.crit, Math.round(o.crit * PVP_MARK_SCALE * 100) / 100);
+    o.critDmg = Math.min(PVP_MARK_CAPS.critDmg, Math.round(o.critDmg * PVP_MARK_SCALE * 100) / 100);
+    o.pvpNormalized = true;
+  }
   return o;
 }
 /** Marks for clearing an Abyssal Rift of this tier. */
@@ -77,14 +108,31 @@ function changed() {
   }
 }
 let xpDirty = false, xpSaved = 0;
-/** XP earned at the level cap: Marks when it adds up (saved at once), else saved at most every 5 s and on autosave. */
-export function gainMarkXp(xp) {
+/** XP earned at the level cap: per-character progressive Mark XP curve feeding the account-wide Mark wallet. */
+export function gainMarkXp(xp, c = G.char) {
   const m = endgame().marks;
-  m.xp += Math.max(0, xp || 0);
+  const prog = prepareCharacterMarkProgress(c);
+  const gained = Math.max(0, xp || 0);
+  if (prog) {
+    prog.xp += gained;
+    let n = 0;
+    let cost = markXp(prog.earned);
+    while (prog.xp >= cost && cost > 0) {
+      prog.xp -= cost;
+      prog.earned++;
+      m.pts++;
+      n++;
+      cost = markXp(prog.earned);
+    }
+    if (n) { xpDirty = false; xpSaved = Date.now(); changed(); announce(n, 'from the abyss', true); }
+    else if (gained > 0) { xpDirty = true; if (Date.now() - xpSaved > 5000) saveMarkXp(); }
+    return n;
+  }
+  m.xp += gained;
   let n = 0;
-  const cost = markXp();
+  const cost = markXp(0);
   while (m.xp >= cost) { m.xp -= cost; m.pts++; n++; }
-  if (n) { xpDirty = false; xpSaved = Date.now(); changed(); announce(n, 'from the abyss', true); } else if (xp > 0) { xpDirty = true; if (Date.now() - xpSaved > 5000) saveMarkXp(); }
+  if (n) { xpDirty = false; xpSaved = Date.now(); changed(); announce(n, 'from the abyss', true); } else if (gained > 0) { xpDirty = true; if (Date.now() - xpSaved > 5000) saveMarkXp(); }
   return n;
 }
 /** Write XP towards the next Mark if any is unsaved (game.autosave). */
@@ -94,7 +142,11 @@ export function saveMarkXp() {
   saveEndgame(true);
 }
 /** At the level cap: { xp, need } towards the next Mark (the HUD's XP bar, the character sheet), else null. */
-export const capXp = (c = G.char) => (c && c.level >= MAX_LEVEL ? { xp: endgame().marks.xp, need: markXp() } : null);
+export const capXp = (c = G.char) => {
+  if (!c || c.level < MAX_LEVEL) return null;
+  const prog = prepareCharacterMarkProgress(c);
+  return prog ? { xp: prog.xp, need: markXp(prog.earned), earned: prog.earned } : { xp: endgame().marks.xp, need: markXp(0), earned: 0 };
+};
 /** Marks given outright (rift clears, Heresy milestones). */
 export function grantMarks(n, why = '') {
   n = Math.max(0, Math.floor(n));

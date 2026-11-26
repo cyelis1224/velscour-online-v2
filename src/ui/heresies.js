@@ -25,7 +25,7 @@ export const Heresies = {
     UI.closeAll();
     this.active = true;
     sfx('ui');
-    UI.openPanel('heresies', 'Altar of Heresy', (b) => this.render(b), { onClose: () => { this.active = false; }, cls: 'heresy-panel', width: 'min(680px, 96vw)' });
+    UI.openPanel('heresies', 'Altar of Heresy', (b) => this.render(b), { onClose: () => { this.active = false; }, cls: 'heresy-panel', width: 'min(940px, 96vw)' });
   },
   close() { UI.closePanel('heresies'); },
   render(body) {
@@ -42,7 +42,7 @@ export const Heresies = {
     // when they take hold (a level already built keeps the set it was built with)
     const here = w && w.kind === 'dungeon' && !w.rift && !w.unbound ? worldRank(w) : null;
     const built = here !== null && (w.heresy ? w.heresy.ids : []).join() !== on.join();
-    body.appendChild(el('div', 'hx-note', `They take hold from the <b>next level</b> you enter (every depth, the Endless Torment and the Eternal Breach), never in Abyssal Rifts or Velscour Unbound.${built ? ` <span class="hx-warn">This level was built at Heresy ${here}: your changes wait for the next one.</span>` : ''}`));
+    body.appendChild(el('div', 'hx-note', `They take hold from the <b>next level</b> you enter (every depth, the Endless Torment and the Eternal Breach), never in Abyssal Rifts or Velscour Unbound.${G.room && G.room.players?.length > 1 ? ' <b>Co-op:</b> shared levels use the room host\'s active Heresies.' : ''}${built ? ` <span class="hx-warn">This level was built at Heresy ${here}: your changes wait for the next one.</span>` : ''}`));
     // one row per Heresy: the whole row is the toggle
     const list = el('div', 'hx-list');
     for (const H of HERESIES) {

@@ -46,11 +46,15 @@ export function heresySpawns(spawns, ids) {
   if (!ids || !ids.includes('twins')) return spawns;
   return spawns.map((s) => (!s.n || ['raid', 'boss'].includes(s.rank) ? s : { ...s, n: s.n * 2 }));
 }
-/** Which Heresies a level is built with: set before its monsters are made (BOSS ROOM bosses read it), none in rifts and Unbound. */
+/** Which Heresies a level is built with: set before its monsters are made (BOSS ROOM bosses read it), none in rifts and Unbound.
+ *  In multiplayer co-op rooms, shared levels use the room host's active Heresy set when provided. */
 export function heresyBegin(world, c = G.char) {
   if (!world || world.kind !== 'dungeon' || world.rift || world.unbound) { if (world) world.heresy = null; return []; }
-  const ids = heresiesOf(c);
-  world.heresy = { ids, rank: heresyRank(ids) };
+  const hostIds = G.room && G.room.players?.length > 1 && Array.isArray(G.room.hostHeresies)
+    ? G.room.hostHeresies.filter((id) => HERESY_BY_ID[id])
+    : null;
+  const ids = hostIds || heresiesOf(c);
+  world.heresy = { ids, rank: heresyRank(ids), hostSynced: !!hostIds };
   return ids;
 }
 /** The level's dials once built (after the omen and the Greed lever): rewards by rank, the Legion's clock, ambush pace. */

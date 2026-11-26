@@ -1,13 +1,13 @@
 // The Reliquary panel (town, beside the storage chest): six vault tabs shared by every hero, and the Codex of every
 // Heirloom, Covenant piece, Glyphword and Sigil ever found (game/reliquary.js holds the data).
 import { G } from '../state.js';
-import { el, escapeHtml } from '../core/util.js';
+import { el, escapeHtml, fmtInt } from '../core/util.js';
 import { sfx } from '../core/audio.js';
 import { UI, draggable, droppable } from './ui.js';
 import { itemCell, itemTooltip, itemGearTip, rarityClass } from './itemui.js';
 import { changed, renderInventory } from './inventory.js';
 import { addToBag } from '../game/player.js';
-import { reliquary, saveReliquary, openTabs, codexProgress, codexEntries, MILESTONES, VAULT_TABS, codexTitle, noteFind } from '../game/reliquary.js';
+import { reliquary, saveReliquary, openTabs, codexProgress, codexEntries, MILESTONES, VAULT_TABS, codexTitle, noteFind, reliquaryGold, transferReliquaryGold } from '../game/reliquary.js';
 import { RELIC_COLORS, SIGILS, SLOT_NAMES, makeGem, itemName } from '../data/items.js';
 import { COVENANT_BY_ID, makeHeirloom, makeCovenant, GLYPHWORDS } from '../data/relics.js';
 import { itemIconURL } from './icons.js';
@@ -215,6 +215,43 @@ export const Reliquary = {
         requestAnimationFrame(() => { if (body && prevBodyScroll > 0) body.scrollTop = prevBodyScroll; });
       }
       return;
+    }
+    // Account-wide Reliquary Gold Transfer bar
+    if (G.char) {
+      const heroGold = Math.floor(G.char.gold || 0);
+      const vaultGold = reliquaryGold();
+      const goldBox = el('div', 'rel-gold-transfer');
+      goldBox.appendChild(el('div', 'rel-gold-balances',
+        `<span>Hero Gold: <b>${fmtInt(heroGold)}</b></span><span>Reliquary Gold: <b>${fmtInt(vaultGold)}</b></span>`));
+      const controls = el('div', 'rel-gold-controls');
+      const amtInput = el('input', 'rel-gold-amount');
+      amtInput.type = 'number';
+      amtInput.min = '1';
+      amtInput.step = '1';
+      amtInput.placeholder = 'Gold amount';
+      const doTransfer = (dir, amount) => {
+        const res = transferReliquaryGold(G.char, dir, amount);
+        if (!res.ok) { UI.log(res.error, '#ff8080'); sfx('error'); return; }
+        sfx('gold');
+        UI.log(`${dir === 'deposit' ? 'Deposited' : 'Withdrew'} <b style="color:#ffd860">${fmtInt(res.amount)}</b> gold ${dir === 'deposit' ? 'into' : 'from'} the Reliquary.`, '#ffd860');
+        changed();
+        this.refresh();
+      };
+      const depBtn = el('button', 'btn small', 'Deposit');
+      depBtn.disabled = heroGold <= 0;
+      depBtn.onclick = () => doTransfer('deposit', amtInput.value);
+      const depAllBtn = el('button', 'btn small', 'Deposit All');
+      depAllBtn.disabled = heroGold <= 0;
+      depAllBtn.onclick = () => doTransfer('deposit', heroGold);
+      const witBtn = el('button', 'btn small', 'Withdraw');
+      witBtn.disabled = vaultGold <= 0;
+      witBtn.onclick = () => doTransfer('withdraw', amtInput.value);
+      const witAllBtn = el('button', 'btn small', 'Withdraw All');
+      witAllBtn.disabled = vaultGold <= 0;
+      witAllBtn.onclick = () => doTransfer('withdraw', vaultGold);
+      controls.append(amtInput, depBtn, depAllBtn, witBtn, witAllBtn);
+      goldBox.appendChild(controls);
+      body.appendChild(goldBox);
     }
     if (this.tab >= n) { body.appendChild(el('div', 'dim rel-locked', `Vault ${ROMAN[this.tab]} is sealed. ${UNLOCK[this.tab]}.`)); return; }
     const t = r.tabs[this.tab];

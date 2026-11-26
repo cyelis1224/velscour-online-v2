@@ -8,28 +8,30 @@ import { changed, renderInventory } from './inventory.js';
 import { addToBag } from '../game/player.js';
 import { itemName, GEM_TIERS } from '../data/items.js';
 import { jewelBoxRows, nextJewelBoxRowCost, canBuyJewelBoxRow, buyJewelBoxRow, JEWEL_BOX_MAX_ROWS } from '../data/bag.js';
+import { accountJewelBox, saveReliquary, reliquary } from '../game/reliquary.js';
 
 export const JEWEL_BOX_SIZE = 300;
 
-/** Put a gem or sigil into the Jewel Box (identical gems stack). Returns false if not a gem or if full. */
+/** Put a gem or sigil into the account-wide Jewel Box (identical gems stack). Returns false if not a gem or if full. */
 export function addToJewelBox(c, item) {
   if (!item || item.type !== 'gem') return false;
-  if (!c.jewelBox) c.jewelBox = Array(JEWEL_BOX_SIZE).fill(null);
-  const same = c.jewelBox.find((b) => b && b.type === 'gem' && b.gem === item.gem && b.tier === item.tier);
+  const box = accountJewelBox(c);
+  const same = box.find((b) => b && b.type === 'gem' && b.gem === item.gem && b.tier === item.tier);
   if (same) {
     same.count = (same.count || 1) + (item.count || 1);
+    saveReliquary();
     return true;
   }
-  const i = c.jewelBox.findIndex((b) => !b);
+  const i = box.findIndex((b) => !b);
   if (i < 0) return false;
-  c.jewelBox[i] = item;
+  box[i] = item;
+  saveReliquary();
   return true;
 }
 
-/** Sort the Jewel Box: by kind (Sigils -> Prisms -> Gems -> Tier -> Count) or by grade (Tier -> Kind). */
+/** Sort the account-wide Jewel Box: by kind (Sigils -> Prisms -> Gems -> Tier -> Count) or by grade (Tier -> Kind). */
 export function sortJewelBox(c, by = 'kind') {
-  if (!c) return;
-  if (!Array.isArray(c.jewelBox)) c.jewelBox = Array(JEWEL_BOX_SIZE).fill(null);
+  const box = accountJewelBox(c);
   const gemTypeOrder = (it) => {
     if (!it) return 99;
     if (it.gem === 'sig') return 1;
@@ -37,7 +39,7 @@ export function sortJewelBox(c, by = 'kind') {
     return 3;
   };
 
-  const items = (c.jewelBox || []).filter(Boolean).sort((a, b) => {
+  const items = box.filter(Boolean).sort((a, b) => {
     if (by === 'grade') {
       const td = (b.tier || 0) - (a.tier || 0);
       if (td !== 0) return td;
@@ -45,7 +47,6 @@ export function sortJewelBox(c, by = 'kind') {
       if (kd !== 0) return kd;
       return (a.gem || '').localeCompare(b.gem || '') || (b.count || 1) - (a.count || 1);
     }
-    // Default: by kind
     const kd = gemTypeOrder(a) - gemTypeOrder(b);
     if (kd !== 0) return kd;
     const kindCmp = (a.gem || '').localeCompare(b.gem || '');
@@ -53,7 +54,8 @@ export function sortJewelBox(c, by = 'kind') {
     return (b.tier || 0) - (a.tier || 0) || (b.count || 1) - (a.count || 1);
   });
 
-  c.jewelBox = c.jewelBox.map((_, i) => items[i] || null);
+  reliquary().jewelBox = box.map((_, i) => items[i] || null);
+  saveReliquary();
 }
 
 export const JewelBox = {
@@ -76,6 +78,50 @@ export const JewelBox = {
       cls: 'stash-panel jewelbox-panel',
     });
     UI.openPanel('inventory', 'Your Inventory', renderInventory);
+    import('../net/online.js').then(({ isOnlineLoggedIn, fetchOnlineReliquary }) => {
+      if (isOnlineLoggedIn && isOnlineLoggedIn()) {
+        fetchOnlineReliquary().then((rel) => {
+          if (this.active && rel) this.refresh();
+        }).catch(() => {});
+      }
+    }).catch(() => {});
+  },
+
+  refresh() {
+    if (!this.active) return;
+    const p = UI.panels?.get('jewelbox');
+    if (p) this.render(p.body);
+  },
+
+  /** Deposit all unlocked gems/sigils from Gem Bag and Inventory into the shared Jewel Box. */
+  depositAll() {
+    const c = G.char;
+    if (!c) return;
+    let moved = 0, full = false;
+    for (const container of [c.gemBag, c.bag]) {
+      if (!Array.isArray(container)) continue;
+      for (let i = 0; i < container.length; i++) {
+        const it = container[i];
+        if (!it || it.type !== 'gem' || it.locked) continue;
+        if (!addToJewelBox(c, it)) { full = true; break; }
+        delete it.autoStash;
+        container[i] = null;
+        moved++;
+      }
+      if (full) break;
+    }
+    if (moved) {
+      sfx('pickup');
+      UI.selected = null;
+      changed();
+      this.refresh();
+      UI.log(`Deposited ${moved} gem${moved === 1 ? '' : 's'} into the shared Jewel Box${full ? ' (full)' : ''}.`, full ? '#ff8080' : '#80ff80');
+    } else if (full) {
+      UI.log('The Jewel Box is full.', '#ff8080');
+      sfx('error');
+    } else {
+      UI.log('No unlocked gems in your inventory to deposit.');
+    }
   },
 
   /** Store an item from gemBag, bag, or stash into Jewel Box. */
@@ -110,16 +156,17 @@ export const JewelBox = {
     return true;
   },
 
-  /** Take an item from Jewel Box -> player Gem Bag. */
+  /** Take an item from account-wide Jewel Box -> player Gem Bag. */
   take(idx) {
-    const c = G.char, it = c.jewelBox ? c.jewelBox[idx] : null;
+    const c = G.char, box = accountJewelBox(c), it = box ? box[idx] : null;
     if (!it) return false;
     if (!addToBag(c, it)) {
       UI.log('Gem Bag full.', '#ff8080');
       sfx('error');
       return false;
     }
-    c.jewelBox[idx] = null;
+    box[idx] = null;
+    saveReliquary();
     if (this.selected === idx) this.selected = null;
     sfx('pickup');
     changed();
@@ -129,16 +176,21 @@ export const JewelBox = {
   render(body) {
     const c = G.char;
     if (!c) return;
-    if (!Array.isArray(c.jewelBox)) c.jewelBox = Array(JEWEL_BOX_SIZE).fill(null);
+    const box = accountJewelBox(c);
+    const boxHolder = { jewelBox: box };
     const self = this || JewelBox;
 
     const prevGridScroll = body.querySelector('.stash-grid')?.scrollTop ?? self.lastScrollTop ?? 0;
     const prevBodyScroll = body.scrollTop;
     body.innerHTML = '';
 
-    const used = (c.jewelBox || []).filter(Boolean).length;
-    const rows = jewelBoxRows(c);
-    const head = el('div', 'row storage-toolbar jewelbox-toolbar', `<strong>${fmtInt(used)} / ${c.jewelBox.length}</strong><span class="dim">gems stored (${rows} rows)</span>`);
+    const used = box.filter(Boolean).length;
+    const rows = jewelBoxRows(boxHolder);
+    const head = el('div', 'row storage-toolbar jewelbox-toolbar', `<strong>${fmtInt(used)} / ${fmtInt(box.length)}</strong><span class="dim">shared gems (${rows} rows)</span>`);
+    const depositAllBtn = el('button', 'btn small', 'Deposit All');
+    depositAllBtn.title = 'Move all unlocked gems and runes from your inventory into the shared Jewel Box';
+    depositAllBtn.onclick = () => { sfx('ui'); self.depositAll(); };
+    head.appendChild(depositAllBtn);
 
     for (const [by, label] of [['kind', 'Sort by kind'], ['grade', 'Sort by grade']]) {
       const b = el('button', 'btn small', label);
@@ -152,23 +204,25 @@ export const JewelBox = {
       head.appendChild(b);
     }
     if (rows < JEWEL_BOX_MAX_ROWS) {
-      const cost = nextJewelBoxRowCost(c);
-      const can = canBuyJewelBoxRow(c);
+      const cost = nextJewelBoxRowCost(boxHolder);
+      const can = canBuyJewelBoxRow(boxHolder);
       const buyRowBtn = el('button', 'btn small' + (can ? '' : ' poor'), `+ Row (${cost} Marks)`);
-      buyRowBtn.title = `Add 1 row (10 slots) to Jewel Box for ${cost} Infernal Marks`;
+      buyRowBtn.title = `Add 1 row (10 slots) to shared Jewel Box for ${cost} Infernal Marks`;
       buyRowBtn.onclick = () => {
         sfx('ui');
-        if (!canBuyJewelBoxRow(c)) {
+        if (!canBuyJewelBoxRow(boxHolder)) {
           UI.log(`You need ${cost} free Infernal Marks to expand the Jewel Box.`, '#ff8080');
           return;
         }
         UI.dialog({
-          title: `Expand Jewel Box (${rows + 1} of ${JEWEL_BOX_MAX_ROWS})`,
-          html: `<p>Add 10 gem slots (row ${rows + 1}) to your Jewel Box for <b style="color:#ffd860">${cost} Infernal Marks</b>?</p>`,
+          title: `Expand Shared Jewel Box (${rows + 1} of ${JEWEL_BOX_MAX_ROWS})`,
+          html: `<p>Add 10 gem slots (row ${rows + 1}) to your account-wide Jewel Box for <b style="color:#ffd860">${cost} Infernal Marks</b>?</p>`,
           buttons: [
             { label: 'Cancel' },
             { label: `Buy for ${cost} Marks`, cls: 'red', fn: () => {
-              if (buyJewelBoxRow(c)) {
+              if (buyJewelBoxRow(boxHolder)) {
+                reliquary().jewelBox = boxHolder.jewelBox;
+                saveReliquary();
                 changed();
                 this.render(body);
               }
@@ -205,7 +259,7 @@ export const JewelBox = {
     const grid = el('div', 'bag stash-grid jewelbox-grid');
     grid.addEventListener('scroll', () => { self.lastScrollTop = grid.scrollTop; }, { passive: true });
 
-    c.jewelBox.forEach((it, i) => {
+    box.forEach((it, i) => {
       const d = el('div', 'bslot ' + rarityClass(it));
       if (self.selected === i) d.classList.add('sel');
       if (it) d.appendChild(itemCell(it));
@@ -214,10 +268,10 @@ export const JewelBox = {
 
       draggable(d, {
         key: 'jewelbox:' + i,
-        data: () => (c.jewelBox[i] ? { type: 'jewelbox', idx: i } : null),
+        data: () => (box[i] ? { type: 'jewelbox', idx: i } : null),
         icon: () => d.querySelector('img') && d.querySelector('img').src,
         onClick: () => {
-          if (c.jewelBox[i]) {
+          if (box[i]) {
             self.selected = i;
             self.render(body);
           }
@@ -236,12 +290,12 @@ export const JewelBox = {
         (data) => data.type === 'item' || data.type === 'stash'
       );
 
-      if (it) UI.tip(d, () => itemTooltip(c.jewelBox[i], { hint: 'Right-click to take' }));
+      if (it) UI.tip(d, () => itemTooltip(box[i], { hint: 'Right-click to take' }));
       grid.appendChild(d);
     });
     body.appendChild(grid);
 
-    const selected = c.jewelBox[self.selected];
+    const selected = box[self.selected];
     let detail;
     if (selected) {
       detail = el('div', 'storage-detail', itemTooltip(selected));
