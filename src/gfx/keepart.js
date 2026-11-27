@@ -5,7 +5,7 @@
 // painted furniture, the Sacred Flame and the windows' light.
 import { G } from '../state.js';
 import { makeCanvas, clamp, TAU, spriteCanvas as rasterCanvas, frozen, cpuCanvas } from '../core/util.js';
-import { HW, HH } from '../core/view.js';
+import { HW, HH, camera } from '../core/view.js';
 import { loadBaked, castle3dState } from './castle3dart.js';
 import { glowSprite } from './vfx.js';
 
@@ -234,34 +234,58 @@ function tongue(ctx, x, y, w, h, t, ph) {
   }
   ctx.closePath(); ctx.fill();
 }
+/** One pre-baked animated brazier fire sprite strip (12 looping frames per palette/size), eliminating per-frame gradients and polygons. */
+const fireFrameCache = new Map();
+function fireFrames(h, w, pal) {
+  const key = `${pal}|${h}|${w}`;
+  let frames = fireFrameCache.get(key);
+  if (frames) return frames;
+  const P = FIRE[pal] || FIRE.ember;
+  const N = 12, padX = Math.ceil(w * 4.5), topH = Math.ceil(h * 1.45), botH = Math.ceil(h * 0.35);
+  const cw = padX * 2, ch = topH + botH;
+  frames = [];
+  for (let f = 0; f < N; f++) {
+    const t = (f / N) * (TAU / 2.6); // smooth looping cycle
+    const c = rasterCanvas(cw, ch), g = c.getContext('2d');
+    const ox = padX, oy = topH;
+    const grad = (col, top) => { const gr = g.createLinearGradient(0, oy, 0, oy - top); gr.addColorStop(0, col[0]); gr.addColorStop(0.7, col[1]); gr.addColorStop(1, col[1] + '66'); return gr; };
+    g.globalCompositeOperation = 'lighter';
+    g.globalAlpha = 0.3 + Math.sin(t * 2.6) * 0.04;
+    g.drawImage(glowSprite(P.glow), ox - w * 4.2, oy - h * 1.25, w * 8.4, h * 1.55);
+    g.globalCompositeOperation = 'source-over';
+    const layer = (n, spread, hk, wk, col, a, off) => {
+      g.fillStyle = grad(col, h * hk * 1.08); g.globalAlpha = a;
+      for (let i = 0; i < n; i++) {
+        const u = n > 1 ? i / (n - 1) * 2 - 1 : 0, ph = off + i * 2.39;
+        tongue(g, ox + u * w * spread, oy, w * wk * (1 - Math.abs(u) * 0.25), h * hk * (1 - Math.abs(u) * 0.42) * (0.92 + 0.08 * Math.sin(t * 5.2 + ph)), t, ph);
+      }
+    };
+    layer(5, 0.6, 1, 0.62, P.out, 0.96, 0);
+    layer(4, 0.42, 0.78, 0.46, P.mid, 0.97, 1.3);
+    layer(3, 0.22, 0.52, 0.36, P.core, 1, 2.1);
+    g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.48;
+    g.drawImage(glowSprite(P.core[1]), ox - w * 1.5, oy - h * 0.5, w * 3, h * 0.6);
+    frames.push({ img: frozen(c), ox, oy, cw, ch });
+  }
+  fireFrameCache.set(key, frames);
+  return frames;
+}
 /** A fire standing on (x, y): h tall, w its base's half-width; pal 'sacred' (Tessariel's green, a gold heart) or 'ember'. */
 export function drawFire(ctx, x, y, t, h, w, pal = 'sacred', seed = 0, sparks = 0) {
-  const P = FIRE[pal], grad = (c, top) => { const g = ctx.createLinearGradient(0, y, 0, y - top); g.addColorStop(0, c[0]); g.addColorStop(0.7, c[1]); g.addColorStop(1, c[1] + '66'); return g; };
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.globalAlpha = 0.3 + Math.sin(t * 3.1 + seed) * 0.05;
-  ctx.drawImage(glowSprite(P.glow), x - w * 4.2, y - h * 1.25, w * 8.4, h * 1.55);
-  ctx.globalCompositeOperation = 'source-over';
-  const layer = (n, spread, hk, wk, c, a, off) => {
-    ctx.fillStyle = grad(c, h * hk * 1.08); ctx.globalAlpha = a;
+  const P = FIRE[pal] || FIRE.ember;
+  const frames = fireFrames(h, w, pal);
+  const fr = frames[Math.floor((t * 14 + seed * 1.7) % frames.length + frames.length) % frames.length];
+  ctx.drawImage(fr.img, x - fr.ox, y - fr.oy, fr.cw, fr.ch);
+  if (sparks > 0) {
+    const n = Math.min(sparks, 5);
+    ctx.fillStyle = P.spark[0];
     for (let i = 0; i < n; i++) {
-      const u = n > 1 ? i / (n - 1) * 2 - 1 : 0, ph = seed + off + i * 2.39;
-      tongue(ctx, x + u * w * spread, y, w * wk * (1 - Math.abs(u) * 0.25), h * hk * (1 - Math.abs(u) * 0.42) * (0.9 + 0.1 * Math.sin(t * 5.3 + ph * 1.7)), t, ph);
+      const f = (t * (0.22 + (i % 5) * 0.03) + i * 0.618 + seed) % 1, a = i * 2.39 + seed, r = i % 3 === 0 ? 2 : 1.5;
+      ctx.globalAlpha = (1 - f) * (1 - f) * 0.9;
+      ctx.fillRect(x + Math.sin(a + t * 1.3 + f * 4) * (w * 0.5 + f * w * 1.5), y - h * (0.3 + f * 1.2), r, r);
     }
-  };
-  layer(5, 0.6, 1, 0.62, P.out, 0.96, 0);
-  layer(4, 0.42, 0.78, 0.46, P.mid, 0.97, 1.3);
-  layer(3, 0.22, 0.52, 0.36, P.core, 1, 2.1);
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.globalAlpha = 0.5;
-  ctx.drawImage(glowSprite(P.core[1]), x - w * 1.5, y - h * 0.5, w * 3, h * 0.6);
-  for (let i = 0; i < sparks; i++) {   // sparks rising off it, curling as they go
-    const f = (t * (0.22 + (i % 5) * 0.03) + i * 0.618 + seed) % 1, a = i * 2.39 + seed, r = 1 + (i % 3 === 0);
-    ctx.globalAlpha = (1 - f) * (1 - f) * 0.95;
-    ctx.fillStyle = P.spark[i % 3 ? 0 : 1];
-    ctx.fillRect(x + Math.sin(a + t * 1.3 + f * 4) * (w * 0.5 + f * w * 1.6), y - h * (0.3 + f * 1.25), r, r);
+    ctx.globalAlpha = 1;
   }
-  ctx.restore();
 }
 // ---- the Sacred Flame as pixel art: a fire field on a coarse grid (2 world px a cell), six flat steps of colour from
 // a dark green rim to a pale heart, its edges broken by noise that scrolls upward and dithered where the steps meet.
@@ -275,35 +299,39 @@ function noise(x, y) {
 }
 // FW x FH cells over the coals' line, FB under it for the rounded foot
 const FW = 54, FH = 72, FB = 12, SACRED = [[6, 52, 28, 215], [12, 104, 42, 255], [34, 178, 64, 255], [112, 234, 86, 255], [206, 255, 128, 255], [255, 252, 216, 255]];
-let fireCv = null, fireImg = null;
-/** The fire, its foot's middle on the coals at (x, y); k its size. Its foot stays inside the bowl as it grows. */
+let fireCv = null, fireCtx = null, fireImg = null, fireStep = -1, fireK = -1;
+/** The fire, its foot's middle on the coals at (x, y); k its size. Throttled to 20fps so pixel fire stays crisp without redundant per-frame GPU uploads. */
 function drawPixelFire(ctx, x, y, t, k) {
-  if (!fireCv) { fireCv = makeCanvas(FW, FH + FB); fireImg = fireCv.getContext('2d').createImageData(FW, FH + FB); }
-  const d = fireImg.data;
-  // the foot's half-width (u: a fraction of FW) and its half-height under the line (h: a fraction of FH), 2:1 on screen
-  const w0 = 0.273 * Math.min(1, 1.3 / k), e0 = w0 * FW / 2 / FH;
-  for (let py = 0; py < FH + FB; py++) {
-    const h = (FH - 1 - py) / FH, hh = Math.max(0, h);
-    const w = h < 0 ? w0 : h < 0.12 ? w0 + (0.44 - w0) * h / 0.12 : Math.pow((1 - h) / 0.88, 0.9) * 0.44, sway = (noise(h * 3.2 + t * 0.9, 7.3) - 0.5) * 0.3 * hh;
-    for (let px = 0; px < FW; px++) {
-      const o = (py * FW + px) * 4, u = (px + 0.5) / FW - 0.5, a = Math.abs(u - sway) / (w + 0.001);
-      const q = h < 0 ? Math.hypot(a, h / e0) : a;   // under the line: out from the foot's middle, round
-      let I = 0;
-      if (q < 1.3) {
-        const n = noise(px * 0.17, py * 0.12 + t * 5.4) * 0.62 + noise(px * 0.39 + 11, py * 0.27 + t * 9.5) * 0.38;
-        I = (1 - q) * (1.2 - hh * 0.78) + (n - 0.5) * (h < 0 ? 0.3 : 0.42 + h * 1.05) + ((px + py) & 1) * 0.045;
+  if (!fireCv) { fireCv = cpuCanvas(FW, FH + FB); fireCtx = fireCv.getContext('2d', { willReadFrequently: true }); fireImg = fireCtx.createImageData(FW, FH + FB); }
+  const step = Math.floor(t * 20);
+  if (step !== fireStep || Math.abs(k - fireK) > 0.02) {
+    fireStep = step; fireK = k;
+    const ts = step / 20, d = fireImg.data;
+    // the foot's half-width (u: a fraction of FW) and its half-height under the line (h: a fraction of FH), 2:1 on screen
+    const w0 = 0.273 * Math.min(1, 1.3 / k), e0 = w0 * FW / 2 / FH;
+    for (let py = 0; py < FH + FB; py++) {
+      const h = (FH - 1 - py) / FH, hh = Math.max(0, h);
+      const w = h < 0 ? w0 : h < 0.12 ? w0 + (0.44 - w0) * h / 0.12 : Math.pow((1 - h) / 0.88, 0.9) * 0.44, sway = (noise(h * 3.2 + ts * 0.9, 7.3) - 0.5) * 0.3 * hh;
+      for (let px = 0; px < FW; px++) {
+        const o = (py * FW + px) * 4, u = (px + 0.5) / FW - 0.5, a = Math.abs(u - sway) / (w + 0.001);
+        const q = h < 0 ? Math.hypot(a, h / e0) : a;
+        let I = 0;
+        if (q < 1.3) {
+          const n = noise(px * 0.17, py * 0.12 + ts * 5.4) * 0.62 + noise(px * 0.39 + 11, py * 0.27 + ts * 9.5) * 0.38;
+          I = (1 - q) * (1.2 - hh * 0.78) + (n - 0.5) * (h < 0 ? 0.3 : 0.42 + h * 1.05) + ((px + py) & 1) * 0.045;
+        }
+        const i = I < 0.17 ? -1 : I < 0.31 ? 0 : I < 0.46 ? 1 : I < 0.63 ? 2 : I < 0.82 ? 3 : I < 1.0 ? 4 : 5;
+        if (i < 0) { d[o + 3] = 0; continue; }
+        const c = SACRED[i]; d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = c[3];
       }
-      const i = I < 0.17 ? -1 : I < 0.31 ? 0 : I < 0.46 ? 1 : I < 0.63 ? 2 : I < 0.82 ? 3 : I < 1.0 ? 4 : 5;
-      if (i < 0) { d[o + 3] = 0; continue; }
-      const c = SACRED[i]; d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = c[3];
     }
+    fireCtx.putImageData(fireImg, 0, 0);
   }
-  fireCv.getContext('2d').putImageData(fireImg, 0, 0);
   const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
   ctx.drawImage(fireCv, x - FW * k, y - FH * 2 * k, FW * 2 * k, (FH + FB) * 2 * k);
   ctx.imageSmoothingEnabled = sm;
   // embers: square sparks torn off the tips, rising and drifting
-  for (let i = 0; i < 22; i++) {
+  for (let i = 0; i < 16; i++) {
     const f = (t * (0.2 + (i % 5) * 0.035) + i * 0.618) % 1, a = i * 2.39, s = i % 4 === 0 ? 3 : 2;
     ctx.globalAlpha = (1 - f) * (1 - f);
     ctx.fillStyle = i % 3 ? '#b8ff70' : '#fff4b0';
@@ -311,20 +339,25 @@ function drawPixelFire(ctx, x, y, t, k) {
   }
   ctx.globalAlpha = 1;
 }
+let pillarSpr = null;
+function sacredPillarSprite() {
+  if (pillarSpr) return pillarSpr;
+  const c = rasterCanvas(64, 264), g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 264, 0, 0);
+  gr.addColorStop(0, 'rgba(150,255,120,0.20)'); gr.addColorStop(0.5, 'rgba(150,255,120,0.07)'); gr.addColorStop(1, 'rgba(150,255,120,0)');
+  g.fillStyle = gr; g.beginPath(); g.moveTo(16, 264); g.lineTo(2, 0); g.lineTo(62, 0); g.lineTo(48, 264); g.closePath(); g.fill();
+  return (pillarSpr = frozen(c));
+}
 /** Tessariel's green fire over the basin, a gold heart in it. x, y: the rim's centre (world px); k: its size. `front`
  *  draws what stands nearer than the fire (the brazier's near rim and blades: drawBrazierFront), over the fire and the
  *  far motes, under the near ones. */
 export function drawSacredFlame(ctx, x, y, t, k = 1, front = null) {
-  // a pale pillar of its light going up into the vault, the fire (its foot on the coals, a level under the rim), then
-  // motes circling the crown: the far ones dim and behind the brazier's near blades, the near ones bright and in front
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  const g = ctx.createLinearGradient(0, y, 0, y - 260 * k);
-  g.addColorStop(0, 'rgba(150,255,120,0.20)'); g.addColorStop(0.5, 'rgba(150,255,120,0.07)'); g.addColorStop(1, 'rgba(150,255,120,0)');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - 16 * k, y); ctx.lineTo(x - 30 * k, y - 260 * k); ctx.lineTo(x + 30 * k, y - 260 * k); ctx.lineTo(x + 16 * k, y); ctx.closePath(); ctx.fill();
+  ctx.drawImage(sacredPillarSprite(), x - 32 * k, y - 264 * k, 64 * k, 264 * k);
+  ctx.globalAlpha = 0.26 + Math.sin(t * 3.1) * 0.04;
+  ctx.drawImage(glowSprite('#7dff5a'), x - 80 * k, y - 170 * k, 160 * k, 200 * k);
   ctx.restore();
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.26 + Math.sin(t * 3.1) * 0.04;
-  ctx.drawImage(glowSprite('#7dff5a'), x - 80 * k, y - 170 * k, 160 * k, 200 * k); ctx.restore();
   drawPixelFire(ctx, x, y + 4, t, k);
   const motes = (far) => {
     ctx.save();
@@ -367,15 +400,38 @@ export function drawBrazierFront(ctx) {
   const f = brazierFront();
   if (f) ctx.drawImage(f.img, f.x, f.y, f.w, f.h);
 }
+/** Pre-baked tiny raster sprite for a candle flame + halo: 1 drawImage in 'lighter' mode instead of blend-mode switches + vector ellipses. */
+let candleSpr = null;
+function candleSprite() {
+  if (candleSpr) return candleSpr;
+  const c = rasterCanvas(28, 28), g = c.getContext('2d');
+  g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.55;
+  g.drawImage(glowSprite('#ffb050'), 1, 0, 26, 26);
+  g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+  g.fillStyle = '#ff9a30'; g.beginPath(); g.ellipse(14, 13.4, 1.6, 3.3, 0, 0, TAU); g.fill();
+  g.fillStyle = '#fff4b8'; g.beginPath(); g.ellipse(14, 14.2, 0.85, 1.8, 0, 0, TAU); g.fill();
+  return (candleSpr = frozen(c));
+}
 /** A candle's flame at (x, y), its tip up. */
 export function drawCandle(ctx, x, y, t, seed = 0) {
   const f = Math.sin(t * 11 + seed * 3) * 0.5 + Math.sin(t * 17 + seed) * 0.3;
   ctx.globalCompositeOperation = 'lighter';
-  ctx.globalAlpha = 0.5 + f * 0.1;
-  ctx.drawImage(glowSprite('#ffb050'), x - 13, y - 16, 26, 26);
+  ctx.globalAlpha = 0.82 + f * 0.14;
+  ctx.drawImage(candleSprite(), x - 14, y - 16 - f * 0.4, 28, 28 + f * 0.8);
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
-  ctx.fillStyle = '#ff9a30'; ctx.beginPath(); ctx.ellipse(x, y - 2.6 - f * 0.5, 1.5, 3.2 + f * 0.6, 0, 0, TAU); ctx.fill();
-  ctx.fillStyle = '#fff0a8'; ctx.beginPath(); ctx.ellipse(x, y - 1.8, 0.8, 1.7, 0, 0, TAU); ctx.fill();
+}
+/** Batched candles for a chandelier or candelabrum: ONE 'lighter' blend switch for all points on the fixture. */
+export function drawCandles(ctx, pts, px, py, t, seed = 0) {
+  if (!pts || !pts.length) return;
+  const spr = candleSprite();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < pts.length; i++) {
+    const [dx, dy] = pts[i], s = seed + i * 1.37;
+    const f = Math.sin(t * 11 + s * 3) * 0.5 + Math.sin(t * 17 + s) * 0.3;
+    ctx.globalAlpha = 0.82 + f * 0.14;
+    ctx.drawImage(spr, px + dx - 14, py + dy - 16 - f * 0.4, 28, 28 + f * 0.8);
+  }
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
 }
 /** The baked chandelier as a prop sprite, and where its candles burn (world px off its ground point). */
 export function chandelierSprite() { const r = bakedSprite('chandelier'); return r && { ...r, candles: castle3dState().idx.candles || [] }; }
@@ -395,28 +451,62 @@ export function ghostSprite(art) {
 }
 
 // ------------------------------------------------------------------ the windows' light
+/** Bake all static window light shafts once onto a single quarter-res raster sprite (soft gradients need no full-res shader per frame). */
+function keepShaftsBake(world) {
+  const w = world.keepWindows;
+  if (!w || !w.length) return null;
+  if (world._keepShafts && world._keepShafts.src === w) return world._keepShafts;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const s of w) {
+    if (!s.glow) continue;
+    for (const q of s.shaft) for (const [px, py] of q) {
+      if (px < x0) x0 = px; if (py < y0) y0 = py;
+      if (px > x1) x1 = px; if (py > y1) y1 = py;
+    }
+  }
+  if (!Number.isFinite(x0)) return null;
+  x0 = Math.floor(x0) - 4; y0 = Math.floor(y0) - 4;
+  x1 = Math.ceil(x1) + 4; y1 = Math.ceil(y1) + 4;
+  const S = 0.25, bw = x1 - x0, bh = y1 - y0;
+  const c = rasterCanvas(Math.max(4, Math.ceil(bw * S)), Math.max(4, Math.ceil(bh * S))), g = c.getContext('2d');
+  g.scale(S, S); g.translate(-x0, -y0);
+  g.globalCompositeOperation = 'lighter';
+  for (const s of w) {
+    if (!s.glow) continue;
+    for (const q of s.shaft) {
+      const gr = g.createLinearGradient(q[0][0], q[0][1], q[2][0], q[2][1]);
+      gr.addColorStop(0, s.glow.replace('rgb', 'rgba').replace(')', ',0.115)')); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr; g.beginPath(); q.forEach(([px, py], i) => (i ? g.lineTo(px, py) : g.moveTo(px, py))); g.closePath(); g.fill();
+    }
+  }
+  return (world._keepShafts = { src: w, img: frozen(c), x0, y0, w: bw, h: bh });
+}
 /** Shafts of coloured light from the windows down into the hall, laid over everything very faintly (lighter). */
 export function drawLightShafts(ctx, world, t) {
   const w = world.keepWindows;
   if (!w || G.settings?.reduceFlashing) return;
+  const bake = keepShaftsBake(world);
+  if (!bake) return;
+  const vr = camera.viewRect(40);
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
+  ctx.imageSmoothingQuality = 'low';
+  ctx.globalAlpha = 0.86 + 0.14 * Math.sin(t * 0.6);
+  ctx.drawImage(bake.img, bake.x0, bake.y0, bake.w, bake.h);
+  // dust in the light: a few motes drifting down visible shafts
+  ctx.fillStyle = '#fff6d8';
   for (const s of w) {
     if (!s.glow) continue;
-    const a = 0.1 + 0.025 * Math.sin(t * 0.6 + s.phase);
     for (const q of s.shaft) {
-      const gr = ctx.createLinearGradient(q[0][0], q[0][1], q[2][0], q[2][1]);
-      gr.addColorStop(0, s.glow.replace('rgb', 'rgba').replace(')', `,${a})`)); gr.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = gr; ctx.beginPath(); q.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py))); ctx.closePath(); ctx.fill();
-      // dust in the light: a few motes drifting down each shaft
-      ctx.fillStyle = '#fff6d8';
-      for (let i = 0; i < 7; i++) {
-        const u = 0.12 + 0.76 * ((i * 0.381 + s.phase * 0.17 + Math.sin(t * 0.21 + i * 1.9) * 0.06) % 1), v = (t * (0.018 + (i % 3) * 0.007) + i * 0.23 + s.phase) % 1;
+      const sx0 = Math.min(q[0][0], q[3][0]), sx1 = Math.max(q[1][0], q[2][0]);
+      const sy0 = Math.min(q[0][1], q[1][1]), sy1 = Math.max(q[2][1], q[3][1]);
+      if (sx1 < vr.x0 || sx0 > vr.x1 || sy1 < vr.y0 || sy0 > vr.y1) continue;
+      for (let i = 0; i < 4; i++) {
+        const u = 0.14 + 0.72 * ((i * 0.381 + s.phase * 0.17 + Math.sin(t * 0.21 + i * 1.9) * 0.06) % 1), v = (t * (0.018 + (i % 3) * 0.007) + i * 0.23 + s.phase) % 1;
         const ax = q[0][0] + (q[1][0] - q[0][0]) * u, ay = q[0][1] + (q[1][1] - q[0][1]) * u, bx = q[3][0] + (q[2][0] - q[3][0]) * u, by = q[3][1] + (q[2][1] - q[3][1]) * u;
         ctx.globalAlpha = Math.sin(v * Math.PI) * (0.35 + 0.25 * Math.sin(t * 1.7 + i * 2.1));
         ctx.fillRect(ax + (bx - ax) * v + Math.sin(t * 0.7 + i) * 3, ay + (by - ay) * v, 1.5, 1.5);
       }
-      ctx.globalAlpha = 1;
     }
   }
   ctx.restore();

@@ -280,6 +280,17 @@ test('Phase 2B: Ticker, Keyboard Rebinding (touch intact), Stat Breakdown, Portr
   assert.equal(tickerKind('Picked up 120 gold'), 'loot');
   assert.ok(TICKER_KINDS.length >= 5);
 
+  // UI.event structured event routing (used by happenings.js announceDungeonAffixes)
+  const { UI } = await import('../../src/ui/ui.js');
+  assert.equal(typeof UI.event, 'function');
+  let capturedEvent = null;
+  const listener = (text, color, meta) => { capturedEvent = { text, color, meta }; };
+  UI.addLogListener(listener);
+  UI.event({ category: 'debug.affix', text: 'Dungeon affixes activated: Bloodmoon.' });
+  UI.removeLogListener(listener);
+  assert.equal(capturedEvent?.text, 'Dungeon affixes activated: Bloodmoon.');
+  assert.equal(capturedEvent?.meta?.category, 'debug.affix');
+
   const { input, KEY_BINDING_ACTIONS, getKeyBinding, setKeyBinding, resetKeyBindings, keyBindingLabel } = await import('../../src/core/input.js');
   assert.ok(KEY_BINDING_ACTIONS.length >= 20);
   assert.ok(input.joy && input.activeTouches instanceof Map, 'Touch joystick & pinch state preserved in input.js');

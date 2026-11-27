@@ -1024,7 +1024,7 @@ export function renderWorld(ctx, world) {
       if (px < vr.x0 - 100 || px > vr.x1 + 100 || y1 < vr.y0 || y1 - 340 > vr.y1) continue;
     } else if (px < vr.x0 - 100 || px > vr.x1 + 100 || py < vr.y0 - 40 || py > vr.y1 + 220) continue;
     enqueue(pr.x + pr.y, 4, pr);
-    if (tall && !pr.c3move) occludeStatic(pr, propRect(pr, px, py));
+    if (tall && !pr.c3move && !pr.noHide) occludeStatic(pr, propRect(pr, px, py));
   }
   // the Dark Forest's trees: only the buckets around the view (a tree's base may sit well below it)
   const tc = map.treeCells;
@@ -1080,7 +1080,7 @@ export function renderWorld(ctx, world) {
   let q = hq;
   xray.n = 0; xray.on = true; // creatures note their rims and bars for the see-through layer (drawSeeThrough)
   for (const it of sorted) {
-    const o = it.o, lq = it.f === 2 ? 'low' : hq;
+    const o = it.o, lq = (it.f === 2 || it.f === 14) ? 'low' : hq;
     if (lq !== q) ctx.imageSmoothingQuality = q = lq;
     switch (it.f) {
       case 1: o.draw(ctx); break;

@@ -11,6 +11,7 @@ export const $ = (s, root = document) => root.querySelector(s);
 export const UI = {
   panels: new Map(),
   renderers: new Map(),
+  logListeners: [],
   modalCount: 0,
   selected: null,
   windowOrder: 30,
@@ -277,7 +278,11 @@ export const UI = {
 
   log(html, color, skipChat = false, kind = undefined) {
     const skip = skipChat === true;
+    const meta = skipChat && typeof skipChat === 'object' ? skipChat : null;
     const tickKind = typeof skipChat === 'string' ? skipChat : kind;
+    for (const listener of this.logListeners) {
+      try { listener(html, color, meta); } catch (error) { console.warn('Game log listener failed', error); }
+    }
     if (!skip && G.gameChat) {
       G.gameChat.addSystemLog(html, color);
     }
@@ -291,6 +296,24 @@ export const UI = {
       if (sea) { d.style.transition = 'opacity .6s'; setTimeout(() => { d.style.opacity = '0'; }, life - 600); }
       setTimeout(() => d.remove(), life);
     }
+  },
+
+  /** Structured game events (e.g. dungeon affix activations) routed to listeners without duplicating transient logs. */
+  event(ev) {
+    if (!ev || typeof ev.text !== 'string') return;
+    const meta = { category: ev.category || 'system.notification', ...(ev.meta || {}) };
+    for (const listener of this.logListeners) {
+      try { listener(ev.text, ev.color || '', meta); } catch (error) { console.warn('Game event listener failed', error); }
+    }
+  },
+
+  addLogListener(fn) {
+    if (typeof fn === 'function' && !this.logListeners.includes(fn)) this.logListeners.push(fn);
+  },
+
+  removeLogListener(fn) {
+    const i = this.logListeners.indexOf(fn);
+    if (i >= 0) this.logListeners.splice(i, 1);
   },
 
   logParty(from, text) {

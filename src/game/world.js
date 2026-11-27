@@ -400,7 +400,7 @@ export class World {
     const amb = this.ambientFx || b?.ambient;   // a castle variant's own drift (snow, ash, petals...) over the biome's
     if (!amb) return;
     this.ambT += dt;
-    const rate = G.touch ? 10 : 22;
+    const rate = G.touch ? 10 : this.keep ? 8 : 22;
     while (this.ambT > 1 / rate) {
       this.ambT -= 1 / rate;
       const [tx, ty] = camera.screenToTile(rand(0, G.W), rand(-G.H * 0.1, G.H));

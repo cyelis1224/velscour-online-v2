@@ -5,7 +5,7 @@
 // Settings: `ticker` (off = the old centre message + log lines) and `tickerSize` (scale). UI.centerMsg/UI.log feed it.
 import { G } from '../state.js';
 
-const SPEED = 12, GAP = 3.4, RUSH = 2.6, MAX_WAIT = 8;
+const SPEED = 4.2, GAP = 2.4, RUSH = 1.25, MAX_WAIT = 8;
 const KINDS = {
   warn: { tag: 'Warning', bar: 'linear-gradient(#c0170f,#8a0a07 42%,#5c0505)', ink: '#ffd23a', em: '#ffdca0' },
   quest: { tag: 'Quest', bar: 'linear-gradient(#7a5410,#4e3306 50%,#2e1d02)', ink: '#ffe08a', em: '#fff0c0' },
@@ -29,11 +29,12 @@ export function tickerKind(text, color) {
 const plain = (html) => { const d = document.createElement('div'); d.innerHTML = String(html || ''); return d.textContent.replace(/\s+/g, ' ').trim(); };
 
 const CSS = `
-  #ticker { position: fixed; left: 0; right: 0; top: env(safe-area-inset-top, 0px); z-index: 30; height: 2.1em; display: flex; align-items: stretch; overflow: hidden; pointer-events: none;
-    font: 900 calc(16px * var(--tk-s, 1))/1 Cinzel, Georgia, serif; letter-spacing: .07em; color: #fff; background: var(--tk-bar);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 0 rgba(0,0,0,.85), 0 0 18px var(--tk-glow, transparent);
-    transform: translateY(-115%); transition: transform .22s cubic-bezier(.2,.9,.3,1.15), background .3s; }
-  #ticker.on { transform: none; }
+  #ticker { position: fixed; left: 50%; top: max(8px, env(safe-area-inset-top, 0px)); width: min(640px, calc(100vw - 24px)); z-index: 15; height: 2.05em; display: flex; align-items: stretch; overflow: hidden; pointer-events: none;
+    border: 1px solid rgba(255,214,132,.32); border-radius: 5px;
+    font: 900 calc(14px * var(--tk-s, 1))/1 Cinzel, Georgia, serif; letter-spacing: .06em; color: #fff; background: var(--tk-bar);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 3px 12px rgba(0,0,0,.78), 0 0 16px var(--tk-glow, transparent);
+    opacity: 0; transform: translateY(-14px); transition: opacity .22s ease, transform .22s cubic-bezier(.2,.9,.3,1.1), background .3s; }
+  #ticker.on { opacity: 1; transform: none; }
   #ticker.warn { --tk-glow: rgba(255,36,14,.4); } #ticker.alert { animation: tkThrob 1.8s ease-in-out 2; }
   #ticker::before { content: ''; position: absolute; inset: 0 -2.2em 0 0; opacity: .12; background: repeating-linear-gradient(-45deg,#000 0 .5em,transparent .5em 1em); animation: tkGrain 1.1s linear infinite; }
   #ticker::after { content: ''; position: absolute; inset: 0; opacity: 0; background: linear-gradient(#fff3d8,#ff5a2a 60%,#ff2a10); mix-blend-mode: screen; }
@@ -67,6 +68,88 @@ class Ticker {
     document.body.appendChild(this.el);
     this.calls = []; this.seen = new Map(); this.flashAt = -1e9; this.raf = 0; this.last = 0; this.kind = null;
     this.tick = (now) => this.step(now);
+    this.layout = () => this.place();
+    this._obs = null;
+    this._observed = new WeakSet();
+    window.addEventListener('resize', this.layout);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(this.layout).catch(() => {});
+    this.place();
+  }
+  _watchHud(el) {
+    if (!el || typeof ResizeObserver === 'undefined' || this._observed.has(el)) return;
+    if (!this._obs) this._obs = new ResizeObserver(this.layout);
+    this._observed.add(el);
+    this._obs.observe(el);
+  }
+  /** Position the ticker strictly inside the open top-center gap (or cleanly below top-right HUD buttons on narrow viewports) so it never covers Stats/Bag/Skills/Talents/Menu or the top-left HUD. */
+  place() {
+    const vw = window.innerWidth || 1280;
+    const pad = 12;
+    let leftClear = pad;
+    let rightClear = vw - pad;
+    let belowTop = 64;
+    const topLeft = document.getElementById('hud-top-left');
+    this._watchHud(topLeft);
+    if (topLeft && topLeft.offsetParent !== null) {
+      const r = topLeft.getBoundingClientRect();
+      if (r.width > 0 && r.top < 80) leftClear = Math.max(leftClear, r.right + 12);
+    }
+    const portrait = document.getElementById('character-portrait-hud');
+    this._watchHud(portrait);
+    if (portrait && !portrait.classList.contains('hidden')) {
+      const r = portrait.getBoundingClientRect();
+      if (r.width > 0 && r.top < 70 && r.left < vw * 0.4) leftClear = Math.max(leftClear, r.right + 12);
+    }
+    const topRight = document.getElementById('hud-top-right');
+    this._watchHud(topRight);
+    if (topRight && topRight.offsetParent !== null) {
+      const r = topRight.getBoundingClientRect();
+      if (r.width > 0 && r.top < 80) rightClear = Math.min(rightClear, r.left - 12);
+    }
+    const hudBtns = document.getElementById('hud-buttons');
+    this._watchHud(hudBtns);
+    if (hudBtns && hudBtns.offsetParent !== null) {
+      const r = hudBtns.getBoundingClientRect();
+      if (r.width > 0 && r.top < 90) {
+        rightClear = Math.min(rightClear, r.left - 12);
+        belowTop = Math.max(belowTop, r.bottom + 10);
+      }
+    }
+    const btnCol = document.getElementById('hud-btncol');
+    this._watchHud(btnCol);
+    if (btnCol && btnCol.offsetParent !== null) {
+      const r = btnCol.getBoundingClientRect();
+      if (r.width > 0 && r.top < 120) belowTop = Math.max(belowTop, r.bottom + 8);
+    }
+    const minimap = document.getElementById('minimap-wrap');
+    this._watchHud(minimap);
+    const gap = rightClear - leftClear;
+    if (gap >= 260) {
+      const w = Math.min(760, Math.floor(gap));
+      const x = Math.round(leftClear + (gap - w) / 2);
+      this.el.style.left = `${x}px`;
+      this.el.style.right = 'auto';
+      this.el.style.width = `${w}px`;
+      this.el.style.top = 'max(10px, env(safe-area-inset-top, 0px))';
+    } else {
+      let narrowRight = vw - pad;
+      if (minimap && minimap.offsetParent !== null) {
+        const r = minimap.getBoundingClientRect();
+        if (r.width > 0 && r.bottom > belowTop) narrowRight = Math.min(narrowRight, r.left - 12);
+      }
+      const narrowGap = narrowRight - leftClear;
+      if (narrowGap >= 220) {
+        const w = Math.min(620, Math.floor(narrowGap));
+        this.el.style.left = `${Math.round(leftClear + (narrowGap - w) / 2)}px`;
+        this.el.style.width = `${w}px`;
+      } else {
+        const w = Math.min(620, Math.max(220, vw - 24));
+        this.el.style.left = `${Math.round((vw - w) / 2)}px`;
+        this.el.style.width = `${w}px`;
+      }
+      this.el.style.right = 'auto';
+      this.el.style.top = `${Math.round(belowTop)}px`;
+    }
   }
   setKind(k) {
     if (this.kind === k) return;
@@ -79,6 +162,7 @@ class Ticker {
     head = String(head || ''); if (kind !== 'info') head = head.toUpperCase(); rest = String(rest || '');
     if (!head) return;
     this.el.style.setProperty('--tk-s', G.settings.tickerSize || 1);
+    this.place();
     const key = `${head}|${rest}`;
     // (The same line again within a few seconds is not run twice.)
     const now = performance.now(); if ((this.seen.get(key) || -1e9) > now - 6000) return; this.seen.set(key, now);

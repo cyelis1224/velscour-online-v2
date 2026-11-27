@@ -1105,11 +1105,9 @@ const server = http.createServer((req, res) => {
       serverTime: Date.now(),
       buildTime: latestBuild,
       changelog: [
-        "Act III Expansion (Bellmourn, City State Phobos & Castle Velscour): Explore Bellmourn (unlocked at Depth 50), 11 walled wards of City State Phobos, and 100 floors of Castle Velscour featuring 3D Broken Spires, 340+ Phobos & Dungeon Horrors enemies, 10 wing raids, and Lord Velscour's 3-form Throne Above finale.",
-        "100-Depth 4-Act Campaign & Progression Overhaul: Streamlined 4-Act campaign (Depths 1-100) with continuous Infinite Endgame (101+), non-destructive live save migration, rank-scaled skill costs, Class Weapon Proficiency with trade-friendly Smart Loot (55/15/30), Account Heirlooms, and level-scaled Covenants.",
-        "510 Sea of Sand & 60 Castle Creatures + 10 Castle Raids: Imported 510 desert bestiary entries with custom combat kits & shouts plus 60 Castle Creatures/Bosses and 10 Castle Raid Bosses.",
-        "UI, QoL & Performance Upgrades: Added Top Event Ticker, Keyboard Rebinding (touch controls preserved), Equipment Bonus Breakdown Browser, Movable Character Portrait HUD, Previous Enemy History, 3-Panel Vendor & Alchemist Buy Max, Online & Solo Hero Rename, 10-tier Scalable Gore, and Extreme Performance Quality.",
-        "Stability & Co-op Fixes: Fixed Serpentine Tower roof sweep/portal & Ninja shadow, Keep decorations, 45° Altar of Heresy rotation, Snowy Summit frozen gates & burrow recovery, chest-only Mimics, stacked Champion labels, and Act I/II town ambient critters."
+        "Tessariel's Keep FPS Optimization: Pre-baked window light shafts, batched chandelier/candelabra candles and brazier flames into raster sprites, throttled Sacred Flame pixel simulation to 20 FPS, eliminated 4K occluder mipmap draws, and consolidated Keep light sources and fireflies.",
+        "Top Event Ticker Speed & Placement: Slowed notice scroll speed for comfortable reading and dynamically anchored the bar in the open top-center gap (or below HUD buttons on narrow viewports) so it never covers Stats, Bag, Skills, Talents, or Menu buttons.",
+        "Bugfix: Fixed `TypeError: UI.event is not a function` in `happenings.js` when announcing dungeon affixes by adding `UI.event()` and log listener hooks in `src/ui/ui.js`."
       ],
       downloads: {
         android: {

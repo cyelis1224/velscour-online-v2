@@ -126,22 +126,23 @@ function blessed(world, flame) {
   G.game?.autosave?.();
 }
 
-/** The keep's lights, every frame (world.update clears them first). */
+/** The keep's lights, every frame (world.update clears them first). Consolidated to avoid redundant stacked lights on lightCanvas/glowCanvas. */
 function keepLights(world, dt) {
   const A = world.anchors, t = world.time;
   world.flameSurge = Math.max(0, (world.flameSurge || 0) - dt * 0.45);
-  addLight(A.flame[0], A.flame[1], 7 + (world.flameSurge || 0) * 3, 1, 60, null, true);   // light without colour far out: the stone keeps its own
-  addLight(A.flame[0], A.flame[1], 2.6 + Math.sin(t * 3.1) * 0.25 + (world.flameSurge || 0) * 3, 0.5, 80, '#7dff5a', true);
+  addLight(A.flame[0], A.flame[1], 7.4 + (world.flameSurge || 0) * 3, 1, 60, null, true);   // light without colour far out: the stone keeps its own
+  addLight(A.flame[0], A.flame[1], 2.8 + Math.sin(t * 3.1) * 0.25 + (world.flameSurge || 0) * 3, 0.52, 80, '#7dff5a', true);
   // the upper walls and their wall-heads, out of the dark
-  for (let s = TK.F0 + 1; s <= TK.F1; s += 5.5) { addLight(s, TK.OW + 2.2, 6, 0.4, 250, null, true); addLight(TK.OW + 2.2, s, 6, 0.4, 250, null, true); }
-  for (const [x, y] of A.braziers) { addLight(x, y, 3.4, 0.8, 22, null); addLight(x, y, 1.8 + Math.sin(t * 7 + x) * 0.15, 0.6, 22, '#ffb060'); }
-  for (const [x, y, z] of A.chandeliers) { addLight(x, y, 4.6, 0.6, 20, null); addLight(x, y, 2.2, 0.6, z * 4 + 6, '#ffd090'); }
-  for (const w of A.windows) addLight(w.axis === 'x' ? w.a : w.c + 2.2, w.axis === 'x' ? w.c + 2.2 : w.a, w.wide ? 4.6 : 3.2, 0.6, (w.z0 + 6) * 4, null);
-  addLight(A.castellan[0], A.castellan[1] + 0.6, 3.2, 0.7, 30, null);
-  for (const p of world.portals) { addLight(p.x, p.y, 3, 0.8, 30, null); addLight(p.x, p.y, 1.6, 0.6, 30, p.color); }
-  for (const s of [A.stash, A.reliquary]) addLight(s[0], s[1], 2, 0.5, 20, '#ffd070');
-  for (const pr of world.props) if (pr.trophy) addLight(pr.x, pr.y, 1.7, 0.6, 40, '#ffe8b0');   // a lamp on every trophy
-  for (const [x, y] of A.frontLights || []) addLight(x, y, 2.6, 0.7, 30, null);
+  for (let s = TK.F0 + 1; s <= TK.F1; s += 8.5) { addLight(s, TK.OW + 2.2, 7.2, 0.42, 250, null, true); addLight(TK.OW + 2.2, s, 7.2, 0.42, 250, null, true); }
+  for (const [x, y] of A.braziers) addLight(x, y, 3.2 + Math.sin(t * 7 + x) * 0.15, 0.8, 22, '#ffb060');
+  for (const [x, y, z] of A.chandeliers) addLight(x, y, 4.4, 0.65, z * 4 + 6, '#ffd090');
+  for (let i = 0; i < A.windows.length; i += 2) { const w = A.windows[i]; addLight(w.axis === 'x' ? w.a : w.c + 2.2, w.axis === 'x' ? w.c + 2.2 : w.a, w.wide ? 5.2 : 4.0, 0.58, (w.z0 + 6) * 4, null); }
+  addLight(A.castellan[0], A.castellan[1] + 0.6, 3.4, 0.72, 30, null);
+  for (const p of world.portals) addLight(p.x, p.y, 3.0, 0.78, 30, p.color);
+  addLight((A.stash[0] + A.reliquary[0]) / 2, (A.stash[1] + A.reliquary[1]) / 2, 2.8, 0.55, 20, '#ffd070');
+  for (const pr of world.props) if (pr.trophy) addLight(pr.x, pr.y, 1.8, 0.6, 40, '#ffe8b0');   // a lamp on every trophy
+  const fl = A.frontLights || [];
+  for (let i = 0; i < fl.length; i += 2) addLight(fl[i][0], fl[i][1], 4.0, 0.68, 30, null);
 }
 
 /** Draw a keep thing render.js handed over (drawNpc): the Flame and the click targets. */

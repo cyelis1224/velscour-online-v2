@@ -4,6 +4,20 @@ All notable changes to Velscour Online are documented in this file.
 
 ---
 
+## [0.4.1] - 2026-11-27
+
+### Fixed & Improved
+- **Tessariel's Keep FPS Optimization (`src/gfx/keepart.js`, `src/game/render.js`, `src/world/keepworld.js`, `src/game/keepgame.js`, `src/game/world.js`)**:
+  - Pre-baked all 10 overlapping window light shafts onto a single cached quarter-resolution `ImageBitmap` (`keepShaftsBake`), eliminating the primary GPU fill-rate bottleneck in the Great Hall.
+  - Replaced 87 per-frame candle blend-mode toggles / vector ellipses with a pre-baked `candleSprite()` and batched `drawCandles()` pass, and replaced procedural brazier flame polygons with a 12-frame pre-baked ember sprite sheet.
+  - Switched Sacred Flame pixel fire to a `willReadFrequently` CPU canvas throttled to 20 FPS with a cached pillar gradient sprite.
+  - Eliminated 60 mipmapped 4K atlas draws per frame on 3D occluders (`case 14` in `render.js`), skipped occlusion checks on airborne `noHide` chandeliers, consolidated Keep light sources (`57 -> ~24`), and reduced ambient Keep firefly density.
+- **Top Event Ticker Readability & Non-Overlapping HUD Layout (`src/ui/ticker.js`)**:
+  - Reduced scroll speed from `SPEED = 12, RUSH = 2.6` to `SPEED = 4.6, RUSH = 1.35` (`~65-100 px/s`) so messages are comfortably readable.
+  - Dynamically positions the ticker inside the open top-center gap between `#hud-top-left` and `#hud-top-right` (or neatly below `#hud-btncol` on narrow viewports) so it never covers Stats, Inventory, Skills, Talents, Friends, Quest, Auto, or Menu buttons.
+- **Dungeon Affix Announcement Crash (`src/ui/ui.js`)**:
+  - Fixed `TypeError: UI.event is not a function at happenings.js:192:8` by implementing `UI.event()`, `UI.logListeners`, `UI.addLogListener()`, and `UI.removeLogListener()`.
+
 ## [0.4.0] - 2026-11-27
 
 ### Added

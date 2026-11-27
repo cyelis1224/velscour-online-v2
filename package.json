@@ -1,6 +1,6 @@
 {
   "name": "velscour-online-v2",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "*A world built upon something that should have stayed dead.*",
   "main": "electron/main.js",
   "scripts": {
