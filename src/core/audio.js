@@ -203,6 +203,7 @@ const SOUNDS = {
   door: (t) => SOUNDS.thud(t, 0.7),
   gate: (t) => { tone(t, 0.8, { wave: 'sawtooth', f0: 70, f1: 50, vol: 0.12 }); noise(t, 0.8, { type: 'bandpass', f0: 900, f1: 400, q: 6, vol: 0.2 }); },
   step: (t, p) => noise(t, 0.05, { f0: 700 * p, f1: 200, vol: 0.06 }),
+  cluck: (t, p) => { tone(t, 0.13, { wave: 'triangle', f0: 560 * p, f1: 330 * p, vol: 0.08, a: 0.004 }); noise(t + 0.015, 0.09, { type: 'bandpass', f0: 1900 * p, f1: 760, q: 2, vol: 0.075, a: 0.003 }); tone(t + 0.1, 0.11, { wave: 'triangle', f0: 390 * p, f1: 260 * p, vol: 0.055, a: 0.005 }); },
   bell: (t, p) => { [[1, 0.16, 2.4], [2.0, 0.09, 1.6], [2.76, 0.07, 1.2], [5.4, 0.04, 0.7], [0.5, 0.06, 2.8]].forEach(([k, v, d]) => tone(t, d, { wave: 'sine', f0: 392 * k * p, f1: 392 * k * p * 0.995, vol: v, a: 0.004 })); },
   note: (t, p) => luteString(t, p),
   // incoming whisper: a soft two-note bell chime (E6 -> A6) with a faint shimmer overtone

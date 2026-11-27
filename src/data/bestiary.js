@@ -534,18 +534,18 @@ export const FAMILIAR_ART = [
 ];
 
 import { REPLACEMENT_ART } from './replacementart.js';
-export const MIMIC_ART = { id: 'chest_mimic', sheet: 'special/mimic', i: 0, arch: 'abomination', name: 'Mimic', h: 68, gore: 'flesh' };
+export const MIMIC_ART = { id: 'chest_mimic', sheet: 'special/mimic', i: 0, arch: 'abomination', name: 'Mimic', h: 68, gore: 'flesh', chestOnly: true };
 export const ART_BY_ID = Object.fromEntries([...BESTIARY, ...SUMMON_ART, ...FAMILIAR_ART, ...REPLACEMENT_ART, MIMIC_ART].map((a) => [a.id, a]));
 
 const compat = (a, arch) => a.arch === arch || (a.also && a.also.includes(arch));
 /** Painted art that can play an AI archetype in a pack: every sheet, any biome (the Sea of Sand's own archetypes
  * keep their own creatures). Giants (`lone`) only play guardians and raid bosses. */
 export function artPool(arch) {
-  if (BESTIARY.some((a) => a.seaOfSand && a.arch === arch)) return BESTIARY.filter((a) => a.seaOfSand && a.arch === arch);
-  return BESTIARY.filter((a) => !a.lone && !a.seaOfSand && !a.breach && !a.air && !a.depthsEdge && compat(a, arch));
+  if (BESTIARY.some((a) => a.seaOfSand && a.arch === arch)) return BESTIARY.filter((a) => !a.chestOnly && a.seaOfSand && a.arch === arch);
+  return BESTIARY.filter((a) => !a.chestOnly && !a.lone && !a.seaOfSand && !a.breach && !a.air && !a.depthsEdge && compat(a, arch));
 }
 /** Guardian art for an archetype (giants included). */
-const bossPool = (arch) => BESTIARY.filter((a) => a.boss && !a.seaOfSand && !a.breach && !a.air && !a.depthsEdge && (!arch || compat(a, arch)));
+const bossPool = (arch) => BESTIARY.filter((a) => !a.chestOnly && a.boss && !a.seaOfSand && !a.breach && !a.air && !a.depthsEdge && (!arch || compat(a, arch)));
 
 // A level draws its looks from at most this many lazily loaded sheets (set 1 is always in), so a random bestiary
 // still only downloads and decodes a few atlases per level.

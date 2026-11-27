@@ -288,5 +288,6 @@ export const set3Id = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '_').r
 const CHUNK = { enemies: 25, monsters: 30, arena: 20 };
 export const SET3 = Object.entries(SET3_ROWS).flatMap(([fam, rows]) => rows.map(([name, arch, h, o], k) => {
   const n = CHUNK[fam];
-  return { id: set3Id(name), sheet: 'set3/' + fam + (n ? '_' + (Math.floor(k / n) + 1) : ''), i: n ? k % n : k, arch, name, h, ...o };
+  const chestOnly = /\bmimic\b/i.test(name) || !!o?.chestOnly;
+  return { id: set3Id(name), sheet: 'set3/' + fam + (n ? '_' + (Math.floor(k / n) + 1) : ''), i: n ? k % n : k, arch, name, h, ...o, ...(chestOnly ? { chestOnly: true } : {}) };
 }));

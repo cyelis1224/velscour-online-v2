@@ -73,15 +73,21 @@ export const folkBy = (test) => TOWNSFOLK.find(typeof test === 'string' ? (v) =>
 /** Short label for out in the world: "Bess the baker", "Pip", "King Edric". */
 export const folkLabel = (v) => v.child || v.animal || v.name.includes(' ') ? v.name : `${v.name} the ${v.role}`;
 
-// [sheet, name, species, where]  where: town (cats, dogs walk the lanes) | edge (rabbits, rats, deer on the outskirts)
+// [sheet, name, species, where]  town (Act I lanes), edge (Act I outskirts), desert (Act II ambient wildlife)
 const BEASTS = [
   ['cat_01_black', 'Soot', 'cat', 'town'], ['cat_02_tabby', 'Biscuit', 'cat', 'town'], ['cat_03_tortoiseshell', 'Patches', 'cat', 'town'],
   ['dog_01_small_terrier', 'Scamp', 'dog', 'town'], ['dog_02_hound', 'Barley', 'dog', 'town'], ['dog_03_shepherd', 'Shep', 'dog', 'town'],
+  ['chicken_01_hen', 'a hen', 'chicken', 'town'],
+  ['desert_scorpion_01', 'Scorpion', 'scorpion', 'desert'],
+  ['desert_scarab_01', 'Scarab', 'scarab', 'desert'],
+  ['desert_snake_01', 'Desert Snake', 'snake', 'desert'],
   ['rabbit_01', 'a rabbit', 'rabbit', 'edge'], ['rat_01', 'a rat', 'rat', 'edge'],
   ['deer_buck_01', 'a stag', 'deer', 'edge'], ['deer_doe_01', 'a doe', 'deer', 'edge'],
 ];
 // idle height in the cell (px of 200), for the name/bubble anchor; speeds in tiles/s
 const SPECIES = { cat: { h: 62, speed: 1.3, run: 3.6 }, dog: { h: 84, speed: 1.5, run: 3.8 }, rabbit: { h: 54, speed: 1.1, run: 4.2 },
+  chicken: { h: 62, speed: 0.82, run: 2.2 }, scorpion: { h: 48, speed: 0.38, run: 0.65 },
+  scarab: { h: 34, speed: 0.52, run: 0.8 }, snake: { h: 46, speed: 0.42, run: 0.7 },
   rat: { h: 38, speed: 1.4, run: 3.4 }, deer: { h: 155, speed: 0.9, run: 4.6 } };
 export const ANIMALS = Object.freeze(BEASTS.map(([spriteId, name, species, where]) => Object.freeze({
   id: spriteId, name, role: species, species, where, sprite: 'townsfolk', spriteId, palette: null, animal: true, group: 'animal',

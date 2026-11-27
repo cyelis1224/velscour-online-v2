@@ -228,7 +228,7 @@ export const STORIES_1 = [
     ship: 'THE IMPROVEMENT', shipSub: 'Once a sky-fleet galleon. Now upgraded beyond recognition.',
     crew: [
       { art: 'bell_golem', arch: 'golem' }, { art: 'cage_walker', arch: 'golem' }, { art: 'coal_eye_taker', arch: 'golem' },
-      { art: 'the_unsainted', arch: 'golem', swap: 'bronze' }, { art: 'ossuary_boxer', arch: 'golem', swap: 'bronze' }, { art: 'ironbound_mimic', arch: 'spider' },
+      { art: 'the_unsainted', arch: 'golem', swap: 'bronze' }, { art: 'ossuary_boxer', arch: 'golem', swap: 'bronze' }, { art: 'stiltleg_spider', arch: 'spider' },
       { art: 'ea6', arch: 'slime' }, { art: 'ea2', arch: 'slime' }, { art: 'ea12', arch: 'elemental' },
       { art: 'iron_teeth_choir', arch: 'eye' }, { art: 'copper_drillmaw', arch: 'scorpion' }, { art: 'rust_chain_knight', arch: 'knight', swap: 'bronze' },
     ],

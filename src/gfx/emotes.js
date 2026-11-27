@@ -41,10 +41,11 @@ const ICONS = {
   wave: ['...k.k.k...', '..kskskskk.', '..ksksksksk', '..kssssssk.', '.kkssssssk.', 'kssksssssk.', '.kssssssk..', '..kssssk...', '...kssk....', '...........', 'y.y......y.'],
   mischief: ['...kkkkk...', '..kyyyyyk..', '.kyyyyyyyk.', 'kyykkyykkyk', 'kyyyyyyyyyk', 'kyyyyyyyyyk', 'kyyyyykkyyk', 'kyykkkyyyyk', '.kyyyyyyyk.', '..kyyyyyk..', '...kkkkk...'],
   bread: ['...........', '...kkkkk...', '..knnnnnk..', '.knoonoonk.', 'knnnnnnnnnk', 'knnnnnnnnnk', '.kkkkkkkkk.', '...........', '...........', '...........', '...........'],
+  chicken: ['...........', '....r......', '...rrk.....', '....kyk....', '..kwwyyk...', '.kwwwwyyk..', 'kwwwwwwwwk.', '.kwwwwwwk..', '..kkkyk....', '.....kk....', '...kk.kk...'],
   dots: ['...........', '...........', '...........', '...........', '...........', '.kk..kk..kk', '.kk..kk..kk', '...........', '...........', '...........', '...........'],
 };
 // a thought bubble (round with trailing circles) for these; the rest get a speech-style tail
-const THOUGHT = new Set(['think', 'question', 'idea', 'dots', 'zzz', 'food', 'coin', 'clock']);
+const THOUGHT = new Set(['think', 'question', 'idea', 'dots', 'zzz', 'food', 'coin', 'clock', 'chicken']);
 // icons whose bubble is tinted (warning or tender moments)
 const TINT = { alarm: '#ffe2d8', panic: '#ffe2d8', anger: '#ffe2d8', heart: '#ffe8ef', love: '#ffe8ef', sick: '#e8f6dc', zzz: '#e4ecff', rain: '#e4ecff', tear: '#e4ecff' };
 

@@ -7,6 +7,9 @@
 import { G } from '../state.js';
 import { chance, clamp } from '../core/util.js';
 import { UI } from '../ui/ui.js';
+import { rollDungeonAffixesForDepth, normalizeDungeonAffixIds } from '../data/dungeonaffixes.js';
+import { FINAL_DEPTH } from '../data/depth.js';
+import { endgameUnlocked } from './endgame.js';
 
 export const GREED_MAX = 5;
 export const HOARD_MAX = 50; // stacks that count for drops and magic find
@@ -82,6 +85,17 @@ export function greedCleared(world, c = G.char) {
   const before = hoardOf(c);
   c.hoard = Math.min(hoardCap(c), before + g);
   if (c.hoard > before) UI.log(`<b style="color:#ffc040">The Hoard grows</b> to ${c.hoard} (+${Math.round(HOARD_LOOT * Math.min(c.hoard, HOARD_MAX) * 100)}% drops, +${Math.round(HOARD_LOOT * c.hoard * 100)}% gold while greedy). Die and it's gone.`, '#ffc040');
+}
+
+/** Shared eligibility/roll path for Infinite Endgame environments outside the standard depth generator. */
+export function getEndgameDungeonAffixes(character, depth, environment = '') {
+  const n = Math.floor(Number(depth) || 0);
+  if (!character || n <= FINAL_DEPTH || !endgameUnlocked(character)) return [];
+  const g = greedOf(character);
+  if (g <= 0 && !character.nextAffixes && !character.dungeonAffixes?.length) {
+    return normalizeDungeonAffixIds(rollDungeonAffixesForDepth(n, { environment }));
+  }
+  return normalizeDungeonAffixIds(character.nextAffixes ?? rollDungeonAffixesForDepth(n, { environment, greed: g }));
 }
 
 /** Death spends the Hoard and drops the lever. Returns true if there was anything to lose. */

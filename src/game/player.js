@@ -815,7 +815,8 @@ export class Player extends Creature {
     if (this.dead) return;
     // a dash, leap or beam whose effect was swept away under him (a level section changing round him: game/caverns.js,
     // dunes.js, tower.js) would hold him channelling for good, unable to move or fight: let it go
-    if (this.channel && this.world && !this.world.hazards.includes(this.channel)) { if (this.channel instanceof Leap) this.z = 0; this.channel = null; }
+    // (any of them may have lifted him: a leap, a flip, Heaven's Drop; he comes down with it)
+    if (this.channel && this.world && !this.world.hazards.includes(this.channel)) { this.z = 0; this.channel = null; }
     // regen: natural baseline HP regen only recovers in town; outside town only gear/buff regen applies
     const inTown = this.world && this.world.kind === 'town';
     const healingMul = this.world && this.world.dungeonAffixes?.includes('healing_suppression') ? 0.7 : this.world && this.world.dungeonAffixes?.includes('cursed_fortune') ? 0.75 : 1;

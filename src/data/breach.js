@@ -8,10 +8,11 @@ import { ARCH } from './enemies.js';
 const BONE = { undead: true };
 export const BREACH_ART = BREACH_ROSTER.map(([id, sheet, i, name, family, arch, h, f]) => ({
   id: 'eb_' + id.slice(4).toLowerCase(), sheet, i, arch, name, h, family, breach: true, gore: f.gore,
+  ...(/\bmimic\b/i.test(name) ? { chestOnly: true } : {}),
   ...(f.gore === 'bone' ? BONE : { undead: false }), ...(f.fly ? { fly: true } : {}),
   ...(id.startsWith('ETB-B') ? { boss: true, lone: true, breachBoss: true } : {}), ...(f.brute ? { brute: true } : {}),
 }));
-export const BREACH_MONSTERS = BREACH_ART.filter((a) => !a.breachBoss);
+export const BREACH_MONSTERS = BREACH_ART.filter((a) => !a.breachBoss && !a.chestOnly);
 export const BREACH_BOSSES = BREACH_ART.filter((a) => a.breachBoss);
 /** Every archetype the Breach's monsters play. */
 export const BREACH_ARCHS = [...new Set(BREACH_MONSTERS.map((a) => a.arch))];

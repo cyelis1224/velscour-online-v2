@@ -10,7 +10,7 @@ import { addEffect, Telegraph, Ring, smoke, floatText } from '../gfx/vfx.js';
 import { explosionFx } from '../gfx/shapes.js';
 import { ELITE_AFFIXES } from '../data/enemies.js';
 import { HERESIES, HERESY_BY_ID, heresyRank, heresyMods, KEYS_RANK, MARKS_RANK } from '../data/heresies.js';
-import { endgameUnlocked } from './endgame.js';
+import { endgameUnlocked, accountHeresySelection, saveAccountHeresySelection, endgame } from './endgame.js';
 import { depthLevel } from '../data/depth.js';
 import { makeMonster } from './monster.js';
 
@@ -31,7 +31,8 @@ export function setHeresy(id, on, c = G.char) {
   if (!c || !HERESY_BY_ID[id] || !endgameUnlocked(c)) return false;
   const ids = heresiesOf(c), has = ids.includes(id);
   if (!!on === has) return false;
-  c.heresy = { on: on ? [...ids, id] : ids.filter((k) => k !== id) };
+  c.heresy = { ...c.heresy, on: on ? [...ids, id] : ids.filter((k) => k !== id), configured: true };
+  if (endgameUnlocked(c)) saveAccountHeresySelection(c.heresy.on);
   const H = HERESY_BY_ID[id], rank = heresyRankOf(c), M = heresyMods(rank);
   if (G.ui && G.ui.log) G.ui.log(`<b style="color:${H.color}">${escapeHtml(H.name)}</b> ${on ? 'embraced' : 'renounced'}: Heresy rank <b>${rank}</b> (x${M.loot.toFixed(2)} drops, +${M.mf}% magic find, +${Math.round((M.xp - 1) * 100)}% XP) from the next level.`, '#ffb090');
   if (G.player) G.player.recompute();
@@ -48,12 +49,20 @@ export function heresySpawns(spawns, ids) {
 }
 /** Which Heresies a level is built with: set before its monsters are made (BOSS ROOM bosses read it), none in rifts and Unbound.
  *  In multiplayer co-op rooms, shared levels use the room host's active Heresy set when provided. */
-export function heresyBegin(world, c = G.char) {
+export function heresyBegin(world, c = G.char, { accountWide = false } = {}) {
   if (!world || world.kind !== 'dungeon' || world.rift || world.unbound) { if (world) world.heresy = null; return []; }
   const hostIds = G.room && G.room.players?.length > 1 && Array.isArray(G.room.hostHeresies)
     ? G.room.hostHeresies.filter((id) => HERESY_BY_ID[id])
     : null;
-  const ids = hostIds || heresiesOf(c);
+  let ids = hostIds || heresiesOf(c);
+  if (accountWide && !hostIds) {
+    if (!endgameUnlocked(c)) ids = [];
+    else if (ids.length) {
+      if (!endgame().heresySelectionSet) saveAccountHeresySelection(ids);
+    } else if (!c?.heresy?.configured) {
+      ids = accountHeresySelection().filter((id) => HERESY_BY_ID[id]);
+    }
+  }
   world.heresy = { ids, rank: heresyRank(ids), hostSynced: !!hostIds };
   return ids;
 }

@@ -1456,7 +1456,17 @@ export function settingsDialog() {
   const cui = d.box.querySelector('[data-customize-ui]');
   if (cui) cui.onclick = () => { sfx('ui'); d.close(); openCustomizeUI(); };
   const hbs = d.box.querySelector('[data-healthbar-settings]');
-  if (hbs) hbs.onclick = () => { sfx('ui'); openHealthBarSettings(); };
+  if (hbs) hbs.onclick = (event) => {
+    event?.preventDefault?.();
+    try {
+      openHealthBarSettings();
+    } catch (error) {
+      console.error('[health-bars] failed to open settings', error);
+      UI.dialog({ title: 'Health Bars', html: `<p>Could not open health bar settings: ${escapeHtml(error?.message || error)}</p>` });
+      return;
+    }
+    try { sfx('ui'); } catch (error) { console.warn('[health-bars] UI sound unavailable', error); }
+  };
   const rmo = d.box.querySelector('[data-reset-map-opacity]');
   if (rmo) rmo.onclick = () => {
     st.tabMapTransparency = 45;

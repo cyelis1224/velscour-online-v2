@@ -29,7 +29,7 @@ import { setupWorldObjects, worldObjectsTick, clearWorldObjectBuffs } from './wo
 import { setupDungeonEvent, dungeonEventTick } from './dungeonevents.js';
 import { resolveLevelCheatName } from './velscourcheats.js';
 import { EXTRA_AFFIX_HAZARDS } from './affixcatalogruntime.js';
-import { greedOf, greedPacks, greedWorld, greedCleared, greedDeath } from './greed.js';
+import { greedOf, greedPacks, greedWorld, greedCleared, greedDeath, getEndgameDungeonAffixes } from './greed.js';
 import { spectateTick } from './spectate.js';
 import { toggleSmite, getUltimate, executeUltimate } from './smite.js';
 import { hearthTick, useHearth, hearthPortalActive, closeHearthPortals, getActiveHearth, returnFromHearth } from './hearth.js';
@@ -102,6 +102,7 @@ import { Vendor } from '../ui/vendor.js';
 import { Stash } from '../ui/stash.js';
 import { JewelBox } from '../ui/jewelbox.js';
 import { startTownLife } from './townlife.js';
+import { startAct2AmbientCritters } from './townanimals.js';
 import { toggleInventory, toggleCharacter } from '../ui/inventory.js';
 import { toggleTree, toggleBook } from '../ui/skills.js';
 import { toggleFriends } from '../ui/friends.js';
@@ -1972,6 +1973,8 @@ export const game = {
 
     const arrive = t.start || [t.center.x, t.center.y];
     this.setWorld(world, arrive, old);
+    startAct2AmbientCritters(world, t);
+    void preloadTownSheets(world.npcs.filter((n) => n.townCritter).map((n) => n.townsfolkSpriteId));
     void warmLevelArt(world);
     HUD.setArea('Sunscorch Oasis', 'Act II Town — Desert Haven');
     playMusic('town');
@@ -2962,7 +2965,7 @@ export const game = {
           if (this.chestType === 'mimic') {
             const arch = pick(world.roster || biome.roster || []);
             const mimic = arch && makeMonster(world, arch, biome, depthLevel(depth), 'champion', this.x, this.y, 0,
-              { art: 'chest_mimic', swap: null });
+              { art: 'chest_mimic', swap: null, chestEncounter: true });
             const spawn = mimic && findMimicSpawn(world.map, mimic, world.creatures, this.x, this.y);
             if (mimic && spawn) {
               const rewardChest = this;
@@ -3783,7 +3786,17 @@ export const game = {
     const tileset = { ...a, walls: { ...a.walls, ...b.walls }, families: [...a.families, ...b.families], arches: { ...a.arches, ...b.arches }, doors: { ...a.doors, ...b.doors }, parts: [a, b] };
     keepTileSets(tileset);
     const gen = generateBreach(floor, B, tileset, null, seed);
-    const world = new World('dungeon', { map: gen.map, tileset, biome: B, depth, props: gen.props, torches: [], wallHangings: [], looks: gen.looks, townTiles: null, buildings: [] });
+    const dungeonAffixes = getEndgameDungeonAffixes(c, depth, B.id);
+    const world = new World('dungeon', { map: gen.map, tileset, biome: B, depth, dungeonAffixes, props: gen.props, torches: [], wallHangings: [], looks: gen.looks, townTiles: null, buildings: [] });
+    if (dungeonAffixes.includes('bloodmoon')) { world.redMoon = true; world.ambientFog = '#300808'; world.darkK = Math.max(world.darkK || 0, DUNGEON_AFFIX_CONFIG.bloodmoon?.darkness ?? 0.3); }
+    if (dungeonAffixes.includes('golden')) world.goldMul = (world.goldMul || 1) * DUNGEON_AFFIX_CONFIG.golden.goldMultiplier;
+    if (dungeonAffixes.includes('treasure_hoard')) world.goldMul = (world.goldMul || 1) * 1.25;
+    if (dungeonAffixes.includes('champions_bounty')) world.lootMul = (world.lootMul || 1) * 1.2;
+    if (dungeonAffixes.includes('cursed_fortune')) world.lootMul = (world.lootMul || 1) * 1.2;
+    if (dungeonAffixes.includes('legendary_hunt')) world.lootMul = (world.lootMul || 1) * 1.25;
+    if (dungeonAffixes.includes('gemstone_infusion')) world.gemDropMul = 1.5;
+    if (dungeonAffixes.includes('darkness')) world.darkK = Math.max(world.darkK || 0, DUNGEON_AFFIX_CONFIG.darkness.darkness);
+    if (dungeonAffixes.includes('dense_fog')) world.darkK = Math.max(world.darkK || 0, DUNGEON_AFFIX_CONFIG.darkness.darkness + 0.2);
     world.breach = { floor, seed }; world.breachBridges = gen.bridges; world.rooms = [];
     world.chests = gen.chests.map((ch) => chestAt(world, ch.x, ch.y, ch.rare, depth));
     const [sx, sy] = gen.start;
@@ -3791,17 +3804,20 @@ export const game = {
     if (!gen.map.walkable(tp[0], tp[1])) tp = gen.map.randomNear(sx, sy, 2);
     const exit = { x: gen.exit[0], y: gen.exit[1], type: 'exit', active: false, color: '#4a3a5a', reach: 2, label: 'Sealed — the Breach Heart', use: () => this.useExit(world, exit) };
     world.portals = [{ x: tp[0], y: tp[1], type: 'town', active: true, color: '#3a8aff', reach: 1.6, label: 'Town Portal', use: () => this.useTownPortal() }]; // the exit appears when the Heart is won
-    for (const s of heresySpawns(gen.spawns, heresyBegin(world, c))) { // Twinned Packs reach the Breach too (game/heresies.js)
+    for (const s of heresySpawns(gen.spawns, heresyBegin(world, c, { accountWide: true }))) { // Twinned Packs reach the Breach too (game/heresies.js)
       for (let i = 0; i < s.n; i++) {
         const [x, y] = i === 0 ? [s.x, s.y] : gen.map.randomNear(s.x, s.y, 1.6);
         const rank = i === 0 ? s.rank : 'normal';
         const m = makeMonster(world, s.arch, B, lvl + (rank === 'normal' ? 0 : 1), rank, x, y, Math.random() < 0.25 ? 1 : 0, gen.looks.pick(s.arch));
         breachMonster(m);
+        for (const id of dungeonAffixes) applyDungeonAffix(m, id);
         world.add(m);
       }
     }
     world.roster = BREACH_ARCHS;
     heresyWorld(world, c);
+    announceDungeonAffixes(world.dungeonAffixes);
+    if (HUD.setAreaAffixes) HUD.setAreaAffixes(world.dungeonAffixes);
     world.onBossAwake = () => { };
     world.onBossKilled = () => { };
     world.overworldScenario = createBreachRun(world, gen, B, floor, () => {

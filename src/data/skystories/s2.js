@@ -279,7 +279,7 @@ export const STORIES_2 = [
     ship: 'THE MAGPIE', shipSub: 'Built from forty stolen ships. Even her name is stolen.',
     crew: [
       { art: 'carapace_spider', arch: 'spider', swap: 'shadow' }, { art: 'stiltleg_spider', arch: 'spider' }, { art: 'ashen_latcher', arch: 'spider' },
-      { art: 'chalk_widow', arch: 'spider', swap: 'midnight' }, { art: 'shroud_crawler', arch: 'spider' }, { art: 'ironbound_mimic', arch: 'spider' },
+      { art: 'chalk_widow', arch: 'spider', swap: 'midnight' }, { art: 'shroud_crawler', arch: 'spider' }, { art: 'carapace_spider', arch: 'spider' },
       { art: 'skulking_gaunt', arch: 'ghoul', swap: 'shadow' }, { art: 'grinning_ghoul', arch: 'ghoul' }, { art: 'crowmask_sneak', arch: 'ghoul' },
       { art: 'scrapknife_sneak', arch: 'ghoul' }, { art: 'ap_sky_chart_thief', arch: 'ghoul', swap: 'shadow' }, { art: 'ap_veil_cloaked_infiltrator', arch: 'ghoul', swap: 'midnight' },
       { art: 'ap_chainhook_climber', arch: 'ghoul', swap: 'shadow' }, { art: 'red_veil_cutthroat', arch: 'skeleton', swap: 'midnight' },

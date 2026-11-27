@@ -1472,8 +1472,10 @@ export function makeMonster(world, archId, biome, level, rank = 'normal', x = 0,
   const B = monsterBase(level);
   if (world.riftHold) B.hp *= riftHold(level);
   const depth = world.depth || 1;
-  if (A?.seaOfSand && biome?.id === 'sea_of_sand') look = { art: 'ss_' + archId, swap: null };
+  if (A?.seaOfSand && biome?.id === 'sea_of_sand' && look?.chestEncounter !== true) look = { art: 'ss_' + archId, swap: null };
+  if (look?.art && ART_BY_ID[look.art]?.chestOnly && look.chestEncounter !== true) look = undefined;
   if (look === undefined) look = lookFor(world, archId);
+  if (look?.art && ART_BY_ID[look.art]?.chestOnly && look.chestEncounter !== true) look = undefined;
   const art = look && ART_BY_ID[look.art];
   const biomeEl = biome.el && biome.el !== 'phys' ? biome.el : null;
   let el = A.el || 'phys';

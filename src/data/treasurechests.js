@@ -37,6 +37,7 @@ export function rollTreasureChest(rng) {
     glow: rarity.color,
     tint: CHEST_TYPE_TINT[chestType],
     dot: rarity.color,
-    label: chestType === 'standard' ? `${rarity.name} Chest` : `${rarity.name} ${chestType[0].toUpperCase()}${chestType.slice(1)} Chest`,
+    // Mimic chests use the exact same public label as ordinary chests until opened.
+    label: chestType === 'standard' || chestType === 'mimic' ? `${rarity.name} Chest` : `${rarity.name} ${chestType[0].toUpperCase()}${chestType.slice(1)} Chest`,
   };
 }

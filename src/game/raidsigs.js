@@ -18,7 +18,7 @@ import { hit } from './combat.js';
 import { Projectile, Delayed, Area, lineTargets } from './hazards.js';
 import { makeMonster, Monster, monsterBase } from './monster.js';
 import { UI } from '../ui/ui.js';
-import { BESTIARY } from '../data/bestiary.js';
+import { ART_BY_ID, BESTIARY } from '../data/bestiary.js';
 import { enemyArtReady } from '../core/enemyart.js';
 
 const tele = (o) => addEffect(new Telegraph(o), 'ground');
@@ -174,8 +174,9 @@ class InRing {
 function add(R, x, y, o) {
   const m = R.m, w = m.world;
   [x, y] = w.map.nudge(x, y, 0.45);
+  if (o.art && ART_BY_ID[o.art]?.chestOnly) o.art = null;
   // painted art of an archetype when the sheet is in (else the pixel sprite stands in)
-  if (o.arch && !o.art) { const pool = BESTIARY.filter((a) => a.arch === o.arch && !a.lone && !a.breach && !a.air && enemyArtReady(a.id)); if (pool.length) o.art = pick(pool).id; }
+  if (o.arch && !o.art) { const pool = BESTIARY.filter((a) => !a.chestOnly && a.arch === o.arch && !a.lone && !a.breach && !a.air && enemyArtReady(a.id)); if (pool.length) o.art = pick(pool).id; }
   const c = new Monster({
     x, y, team: 'enemy', ai: o.ai || 'ranged', static: !!o.static, sprite: o.sprite || 'crystal', art: o.art || null, artH: o.artH || 44, px: 3, r: o.r || 0.45,
     maxHp: m.maxHp * (o.hp || 0.04), hp: m.maxHp * (o.hp || 0.04), level: m.level, dmg: m.dmg * (o.dmg || 0.35), xp: m.xp * 0.01, name: o.name, rank: 'champion',

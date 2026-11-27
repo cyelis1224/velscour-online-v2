@@ -516,7 +516,7 @@ function drawPortal(ctx, p) {
   const t = G.time;
   // floor rune ring and swirling vortex, a free-standing portal drawn 1.3x around its foot
   ctx.save();
-  ctx.translate(x, y); ctx.scale(1.3, 1.3);
+  ctx.translate(x, y); ctx.scale(1.3 * (p.scale || 1), 1.3 * (p.scale || 1));
   ctx.strokeStyle = rgba(col, 0.6); ctx.lineWidth = 2;
   ctx.beginPath(); ctx.ellipse(0, 0, 34, 17, 0, 0, TAU); ctx.stroke();
   ctx.beginPath(); ctx.ellipse(0, 0, 26, 13, 0, t, t + 5); ctx.stroke();
@@ -594,7 +594,9 @@ function drawNpc(ctx, n) {
   const m = townMotion(n.animT || 0, !!n.walking, n.emotionT > 0 ? n.emotion : null, !!n.running, n.animal ? n.species : null);
   const frame = townFrame(n), lying = isLying(n);
   const ready = !!sheet && townFrameReady(sheet, n.frameCount || 10);
-  const tall = (n.idleH || (n.child ? 150 : 172)) * H / TOWN_FRAME_H, sw = n.animal ? Math.max(5, tall * 0.42) : 13;
+  const renderScale = n.townCritter ? (n.renderScale || 1) : 1;
+  const spriteH = H * renderScale, spriteW = W * renderScale;
+  const tall = (n.idleH || (n.child ? 150 : 172)) * H / TOWN_FRAME_H * renderScale, sw = n.animal ? Math.max(3, tall * 0.42) : 13;
   const alpha = n.alpha ?? 1;
   // shadow: wider when lying down
   ctx.fillStyle = `rgba(0,0,0,${0.36 * alpha})`;
@@ -626,8 +628,9 @@ function drawNpc(ctx, n) {
     drawRim(ctx, rim, vendorArt, 0, 0, vendorArt.width, vendorArt.height, -vw / 2, -vh * 0.5 - 4, vw, vh);
     ctx.drawImage(vendorArt, -vw / 2, -vh * 0.5 - 4, vw, vh); top = vw * 0.6;
   } else if (ready) {
-    drawRim(ctx, rim, sheet, frame * TOWN_FRAME_W, 0, TOWN_FRAME_W, TOWN_FRAME_H, -W / 2, -H + foot, W, H);
-    ctx.drawImage(sheet, frame * TOWN_FRAME_W, 0, TOWN_FRAME_W, TOWN_FRAME_H, -W / 2, -H + foot, W, H); top = (lying ? Math.min(20, tall) : tall - 2) * m.sy;
+    drawRim(ctx, rim, sheet, frame * TOWN_FRAME_W, 0, TOWN_FRAME_W, TOWN_FRAME_H, -spriteW / 2, -spriteH + foot, spriteW, spriteH);
+    ctx.drawImage(sheet, frame * TOWN_FRAME_W, 0, TOWN_FRAME_W, TOWN_FRAME_H, -spriteW / 2, -spriteH + foot, spriteW, spriteH);
+    top = (n.townCritter ? spriteH * 0.78 : lying ? Math.min(20, tall) : tall - 2) * m.sy;
   } else top = 50;
   ctx.restore();
   if (alpha < 1) ctx.globalAlpha = 1;
