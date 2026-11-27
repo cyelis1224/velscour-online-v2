@@ -20,7 +20,8 @@ import { BREACH_BIOME, BREACH_WALLS } from '../data/biomes.js';
 import { BIOMES, BETA_BIOMES, BIOME_BY_ID, TOWN_BIOME, ACT2_TOWN_BIOME, drawBiome, biomeChoices, biomesForDepth, takeBiome, mixPartner, recordBiomeVisit } from '../data/biomes.js';
 import { CLASSES } from '../data/classes.js';
 import { generateDungeon, isRaidDepth } from '../world/dungeon.js';
-import { FINAL_DEPTH, depthLevel, blockStart, isSuperbossDepth, superbossForDepth, getActForDepth, ACTS } from '../data/depth.js';
+import { FINAL_DEPTH, ENDGAME_START_DEPTH, MAX_DEPTH, depthLevel, blockStart, isSuperbossDepth, superbossForDepth, getActForDepth, isActFinaleDepth, isEndgameDepth, ACTS } from '../data/depth.js';
+import { actSelectionRows, act2Unlocked, act4Unlocked, shouldAutoTravelToAct2, shouldAutoTravelToAct4 } from './actselection.js';
 import { addDefiance, clearDefiance, defianceText, tickBlessing } from './defiance.js';
 import { DUNGEON_AFFIX_BY_ID, DUNGEON_AFFIX_CONFIG, rollDungeonAffixesForDepth, normalizeDungeonAffixIds, applyDungeonAffix } from '../data/dungeonaffixes.js';
 import { rollTreasureChest } from '../data/treasurechests.js';
@@ -104,7 +105,7 @@ import { JewelBox } from '../ui/jewelbox.js';
 import { startTownLife } from './townlife.js';
 import { startAct2AmbientCritters } from './townanimals.js';
 import { toggleInventory, toggleCharacter } from '../ui/inventory.js';
-import { toggleTree, toggleBook } from '../ui/skills.js';
+import { toggleTree, toggleBook, showFirstSkillTutorial } from '../ui/skills.js';
 import { toggleFriends } from '../ui/friends.js';
 import { toggleTalents } from '../ui/talents.js';
 import { toggleQuest } from '../ui/quest.js';
@@ -1749,9 +1750,9 @@ export const game = {
     world.portals = [{
       x: t.portal.x, y: t.portal.y, active: true, color: '#ff5020', reach: 2.2,
       get label() {
-        const highest = Math.min(FINAL_DEPTH, Math.max(G.char?.depth || 1, G.game?.maxPortalFloor?.(G.char) || 1));
-        const d = clamp((G.room && G.room.depth != null) ? G.room.depth : highest, 1, FINAL_DEPTH);
-        return `Portal — Depth ${d}`;
+        const highest = Math.max(G.char?.depth || 1, G.game?.maxPortalFloor?.(G.char) || 1);
+        const d = clamp((G.room && G.room.depth != null) ? G.room.depth : highest, 1, MAX_DEPTH);
+        return d > FINAL_DEPTH ? `Portal — Endgame Depth ${d}` : `Portal — Depth ${d}`;
       },
       use: () => this.confirmDungeon(),
     }];
@@ -1762,21 +1763,16 @@ export const game = {
     // the portal to TESSARIEL'S KEEP (game/keepgame.js, docs/TESSARIELS_KEEP.md), off the square on one side of the portal road
     const kg = t.keepgate || (t.keepgate = keepgateSpot(t));
     if (kg) world.portals.push({ x: kg.x, y: kg.y, active: true, keepGate: true, color: '#c8f060', reach: 1.8, label: KEEP_NAME, use: () => this.enterKeep() });
-    // Waypoint Portal to Sunscorch Oasis (Act II Town) once visited or reached Act 2
-    if (c?.visitedAct2Town || c?.depth >= 101) {
-      world.portals.push({
-        x: t.center.x + 3.8,
-        y: t.center.y - 3.8,
-        active: true,
-        color: '#f3c778',
-        reach: 2.0,
-        label: 'Waypoint — Sunscorch Oasis (Act II)',
-        use: () => {
-          sfx('portal');
-          this.enterAct2Town();
-        },
-      });
-    }
+    // Blue Act Travel Portal for switching between unlocked town hubs
+    world.portals.push({
+      x: t.center.x + 3.8,
+      y: t.center.y - 3.8,
+      active: true,
+      color: '#38bdf8',
+      reach: 2.0,
+      label: 'Act Travel Portal',
+      use: () => this.openActSelection(),
+    });
     // the hero steps out of the portal, a little way down its road toward the square
     const P = t.portal, C = t.center, l = Math.hypot(C.x - P.x, C.y - P.y) || 1;
     let arrive = [P.x + ((C.x - P.x) / l) * 3.2, P.y + ((C.y - P.y) / l) * 3.2];
@@ -1805,6 +1801,37 @@ export const game = {
     townHappening(world); // a festival, a blessing, a gift (game/happenings.js)
     p.hp = p.maxHp; p.mana = p.maxMana;
     this.autosave();
+    setTimeout(() => showFirstSkillTutorial(), 350);
+  },
+
+  openActSelection() {
+    const c = G.char;
+    if (!c) return;
+    sfx('ui');
+    const rows = actSelectionRows(c);
+    const html = `<p class="dim" style="margin-bottom:10px">Travel freely between unlocked town hubs.</p>
+      <div class="act-select-list" style="display:flex;flex-direction:column;gap:8px;">
+        ${rows.map((row) => `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid rgba(255,216,120,0.22);border-radius:6px;background:rgba(16,12,8,0.65);${row.unlocked ? '' : 'opacity:0.55;'}">
+            <div>
+              <div style="font-family:var(--font-head);color:#ffd880;font-weight:700;">Act ${row.act}: ${escapeHtml(row.name)} <span class="dim" style="font-size:11px;">(Depths ${row.start}–${row.end})</span></div>
+              <div class="dim" style="font-size:12px;">${row.town ? escapeHtml(row.town) : escapeHtml(row.requirement)}</div>
+            </div>
+            <button type="button" class="btn small" data-travel-act="${row.act}" ${row.unlocked ? '' : 'disabled'}>${row.unlocked ? 'Travel' : escapeHtml(row.status)}</button>
+          </div>
+        `).join('')}
+      </div>`;
+    const d = UI.dialog({ title: 'Act Travel Portal', html, buttons: [{ label: 'Close' }] });
+    d.box.querySelectorAll('[data-travel-act]').forEach((btn) => {
+      btn.onclick = () => {
+        const act = Number(btn.dataset.travelAct);
+        d.close();
+        sfx('portal');
+        if (act === 1) { c.lastTown = 'act1'; this.enterTown(); }
+        else if (act === 2) { c.lastTown = 'act2'; this.enterAct2Town(); }
+        else if (act === 4) { this.enterKeep(); }
+      };
+    });
   },
 
   enterArena(duelData, mySpawn) {
@@ -1930,12 +1957,8 @@ export const game = {
         active: true,
         color: '#38bdf8',
         reach: 2.2,
-        label: 'Waypoint — Return to Herrington Hollow (Act I)',
-        use: () => {
-          if (c) c.lastTown = 'act1';
-          sfx('portal');
-          this.enterTown();
-        },
+        label: 'Act Travel Portal',
+        use: () => this.openActSelection(),
       });
     }
 
@@ -2113,11 +2136,12 @@ export const game = {
     return biome.id === 'sea_of_sand' ? 'Follow the cliff maze and clear every marked scenario area to open the exit.' : biome.id === 'mountainside' ? 'Climb the switchback trail to the summit and defeat its Warden. Ledges a hop high can be climbed; taller cliffs cannot.' : biome.id === 'skyship' ? "Step out onto the heroes' airship. Hold the deck against the Air Pirates' boarding waves, their captains and their flagship; victory turns the gate into the exit." : biome.id === 'dark_forest' ? 'Find your way through the woods and labyrinths to the Heart of the Forest. Its trial opens the way on; the glades along the trails hold trials of their own, and their rewards.' : biome.tower ? 'Climb the spiral stair to the roof. Three waves of bosses hold it, and then their master comes on an airship.' : biome.cave ? 'Follow the passages and caverns to the underground lake. At the foot of its waterfall a passage climbs a long, spiralling shaft to the top of the falls, where its masters wait.' : biome.overworld ? 'Activate the scenario shrine and complete its trial to open the exit.' : 'Find the exit. It is sealed until its guardian is slain.';
   },
 
-  /** The deepest floor the town portal can open on: any floor down to the one the hero has reached. */
+  /** The deepest floor the town portal can open on: campaign 1..100, then Infinite Endgame 101+. */
   maxPortalFloor(c = G.char) {
     const roomDepth = (G.room && G.room.depth != null) ? G.room.depth : 0;
-    const maxAllowed = (c.deepest || 0) >= FINAL_DEPTH ? FINAL_DEPTH : (c.deepest || 0) + 1;
-    return clamp(Math.max(c.depth || 1, maxAllowed, roomDepth), 1, FINAL_DEPTH);
+    const deepest = Math.max(0, Number(c?.deepest) || 0);
+    const maxAllowed = deepest >= FINAL_DEPTH || endgameUnlocked(c) ? Math.max(ENDGAME_START_DEPTH, deepest + 1) : Math.min(FINAL_DEPTH, deepest + 1);
+    return clamp(Math.max(c?.depth || 1, maxAllowed, roomDepth), 1, MAX_DEPTH);
   },
 
   /**
@@ -2126,8 +2150,8 @@ export const game = {
    */
   confirmDungeon(initialTab = 'campaign') {
     const c = G.char;
-    const maxFloor = Math.min(FINAL_DEPTH, Math.max(c.depth || 1, this.maxPortalFloor(c)));
-    const targetDepth = (G.room && G.room.depth != null) ? clamp(G.room.depth, 1, FINAL_DEPTH) : maxFloor;
+    const maxFloor = Math.max(c.depth || 1, this.maxPortalFloor(c));
+    const targetDepth = (G.room && G.room.depth != null) ? clamp(G.room.depth, 1, MAX_DEPTH) : maxFloor;
     const current = targetDepth;
     c.depth = targetDepth;
     if (regionNeeds(BIOME_BY_ID[c.nextBiome], c.level)) c.nextBiome = drawBiome(c, c.depth); // a region above his level (game/regions.js)
@@ -2174,7 +2198,9 @@ export const game = {
         peerTail = '<br><span style="color:#7fd8ff">● Your <b>Hearthstone portal</b> is active here. You will return to where you left off.</span>';
       }
 
-      const actHeader = `<div style="color:#ffd880;font-size:12px;font-weight:bold;margin-bottom:4px;letter-spacing:0.5px;">ACT ${act.act}: ${act.name.toUpperCase()}</div>`;
+      const actHeader = d > FINAL_DEPTH
+        ? `<div style="color:#c080ff;font-size:12px;font-weight:bold;margin-bottom:4px;letter-spacing:0.5px;">INFINITE ENDGAME · DEPTH ${d}</div>`
+        : `<div style="color:#ffd880;font-size:12px;font-weight:bold;margin-bottom:4px;letter-spacing:0.5px;">ACT ${act.act}: ${act.name.toUpperCase()}</div>`;
       if (d === current) {
         return `${actHeader}<p>The portal hums. Beyond lies <b style="color:#ffb070">${escapeHtml(currentBiome.name)}</b>.</p><p class="dim">${this.biomeBlurb(currentBiome)}${tail}${peerTail}</p>`;
       }
@@ -2202,6 +2228,8 @@ export const game = {
           const unlocked = maxFloor >= a.start;
           return `<button type="button" class="btn act-pill" data-act="${a.act}" data-start="${a.start}" style="font-size:11px;padding:3px 8px;min-width:58px;${unlocked ? '' : 'opacity:0.35;'}" ${unlocked ? '' : 'disabled'} title="${escapeHtml(a.name)}">Act ${a.act}</button>`;
         }).join('')}
+        ${canUnbound ? `<button type="button" class="btn act-pill" data-act="endgame" data-start="${ENDGAME_START_DEPTH}" style="font-size:11px;padding:3px 8px;color:#c080ff;" title="Infinite Endgame (Depth 101+)">Endgame</button>` : ''}
+        ${canUnbound ? `<button type="button" class="btn" data-open-rift style="font-size:11px;padding:3px 8px;color:#20e0ff;" title="Open Abyssal Rift selector">Abyssal Rift (T${riftOpen()})</button>` : ''}
       </div>`;
 
     const wpPillsHtml = `
@@ -2215,8 +2243,8 @@ export const game = {
       html: `
         <div class="floor-pick">
           <div class="portal-mode-tabs" style="display:flex;gap:8px;justify-content:center;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:10px;">
-            <button type="button" class="btn portal-tab-btn tab-campaign" data-mode="campaign" style="flex:1;padding:6px 12px;font-size:12px;font-weight:bold;">Campaign (1–500)</button>
-            <button type="button" class="btn portal-tab-btn tab-unbound" data-mode="unbound" style="flex:1;padding:6px 12px;font-size:12px;font-weight:bold;${canUnbound ? '' : 'opacity:0.4;'}" ${canUnbound ? '' : 'disabled title="Complete Depth 500 Campaign to unlock"'}><span style="color:#20e0ff;">✦</span> Unbound Exploration (1–100)</button>
+            <button type="button" class="btn portal-tab-btn tab-campaign" data-mode="campaign" style="flex:1;padding:6px 12px;font-size:12px;font-weight:bold;">Campaign (1–100) &amp; Endgame</button>
+            <button type="button" class="btn portal-tab-btn tab-unbound" data-mode="unbound" style="flex:1;padding:6px 12px;font-size:12px;font-weight:bold;${canUnbound ? '' : 'opacity:0.4;'}" ${canUnbound ? '' : 'disabled title="Complete Depth 100 Campaign to unlock"'}><span style="color:#20e0ff;">✦</span> Unbound Exploration (1–100)</button>
           </div>
 
           <div class="portal-pane portal-campaign-pane">
@@ -2309,6 +2337,8 @@ export const game = {
 
     tabCampaign.addEventListener('click', () => { sfx('ui'); setMode('campaign'); });
     if (canUnbound) tabUnbound.addEventListener('click', () => { sfx('ui'); setMode('unbound'); });
+    const openRiftBtn = box.querySelector('[data-open-rift]');
+    if (openRiftBtn) openRiftBtn.addEventListener('click', () => { sfx('ui'); dialog.close(); this.confirmRift(); });
 
     const set = (v, fromTyping = false) => {
       const n = parseInt(v, 10);
@@ -2326,9 +2356,9 @@ export const game = {
       }
       const curAct = getActForDepth(value);
       actPills.forEach((p) => {
-        p.classList.toggle('sel', Number(p.dataset.act) === curAct.act);
-        if (Number(p.dataset.act) === curAct.act) p.style.borderColor = '#ffb070';
-        else p.style.borderColor = '';
+        const isSel = value > FINAL_DEPTH ? p.dataset.act === 'endgame' : Number(p.dataset.act) === curAct.act;
+        p.classList.toggle('sel', isSel);
+        p.style.borderColor = isSel ? (value > FINAL_DEPTH ? '#c080ff' : '#ffb070') : '';
       });
     };
 
@@ -3359,12 +3389,9 @@ export const game = {
   awardFloorClear(depth, customContext = '') {
     const c = G.char;
     if (!c) return;
-    const isBoss = (depth % 5 === 0) || depth === FINAL_DEPTH;
-    if (isBoss) {
-      c.skillPoints++;
-      UI.log(customContext ? `Bonus skill point for ${customContext}!` : `Bonus skill point for defeating the Depth ${depth} Boss!`, '#ffd860');
-    } else {
-      grantMarks(1, `for clearing Depth ${depth}`);
+    // Skill points come strictly from leveling; endgame depth clears grant Infernal Marks.
+    if (isEndgameDepth(depth) || endgameUnlocked(c)) {
+      grantMarks(1, customContext ? `for ${customContext}` : `for clearing Depth ${depth}`);
     }
   },
 
@@ -3474,44 +3501,68 @@ export const game = {
    */
   portalChoice(world, opts = {}) {
     if (this.pick) return;
-    if (world.depth >= FINAL_DEPTH || world.biome?.id === 'throne' || world.boss?.isVelscour) {
+    if (world.depth === FINAL_DEPTH || world.biome?.id === 'throne' || world.boss?.isVelscour) {
       const c = G.char;
       if (c) {
-        c.depth = Math.min(FINAL_DEPTH, c.depth || FINAL_DEPTH);
-        c.deepest = Math.min(FINAL_DEPTH, Math.max(c.deepest || 0, FINAL_DEPTH));
+        c.cleared[FINAL_DEPTH] = true;
+        c.velscourDefeated = true;
+        c.deepest = Math.max(c.deepest || 0, FINAL_DEPTH);
+        c.depth = Math.max(c.depth || FINAL_DEPTH, ENDGAME_START_DEPTH);
+        unlockEndgame();
+        this.autosave();
       }
       if (G.room) {
-        G.room.depth = Math.min(FINAL_DEPTH, G.room.depth || FINAL_DEPTH);
+        G.room.depth = Math.max(G.room.depth || FINAL_DEPTH, ENDGAME_START_DEPTH);
         if (net.connected) {
           net.sendTownTransition(G.room.depth);
         }
       }
       UI.dialog({
         title: world.unbound ? 'Velscour Unbound Defeated' : 'Demon Lord Velscour Defeated',
-        html: `<p>Demon Lord Velscour has fallen. The descent is complete!</p><p class="dim">The portal behind the throne leads back to town.</p>`,
+        html: `<p>Demon Lord Velscour has fallen! <b>Infinite Endgame (Depth 101+)</b>, the <b>Altar of Heresy</b>, and <b>Abyssal Rifts</b> are now open.</p><p class="dim">Return to town or descend directly into Infinite Endgame.</p>`,
         closable: true,
         cls: 'portal-choice throne-portal-choice',
         buttons: [
           {
             label: 'Return to Town',
-            cls: 'red',
             fn: () => {
               sfx('portal');
               this.enterTown();
             }
           },
-          { label: 'Stay in Throne Room' }
+          {
+            label: `Descend to Depth ${ENDGAME_START_DEPTH}`,
+            cls: 'red',
+            fn: () => {
+              if (c) { c.depth = ENDGAME_START_DEPTH; c.nextBiome = drawBiome(c, ENDGAME_START_DEPTH); this.autosave(); }
+              this.enterDungeon();
+            }
+          }
         ],
       });
       return;
     }
-    const c = G.char, next = Math.min(FINAL_DEPTH, world.depth + 1);
+    const c = G.char, firstClear = !!(c && !c.cleared[world.depth]);
+    const next = world.depth + 1;
+    const autoAct2 = c && shouldAutoTravelToAct2(c, world.depth, firstClear);
+    const autoAct4 = c && shouldAutoTravelToAct4(c, world.depth, firstClear);
     if (c) {
       c.cleared[world.depth] = true;
       c.deepest = Math.max(c.deepest || 0, world.depth);
       c.depth = next;
+      if (autoAct2) { c.visitedAct2Town = true; c.act2AutoTravelDone = true; }
+      if (autoAct4) { c.visitedAct4Town = true; c.act4AutoTravelDone = true; }
       this.brokeThrough(world.depth);
       this.autosave();
+    }
+    if (autoAct2) {
+      UI.log('<b style="color:#f3c778">Act II Unlocked:</b> Sunscorch Oasis is now open through the Act Travel Portal!', '#ffe080');
+      sfx('portal');
+      this.enterAct2Town();
+      return;
+    }
+    if (autoAct4) {
+      UI.log('<b style="color:#c8f060">Act IV Unlocked:</b> Tessariel\'s Keep is now open through the Act Travel Portal!', '#e0f0c0');
     }
 
     // When one player makes a selection at the exit portal, make it the default choice so other players enter the same map
@@ -3669,7 +3720,7 @@ export const game = {
     if (w && w.rift) return this.riftDeath(src);
     if (w && (w.unbound || w.unboundExploration)) return this.unboundDeath(src);
     c.deaths = (c.deaths || 0) + 1;
-    const depth = clamp(w && w.kind === 'dungeon' ? w.depth : (c.depth || 1), 1, FINAL_DEPTH);
+    const depth = clamp(w && w.kind === 'dungeon' ? w.depth : (c.depth || 1), 1, MAX_DEPTH);
     const n = addDefiance(c, depth);
     markNemesis(c, src, depth); // the killer comes back as a unique (game/happenings.js)
     greedDeath(c); // the Hoard is lost and the Greed lever drops (game/greed.js)
@@ -3680,13 +3731,12 @@ export const game = {
     this.autosave();
     setTimeout(() => {
       deathScreen(depth, killer, () => {
-        // back to the start of this five-depth block (BOSS ROOMs are checkpoints), a Defiance stack stronger
+        // Keep campaign depth after death so players never lose floor progress; endgame also holds current depth.
         if (G.room) {
-          c.depth = clamp(G.room.depth || depth, 1, FINAL_DEPTH);
-          if (G.room.depth > FINAL_DEPTH) G.room.depth = FINAL_DEPTH;
+          c.depth = clamp(G.room.depth || depth, 1, MAX_DEPTH);
           c.nextBiome = G.room.biome || c.nextBiome;
         } else {
-          c.depth = clamp(blockStart(depth), 1, FINAL_DEPTH);
+          c.depth = clamp(depth, 1, MAX_DEPTH);
           c.nextBiome = drawBiome(c, c.depth);
         }
         delete c.mountainRuns; delete c.summitRuns;   // the mountains' checkpoints don't outlive a death

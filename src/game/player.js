@@ -361,14 +361,12 @@ export class Player extends Creature {
     if (earnedTalent) {
       c.talentPoints = (c.talentPoints || 0) + 1;
     }
-    const granted = this.applyGrants();
     this.recompute();
     this.hp = this.maxHp; this.mana = this.maxMana;
     this.levelUpFx();
     if (G.ui) {
       if (G.ui.hud) G.ui.hud.levelUp(c.level, levelUpFanfare());
       if (earnedTalent) G.ui.log('You earned a <b>Talent Point</b>! Open the Passive Talent Tree (T) to spend it.', '#ffd860');
-      for (const id of granted) G.ui.log(`New ability learned: <b>${SKILLS[id].name}</b>`, '#ffd860');
       G.ui.refresh();
     }
     if (G.game?.autosave) G.game.autosave();

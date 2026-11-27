@@ -16,7 +16,7 @@ import { depthLevel } from '../data/depth.js';
 import { sheetIcon } from '../gfx/notation.js';
 import { filterPasses, labelFilterPasses, shouldSuppressPotionLabelForCapacity } from './lootfilter.js';
 import { rollSigil, SIGILS } from '../data/items.js';
-import { maybeRelic } from '../data/relics.js';
+import { maybeAccountRelic } from './reliquary.js';
 import { heresyAllows } from './heresies.js';
 import { keyChance } from './unbound.js';
 import { CHEST_RARITIES } from '../data/treasurechests.js';
@@ -421,7 +421,7 @@ export function dropLoot(world, m) {
   const boost = (world.raid || m.isRaid || m.isVelscour ? 3 : 1) * (world.relicMul || 1); // BOSS ROOMs triple the Covenant odds (data/relics.js); Heresies raise them
   for (let i = 0; i < items; i++) {
     const ilvl = lvl + (rank === 'boss' ? 2 : rank === 'normal' ? 0 : 1) + randi(-1, 1);
-    const item = maybeRelic(rollGroundItem(ilvl, { mf: st.magicFind + (world.mfAdd || 0), bonus }), boost);
+    const item = maybeAccountRelic(rollGroundItem(ilvl, { mf: st.magicFind + (world.mfAdd || 0), bonus }), boost);
     add('item', { item, fades: fadeOf(item) });
   }
   // Natural Sigils use the tuned 95% reduction and share a persisted one-per-generated-level
@@ -455,7 +455,7 @@ export function dropChest(world, chest, depth) {
   if (!goldOnly && !gemsOnly && (chest.chestType === 'explosive' || chest.chestType === 'mimic')) gearCount++;
   const rarityBonus = rarity ? [0.35, 0.65, 1.2, 1.5, 1.8, 2.1][rarity.id] : chest.rare ? 1.2 : 0.35;
   for (let i = 0; i < gearCount; i++) {
-    add('item', { item: maybeRelic(rollGroundItem(depthLevel(depth) + 1, { mf: st.magicFind + (world.mfAdd || 0), bonus: rarityBonus })) });
+    add('item', { item: maybeAccountRelic(rollGroundItem(depthLevel(depth) + 1, { mf: st.magicFind + (world.mfAdd || 0), bonus: rarityBonus })) });
   }
   const sigilChance = rarity ? rarity.sigilChance : chest.rare ? 0.25 : 0.06;
   if (!goldOnly && !gemsOnly && canDropNaturalSigil(world, G.char)

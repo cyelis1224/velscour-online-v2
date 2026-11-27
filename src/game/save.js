@@ -1,14 +1,14 @@
 // LocalStorage persistence for heroes.
 import { CLASSES } from '../data/classes.js';
 import { normalizeDungeonAffixIds } from '../data/dungeonaffixes.js';
-import { rollItem, HOLLOW, augTarget } from '../data/items.js';
+import { rollItem, HOLLOW, augTarget, armsReason } from '../data/items.js';
 import { drawBiome } from '../data/biomes.js';
 import { migrateBar, BAR_SIZE } from '../data/bar.js';
 import { TAB_SLOTS } from '../data/tabs.js';
 import { newMacros, migrateMacros } from '../data/macros.js';
 import { fixBag, fixGemBag, fixStash, fixJewelBox, BAG_COLS, BAG_ROWS } from '../data/bag.js';
 import { stashRaw, listRaw } from './herobackup.js';
-import { FINAL_DEPTH } from '../data/depth.js';
+import { FINAL_DEPTH, MAX_DEPTH } from '../data/depth.js';
 import { SKILLS, CLASS_SKILLS, MAX_SKILL_LEVEL, grantedSkillsAt } from '../data/skills.js';
 import { augmentable, AUGMENTS } from '../data/rings.js';
 import { TALENTS, isTalentLockedByChoice, isTalentPrereqMet } from '../data/talents.js';
@@ -146,9 +146,9 @@ export function newCharData(classId, name) {
   const C = CLASSES[classId];
   const c = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    version: 1, name, classId, level: 1, xp: 0,
+    version: 1, campaignOverhaulV2: true, skillRespecV1: true, classWeaponRestrictionsV1: 1, name, classId, level: 1, xp: 0,
     attrs: { ...C.base }, statPoints: 0, skillPoints: 1, talentPoints: 0,
-    skills: {}, talents: {}, granted: {}, bar: Array(BAR_SIZE).fill(null),
+    skills: {}, talents: {}, granted: {}, skillTutorialSeen: false, bar: Array(BAR_SIZE).fill(null),
     equip: { weapon: null, offhand: null, head: null, body: null, hands: null, legs: null, feet: null, ring1: null, ring2: null, ring3: null, ring4: null },
     vanity: { head: null, body: null, weapon: null, offhand: null }, hideHelm: false,
     macros: newMacros(), // game/macros.js
@@ -175,10 +175,57 @@ export function newCharData(classId, name) {
   return c;
 }
 
-/** Fill in fields added by later versions. */
+/** Map legacy 500-depth campaign values proportionally into the 100-depth campaign + infinite endgame without wiping saves. */
+export function mapLegacyDepth(d) {
+  const n = Math.floor(Number(d) || 0);
+  if (n <= 0) return 0;
+  if (n <= 500) return Math.max(1, Math.round(n / 5));
+  return FINAL_DEPTH + (n - 500);
+}
+
+/** Move newly class-restricted equipped weapons/off-hands safely into bag or stash (never deleted). */
+function migrateClassWeaponEquipment(c) {
+  if (c.classWeaponRestrictionsV1) return;
+  const displaced = ['weapon', 'offhand']
+    .filter((slot) => c.equip?.[slot] && armsReason(c.classId, c.equip[slot], slot))
+    .map((slot) => ({ slot, item: c.equip[slot] }));
+  for (const { slot, item } of displaced) {
+    const free = Array.isArray(c.bag) ? c.bag.findIndex((entry) => !entry) : -1;
+    if (free >= 0) c.bag[free] = item;
+    else if (Array.isArray(c.stash)) c.stash.push(item);
+    c.equip[slot] = null;
+  }
+  c.classWeaponRestrictionsV1 = 1;
+}
+
+/** Fill in fields added by later versions (non-destructive for all online & local characters). */
 export function migrate(c) {
-  if (typeof c.depth === 'number' && c.depth > FINAL_DEPTH) c.depth = FINAL_DEPTH;
-  if (typeof c.deepest === 'number' && c.deepest > FINAL_DEPTH) c.deepest = FINAL_DEPTH;
+  c.cleared = c.cleared || {};
+  if (!c.campaignOverhaulV2) {
+    const oldDepth = Number(c.depth) || 1;
+    const oldDeepest = Number(c.deepest) || 0;
+    const beatOldVelscour = oldDeepest >= 500 || !!c.cleared[500] || !!c.velscourDefeated;
+    c.depth = Math.max(1, mapLegacyDepth(oldDepth));
+    c.deepest = oldDeepest > 0 ? mapLegacyDepth(oldDeepest) : 0;
+    const remappedCleared = {};
+    for (const [k, v] of Object.entries(c.cleared)) {
+      if (!v) continue;
+      const mapped = mapLegacyDepth(k);
+      if (mapped > 0) remappedCleared[mapped] = true;
+    }
+    if (beatOldVelscour) {
+      remappedCleared[FINAL_DEPTH] = true;
+      c.deepest = Math.max(c.deepest || 0, FINAL_DEPTH);
+      c.velscourDefeated = true;
+    }
+    c.cleared = remappedCleared;
+    if (c.deepest >= 25) c.visitedAct2Town = true;
+    if (c.deepest >= 75) c.visitedAct4Town = true;
+    c.nextBiome = drawBiome(c, c.depth);
+    c.campaignOverhaulV2 = true;
+  }
+  c.depth = Math.max(1, Math.min(MAX_DEPTH, Math.floor(Number(c.depth) || 1)));
+  c.deepest = Math.max(0, Math.min(MAX_DEPTH, Math.floor(Number(c.deepest) || 0)));
   c.dungeonAffixes = normalizeDungeonAffixIds(c.dungeonAffixes);
   c.nextAffixes = normalizeDungeonAffixIds(c.nextAffixes);
   c.potions = Object.assign({ hp: 0, mp: 0, rejuv: 0, fury: 0 }, c.potions);
@@ -232,12 +279,6 @@ export function migrate(c) {
   for (const gid of Object.keys(c.granted)) {
     if (!SKILLS[gid] || SKILLS[gid].classId !== c.classId) delete c.granted[gid];
   }
-  for (const gid of grantedSkillsAt(c.classId, c.level || 1)) {
-    if (!c.granted[gid] && SKILLS[gid]) {
-      c.granted[gid] = true;
-      c.skills[gid] = Math.min(MAX_SKILL_LEVEL, (c.skills[gid] || 0) + 1);
-    }
-  }
   c.talents = c.talents || {};
   if (!Number.isInteger(c.talentPoints)) {
     const earnedTalents = Math.floor((c.level || 1) / 5);
@@ -256,6 +297,14 @@ export function migrate(c) {
     }
   }
   c.talentPoints = Math.max(0, c.talentPoints | 0);
+  // One-time free skill point refund for existing heroes transitioning to rank-scaled resource costs and choose-your-first-skill.
+  if (!c.skillRespecV1) {
+    c.skills = {};
+    c.granted = {};
+    c.skillPoints = Math.max(1, Math.floor(Number(c.level) || 1));
+    c.bar = Array(BAR_SIZE).fill(null);
+    c.skillRespecV1 = true;
+  }
   // Migrate overhauled talent IDs, ranks, and prerequisite/choice constraints: refund orphaned points cleanly
   for (const [tid, rawRk] of Object.entries(c.talents)) {
     const rk = Math.max(0, rawRk | 0);
@@ -340,6 +389,7 @@ export function migrate(c) {
   }
   fixStash(c);
   fixJewelBox(c);
+  migrateClassWeaponEquipment(c);
   // Remap orphaned ring skill augments from pruned 80-skill trees onto valid augmentable skills in the same tree/class
   for (const it of [...Object.values(c.equip || {}), ...(c.bag || []), ...(c.stash || []), ...(c.jewelBox || [])]) {
     if (!it || !Array.isArray(it.aug)) continue;

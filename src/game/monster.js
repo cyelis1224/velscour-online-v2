@@ -13,7 +13,7 @@ import { ARCH, ARCH_MOVES, ELITE_AFFIXES, bossName, uniqueName } from '../data/e
 import { SUMMONS } from '../data/summons.js';
 import { turretMuzzle } from '../gfx/gunner3d.js';
 import { bodyR, aloft } from '../world/map.js';
-import { toughness, danger, densityXp, riftHold, dmgScale } from '../data/depth.js';
+import { toughness, danger, densityXp, riftHold, dmgScale, endgameScaling, endgameBaseLevel, FINAL_DEPTH } from '../data/depth.js';
 import { attachSlime, slimeUpdate, courtDef } from './slimecourt.js';
 import { ART_BY_ID, REVIVED, greaterSwap, rollLooks, uniqueSwap } from '../data/bestiary.js';
 import { skillMorphFor } from '../data/talents.js';
@@ -1470,8 +1470,14 @@ export function lookFor(world, archId, rnd = Math.random) {
 export function makeMonster(world, archId, biome, level, rank = 'normal', x = 0, y = 0, variant = 0, look = undefined, rnd = Math.random) {
   const A = ARCH[archId] || ARCH[archId?.toLowerCase()] || (['Velscour', 'dagyr', 'velscour'].includes(archId) ? (ARCH.Velscour || ARCH.velscour) : ARCH.demon) || ARCH.demon;
   const B = monsterBase(level);
-  if (world.riftHold) B.hp *= riftHold(level);
   const depth = world.depth || 1;
+  if (depth > FINAL_DEPTH) {
+    const baseline = monsterBase(endgameBaseLevel(level, depth));
+    const scale = endgameScaling(depth);
+    B.hp = baseline.hp * scale.health;
+    B.dmg = baseline.dmg * scale.damage;
+  }
+  if (world.riftHold) B.hp *= riftHold(level);
   if (A?.seaOfSand && biome?.id === 'sea_of_sand' && look?.chestEncounter !== true) look = { art: 'ss_' + archId, swap: null };
   if (look?.art && ART_BY_ID[look.art]?.chestOnly && look.chestEncounter !== true) look = undefined;
   if (look === undefined) look = lookFor(world, archId);

@@ -9853,3 +9853,15 @@ body.touch #boss-bar:not(.hidden) ~ #sand-objective { top:var(--healthbar-object
 body.touch #boss-bar.healthbar-boss #boss-name { white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere; }
 body.touch.portrait #boss-bar { top:calc(max(168px,calc(env(safe-area-inset-top) + 160px)) + var(--hb-target-offset,0px)); left:50%; width:min(calc(92vw * var(--hb-target-width,1)),420px); height:min(calc(var(--hb-target-base-height) * var(--hb-target-height,1)),18vh); }
 body.touch.portrait #boss-bar:not(.hidden) ~ #sand-objective { top:var(--healthbar-objective-top,270px); }
+
+/* Phase 2A: First-skill tutorial coach highlight */
+.first-skill-highlight {
+  box-shadow: 0 0 0 2px #ffd860, 0 0 18px rgba(255, 216, 96, 0.85) !important;
+  animation: firstSkillPulse 1.3s ease-in-out infinite;
+}
+@keyframes firstSkillPulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.35); }
+}
+.codex-withdrawable { cursor: pointer; }
+.codex-withdrawable:hover { box-shadow: 0 0 0 1px #ffd860, 0 0 10px rgba(255, 216, 96, 0.45); }

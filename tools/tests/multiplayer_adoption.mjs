@@ -188,3 +188,87 @@ test('Legacy v0 Velscour Online Infernal Marks are preserved and migrated withou
   assert.equal(migrated.marks.spentValue, 439 + 439 + 438);
   assert.equal(migrated.marks.pts - migrated.marks.spentValue, 439, 'Removed Fortune (mf) ranks are refunded as free Marks');
 });
+
+
+test('Phase 2A: Non-destructive 500->100 live save migration, skill refund, class weapon migration, 55/15/30 Smart Loot & Account Heirlooms', async () => {
+  const { FINAL_DEPTH, ENDGAME_START_DEPTH, depthLevel, endgameScaling, endgameBaseLevel } = await import('../../src/data/depth.js');
+  assert.equal(FINAL_DEPTH, 100);
+  assert.equal(ENDGAME_START_DEPTH, 101);
+  assert.equal(endgameBaseLevel(depthLevel(200), 200), 100, 'endgameBaseLevel anchors base monster stats at level 100');
+  assert.equal(endgameBaseLevel(depthLevel(200) + 2, 200), 102, 'endgameBaseLevel preserves boss +2 rank offset');
+  assert.ok(endgameScaling(125).health > 1.15 && endgameScaling(125).health < 1.19, '+17% HP per 25 depths');
+
+  // 1. Non-destructive online migration preserves level, marks, gold, gear and remaps depths 500->100
+  const { migrate, mapLegacyDepth } = await import('../../src/game/save.js');
+  assert.equal(mapLegacyDepth(500), 100);
+  assert.equal(mapLegacyDepth(250), 50);
+  assert.equal(mapLegacyDepth(1), 1);
+
+  const legacyHero = {
+    id: 'legacy_hero_1',
+    name: 'Veteran',
+    classId: 'rogue',
+    level: 88,
+    xp: 45000,
+    gold: 999999,
+    depth: 500,
+    deepest: 500,
+    cleared: { 50: true, 250: true, 500: true },
+    attrs: { str: 20, dex: 120, int: 20, vit: 80 },
+    skillPoints: 5,
+    skills: { 'rogue.0.0': 10 },
+    granted: { 'rogue.0.0': true },
+    marks: { pts: 42, xp: 100, spent: { ferocity: 5 } },
+    equip: {
+      weapon: { uid: 'w1', type: 'gear', slot: 'weapon', base: 'hammer', ilvl: 80, rarity: 4, affixes: [], gems: [] },
+      offhand: null,
+    },
+    bag: Array(60).fill(null),
+    stash: Array(60).fill(null),
+    gemBag: Array(30).fill(null),
+    jewelBox: Array(30).fill(null),
+  };
+  migrate(legacyHero);
+  assert.equal(legacyHero.campaignOverhaulV2, true);
+  assert.equal(legacyHero.level, 88, 'Hero level is never reduced');
+  assert.equal(legacyHero.gold, 999999, 'Gold is preserved');
+  assert.equal(legacyHero.marks.pts, 42, 'Infernal Marks are preserved');
+  assert.equal(legacyHero.depth, 100, 'Depth 500 remaps to 100');
+  assert.equal(legacyHero.deepest, 100, 'Deepest 500 remaps to 100');
+  assert.equal(legacyHero.cleared[100], true, 'Velscour defeat preserved on Depth 100');
+  assert.equal(legacyHero.velscourDefeated, true, 'Endgame victory flag set');
+  assert.equal(legacyHero.visitedAct2Town, true);
+  assert.equal(legacyHero.visitedAct4Town, true);
+  assert.equal(legacyHero.skillRespecV1, true);
+  assert.equal(legacyHero.skillPoints, 88, 'One-time free skill point refund matches hero level');
+  assert.equal(legacyHero.equip.weapon, null, 'Incompatible Rogue hammer unequipped safely');
+  assert.equal(legacyHero.bag[0]?.uid, 'w1', 'Displaced weapon moved safely into bag without deletion');
+
+  // 2. Lighter multiplayer Smart Loot weighting (~55% primary / ~15% secondary / ~30% off-class)
+  const { smartLootWeaponBase, WEAPON_PROFICIENCY, WEAPONS, SMART_LOOT_WEIGHTS } = await import('../../src/data/items.js');
+  assert.equal(SMART_LOOT_WEIGHTS.offClass, 0.30);
+  let seed = 1234567;
+  const rng = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+  const palAllowed = new Set(Object.entries(WEAPONS).filter(([, w]) => w.classes.includes('paladin')).map(([k]) => k));
+  let prim = 0, sec = 0, off = 0;
+  const N = 4000;
+  for (let i = 0; i < N; i++) {
+    const b = smartLootWeaponBase('paladin', rng);
+    if (WEAPON_PROFICIENCY.paladin.primary.includes(b)) prim++;
+    else if (WEAPON_PROFICIENCY.paladin.secondary.includes(b)) sec++;
+    else if (!palAllowed.has(b)) off++;
+  }
+  const offRate = off / N, primRate = prim / N, secRate = sec / N;
+  assert.ok(offRate > 0.25 && offRate < 0.35, `Expected ~30% off-class weapons for trading, got ${(offRate * 100).toFixed(1)}%`);
+  assert.ok(primRate > 0.50 && primRate < 0.60, `Expected ~55% primary weapons, got ${(primRate * 100).toFixed(1)}%`);
+  assert.ok(secRate > 0.11 && secRate < 0.19, `Expected ~15% secondary weapons, got ${(secRate * 100).toFixed(1)}%`);
+
+  // 3. Account Heirlooms & Level-Scaled Covenants
+  const { makeHeirloom, makeCovenant, PIECE_BY_ID } = await import('../../src/data/relics.js');
+  const heir = makeHeirloom(80, { id: 'verdict' });
+  assert.equal(heir.rarity, 0, 'Account Heirloom copy is Tier 1');
+  assert.equal(heir.req, 1, 'Account Heirloom copy requires level 1');
+  const firstPiece = Object.keys(PIECE_BY_ID)[0];
+  const covLow = makeCovenant(20, { depth: 20, pieceId: firstPiece });
+  assert.ok(covLow && covLow.relic === 'cov' && covLow.rarity <= 1, 'Level-scaled Covenant respects drop depth quality');
+});

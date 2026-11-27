@@ -177,6 +177,7 @@ export const Vendor = {
     if (ref.where === 'equip') { UI.log('Unequip it first.', '#ff8080'); return false; }
     if (it.locked) { UI.log('That item is locked. Unlock it first (its panel in the inventory).', '#ffd860'); sfx('error'); return false; }
     if (it.sealed) { UI.log('Break the seal first: nobody buys a sealed treasure.', '#ffdf8a'); sfx('error'); return false; }
+    if (it.type === 'gear' && it.relic === 'heir') { UI.log('Heirlooms have no vendor value.', '#ffd860'); sfx('error'); return false; }
     const n = it.type === 'gem' ? 1 : 1;
     const price = Math.max(1, Math.floor(itemValue(it) / 4)) * n;
     const sellIt = () => {
@@ -201,7 +202,7 @@ export const Vendor = {
   /** Sell every piece of gear in the bag after one confirmation (gems and sealed treasures stay). */
   sellAll() {
     const c = G.char;
-    const sold = c.bag.map((it, i) => ({ it, i })).filter(({ it }) => it && it.type === 'gear' && !it.sealed && !it.locked);
+    const sold = c.bag.map((it, i) => ({ it, i })).filter(({ it }) => it && it.type === 'gear' && it.relic !== 'heir' && !it.sealed && !it.locked);
     if (!sold.length) { UI.log('No gear in your bag to sell.', '#ff8080'); sfx('error'); return false; }
     const price = (it) => Math.max(1, Math.floor(itemValue(it) / 4));
     const total = sold.reduce((a, { it }) => a + price(it), 0);

@@ -5,10 +5,10 @@ import { shownDmg, heroDmgLevel } from '../data/depth.js';
 import { sfx } from '../core/audio.js';
 import { UI, draggable } from './ui.js';
 import { skillIcon, skillIconURL } from './icons.js';
-import { CLASS_SKILLS, SKILLS, MAX_SKILL_LEVEL, describe, manaCost, rageCost, cooldown, ROW_LEVELS, effLevel } from '../data/skills.js';
+import { CLASS_SKILLS, SKILLS, MAX_SKILL_LEVEL, describe, manaCost, rageCost, whirlwindRageCost, whirlwindRageRate, cooldown, ROW_LEVELS, effLevel } from '../data/skills.js';
 import { CLASSES } from '../data/classes.js';
 import { elem } from '../gfx/vfx.js';
-import { SLOT_LABELS, freeSlot } from '../data/bar.js';
+import { LMB, SLOT_LABELS, freeSlot } from '../data/bar.js';
 import { MAX_MASTERY, masteryNeed, masteryMul, masteryTier, TIER_NAMES } from '../game/augments.js';
 import { AUGMENTS } from '../data/rings.js';
 import { skillUp } from './skillup.js';
@@ -33,6 +33,50 @@ function masteryHtml(sk, compact) {
 
 export { SLOT_LABELS };
 let curTree = 0;
+let firstSkillTutorialTarget = null;
+let firstSkillTutorialPointerHandler = null;
+
+function resourceCostLabel(sk, L) {
+  const rage = rageCost(sk, L);
+  if (rage) return rage + ' Rage';
+  if (sk.classId === 'barbarian' && sk.kind === 'whirl') {
+    return whirlwindRageCost(L).toFixed(1) + ' Rage to start · ' + whirlwindRageRate(L).toFixed(1) + '/s';
+  }
+  const mc = manaCost(sk, L);
+  return `${Number.isInteger(mc) ? mc : mc.toFixed(1)} Mana`;
+}
+
+export function dismissFirstSkillTutorial() {
+  if (!firstSkillTutorialTarget) return;
+  document.removeEventListener('pointerdown', firstSkillTutorialPointerHandler);
+  firstSkillTutorialPointerHandler = null;
+  firstSkillTutorialTarget.classList.remove('first-skill-highlight');
+  firstSkillTutorialTarget = null;
+  UI.tipEl?.classList.remove('first-skill-tutorial-tip');
+  UI.hideTip();
+}
+
+export function showFirstSkillTutorial() {
+  const c = G.char;
+  if (!c || c.skillTutorialSeen || (c.skillPoints | 0) <= 0 || Object.values(c.skills || {}).some((level) => level > 0)) return false;
+  const button = document.querySelector('#hud-buttons .hbtn[data-act="skills"]');
+  if (!button) return false;
+  c.skillTutorialSeen = true;
+  firstSkillTutorialTarget = button;
+  button.classList.add('first-skill-highlight');
+  UI.showTip(
+    '<b style="color:#ffd860">Choose your first skill</b><div style="margin-top:4px">Click the glowing Skill Tree button (or press <b>K</b>) and spend your skill point on any starting attack skill.</div>',
+    0, 0, false, button, { interactive: true },
+  );
+  UI.tipEl?.classList.add('first-skill-tutorial-tip');
+  UI.tipEl?.classList.remove('interactive');
+  firstSkillTutorialPointerHandler = (event) => {
+    if (button.contains(event.target) || UI.tipEl?.contains(event.target)) return;
+    dismissFirstSkillTutorial();
+  };
+  document.addEventListener('pointerdown', firstSkillTutorialPointerHandler);
+  return true;
+}
 
 export function canLearn(sk) {
   const c = G.char;
@@ -57,8 +101,14 @@ export function learn(sk, n = 1) {
   sfx('buff');
   skillUp(sk, c.skills[sk.id]);
   if (first) {
-    const free = freeSlot(c.bar);
-    if (free >= 0) { c.bar[free] = sk.id; UI.log(`<b>${escapeHtml(sk.name)}</b> assigned to slot ${SLOT_LABELS[free]}.`, '#ffd860'); }
+    dismissFirstSkillTutorial();
+    if (!c.bar[LMB]) {
+      c.bar[LMB] = sk.id;
+      UI.log(`<b>${escapeHtml(sk.name)}</b> assigned to slot ${SLOT_LABELS[LMB]}.`, '#ffd860');
+    } else {
+      const free = freeSlot(c.bar);
+      if (free >= 0) { c.bar[free] = sk.id; UI.log(`<b>${escapeHtml(sk.name)}</b> assigned to slot ${SLOT_LABELS[free]}.`, '#ffd860'); }
+    }
   }
   G.player.recompute();
   UI.refresh();
@@ -130,15 +180,13 @@ export function skillDetail(sk) {
   if (morph && morph.labels && morph.labels.length) {
     h += `<div style="margin:4px 0;font-size:12px;color:#ffb86c">Talent Morphs: <b>${morph.labels.map(escapeHtml).join(', ')}</b></div>`;
   }
-  const mc = manaCost(sk, showL), rc = rageCost(sk, showL), cd = cooldown(sk);
-  const costText = rc ? `${rc} Rage` : (mc ? `${Number.isInteger(mc) ? mc : mc.toFixed(1)} Mana` : (sk.classId === 'barbarian' && sk.kind === 'whirl' ? '10 to start · 10/s' : 'Free'));
+  const rc = rageCost(sk, showL), cd = cooldown(sk);
+  const isRage = !!(rc || (sk.classId === 'barbarian' && sk.kind === 'whirl'));
   const effCd = cd ? Math.max(0.2, cd * (1 - p.st.cdr / 100) * (1 + (morph ? morph.cdPct || 0 : 0) / 100)) : 0;
-  h += `<div class="dim">Cost: <b style="color:${rc ? '#ff9933' : '#8fb4ff'}">${costText}</b>${effCd ? ` · Cooldown: <b>${effCd.toFixed(1)}s</b>` : ''}</div>`;
+  h += `<div class="dim">Cost: <b style="color:${isRage ? '#ff9933' : '#8fb4ff'}">${resourceCostLabel(sk, showL)}</b>${effCd ? ` · Cooldown: <b>${effCd.toFixed(1)}s</b>` : ''}</div>`;
   if (base < MAX_SKILL_LEVEL) {
     const nd = skillDmg(sk, Math.max(1, L + 1));
-    const nextMc = manaCost(sk, L + 1), nextRc = rageCost(sk, L + 1);
-    const nextCostText = nextRc ? `${nextRc} Rage` : `${Number.isInteger(nextMc) ? nextMc : nextMc.toFixed(1)} Mana`;
-    h += `<div class="dim" style="margin-top:4px;font-size:12px">Next level: ${nd[0]}–${nd[1]} damage, ${nextCostText}</div>`;
+    h += `<div class="dim" style="margin-top:4px;font-size:12px">Next level: ${nd[0]}–${nd[1]} damage, ${resourceCostLabel(sk, L + 1)}</div>`;
   }
   if (base) h += masteryHtml(effSk);
   h += `<div class="dim" style="font-size:12px;margin-top:2px">Synergy: +1.5% damage per point in other ${escapeHtml(CLASSES[sk.classId].trees[sk.tree])} skills (now x${p.synergy(sk).toFixed(2)})</div>`;
@@ -195,15 +243,13 @@ export function skillTooltip(sk) {
   if (morph && morph.labels && morph.labels.length) {
     h += `<div style="margin:4px 0;font-size:12px;color:#ffb86c">Talent Morphs: <b>${morph.labels.map(escapeHtml).join(', ')}</b></div>`;
   }
-  const mc = manaCost(sk, showL), rc = rageCost(sk, showL), cd = cooldown(sk);
-  const costText = rc ? `${rc} Rage` : (mc ? `${Number.isInteger(mc) ? mc : mc.toFixed(1)} Mana` : (sk.classId === 'barbarian' && sk.kind === 'whirl' ? '10 to start · 10/s' : 'Free'));
+  const rc = rageCost(sk, showL), cd = cooldown(sk);
+  const isRage = !!(rc || (sk.classId === 'barbarian' && sk.kind === 'whirl'));
   const effCd = cd ? Math.max(0.2, cd * (1 - p.st.cdr / 100) * (1 + (morph ? morph.cdPct || 0 : 0) / 100)) : 0;
-  h += `<div class="dim" style="font-size:13px">Cost: <b style="color:${rc ? '#ff9933' : '#8fb4ff'}">${costText}</b>${effCd ? ` · Cooldown: <b>${effCd.toFixed(1)}s</b>` : ''}</div>`;
+  h += `<div class="dim" style="font-size:13px">Cost: <b style="color:${isRage ? '#ff9933' : '#8fb4ff'}">${resourceCostLabel(sk, showL)}</b>${effCd ? ` · Cooldown: <b>${effCd.toFixed(1)}s</b>` : ''}</div>`;
   if (base < MAX_SKILL_LEVEL) {
     const nd = skillDmg(sk, Math.max(1, L + 1));
-    const nextMc = manaCost(sk, L + 1), nextRc = rageCost(sk, L + 1);
-    const nextCostText = nextRc ? `${nextRc} Rage` : `${Number.isInteger(nextMc) ? nextMc : nextMc.toFixed(1)} Mana`;
-    h += `<div class="dim" style="margin-top:3px;font-size:12px">Next level: ${nd[0]}–${nd[1]} damage, ${nextCostText}</div>`;
+    h += `<div class="dim" style="margin-top:3px;font-size:12px">Next level: ${nd[0]}–${nd[1]} damage, ${resourceCostLabel(sk, L + 1)}</div>`;
   }
   if (base) {
     h += `<div style="margin-top:5px">${masteryHtml(effSk, true)}</div>`;

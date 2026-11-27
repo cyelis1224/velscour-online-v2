@@ -343,6 +343,7 @@ export function isGemItem(it) {
 
 function handleDropOnBag(idx, data) {
   const c = G.char;
+  if (data.type === 'codex-heirloom') return Reliquary.withdrawHeirloom(data.id, idx);
   if (data.type === 'shop') return G.ui.vendor && G.ui.vendor.buy(data, idx);
   if (data.type === 'stash') return G.ui.stash && G.ui.stash.take(data.idx);
   if (data.type === 'jewelbox') return G.ui.jewelBox && G.ui.jewelBox.take(data.idx);
@@ -419,6 +420,29 @@ function handleDropOnGemBag(idx, data) {
 function handleDropOnEquip(slot, data) {
   const c = G.char;
   if (data.type !== 'item') return false;
+  if (data.where === 'equip') {
+    const from = data.slot;
+    if (!from || from === slot) return false;
+    const moving = c.equip[from], target = c.equip[slot];
+    if (!moving) return false;
+    if (!fitsSlot(moving, slot, c.classId) || (target && !fitsSlot(target, from, c.classId))) {
+      const reason = armsReason(c.classId, moving, slot) || (target && armsReason(c.classId, target, from));
+      if (reason) UI.log(reason, '#ff8080');
+      sfx('error');
+      return false;
+    }
+    if (!canEquipItem(c, moving, slot) || (target && !canEquipItem(c, target, from))) {
+      UI.log('The items do not meet the requirements for those slots.', '#ff8080');
+      sfx('error');
+      return false;
+    }
+    c.equip[slot] = moving;
+    c.equip[from] = target || null;
+    UI.selected = { where: 'equip', slot };
+    sfx('pickup');
+    changed();
+    return true;
+  }
   if (data.where === 'gemBag') {
     const it = c.gemBag ? c.gemBag[data.idx] : null;
     if (it && it.type === 'gem') return c.equip[slot] ? socketGem(data.idx, { where: 'equip', slot }, 'gemBag') : false;
@@ -428,7 +452,7 @@ function handleDropOnEquip(slot, data) {
   const it = c.bag[data.idx];
   if (!it) return false;
   if (it.type === 'gem') return c.equip[slot] ? socketGem(data.idx, { where: 'equip', slot }, 'bag') : false;
-  if (!fitsSlot(it, slot, c.classId)) { sfx('error'); return false; }
+  if (!fitsSlot(it, slot, c.classId)) { UI.log(armsReason(c.classId, it, slot) || 'That item cannot be equipped in this slot.', '#ff8080'); sfx('error'); return false; }
   return equipFromBag(data.idx, slot);
 }
 
@@ -452,7 +476,7 @@ function bagSlot(idx) {
     onRight: () => quickUse(idx),
     onDropWorld: (data) => (data.where === 'bag' ? dropFromBag(data.idx) : false),
   });
-  droppable(d, (data) => handleDropOnBag(idx, data), (data) => data.type === 'item' || data.type === 'shop' || data.type === 'stash' || data.type === 'vault' || data.type === 'jewelbox');
+  droppable(d, (data) => handleDropOnBag(idx, data), (data) => data.type === 'item' || data.type === 'shop' || data.type === 'stash' || data.type === 'vault' || data.type === 'jewelbox' || data.type === 'codex-heirloom');
   if (it) UI.tip(d, () => bagTip(idx), { key: 'bag:' + idx });
   return d;
 }
@@ -604,7 +628,7 @@ function equipSlot(slot) {
     onDouble: () => unequip(slot),
     onRight: () => (G.ui.vendor && G.ui.vendor.active ? (UI.selected = { where: 'equip', slot }) : unequip(slot)),
   });
-  droppable(d, (data) => handleDropOnEquip(slot, data), (data) => data.type === 'item' && data.where === 'bag' && G.char.bag[data.idx] && (fitsSlot(G.char.bag[data.idx], slot) || G.char.bag[data.idx].type === 'gem'));
+  droppable(d, (data) => handleDropOnEquip(slot, data), (data) => data.type === 'item' && ((data.where === 'bag' && G.char.bag[data.idx] && (fitsSlot(G.char.bag[data.idx], slot, G.char.classId) || G.char.bag[data.idx].type === 'gem')) || (data.where === 'equip' && data.slot !== slot && G.char.equip[data.slot] && fitsSlot(G.char.equip[data.slot], slot, G.char.classId))));
   if (it) UI.tip(d, () => equipTip(slot), { key: 'equip:' + slot });
   return d;
 }

@@ -571,34 +571,41 @@ export const BIOME_BY_ID = Object.fromEntries([...BIOMES, ...BETA_BIOMES, BREACH
 /** Registered overworld biomes; campaign eligibility is limited by DEPTH_BIOME_RANGES below. */
 export const OVERWORLD_BIOME_IDS = BIOMES.filter((b) => b.overworld).map((b) => b.id);
 
-/** Special destinations and ordinary dungeon pools for each campaign depth band. Endpoints are inclusive. */
-export const DEPTH_BIOME_RANGES = [
-  { start: 1, end: 24, ids: ['overworld'] },
-  { start: 24, end: 48, ids: ['dark_forest'] },
-  { start: 48, end: 72, ids: ['castle'] },
-  { start: 72, end: 96, ids: ['castle_keep'] },
-  { start: 96, end: 120, ids: ['sea_of_sand'] },
-  { start: 120, end: 144, ids: ['great_hunt'] },
-  { start: 144, end: 168, ids: ['serpentine_tower'] },
-  { start: 168, end: 192, ids: ['scorpion_king_pyramid'] },
-  { start: 192, end: 216, ids: ['mountainside'] },
-  { start: 216, end: 240, ids: ['depths_edge'] },
-  { start: 240, end: 264, ids: ['snowy_summit'] },
-  { start: 264, end: 288, ids: ['endless_siege'] },
-  { start: 288, end: 336, ids: ['pirate_seas'] },
-  { start: 336, end: 360, ids: ['skyship'] },
-  { start: 360, end: 408, ids: ['ghost_train'] },
-  { start: 408, end: 456, ids: ['deep_mines'] },
-  { start: 456, end: FINAL_DEPTH, ids: ['throne'] },
-];
+/** The fixed environment order for each 25-depth campaign act. Each cycle restarts at its act boundary. */
+export const CAMPAIGN_ENVIRONMENT_ROTATIONS = {
+  1: ['overworld', 'dark_forest', 'castle', 'castle_keep'],
+  2: ['sea_of_sand', 'great_hunt', 'serpentine_tower', 'scorpion_king_pyramid'],
+  3: ['mountainside', 'depths_edge', 'snowy_summit', 'endless_siege'],
+  4: ['pirate_seas', 'skyship', 'ghost_train', 'deep_mines'],
+};
 
-export const DEPTH_DUNGEON_RANGES = [
-  { start: 1, end: 96, ids: ['catacombs', 'necropolis', 'plague', 'sewers', 'library', 'sunken', 'sheer_ossuary', 'sheer_drowned'] },
-  { start: 96, end: 192, ids: ['desert_temple', 'desert', 'gilded', 'amber', 'sheer_canyon', 'sheer_gilded'] },
-  { start: 192, end: 288, ids: ['ice_temple', 'frozen', 'crystal', 'sheer_rime', 'sheer_crystal'] },
-  { start: 288, end: 360, ids: ['heavenly', 'astral_plane', 'storm', 'shattered', 'cathedral', 'sheer_cloister', 'sheer_storm'] },
-  { start: 360, end: 456, ids: ['molten', 'hell', 'forge', 'abyss', 'obsidian', 'blood', 'flesh', 'void', 'sheer_cinder', 'sheer_starless'] },
-];
+/** Keep act finales in the environments suited to their signature boss encounters. */
+export const CAMPAIGN_BOSS_ENVIRONMENTS = {
+  25: 'castle_keep',
+  50: 'scorpion_king_pyramid',
+  75: 'snowy_summit',
+  [FINAL_DEPTH]: 'throne',
+};
+
+export function campaignBiomeForDepth(depth) {
+  depth = Math.max(1, Math.floor(Number(depth) || 1));
+  const finale = CAMPAIGN_BOSS_ENVIRONMENTS[depth];
+  if (finale) return finale;
+  const act = ACTS.find((entry) => depth >= entry.start && depth <= entry.end);
+  if (!act) return 'throne';
+  const rotation = CAMPAIGN_ENVIRONMENT_ROTATIONS[act.act];
+  if (!rotation?.length) return 'throne';
+  return rotation[(depth - act.start) % rotation.length];
+}
+
+/** Point ranges preserve the existing range API while making the campaign schedule deterministic per depth. */
+export const DEPTH_BIOME_RANGES = Array.from({ length: FINAL_DEPTH }, (_, i) => {
+  const depth = i + 1;
+  return { start: depth, end: depth, ids: [campaignBiomeForDepth(depth)] };
+});
+
+const CAMPAIGN_ENVIRONMENTS = new Set(DEPTH_BIOME_RANGES.flatMap((range) => range.ids));
+export const DEPTH_DUNGEON_RANGES = [{ start: FINAL_DEPTH + 1, end: Number.MAX_SAFE_INTEGER, ids: [...new Set([...BIOMES, ...BETA_BIOMES].filter((b) => !b.overworld && !CAMPAIGN_ENVIRONMENTS.has(b.id)).map((b) => b.id))] }];
 
 /** Thematic biomes per campaign Act */
 export const ACT_BIOMES = {
@@ -610,24 +617,31 @@ export const ACT_BIOMES = {
 };
 for (const v of SHEER) ACT_BIOMES[v.act].push(v.id); // two Sheer Drops an Act
 
-/** Biomes eligible at a campaign depth. Shared endpoints intentionally include both adjacent bands. */
+const SHEER_ENDGAME_POOL_VERSION = 1;
+function syncSavedSheerEndgamePool(c, all) {
+  if (!c || (c.sheerEndgamePoolVersion || 0) >= SHEER_ENDGAME_POOL_VERSION) return;
+  let bag = Array.isArray(c.biomeBag) ? c.biomeBag.filter((id) => all.includes(id)) : [];
+  if (!bag.length) bag = all.slice();
+  else for (const { id } of SHEER) if (all.includes(id) && !bag.includes(id)) bag.push(id);
+  c.biomeBag = bag;
+  c.sheerEndgamePoolVersion = SHEER_ENDGAME_POOL_VERSION;
+}
+
+/** Campaign depths use exactly one scheduled environment; endgame depths share the open dungeon pool. */
 export function biomesForDepth(depth) {
-  if (depth === FINAL_DEPTH) return ['throne'];
-  const ids = [];
-  for (const range of [...DEPTH_BIOME_RANGES, ...DEPTH_DUNGEON_RANGES]) {
-    if (depth >= range.start && depth <= range.end) ids.push(...range.ids);
-  }
-  return [...new Set(ids)].filter((id) => BIOME_BY_ID[id]);
+  depth = Math.max(1, Math.floor(Number(depth) || 1));
+  if (depth <= FINAL_DEPTH) return [campaignBiomeForDepth(depth)];
+  return DEPTH_DUNGEON_RANGES[0].ids.filter((id) => BIOME_BY_ID[id]);
 }
 
 /**
- * A shuffled pool for this depth's configured ranges. An eligible overworld is guaranteed after three actual
- * non-overworld dungeon entries. Depth 500 always leads to Velscour's Throne.
+ * A shuffled pool for this depth's configured ranges. Campaign bands are fixed; the endgame cycles its open pool.
  */
 export function drawBiome(c, depth) {
-  if (depth === FINAL_DEPTH) return 'throne';
+  if (depth <= FINAL_DEPTH) return campaignBiomeForDepth(depth);
   const all = biomesForDepth(depth);
   if (!all.length) return 'catacombs';
+  syncSavedSheerEndgamePool(c, all);
   const overworldIds = all.filter((id) => BIOME_BY_ID[id]?.overworld);
 
   if ((c.overworldMisses || 0) >= 3 && overworldIds.length) {
@@ -650,9 +664,10 @@ export function drawBiome(c, depth) {
  * are all overworlds.
  */
 export function biomeChoices(c, depth, n = 3) {
-  if (depth === FINAL_DEPTH) return ['throne'];
+  if (depth <= FINAL_DEPTH) return [drawBiome(c, depth)];
   const all = biomesForDepth(depth);
   if (!all.length) return ['catacombs'];
+  syncSavedSheerEndgamePool(c, all);
   const overworldIds = all.filter((id) => BIOME_BY_ID[id]?.overworld);
   const mix = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -669,7 +684,7 @@ export function biomeChoices(c, depth, n = 3) {
 }
 /** The portal taken: spend its biome from the bag (and keep the overworld guarantee's bag clean, as drawBiome does). */
 export function takeBiome(c, id, depth) {
-  if (id === 'throne') return;
+  if (id === 'throne' || depth <= FINAL_DEPTH) return;
   const all = biomesForDepth(depth ?? c.depth ?? 1);
   if ((c.overworldMisses || 0) >= 3) { c.biomeBag = (c.biomeBag || []).filter((x) => all.includes(x) && !BIOME_BY_ID[x]?.overworld); return; }
   let bag = (c.biomeBag || []).filter((x) => all.includes(x));

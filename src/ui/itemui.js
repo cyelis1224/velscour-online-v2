@@ -3,7 +3,7 @@ import { G } from '../state.js';
 import { el, escapeHtml, fmtInt, fmtDmg } from '../core/util.js';
 import { shownWeapon, shownDmg, heroDmgLevel } from '../data/depth.js';
 import { SKILLS, effLevel } from '../data/skills.js';
-import { itemName, itemBaseLine, itemColor, itemStats, itemDmg, itemArmor, statLabel, RARITY, GEMS, gemStats, gemName, LEGENDARY, legendaryDesc, powerLevel, itemSellValue, SLOT_NAMES, POTION_INFO, MAX_GEM_TIER, augTarget, itemReqStat, charEffectiveStat, STAT_NAMES, slotFor, RING_SLOTS } from '../data/items.js';
+import { itemName, itemBaseLine, itemColor, itemStats, itemDmg, itemArmor, statLabel, RARITY, GEMS, gemStats, gemName, LEGENDARY, legendaryDesc, powerLevel, itemSellValue, SLOT_NAMES, POTION_INFO, MAX_GEM_TIER, augTarget, itemReqStat, charEffectiveStat, STAT_NAMES, slotFor, RING_SLOTS, equipmentClassIds } from '../data/items.js';
 import { AUGMENTS } from '../data/rings.js';
 import { elem } from '../gfx/vfx.js';
 import { CLASSES } from '../data/classes.js';
@@ -108,7 +108,18 @@ export function itemTooltip(item, opts = {}) {
     } else {
       const gw = glyphOf(item), kind = item.relic || (gw ? 'glyph' : null);
       if (gw) h += `<div class="tt-base" style="color:${RELIC_COLORS.glyph}">'${gw.sig.map((r) => SIGILS[r].name).join(' · ')}'</div>`;
-      h += `<div class="tt-base">${escapeHtml(itemBaseLine(item))} · ${kind ? `<b style="color:${RELIC_COLORS[kind]}">${RELIC_NAMES[kind]}</b>` : RARITY[item.rarity].name} ${SLOT_NAMES[item.slot]} · iLvl ${item.ilvl} · <span title="Item level + the rarity's worth in levels: what the item's numbers are rolled at">Power ${powerLevel(item.ilvl, item.rarity)}</span></div>`;
+      const qualityLabel = kind === 'cov'
+        ? `<b style="color:${RELIC_COLORS.cov}">Covenant Set · ${RARITY[item.rarity]?.name || 'Tier 1'}</b>`
+        : kind ? `<b style="color:${RELIC_COLORS[kind]}">${RELIC_NAMES[kind]}</b>` : RARITY[item.rarity].name;
+      h += `<div class="tt-base">${escapeHtml(itemBaseLine(item))} · ${qualityLabel} ${SLOT_NAMES[item.slot]} · iLvl ${item.ilvl} · <span title="Item level + the rarity's worth in levels: what the item's numbers are rolled at">Power ${powerLevel(item.ilvl, item.rarity)}</span></div>`;
+      if (item.slot === 'weapon' || item.slot === 'offhand') {
+        const equipClasses = equipmentClassIds(item).filter((id) => CLASSES[id]);
+        if (equipClasses.length) {
+          const names = equipClasses.map((id) => CLASSES[id].name).join(', ');
+          h += `<div class="dim">Equippable by: ${escapeHtml(names)}</div>`;
+          if (p?.classId && !equipClasses.includes(p.classId)) h += `<div style="color:#ff8580">Your ${escapeHtml(CLASSES[p.classId]?.name || 'class')} cannot equip this item.</div>`;
+        }
+      }
       const fin = finishOf(item), gfx = gearFxOf(item);
       if (fin || gfx) h += `<div class="dim" style="font-style:italic">${fin ? escapeHtml(fin.name) + ' finish' : ''}${fin && gfx ? ' · ' : ''}${gfx ? 'Aura: ' + escapeHtml(gfx.name) : ''}</div>`;
       if (item.dmg) { const [a, b] = itemDmg(item); h += `<div>Damage: <b>${shown(a)}–${shown(b)}</b>${cmp(opts.compare, item, 'dmg')}</div>`; }

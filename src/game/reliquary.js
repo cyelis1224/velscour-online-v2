@@ -4,7 +4,7 @@
 // Tabs open by collecting (25% and 80% of the Codex) and by Town Commission lines finished (1 and 3; game/commissions.js).
 import { G } from '../state.js';
 import { GEMS, SIGILS, itemName, itemColor } from '../data/items.js';
-import { codexKey, CODEX_TOTAL, HEIRLOOMS, GLYPHWORDS, PIECE_BY_ID } from '../data/relics.js';
+import { codexKey, CODEX_TOTAL, HEIRLOOMS, GLYPHWORDS, PIECE_BY_ID, makeHeirloom, maybeRelic } from '../data/relics.js';
 
 const KEY = 'Velscour_reliquary_v1';
 export const VAULT_TABS = 6, VAULT_SIZE = 96, JEWEL_BOX_SIZE = 300;
@@ -232,6 +232,33 @@ export function noteFind(it) {
   }
   if (G.player && codexMf() !== (G.player.codexMf || 0)) G.player.recompute();
   return true;
+}
+/** Undiscovered account Heirlooms eligible for a particular equipment slot. */
+export function undiscoveredHeirlooms(slot = null, unboundOnly = false) {
+  const known = reliquary().codex;
+  return HEIRLOOMS.filter((h) => (!slot || h.slot === slot) && (!unboundOnly || (h.unbound && !h.crown)) && !known['h:' + h.id]);
+}
+/** Create and account-unlock a one-time Heirloom drop. Ordinary loot can use this at any level/depth. */
+export function makeAccountHeirloom(ilvl, opts = {}) {
+  const pool = undiscoveredHeirlooms(opts.slot || null, !!opts.unboundOnly);
+  if (opts.id) {
+    const H = pool.find((h) => h.id === opts.id);
+    if (!H) return null;
+    const item = makeHeirloom(1, { id: H.id });
+    if (item) noteFind(item);
+    return item;
+  }
+  if (!pool.length) return null;
+  const item = makeHeirloom(1, { id: pool[Math.floor(Math.random() * pool.length)].id });
+  if (item) noteFind(item);
+  return item;
+}
+/** Apply the existing relic odds while ensuring a Heirloom can only be generated once account-wide. */
+export function maybeAccountRelic(item, boost = 1) {
+  const eligible = undiscoveredHeirlooms().map((h) => h.id);
+  const result = maybeRelic(item, boost, eligible);
+  if (result !== item && result?.relic === 'heir') noteFind(result);
+  return result;
 }
 /** A Town Commission line finished (by any hero): may open a vault. */
 export function noteLineDone() {

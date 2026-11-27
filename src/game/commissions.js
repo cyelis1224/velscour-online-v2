@@ -11,7 +11,8 @@ import { sfx } from '../core/audio.js';
 import { addEffect, Ring, glowSprite, sparkle, floatText } from '../gfx/vfx.js';
 import { isoX, isoY } from '../core/view.js';
 import { goldPile, rollSigil, itemName, itemColor } from '../data/items.js';
-import { makeHeirloom, makeCovenant } from '../data/relics.js';
+import { makeCovenant } from '../data/relics.js';
+import { makeAccountHeirloom } from './reliquary.js';
 import { depthLevel, FINAL_DEPTH } from '../data/depth.js';
 import { BIOME_BY_ID } from '../data/biomes.js';
 import { addToBag } from './player.js';
@@ -188,7 +189,7 @@ function progress(e, k, what) {
   e.ch++; e.n = 0;
   const last = e.ch >= L.chapters.length;
   if (last) {
-    const h = makeHeirloom(lvl + 2) || makeCovenant(lvl + 2);
+    const h = makeAccountHeirloom(lvl + 2) || makeCovenant(lvl + 2);
     if (h) gifts.push(h);
     const s = commState(c);
     s.open = s.open.filter((x) => x !== e);

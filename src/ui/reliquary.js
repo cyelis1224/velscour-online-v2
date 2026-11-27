@@ -9,7 +9,7 @@ import { changed, renderInventory } from './inventory.js';
 import { addToBag } from '../game/player.js';
 import { reliquary, saveReliquary, openTabs, codexProgress, codexEntries, MILESTONES, VAULT_TABS, codexTitle, noteFind, reliquaryGold, transferReliquaryGold } from '../game/reliquary.js';
 import { RELIC_COLORS, SIGILS, SLOT_NAMES, makeGem, itemName } from '../data/items.js';
-import { COVENANT_BY_ID, makeHeirloom, makeCovenant, GLYPHWORDS } from '../data/relics.js';
+import { COVENANT_BY_ID, makeHeirloom, makeCovenant, heirloomPreview, GLYPHWORDS } from '../data/relics.js';
 import { itemIconURL } from './icons.js';
 import { reliquaryTabRows, nextReliquaryRowCost, canBuyReliquaryRow, buyReliquaryRow, RELIQUARY_MAX_ROWS } from '../data/bag.js';
 
@@ -21,7 +21,7 @@ const icons = new Map();
 function entryIcon(e) {
   let u = icons.get(e.key);
   if (u) return u;
-  const it = e.kind === 'h' ? makeHeirloom(100, { id: e.key.slice(2) }) : e.kind === 'c' ? makeCovenant(100, { pieceId: e.key.slice(2) }) : e.kind === 's' ? makeGem('sig', e.rank) : null;
+  const it = e.kind === 'h' ? heirloomPreview(e.key.slice(2)) : e.kind === 'c' ? makeCovenant(100, { pieceId: e.key.slice(2), preview: true }) : e.kind === 's' ? makeGem('sig', e.rank) : null;
   u = it ? itemIconURL(it) : null;
   icons.set(e.key, u);
   return u;
@@ -100,6 +100,22 @@ export const Reliquary = {
     r.tabs[tab][idx] = null;
     if (this.tab === tab && this.selected === idx) this.selected = null;
     saveReliquary(); sfx('pickup'); changed(); this.refresh();
+    return true;
+  },
+  /** Create an unlimited ordinary Tier 1 copy from an already discovered Codex entry. */
+  withdrawHeirloom(id, bagIndex = null) {
+    const c = G.char, key = 'h:' + id;
+    if (!c || !reliquary().codex[key]) return false;
+    const item = makeHeirloom(1, { id });
+    if (!item || item.req !== 1 || item.ilvl !== 1 || item.rarity !== 0) return false;
+    if (Number.isInteger(bagIndex)) {
+      if (!Array.isArray(c.bag) || c.bag[bagIndex]) return false;
+      c.bag[bagIndex] = item;
+    } else if (!addToBag(c, item)) {
+      UI.log('Inventory full.', '#ff8080'); sfx('error'); return false;
+    }
+    UI.log(`Withdrew <b style="color:${RELIC_COLORS.heir}">${itemName(item)}</b> from the Reliquary Codex.`);
+    sfx('pickup'); changed(); this.refresh();
     return true;
   },
   /** Withdraw every item from the open vault tab that fits into the current hero's inventory. */
@@ -371,6 +387,10 @@ export const Reliquary = {
         const src = e.kind === 'g' ? null : entryIcon(e);
         if (src) { const img = new Image(); img.src = src; img.draggable = false; d.appendChild(img); }
         else d.appendChild(el('span', 'codex-glyph', escapeHtml(e.name.split(' ').map((w) => w[0]).join('').slice(0, 2))));
+        if (e.kind === 'h' && got) {
+          d.classList.add('codex-withdrawable');
+          draggable(d, { key: `codex-heirloom:${e.key.slice(2)}`, data: () => ({ type: 'codex-heirloom', id: e.key.slice(2) }), icon: () => d.querySelector('img')?.src, onClick: () => this.withdrawHeirloom(e.key.slice(2)) });
+        }
         UI.tip(d, () => codexTip(e, got));
         grid.appendChild(d);
       }

@@ -912,8 +912,13 @@ const server = http.createServer((req, res) => {
       const safeXp = safeLevel > (existing.level || 1)
         ? (charData.xp || 0)
         : (safeLevel === (existing.level || 1) ? Math.max(existing.xp || 0, charData.xp || 0) : existing.xp || 0);
-      const safeDeepest = Math.min(500, Math.max(existing.deepest || 1, charData.deepest || 1));
-      const safeDepth = Math.min(500, Math.max(existing.depth || 1, charData.depth || 1));
+      const isOverhaulMigration = !existing.campaignOverhaulV2 && !!charData.campaignOverhaulV2;
+      const safeDeepest = isOverhaulMigration
+        ? Math.max(0, Math.floor(Number(charData.deepest) || 0))
+        : Math.max(existing.deepest || 0, Math.floor(Number(charData.deepest) || 0));
+      const safeDepth = isOverhaulMigration
+        ? Math.max(1, Math.floor(Number(charData.depth) || 1))
+        : Math.max(1, Math.floor(Number(charData.depth) || existing.depth || 1));
 
       const levelDeficit = safeLevel - (charData.level || 1);
       const statBonus = levelDeficit > 0 ? (levelDeficit * 5) : 0;
@@ -2520,8 +2525,13 @@ wss.on('connection', (ws) => {
           const safeXp = safeLevel > (existing.level || 1)
             ? (charData.xp || 0)
             : (safeLevel === (existing.level || 1) ? Math.max(existing.xp || 0, charData.xp || 0) : existing.xp || 0);
-          const safeDeepest = Math.min(500, Math.max(existing.deepest || 1, charData.deepest || 1));
-          const safeDepth = Math.min(500, Math.max(existing.depth || 1, charData.depth || 1));
+          const isOverhaulMigration = !existing.campaignOverhaulV2 && !!charData.campaignOverhaulV2;
+          const safeDeepest = isOverhaulMigration
+            ? Math.max(0, Math.floor(Number(charData.deepest) || 0))
+            : Math.max(existing.deepest || 0, Math.floor(Number(charData.deepest) || 0));
+          const safeDepth = isOverhaulMigration
+            ? Math.max(1, Math.floor(Number(charData.depth) || 1))
+            : Math.max(1, Math.floor(Number(charData.depth) || existing.depth || 1));
 
           const levelDeficit = safeLevel - (charData.level || 1);
           const statBonus = levelDeficit > 0 ? (levelDeficit * 5) : 0;

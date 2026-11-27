@@ -5,17 +5,15 @@ import { SUMMONS } from './summons.js';
 import { ELEM } from '../gfx/vfx.js';
 import { NOTES, NOTE_MODS, REGISTERS, registerOf } from './notation.js';
 
-export const ROW_LEVELS = [1, 12, 30];
+export const ROW_LEVELS = [1, 15, 30];
 export const MAX_SKILL_LEVEL = 20;
 export const SKILLS = {};
 export const CLASS_SKILLS = {};
 const MOVEMENT_SKILL_KINDS = new Set(['blink', 'dash', 'leap']);
 export const isMovementSkill = (sk) => !!sk && MOVEMENT_SKILL_KINDS.has(sk.kind);
 
-// Skills granted for free as the hero levels up: [character level, tree, index]
-export const GRANTS = [[1, 0, 0], [1, 2, 0], [3, 1, 0], [12, 0, 3], [16, 1, 3], [20, 2, 3], [30, 0, 6], [34, 1, 6], [38, 2, 6]];
-const DRAGOON_GRANTS = [[1, 3, 0], [2, 3, 1], [4, 3, 2]];
-const ROGUE_GRANTS = [[1, 0, 1]]; // Eviscerate: a finisher from the start, or her Combo Points buy nothing
+// No skills are granted automatically; characters spend earned skill points.
+export const GRANTS = []; // Deprecated compatibility export; no automatic skill grants remain.
 
 const KIND_DMG = {
   melee: 1.15, proj: 1.0, nova: 0.95, aoe: 1.35, beam: 1.2, chain: 0.95, wall: 0.32, zone: 0.3, orbit: 0.5, cyclone: 0.38,
@@ -62,10 +60,8 @@ for (const [cls, trees] of Object.entries(SKILLDATA)) {
   });
 }
 
-export function grantedSkillsAt(cls, level) {
-  const grants = cls === 'dragoon' ? [...GRANTS, ...DRAGOON_GRANTS] : cls === 'rogue' ? [...GRANTS, ...ROGUE_GRANTS] : GRANTS;
-  return grants.filter((g) => g[0] <= level).map(([, t, i]) => `${cls}.${t}.${i}`);
-}
+// Kept as an empty compatibility helper for callers that may still import it.
+export function grantedSkillsAt() { return []; }
 
 /** Effective level of a skill for a player: invested + item bonuses. */
 export function effLevel(player, sk) {
@@ -116,9 +112,19 @@ export function curseAmount(sk, L) {
 }
 export function skillDuration(sk, L) {
   const d = sk.m.dur;
-  if (sk.kind === 'curse') return (d ?? 6) + (L - 1) * 0.15;
-  if (sk.kind === 'buff') return (d ?? 20) + (L - 1) * 0.3;
+  if (sk.kind === 'curse') return Math.min(60, (d ?? 6) + (L - 1) * 0.15);
+  if (sk.kind === 'buff') return Math.min(skillDurationLimit(sk), (d ?? 20) + (L - 1) * 0.3);
   return d ?? 0;
+}
+
+/** Keep high-rank duration scaling inside the intended combat-buff windows. */
+export function skillDurationLimit(sk) {
+  const stats = Array.isArray(sk?.m?.buff) ? sk.m.buff : ['dmg'];
+  if (stats.includes('xp') || stats.includes('mf') || stats.includes('gf')) return 120;
+  const hasOffense = stats.some((key) => ['dmg', 'crit', 'critDmg', 'leech', 'cdr'].includes(key));
+  if (stats.includes('speed')) return sk.m.amt >= 30 ? 10 : 15;
+  if (stats.includes('as') && !hasOffense && !stats.some((key) => ['armor', 'res', 'block', 'thorns', 'regen', 'life'].includes(key))) return 20;
+  return hasOffense ? 30 : 45;
 }
 
 /** Approximate useful range in tiles (used for auto-aim and melee approach). */

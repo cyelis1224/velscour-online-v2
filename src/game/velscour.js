@@ -26,8 +26,9 @@ import { Delayed, Area, coneTargets } from './hazards.js';
 import { makeMonster, Monster, lookFor } from './monster.js';
 import { UI } from '../ui/ui.js';
 import { GroundItem } from './loot.js';
-import { makeHeirloom, makeCovenant } from '../data/relics.js';
-import { rollSigil, SIGIL_MAX, makeGem } from '../data/items.js';
+import { makeCovenant } from '../data/relics.js';
+import { makeAccountHeirloom } from './reliquary.js';
+import { rollSigil, SIGIL_MAX, makeGem, qualityAtDepth } from '../data/items.js';
 import { setupUnbound, unboundTick, courtBegin, courtGate, unboundSpoils, UNBOUND } from './unbound.js';
 import { legionGate } from './heresies.js';
 
@@ -487,7 +488,7 @@ class VelscourFight {
     (G.velscourLog || (G.velscourLog = [])).push({ t: this.t, phase: this.phase, practice: this.practice, unbound: !!this.unbound });
     if (this.practice || !w.player) return;
     const lvl = m.level + 2, drop = (it) => it && w.addLoot(new GroundItem(m.x + rand(-1, 1), m.y + rand(-1, 1), 'item', { item: it }));
-    drop(makeHeirloom(lvl)); drop(makeCovenant(lvl)); drop(makeGem('sig', Math.min(SIGIL_MAX, 15 + Math.floor(rand(0, 5))))); drop(rollSigil(w.depth, 2));
+    drop(makeAccountHeirloom(lvl)); drop(makeCovenant(lvl, { maxRarity: qualityAtDepth(w.depth || 100) })); drop(makeGem('sig', Math.min(SIGIL_MAX, 15 + Math.floor(rand(0, 5))))); drop(rollSigil(w.depth, 2));
     if (this.unbound) unboundSpoils(this, lvl, drop); // an Unbound Heirloom, maybe the Crown (game/unbound.js)
   }
   /** The boss's own AI pauses while he hovers, hides or is bound (game/monster.js bossUpdate). */
