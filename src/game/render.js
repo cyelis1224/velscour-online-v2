@@ -245,6 +245,7 @@ function drawTransitionParticles(ctx, world, vr) {
 
 function floorEntry(world, v) {
   if (world.townTiles) return world.townTiles[v] || world.townTiles[0];
+  if (world.extraFloors && v >= (world.extraBase ?? 230)) return world.extraFloors[v - (world.extraBase ?? 230)] || world.tileset.floors[0]; // Phobos's own ground (gfx/phobostex.js)
   return world.tileset.floors[v] || world.tileset.floors[0];
 }
 
@@ -399,11 +400,20 @@ function buildingRect(b) {
 }
 
 // b.flip: mirrored, which moves the door to the building's other street face (world/town.js)
+const tintCache = new Map();
+/** A building's art toned for its ward (b.tint: a canvas filter, Phobos's districts), cut once and kept. */
+function tintedArt(b) {
+  const s = b.spr, key = `${s.sx},${s.sy},${s.w},${s.h}|${b.tint}`;
+  let c = tintCache.get(key);
+  if (!c) { c = document.createElement('canvas'); c.width = s.w; c.height = s.h; const g = c.getContext('2d'); g.filter = b.tint; g.drawImage(s.img, s.sx, s.sy, s.w, s.h, 0, 0, s.w, s.h); if (s.img.complete !== false) tintCache.set(key, c); }
+  return c;
+}
 function drawBuilding(ctx, b, alpha) {
   const s = b.spr, [x, y, w, h] = buildingRect(b);
+  const [img, sx, sy] = b.tint ? [tintedArt(b), 0, 0] : [s.img, s.sx, s.sy];
   if (alpha < 1) ctx.globalAlpha = alpha;
-  if (b.flip) { ctx.save(); ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(s.img, s.sx, s.sy, s.w, s.h, 0, 0, w, h); ctx.restore(); }
-  else ctx.drawImage(s.img, s.sx, s.sy, s.w, s.h, x, y, w, h);
+  if (b.flip) { ctx.save(); ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(img, sx, sy, s.w, s.h, 0, 0, w, h); ctx.restore(); }
+  else ctx.drawImage(img, sx, sy, s.w, s.h, x, y, w, h);
   if (alpha < 1) ctx.globalAlpha = 1;
 }
 
@@ -579,11 +589,11 @@ function drawNpc(ctx, n) {
   if (n.hidden) { n.sbox = null; return; }
   // Vendors retain their existing hand-painted artwork, names and shops.
   // Only visitors/civilians use the animated townsfolk collection; visiting adventurers use their class portrait.
-  const spriteId = n.vendor || n.adv ? null : (n.townsfolkSpriteId || n.spriteId || n.townsfolkId);
+  const spriteId = n.vendor || n.adv || n.enemyArt ? null : (n.townsfolkSpriteId || n.spriteId || n.townsfolkId);
   const sheet = spriteId ? townSprite(spriteId, n.palette || null) : null;
   // Painted art for vendors and scenario civilians (n.art); never hue-shifted class sprites (they came out green).
   const hom = n.vendor && n.vendor.id === 'upgrade' ? homunculusPose(n.pose || 'confident') : null; // Homunculus the Proud's 30 poses
-  const vendorArt = hom ? hom.img : n.vendor
+  const vendorArt = hom ? hom.img : n.enemyArt ? enemyImage(n.enemyArt) : n.vendor
     ? replacementImage('npc_' + n.vendor.id) || classSprite(n.vendor.sprite, 180, n.vendor.pal || null)
     : n.adv ? advPortrait(n.adv)
       : !spriteId && (n.art && replacementImage(n.art) || classSprite(n.sprite || 'paladin', 180));
@@ -1099,7 +1109,10 @@ export function renderWorld(ctx, world) {
       }
       case 5: {
         const [x, y, w, h] = buildingRect(o);
-        const a = hides([x + w * 0.15, y, w * 0.7, h * 0.85], o.depth) ? 0.4 : 1;
+        // see-through over anyone behind it: the middle of the art, or (a footprint we know: Phobos's 3 x 3 houses) anyone
+        // behind the footprint and under the roof's edge
+        const fp = o.fp || 3, back = o.x0 != null && views.some((v) => v.at && v.at[0] < o.x0 + fp && v.at[1] < o.y0 + fp && v.at[0] + v.at[1] < o.x0 + o.y0 + fp * 2 - 0.5 && v.x > x && v.x < x + w && v.y1 > y && v.y0 < y + h * 0.9);
+        const a = back || hides([x + w * 0.15, y, w * 0.7, h * 0.85], o.depth) ? 0.35 : 1;
         drawBuilding(ctx, o, a);
         break;
       }
@@ -1125,6 +1138,7 @@ export function renderWorld(ctx, world) {
         const z = camera.zoom;
         o.sbox = [sx - (w / 2) * z, sy - h * z, sx + (w / 2) * z, sy];
         o.viewH = h + (o.fly ? 16 : 0); // next frame's see-through hole
+        if (o.talks && o.talkT > 0) drawTownSpeech(ctx, o, isoX(o.x, o.y), isoY(o.x, o.y) - Math.min(130, h + (o.fly ? 16 : 0))); // Phobos's occupiers grumble and taunt (game/phobostalk.js)
         if (o === G.player && o.talkT > 0 && world.kind === 'town') drawTownSpeech(ctx, o, isoX(o.x, o.y), isoY(o.x, o.y) - Math.min(70, h)); // chatting at the forge
         else if (o.sandArt && o.talkT > 0 && !o.dead) drawTownSpeech(ctx, o, isoX(o.x, o.y), isoY(o.x, o.y) - Math.min(170, h) - (o.fly ? 16 : 0)); // a sand creature's shout (game/sandkits.js)
         break;
@@ -1480,13 +1494,18 @@ function drawOverheadNames(ctx, world) {
   ctx.textAlign = 'center';
   const d = G.dpr;
   const nameFont = `700 ${Math.round(11 * d)}px Cinzel, Georgia, serif`;
+  // a champion pack wears one name ("×N"), not a stack of the same label (a unique keeps its own)
+  const tags = [];
   for (const c of world.creatures) {
     if (c.dead || !c.sbox) continue;
     if (c.rank === 'champion' || c.rank === 'unique') {
       const x = (c.sbox[0] + c.sbox[2]) / 2, y = c.barTop != null ? camera.toScreen(0, c.barTop)[1] - 3 : c.sbox[1] - 8; // above its life bar
-      drawLabel(ctx, c.name, x * d, y * d, nameFont, c.rank === 'unique' ? '#ffc040' : '#80b0ff', 3 * d);
+      const t = c.rank === 'champion' && tags.find((q) => q.rank === 'champion' && Math.abs(q.x - x) < 70 && Math.abs(q.y - y) < 70);
+      if (t) { t.n++; t.y = Math.min(t.y, y); continue; }
+      tags.push({ x, y, rank: c.rank, name: c.name, n: 1 });
     }
   }
+  for (const t of tags) drawLabel(ctx, t.n > 1 ? `${t.name} ×${t.n}` : t.name, t.x * d, t.y * d, nameFont, t.rank === 'unique' ? '#ffc040' : '#80b0ff', 3 * d);
   // townsfolk names: only the one nearest the hero (a crowd of labels hides the crowd)
   const hero = world.player;
   let nearest = null, nd = 2.6;

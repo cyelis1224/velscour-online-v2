@@ -4,6 +4,7 @@ import { BREACH_ARCHS } from './breach.js';
 // mon -> hue/sat/light shift applied to monster palettes.
 import { FINAL_DEPTH, getActForDepth, ACTS } from './depth.js';
 import { SHEER } from './sheer.js';
+import { PHOBOS_BIOME_BY_ID } from './phobosbiomes.js';
 export const BIOMES = [
   {
     id: 'catacombs', name: 'Skull-Lined Catacombs', palette: null, dark: 0.82, light: 7.5,
@@ -567,6 +568,8 @@ export const SCORPION_KING_PYRAMID_BIOME = {
   torch: '#ff8040', fog: '#080302',
 };
 export const BIOME_BY_ID = Object.fromEntries([...BIOMES, ...BETA_BIOMES, BREACH_BIOME, SCORPION_KING_PYRAMID_BIOME].map((b) => [b.id, b]));
+// City State Phobos and Castle Velscour (data/phobosbiomes.js): by id only, never in BIOMES, a bag or an Act
+Object.assign(BIOME_BY_ID, PHOBOS_BIOME_BY_ID);
 
 /** Registered overworld biomes; campaign eligibility is limited by DEPTH_BIOME_RANGES below. */
 export const OVERWORLD_BIOME_IDS = BIOMES.filter((b) => b.overworld).map((b) => b.id);

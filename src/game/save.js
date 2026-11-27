@@ -330,6 +330,7 @@ export function migrate(c) {
     }
   }
   c.tips = c.tips || {};
+  if (c.phobos) c.phobos = Object.assign({ q: 0, qAt: null, bell: false, city: false, gate: false, floor: 0, cleared: {}, wards: [], hubs: {}, vWins: 0, vSeen: [], seenD: [], errands: {}, quests: {} }, c.phobos); // ACT III (game/phobos.js)
   if (c.classId === 'barbarian') c.rage = Math.max(0, Math.min(100, Number(c.rage) || 0));
   c.homunculus = c.homunculus || { talks: 0, chapter: 0, told: [], recap: [] }; // the blacksmith's axe story (game/homunculus.js)
   c.mastery = c.mastery || {}; // skill mastery: {skillId: [level 1-1000, xp]}

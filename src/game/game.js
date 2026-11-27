@@ -21,7 +21,7 @@ import { BIOMES, BETA_BIOMES, BIOME_BY_ID, TOWN_BIOME, ACT2_TOWN_BIOME, drawBiom
 import { CLASSES } from '../data/classes.js';
 import { generateDungeon, isRaidDepth } from '../world/dungeon.js';
 import { FINAL_DEPTH, ENDGAME_START_DEPTH, MAX_DEPTH, depthLevel, blockStart, isSuperbossDepth, superbossForDepth, getActForDepth, isActFinaleDepth, isEndgameDepth, ACTS } from '../data/depth.js';
-import { actSelectionRows, act2Unlocked, act4Unlocked, shouldAutoTravelToAct2, shouldAutoTravelToAct4 } from './actselection.js';
+import { actSelectionRows, act2Unlocked, act3Unlocked, act4Unlocked, shouldAutoTravelToAct2, shouldAutoTravelToAct3, shouldAutoTravelToAct4 } from './actselection.js';
 import { addDefiance, clearDefiance, defianceText, tickBlessing } from './defiance.js';
 import { DUNGEON_AFFIX_BY_ID, DUNGEON_AFFIX_CONFIG, rollDungeonAffixesForDepth, normalizeDungeonAffixIds, applyDungeonAffix } from '../data/dungeonaffixes.js';
 import { rollTreasureChest } from '../data/treasurechests.js';
@@ -79,6 +79,8 @@ const TOWNSFOLK_KNIGHTS = TOWNSFOLK.filter((q) => q.knight).map((q) => q.spriteI
 import { Cine, CINE_FAST } from './cinema.js';
 import { lights, updateVfx } from '../gfx/vfx.js';
 import { World } from './world.js';
+import { climbDied } from './climb.js';
+import { act3Destinations, setupBellmourn, enterPhobos as phEnterPhobos, enterCastleFloor as phEnterCastle, questTick as phQuestTick, phobosState, clearFlight } from './phobos.js';
 import { Player } from './player.js';
 import { makeMonster, makeElite, Monster } from './monster.js';
 import { clearRims } from './creature.js';
@@ -170,6 +172,7 @@ const VELSCOUR_TAUNT_ENDS = [
 const VELSCOUR_TAUNTS = VELSCOUR_TAUNT_STARTS.flatMap((start) => VELSCOUR_TAUNT_ENDS.map((end) => `${start}? ${end}`));
 
 let townCache = null, townTiles = null;
+let bellCache = null;
 let act2TownCache = null, act2TownTiles = null;
 let saveT = 0;
 let automapCanvas = null;
@@ -1416,7 +1419,8 @@ export const game = {
     if (G.touch) TouchUI.show(true);
     UI.refresh();
     Vendor.restock();
-    this.enterTown(true);
+    if (c?.lastTown === 'act3' && c.phobos?.bell && !room) this.enterBellmourn();
+    else this.enterTown(true);
     if (fresh) {
       setTimeout(() => {
         if (G.world && G.world.kind !== 'town') return;   // (a test or the skull has already taken the hero elsewhere)
@@ -1773,6 +1777,9 @@ export const game = {
       label: 'Act Travel Portal',
       use: () => this.openActSelection(),
     });
+    if (phobosState(c)?.bell || act3Unlocked(c)) {
+      world.portals.push({ x: t.center.x - 3.8, y: t.center.y + 3.8, active: true, color: '#c0d0ff', reach: 2.0, label: 'Waypoint — Bellmourn (Act III)', use: () => { sfx('portal'); this.enterBellmourn(); } });
+    }
     // the hero steps out of the portal, a little way down its road toward the square
     const P = t.portal, C = t.center, l = Math.hypot(C.x - P.x, C.y - P.y) || 1;
     let arrive = [P.x + ((C.x - P.x) / l) * 3.2, P.y + ((C.y - P.y) / l) * 3.2];
@@ -1829,6 +1836,7 @@ export const game = {
         sfx('portal');
         if (act === 1) { c.lastTown = 'act1'; this.enterTown(); }
         else if (act === 2) { c.lastTown = 'act2'; this.enterAct2Town(); }
+        else if (act === 3) { c.lastTown = 'act3'; this.enterBellmourn(); }
         else if (act === 4) { this.enterKeep(); }
       };
     });
@@ -1993,6 +2001,9 @@ export const game = {
     // the portal to Tessariel's Keep from the Oasis too
     const kg2 = t.keepgate || (t.keepgate = keepgateSpot({ ...t, npcs: t.npcs || [], start: t.start || [t.center.x, t.center.y], portal: t.portal, center: t.center }));
     if (kg2) world.portals.push({ x: kg2.x, y: kg2.y, active: true, keepGate: true, color: '#c8f060', reach: 2.0, label: KEEP_NAME, use: () => { c.lastTown = 'act2'; return this.enterKeep(); } });
+    if (phobosState(c)?.bell || act3Unlocked(c)) {
+      world.portals.push({ x: t.center.x - 3.8, y: t.center.y + 3.8, active: true, color: '#c0d0ff', reach: 2.0, label: 'Waypoint — Bellmourn (Act III)', use: () => { sfx('portal'); this.enterBellmourn(); } });
+    }
 
     const arrive = t.start || [t.center.x, t.center.y];
     this.setWorld(world, arrive, old);
@@ -2012,6 +2023,71 @@ export const game = {
       net.sendTownTransition(world.depth || 0);
     }
     UI.log('You step into <b style="color:#f3c778">Sunscorch Oasis</b>, haven of the Scorched Wastes!', '#ffe080');
+  },
+
+  /** ACT III's town (game/phobos.js): Bellmourn, under the bells; Herrington's builder on a fixed seed, in the cold. */
+  enterBellmourn() {
+    const old = G.world, c = G.char;
+    const tileset = biomeTileSet(TOWN_BIOME);
+    if (old && old.keep) { releaseCastle3D(); releaseKeepArt(); }
+    keepTileSets(null);
+    if (!townTiles) townTiles = makeTownTiles();
+    if (!bellCache) bellCache = generateTown(tileset, 2301114);
+    const t = bellCache;
+    t.map.seen.fill(0);
+    const world = new World('town', { map: t.map, tileset, biome: TOWN_BIOME, depth: 0, townTiles, townId: 'bellmourn', buildings: t.buildings, props: t.props, wallHangings: t.wallHangings });
+    world.bellmourn = true; world.raining = false; world.ambientFx = { type: 'snow', color: '#e8f0ff' };
+    world.npcs = t.npcs.map((n) => ({ vendor: n.vendor, x: n.x, y: n.y, reach: 1.8, flip: n.flip, aura: n.aura, auraCol: n.auraCol, use: () => Vendor.open(n.vendor.id) }));
+    let [x, y] = [t.start[0] + 1.5, t.start[1] - 0.5];
+    if (!t.map.walkable(x, y)) [x, y] = t.map.randomNear(t.start[0], t.start[1], 2.5);
+    world.npcs.push({ stash: true, name: 'Storage Chest', x, y, reach: 1.6, flip: false, use: () => Stash.open() });
+    let [jx, jy] = t.map.randomNear(t.start[0] - 1.5, t.start[1] - 0.5, 2.5);
+    world.npcs.push({ stash: true, jewelBox: true, name: 'Jewel Box', x: jx, y: jy, reach: 1.6, flip: false, use: () => JewelBox.open() });
+    world.portals = [
+      { x: t.portal.x, y: t.portal.y, active: true, color: '#ff5020', reach: 1.7, get label() { return `Portal — Depth ${Math.max(1, G.char?.depth || 1, G.game?.maxPortalFloor?.(G.char) || 1)}`; }, use: () => this.confirmDungeon() },
+      { x: t.center.x + 3.8, y: t.center.y - 3.8, active: true, color: '#38bdf8', reach: 2.0, label: 'Act Travel Portal', use: () => this.openActSelection() },
+    ];
+    setupBellmourn(world, t, this);
+    this.setWorld(world, t.start, old);
+    void warmLevelArt(world);
+    void loadArtFor(world.npcs.map((n) => n.enemyArt).filter(Boolean));
+    HUD.setArea('Bellmourn', 'Act III Town — under the bells');
+    playMusic('town'); setAmbience('town');
+    Vendor.restock();
+    const p = G.player;
+    if (p) { this.spawnPlayer(world, t.start); p.hp = p.maxHp; p.mana = p.maxMana; }
+    phQuestTick();
+    this.autosave();
+    if (net.connected && G.room) net.sendTownTransition(0);
+    UI.log('The bells of <b style="color:#c0d0ff">Bellmourn</b> toll for the dead of Phobos.', '#d0dcff');
+  },
+  async enterPhobos() {
+    const on = Auto.on;
+    await phEnterPhobos(this);
+    if (on && !Auto.on) Auto.toggle(true);
+    HUD.setArea('City State Phobos', 'Act III — the city under the castle');
+    playMusic('dungeon');
+    this.autosave();
+  },
+  async enterCastleFloor(f) {
+    const on = Auto.on;
+    await phEnterCastle(this, f);
+    HUD.setArea('Castle Velscour', `Floor ${G.phobosFloor} · ${G.world?.overworldScenario?.description || G.world?.biome?.name || ''}`);
+    playMusic('boss');
+    if (on && !Auto.on) Auto.toggle(true);
+    this.autosave();
+  },
+  /** A death in Act III: no Defiance, no depth lost; the hero wakes in Bellmourn and the floor is re-forged. */
+  phobosDeath(src) {
+    const c = G.char; c.deaths = (c.deaths || 0) + 1; clearFlight();
+    climbDied();
+    const killer = src ? (src.owner ? src.owner.name : src.name) : null;
+    stopMusic(); this.autosave();
+    setTimeout(() => deathScreen(G.world?.depth || 0, killer, () => {
+      const p = G.player; p.dead = false; p.buffs = []; p.recompute(); p.hp = p.maxHp; p.mana = p.maxMana;
+      this.enterBellmourn();
+      UI.log('You wake in Bellmourn, under the bells. Phobos waits.', '#ff8060');
+    }), 1700);
   },
 
   getPlayersAwayFromPortal(portal) {
@@ -2095,6 +2171,7 @@ export const game = {
     const old = G.world, c = G.char;
     if (!c) return;
     if (old && old.kind === 'town' && !old.keep && old.biome && old.biome.id === 'act2_town') c.lastTown = 'act2';
+    else if (old && old.kind === 'town' && !old.keep && old.bellmourn) c.lastTown = 'act3';
     else if (old && old.kind === 'town' && !old.keep) c.lastTown = 'act1';
     sfx('portal');
     LoadingScreen.show({ title: KEEP_NAME, subtitle: 'The hall of the Sacred Flame', text: "Crossing to Tessariel's Keep…", progress: 20 });
@@ -2553,12 +2630,14 @@ export const game = {
   async openVelscourTeleport() {
     const skullScens = await listSkullScenarios().catch(() => []);
     const scenOptions = skullScens.map((s) => `<option value="scen:${escapeHtml(s.id)}">📜 Authored: ${escapeHtml(s.name)} (${escapeHtml(s.biomeId)})</option>`).join('');
-    const options = scenOptions
+    const act3 = act3Destinations(), hidden = (id) => id.startsWith('cv_') || id === 'phobos_city'; // Act III's places go in their own group, by name
+    const options = (scenOptions ? `<optgroup label="Authored Scenarios">${scenOptions}</optgroup>` : '')
+      + `<optgroup label="Act III: Bellmourn, City State Phobos, Castle Velscour">${act3.map(([v, l]) => `<option value="${v}">${escapeHtml(l)}</option>`).join('')}</optgroup><optgroup label="Everywhere else">`
       + `<option value="act2_town">Sunscorch Oasis (Act II Town)</option>`
-      + [...BETA_BIOMES, ...BIOMES].map((biome) => { const need = regionNeeds(biome, G.char?.level); return `<option value="${escapeHtml(biome.id)}"${need ? ' disabled' : ''}>${escapeHtml(biome.name)}${biome.overworld ? ' · Overworld' : ''}${biome.beta ? ' (Beta)' : ''}${need ? ` · Reach level ${need}` : ''}</option>`; }).join('')
+      + [...BETA_BIOMES, ...BIOMES].filter((b) => !hidden(b.id)).map((biome) => { const need = regionNeeds(biome, G.char?.level); return `<option value="${escapeHtml(biome.id)}"${need ? ' disabled' : ''}>${escapeHtml(biome.name)}${biome.overworld ? ' · Overworld' : ''}${biome.beta ? ' (Beta)' : ''}${need ? ` · Reach level ${need}` : ''}</option>`; }).join('')
       + Object.values(REGIONS).flatMap((r) => { const b = BIOME_BY_ID[r.id], need = regionNeeds(b, G.char?.level); return (r.variants || []).map((v) => `<option value="${escapeHtml(r.id)}:${escapeHtml(v.id)}"${need ? ' disabled' : ''}>${escapeHtml(b.name)}: ${escapeHtml(v.name)}${need ? ` · Reach level ${need}` : ''}</option>`); }).join('')
       + SKY_ALL.map((v) => `<option value="skyship:${v.id}">${escapeHtml(BIOME_BY_ID.skyship.name)}: ${escapeHtml(v.name)} (${escapeHtml(v.weather)})</option>`).join('')
-      + SEA_VARIANTS.map((v) => `<option value="pirate_seas:${v.id}">${escapeHtml(BIOME_BY_ID.pirate_seas.name)}: ${escapeHtml(v.name)} (${escapeHtml(v.weatherName)})</option>`).join('');
+      + SEA_VARIANTS.map((v) => `<option value="pirate_seas:${v.id}">${escapeHtml(BIOME_BY_ID.pirate_seas.name)}: ${escapeHtml(v.name)} (${escapeHtml(v.weatherName)})</option>`).join('') + '</optgroup>';
     const dialog = UI.dialog({
       title: 'CHOOSE YOUR DOOM',
       cls: 'velscour-teleport-dialog',
@@ -2569,6 +2648,7 @@ export const game = {
           let id = dialog.box.querySelector('#velscour-biome').value;
           if (id.startsWith('scen:')) { this.enterCustomScenario(id.slice(5)); return; }
           if (id === 'act2_town') { this.enterAct2Town(true); return; }
+          const a3 = act3.find(([v]) => v === id); if (a3) { a3[2](this); return; }
           if (id.startsWith('skyship:')) { G.char.skyVariant = id.slice(8); id = 'skyship'; }
           if (id.startsWith('pirate_seas:')) { G.char.seaVariant = id.slice(12); id = 'pirate_seas'; }
           if (REGIONS[id.split(':')[0]] && id.includes(':')) { (G.regionWant ||= {})[id.split(':')[0]] = id.split(':')[1]; id = id.split(':')[0]; } // a region's variant
@@ -3159,6 +3239,7 @@ export const game = {
       }
     }
     world.roster = [...new Set(gen.spawns.filter((s) => s.arch && !['raid', 'boss'].includes(s.rank)).map((s) => s.arch))];
+    if (!world.roster.length && gen.roster) world.roster = gen.roster; // a region with no spawn list of its own (Phobos)
     world.dungeonAffixes = normalizeDungeonAffixIds(c.nextAffixes ?? c.dungeonAffixes);
     if (world.dungeonAffixes.includes('bloodmoon')) {
       world.redMoon = true;
@@ -3365,13 +3446,14 @@ export const game = {
 
   useTownPortal() {
     const w = G.world;
+    const destTown = G.char?.lastTown === 'act3' ? 'Bellmourn' : 'Herrington Hollow';
     UI.dialog({
       title: 'Return to Town?',
-      html: `<p>You will return to Herrington Hollow. ${w?.breach ? `Floor ${w.breach.floor} of the Eternal Breach` : w?.rift ? `The Rift (Tier ${w.rift.tier}) collapses behind you; it` : w?.unbound ? 'Velscour Unbound' : `Depth ${w?.depth || G.char.depth}`} will be re-forged when you come back.</p>`,
+      html: `<p>You will return to ${destTown}. ${w?.breach ? `Floor ${w.breach.floor} of the Eternal Breach` : w?.rift ? `The Rift (Tier ${w.rift.tier}) collapses behind you; it` : w?.unbound ? 'Velscour Unbound' : `Depth ${w?.depth || G.char.depth}`} will be re-forged when you come back.</p>`,
       buttons: [{ label: 'Stay' }, {
         label: 'Return', fn: () => {
           sfx('portal');
-          if (G.world && G.world.depth) {
+          if (G.world && G.world.depth && !G.world.phobos) {
             G.char.depth = G.world.depth;
             if (G.world.depth > 1) {
               G.char.cleared[G.world.depth - 1] = true;
@@ -3380,7 +3462,8 @@ export const game = {
             if (G.room) G.room.depth = G.world.depth;
             this.autosave();
           }
-          this.enterTown();
+          if (G.char?.lastTown === 'act3') this.enterBellmourn();
+          else this.enterTown();
         }
       }],
     });
@@ -3545,12 +3628,14 @@ export const game = {
     const c = G.char, firstClear = !!(c && !c.cleared[world.depth]);
     const next = world.depth + 1;
     const autoAct2 = c && shouldAutoTravelToAct2(c, world.depth, firstClear);
+    const autoAct3 = c && shouldAutoTravelToAct3(c, world.depth, firstClear);
     const autoAct4 = c && shouldAutoTravelToAct4(c, world.depth, firstClear);
     if (c) {
       c.cleared[world.depth] = true;
       c.deepest = Math.max(c.deepest || 0, world.depth);
       c.depth = next;
       if (autoAct2) { c.visitedAct2Town = true; c.act2AutoTravelDone = true; }
+      if (autoAct3) { phobosState(c).bell = true; c.act3AutoTravelDone = true; }
       if (autoAct4) { c.visitedAct4Town = true; c.act4AutoTravelDone = true; }
       this.brokeThrough(world.depth);
       this.autosave();
@@ -3560,6 +3645,9 @@ export const game = {
       sfx('portal');
       this.enterAct2Town();
       return;
+    }
+    if (autoAct3) {
+      UI.log('<b style="color:#c0d0ff">Act III Unlocked:</b> Bellmourn (City State Phobos &amp; Castle Velscour) is now open through the Act Travel Portal!', '#d0dcff');
     }
     if (autoAct4) {
       UI.log('<b style="color:#c8f060">Act IV Unlocked:</b> Tessariel\'s Keep is now open through the Act Travel Portal!', '#e0f0c0');
@@ -3716,6 +3804,7 @@ export const game = {
     const c = G.char;
     const w = G.world;
     keepDeath();
+    if (w && w.phobos) return this.phobosDeath(src);
     if (w && w.breach) return this.breachDeath(src);
     if (w && w.rift) return this.riftDeath(src);
     if (w && (w.unbound || w.unboundExploration)) return this.unboundDeath(src);
@@ -4014,6 +4103,7 @@ export const game = {
       }
     }
     world.roster = [...new Set(gen.spawns.filter((s) => s.arch && !['raid', 'boss'].includes(s.rank)).map((s) => s.arch))];
+    if (!world.roster.length && gen.roster) world.roster = gen.roster; // a region with no spawn list of its own (Phobos)
     world.rift = createRiftRun(world, gen, tier, {
       onWin: () => { exit.active = true; exit.color = '#20e0ff'; exit.label = 'Exit — onward or home'; addEffect(new Ring(exit.x, exit.y, 0.2, 3, 1, '#20e0ff', 5)); sfx('gate'); UI.refresh(); this.autosave(); },
       onFail: () => this.autosave(),
@@ -4690,8 +4780,9 @@ export const game = {
       if (!G.room || this.isDungeonAuthority(w?.depth)) {
         ambushTick(w, dt);
       }
+      phQuestTick(dt);
       if (w.kind === 'town') {
-        townTick(w, dt);
+        if (!w.bellmourn) townTick(w, dt);
       } else if (!w.sky && !w.seaRun) {
         happeningsTick(w, dt);
         this.tickDungeonAffixWorld(w, dt);

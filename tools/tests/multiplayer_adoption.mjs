@@ -363,3 +363,62 @@ test('Phase 3: 510 Sea of Sand monsters/humanoids, 60 Castle Creatures & 10 Cast
   assert.ok(sheets['castle/bosses'] && sheets['castle/creatures_1'], 'Castle atlases in enemies.json');
   assert.ok(sheets['sand/01_dune_hollows'] && sheets['sand2/01_linen_court'], 'Sea of Sand atlases in enemies.json');
 });
+
+test('Phase 4: Act III Bellmourn, City State Phobos, 100-Floor Castle Velscour, Dungeon Horrors, 3D Spires & 100-depth harmonization', async () => {
+  const { FINAL_DEPTH } = await import('../../src/data/depth.js');
+  const { PHOBOS_ART, PHOBOS_FOLK, DISTRICTS, WINGS, CASTLE_FLOORS, cityDepth, castleDepth, FINALE } = await import('../../src/data/phobos.js');
+  assert.equal(CASTLE_FLOORS, 100);
+  assert.equal(DISTRICTS.length, 11);
+  assert.equal(WINGS.length, 10);
+  assert.ok(PHOBOS_ART.length >= 340, `Expected >=340 Act III Phobos + Dungeon Horrors sprites, got ${PHOBOS_ART.length}`);
+  assert.ok(PHOBOS_FOLK.length >= 40);
+  assert.equal(Object.keys(FINALE).length, 3);
+
+  // Depth harmonization to FINAL_DEPTH = 100 (never triggers infinite endgame scaling > 100)
+  assert.equal(cityDepth(0), 51, 'City State Phobos opens at Act III Depth 51');
+  assert.ok(cityDepth(19) <= FINAL_DEPTH && cityDepth(19) > 51, 'East wards scale cleanly inside Act III');
+  assert.ok(castleDepth(1) >= 55 && castleDepth(1) <= 60, 'Castle Velscour Floor 1 starts in mid-Act III');
+  assert.equal(castleDepth(100), FINAL_DEPTH, 'Castle Velscour Floor 100 caps cleanly at FINAL_DEPTH (100)');
+
+  // Act selection unlocks Bellmourn at Depth 50
+  const { actSelectionRows, act3Unlocked, ACT_TOWN_NAMES } = await import('../../src/game/actselection.js');
+  assert.equal(ACT_TOWN_NAMES[3], 'Bellmourn');
+  assert.equal(act3Unlocked({ deepest: 49 }), false);
+  assert.equal(act3Unlocked({ deepest: 50 }), true);
+  assert.equal(act3Unlocked({ deepest: 10, phobos: { bell: true } }), true);
+  const act3Row = actSelectionRows({ deepest: 50 }).find((r) => r.act === 3);
+  assert.equal(act3Row?.implemented, true);
+  assert.equal(act3Row?.unlocked, true);
+  assert.equal(act3Row?.town, 'Bellmourn');
+
+  // Bestiary & Biome registration + isolation from normal dungeon random pools
+  const { ART_BY_ID, artPool } = await import('../../src/data/bestiary.js');
+  assert.ok(ART_BY_ID[PHOBOS_ART[0].id], 'Phobos art registered in ART_BY_ID');
+  assert.ok(!artPool('knight').some((a) => a.phobos), 'Phobos art stays isolated from random non-Act-III pools');
+  const { BIOME_BY_ID, BIOMES } = await import('../../src/data/biomes.js');
+  assert.ok(BIOME_BY_ID.ph_city && BIOME_BY_ID.ph_keep, 'Phobos biomes registered in BIOME_BY_ID');
+  assert.ok(!BIOMES.some((b) => b.id === 'ph_city'), 'Phobos biomes do not pollute standard BIOMES bag');
+
+  // Core Act III runtime & 3D Spires modules import cleanly
+  const phobosMod = await import('../../src/game/phobos.js');
+  assert.equal(typeof phobosMod.setupBellmourn, 'function');
+  assert.equal(typeof phobosMod.act3Destinations, 'function');
+  assert.ok(phobosMod.act3Destinations().length >= 13);
+  const climbMod = await import('../../src/game/climb.js');
+  assert.equal(typeof climbMod.climbNext, 'function');
+  const spiresMod = await import('../../src/game/castlespires.js');
+  assert.equal(typeof spiresMod.setupSpires, 'function');
+  const spires3dMod = await import('../../src/gfx/spires3d.js');
+  assert.equal(typeof spires3dMod.disposeSpires3D, 'function');
+
+  // Verify live max-level cheat PR #295 was NOT imported
+  const deathgiftMod = await import('../../src/game/deathgift.js');
+  assert.equal('FEAR_PHRASE' in deathgiftMod, false, 'Upstream test cheat FEAR_PHRASE must remain excluded');
+
+  // Verify Phase 4 runtime sprite atlases & enemies.json integrity
+  const fs = await import('node:fs');
+  const sheets = JSON.parse(fs.readFileSync('assets/sprites/enemies/enemies.json', 'utf8'));
+  assert.ok(sheets['special/mimic'], 'special/mimic still preserved in enemies.json');
+  assert.ok(sheets['phobos/castle_1'] && sheets['phobos/finale_crimson'], 'Phobos sheets present in enemies.json');
+  assert.ok(sheets['dungeon_horrors/charnel_vaults'] && sheets['dungeon_horrors/bosses_gaol_and_barracks'], 'Dungeon Horrors sheets present in enemies.json');
+});
