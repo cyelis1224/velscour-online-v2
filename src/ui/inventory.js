@@ -11,7 +11,10 @@ import {
   SLOTS, SLOT_NAMES, VANITY_SLOTS, shownEquip, itemName, itemColor, GEMS, gemName,
   itemValue, fitsSlot, slotFor, unsocketCost, makeGem, canWearVanity, itemBaseType, itemBaseDisplayName,
   itemReqStat, charEffectiveStat, canEquipItem, armsReason, BASE_REQ_STAT, STAT_NAMES,
+  legendaryDesc, augTarget, powerLevel,
 } from '../data/items.js';
+import { AUGMENTS } from '../data/rings.js';
+import { buildEquipmentStatReport } from '../game/statbreakdown.mjs';
 import { CLASSES, ATTRS } from '../data/classes.js';
 import { allocateAttrs } from '../game/attrs.js';
 import { xpToNext, CRIT_OVER } from '../game/player.js';
@@ -23,7 +26,7 @@ import { heldPortraitArgs } from '../gfx/heldart.js';
 import { tabRow, sheetButtons, useSheet, unloadTab } from './sheets.js';
 import { openBannerCustomizer } from './bannercustomizer.js';
 import { openSeal } from './sealed.js';
-import { glyphOf } from '../data/relics.js';
+import { glyphOf, POWERS, powerText } from '../data/relics.js';
 import { noteFind, openTabs } from '../game/reliquary.js';
 import { marksTotal, marksFree, capXp } from '../game/marks.js';
 import { bagRows, nextRowCost, buyBagRow, BAG_MAX_ROWS, gemBagRows, nextGemBagRowCost, canBuyGemBagRow, buyGemBagRow, GEM_BAG_MAX_ROWS } from '../data/bag.js';
@@ -879,9 +882,219 @@ function statsBlock() {
   for (const [k, v, tip] of rows.filter(([k]) => !primary.has(k))) extra.innerHTML += `<span class="dim"${tip ? ` title="${escapeHtml(tip)}"` : ''}>${k}</span><span class="v"${tip ? ` title="${escapeHtml(tip)}"` : ''}>${v}</span>`;
   more.appendChild(extra);
   box.appendChild(more);
+  const breakdown = buildEquipmentStatReport(p, c);
+  const auditDetails = el('details', 'character-equipment-breakdown');
+  auditDetails.dataset.statDetails = 'equipment-root';
+  auditDetails.innerHTML = '<summary>Equipment Bonus Breakdown</summary><p class="character-breakdown-note">Live totals use combat calculations. Equipment contributions include items, sockets, powers and Covenant sets; other active sources remain in the character total. Select a stat for its source details.</p>';
+  const prefsKey = 'velscour:equipment-stat-browser:v1';
+  let prefs = {};
+  try { prefs = JSON.parse(localStorage.getItem(prefsKey) || '{}') || {}; } catch { prefs = {}; }
+  const controls = el('div', 'character-breakdown-controls');
+  const search = el('input', 'character-breakdown-search');
+  search.type = 'search'; search.placeholder = 'Search every stat, item bonus, socket or modifier'; search.setAttribute('aria-label', 'Search equipment bonuses');
+  search.value = typeof prefs.query === 'string' ? prefs.query : '';
+  controls.appendChild(search);
+  const filters = el('div', 'character-breakdown-filters');
+  const addFilter = (key, label) => {
+    const wrap = el('label', 'character-breakdown-filter');
+    const input = el('input'); input.type = 'checkbox'; input.dataset.statFilter = key; input.checked = Boolean(prefs[key]);
+    wrap.append(input, document.createTextNode(label)); filters.appendChild(wrap); return input;
+  };
+  const filterOver = addFilter('over', 'Show Overcapped Stats');
+  const filterCapped = addFilter('capped', 'Show Capped Stats');
+  const hideZero = addFilter('nonzero', 'Hide Zero-Value Stats');
+  controls.appendChild(filters);
+  auditDetails.appendChild(controls);
+
+  const metricByKey = new Map(breakdown.rows.map((row) => [row.key, row]));
+  const groups = breakdown.metricGroups.map((group) => ({ ...group, entries: [] }));
+  const groupById = new Map(groups.map((group) => [group.id, group]));
+  const modifierByKey = new Map(breakdown.metricGroups.flatMap((group) => group.modifiers.map((row) => [row.key, { ...row, group }])));
+  const capStateFor = (key) => {
+    const direct = metricByKey.get(key === 'resLight' ? 'resLightning' : key);
+    if (direct) return direct.capState;
+    if (key === 'resAll') {
+      const resistances = ['resFire', 'resCold', 'resLightning', 'resPoison', 'resMagic'].map((id) => metricByKey.get(id)).filter(Boolean);
+      if (resistances.some((row) => row.capState === 'over')) return 'over';
+      if (resistances.length && resistances.every((row) => row.capState === 'at')) return 'at';
+      if (resistances.some((row) => row.capState === 'approaching' || row.capState === 'at')) return 'approaching';
+    }
+    return 'uncapped';
+  };
+  const sourceLinesFor = (keys) => [...new Set(keys.flatMap((key) => {
+    const modifier = modifierByKey.get(key);
+    return (modifier?.sources || []).map((source) => {
+      const equipped = source.slot === 'set' || source.slot === 'bonus' ? null : c.equip[source.slot];
+      const name = equipped ? itemName(equipped) : source.name;
+      const label = source.slot === 'set' || source.slot === 'bonus' ? source.name : `${SLOT_NAMES[source.slot] || source.slot}: ${name}`;
+      return `${label} ${source.value > 0 ? '+' : ''}${Math.round(source.value * 10) / 10}${modifier.unit}`;
+    });
+  }))];
+  const relatedKeys = (key) => ({
+    maxHealth: ['life', 'lifePct', 'vit', 'allAttr'], maxMana: ['mana', 'int', 'allAttr'],
+    armor: ['armor', 'baseArmor', 'armorPct', 'str', 'allAttr'],
+    str: ['str', 'allAttr'], dex: ['dex', 'allAttr'], vit: ['vit', 'allAttr'], int: ['int', 'allAttr'],
+    resFire: ['resFire', 'resAll'], resCold: ['resCold', 'resAll'], resLightning: ['resLight', 'resAll'], resPoison: ['resPoison', 'resAll'], resMagic: ['resAll'],
+    critChance: ['critChance', 'dex', 'allAttr'], atkSpeed: ['atkSpeed', 'dex', 'allAttr'], castSpeed: ['castSpeed', 'int', 'allAttr'],
+  }[key] || [key]);
+  const capLabels = { below: 'Below cap', approaching: 'Near cap', at: 'At cap', over: 'Over cap', uncapped: 'No cap' };
+  const itemPowerText = (slot) => {
+    const item = breakdown.audit.bySlot?.[slot], equipped = c.equip[slot], lines = [];
+    if (!item || !equipped) return lines;
+    const gems = equipped.gems || [];
+    const gemNames = gems.map((gem) => gem?.gem ? gemName(gem.gem, gem.tier) : typeof gem === 'string' ? gem : gem?.name || gem?.type).filter(Boolean);
+    if (gemNames.length) lines.push(`Sockets: ${gemNames.join(', ')}`);
+    const glyph = (breakdown.audit.itemPowers || []).find((power) => power.slot === slot);
+    if (glyph && POWERS[glyph.power]) lines.push(`${glyph.glyph || 'Item power'}: ${powerText(POWERS[glyph.power], powerLevel(glyph.ilvl, 5))}`);
+    for (const augment of item.augments || []) { const def = AUGMENTS[augment.id]; if (def) lines.push(`${def.name} (${augTarget(augment)}): ${def.desc(augment.pow || 1)}`); }
+    if (item.legendary) lines.push(legendaryDesc(c.equip[slot]));
+    return lines;
+  };
+  let selectedDetail = null, selectedEntryButton = null, detailPane = null;
+  const makeEntry = (row, group, modifier = modifierByKey.get(row.key)) => {
+    const state = row.capState || capStateFor(row.key), unit = row.unit ?? modifier?.unit ?? '';
+    const equipment = row.rawEquipmentText || `${Math.round((row.rawEquipment ?? modifier?.raw ?? 0) * 10) / 10}${unit}`;
+    const total = row.combined ?? modifier?.combined ?? modifier?.raw ?? 0;
+    const effective = row.effectiveText || `${Math.round((row.effective ?? total) * 10) / 10}${unit}`;
+    const keys = relatedKeys(row.key), capMetric = metricByKey.get(row.key === 'resLight' ? 'resLightning' : row.key);
+    const cap = row.cap ?? capMetric?.cap ?? (row.key === 'resAll' ? 75 : null);
+    const excess = row.excess || capMetric?.excess || (cap == null ? 0 : Math.max(0, total - cap));
+    const capText = cap == null ? 'No Cap' : `${capLabels[state]} · ${Math.round(cap * 10) / 10}${unit}${excess > 0 ? ` · +${Math.round(excess * 10) / 10} over` : ''}`;
+    const detailCap = cap == null ? 'No hard cap' : `Cap ${cap}${unit}; ${Math.max(0, excess)}${unit} above cap`;
+    const sourceLines = sourceLinesFor(keys);
+    if (row.key === 'weaponBase') {
+      for (const [slot, item] of Object.entries(breakdown.audit.bySlot || {})) if (item.weapon) sourceLines.push(`${SLOT_NAMES[slot] || slot}: ${itemName(c.equip[slot])} ${Math.round(item.weapon[0])}-${Math.round(item.weapon[1])} base damage`);
+    }
+    const searchable = `${group.name} ${row.label} ${row.note || ''} ${equipment} ${sourceLines.join(' ')} ${modifier?.sources.map((source) => `${source.name} ${source.value}`).join(' ') || ''}`.toLocaleLowerCase();
+    const entry = el('article', `character-stat-card cap-${state}`);
+    entry.dataset.statEntry = row.key; entry.dataset.category = group.id; entry.dataset.capState = state;
+    entry.dataset.zero = String(Math.abs(total) < 0.0001 && Math.abs(Number(modifier?.raw || 0)) < 0.0001 && Math.abs(Number(row.effective ?? total)) < 0.0001);
+    entry.dataset.search = searchable;
+    const toggle = el('button', 'character-stat-row'); toggle.type = 'button'; toggle.setAttribute('aria-expanded', 'false');
+    toggle.innerHTML = `<span class="character-stat-name">${escapeHtml(row.label)}</span><span class="character-stat-eq" data-label="Equipment">${escapeHtml(equipment)}</span><span class="character-stat-total" data-label="Total">${Math.round(total * 10) / 10}${escapeHtml(unit)}</span><span class="character-stat-effective" data-label="Effective">${escapeHtml(effective)}</span><span class="character-stat-cap" data-label="Cap / Overcap">${escapeHtml(capText)}</span>`;
+    const detail = el('div', 'character-stat-detail'); detail.hidden = false; detail.dataset.statKey = row.key;
+    const sources = el('div', 'character-stat-detail-sources');
+    sources.innerHTML = `<b>Equipment sources</b><span>${sourceLines.length ? sourceLines.map(escapeHtml).join('<br>') : 'No direct equipment contribution; this value may come from attributes or other active sources.'}</span>`;
+    detail.appendChild(sources);
+    const slots = new Set(keys.flatMap((key) => (modifierByKey.get(key)?.sources || []).filter((source) => source.slot !== 'set' && source.slot !== 'bonus').map((source) => source.slot)));
+    for (const slot of slots) for (const text of itemPowerText(slot)) detail.appendChild(el('div', 'character-stat-detail-source', escapeHtml(text)));
+    for (const set of (breakdown.audit.setSources || []).filter((candidate) => (candidate.stats || []).some(([key]) => keys.includes(key)))) {
+      const power = set.power && POWERS[set.power];
+      const bonuses = (set.stats || []).filter(([key]) => keys.includes(key)).map(([key, value]) => `${key} ${value > 0 ? '+' : ''}${Math.round(value * 10) / 10}`).join(' · ');
+      detail.appendChild(el('div', 'character-stat-detail-source', `${escapeHtml(set.name)} (${set.pieces} pieces)${power ? ` · ${escapeHtml(powerText(power, powerLevel(set.ilvl, 3)))}` : ''}${bonuses ? ` · ${escapeHtml(bonuses)}` : ''}`));
+    }
+    detail.appendChild(el('div', 'character-stat-detail-formula', `${escapeHtml(row.diminishing || 'No diminishing returns')} · ${escapeHtml(row.note || modifier?.label || '')} · ${detailCap}${row.wasted > 0 ? ` · ${row.wasted}${unit} is wasted after overflow conversion` : ''}`));
+    toggle.addEventListener('click', () => {
+      const opening = selectedDetail !== detail;
+      selectedEntryButton?.setAttribute('aria-expanded', 'false');
+      selectedDetail?.remove();
+      if (opening) {
+        detailPane.replaceChildren(detail); detailPane.hidden = false;
+        selectedDetail = detail; selectedEntryButton = toggle;
+      } else {
+        detailPane.replaceChildren(); detailPane.hidden = true;
+        selectedDetail = null; selectedEntryButton = null;
+      }
+      toggle.setAttribute('aria-expanded', String(opening));
+    });
+    entry.append(toggle);
+    return entry;
+  };
+  for (const group of breakdown.metricGroups) {
+    const target = groupById.get(group.id), seen = new Set();
+    for (const row of group.metrics) { target.entries.push(makeEntry(row, target)); seen.add(row.key); }
+    for (const row of group.modifiers) if (!seen.has(row.key)) target.entries.push(makeEntry(row, target, row));
+  }
+
+  const nav = el('nav', 'character-stat-categories'); nav.setAttribute('aria-label', 'Stat categories');
+  const browserBody = el('div', 'character-breakdown-body');
+  const resultHeader = el('div', 'character-breakdown-result-header');
+  const resultTitle = el('h3', 'character-breakdown-result-title'), resultCount = el('span', 'character-breakdown-result-count');
+  resultHeader.append(resultTitle, resultCount);
+  const results = el('div', 'character-breakdown-results');
+  detailPane = el('div', 'character-stat-selected-detail'); detailPane.hidden = true;
+  const categoryDefs = [{ id: 'all', name: 'All Stats' }, ...groups.map(({ id, name }) => ({ id, name }))];
+  const categoryButtons = new Map();
+  for (const category of categoryDefs) {
+    const button = el('button', 'character-stat-category'); button.type = 'button'; button.dataset.category = category.id;
+    const count = category.id === 'all' ? groups.reduce((sum, group) => sum + group.entries.length, 0) : groupById.get(category.id)?.entries.length || 0;
+    button.innerHTML = `<span>${escapeHtml(category.name)}</span><small>${count}</small>`;
+    nav.appendChild(button); categoryButtons.set(category.id, button);
+  }
+  browserBody.append(resultHeader, results, detailPane);
+  const layout = el('div', 'character-breakdown-layout'); layout.append(nav, browserBody);
+  auditDetails.appendChild(layout);
+  let selectedCategory = categoryButtons.has(prefs.category) ? prefs.category : 'all';
+  const persistPrefs = () => { try { localStorage.setItem(prefsKey, JSON.stringify({ category: selectedCategory, query: search.value, over: filterOver.checked, capped: filterCapped.checked, nonzero: hideZero.checked })); } catch { /* preferences are optional */ } };
+  const allEntries = groups.flatMap((group) => group.entries.map((entry) => ({ group, entry })));
+  const renderResults = () => {
+    const query = search.value.trim().toLocaleLowerCase();
+    const selected = selectedCategory === 'all' || query ? allEntries : allEntries.filter(({ group }) => group.id === selectedCategory);
+    const visible = selected.filter(({ entry }) => (!query || entry.dataset.search.includes(query))
+      && (!filterOver.checked || entry.dataset.capState === 'over')
+      && (!filterCapped.checked || entry.dataset.capState !== 'uncapped')
+      && (!hideZero.checked || entry.dataset.zero !== 'true'));
+    resultTitle.textContent = query ? 'Search Results' : categoryDefs.find((category) => category.id === selectedCategory)?.name || 'All Stats';
+    resultCount.textContent = `${visible.length} ${visible.length === 1 ? 'stat' : 'stats'}`;
+    for (const button of categoryButtons.values()) { const selectedNow = button.dataset.category === selectedCategory; button.classList.toggle('selected', selectedNow); button.setAttribute('aria-current', selectedNow ? 'page' : 'false'); }
+    results.replaceChildren();
+    const tableHeader = el('div', 'character-stat-table-header');
+    tableHeader.innerHTML = '<span>Stat</span><span>Equipment</span><span>Total</span><span>Effective</span><span>Cap / Overcap</span>';
+    results.appendChild(tableHeader);
+    for (const { group, entry } of visible) {
+      entry.dataset.groupLabel = group.name;
+      results.appendChild(entry);
+    }
+    if (!visible.length) results.appendChild(el('div', 'character-stat-empty', 'No stats match the current search and filters.'));
+    if (selectedDetail && !visible.some(({ entry }) => entry.dataset.statEntry === selectedDetail.dataset.statKey)) {
+      selectedEntryButton?.setAttribute('aria-expanded', 'false');
+      selectedDetail.remove(); detailPane.replaceChildren(); detailPane.hidden = true;
+      selectedDetail = null; selectedEntryButton = null;
+    }
+    persistPrefs();
+  };
+  for (const button of categoryButtons.values()) button.addEventListener('click', () => {
+    selectedCategory = button.dataset.category;
+    selectedEntryButton?.setAttribute('aria-expanded', 'false');
+    selectedDetail?.remove(); detailPane.replaceChildren(); detailPane.hidden = true;
+    selectedDetail = null; selectedEntryButton = null;
+    renderResults();
+  });
+  for (const control of [search, filterOver, filterCapped, hideZero]) control.addEventListener(control === search ? 'input' : 'change', renderResults);
+  renderResults();
+  const itemPowers = breakdown.audit.itemPowers || [];
+  const powerItems = Object.entries(breakdown.audit.bySlot || {}).filter(([slot, item]) => item.legendary || (item.augments || []).length || itemPowers.some((power) => power.slot === slot));
+  const setPowers = breakdown.audit.setSources || [];
+  let powers = null;
+  if (powerItems.length || setPowers.length) {
+    powers = el('details', 'character-breakdown-section');
+    powers.dataset.statDetails = 'equipment-powers';
+    powers.innerHTML = '<summary>Equipment powers and skill augments</summary>';
+    for (const [slot, item] of powerItems) {
+      const equipped = c.equip[slot], descriptions = [];
+      if (equipped?.legendary) descriptions.push(legendaryDesc(equipped));
+      const glyphPower = itemPowers.find((power) => power.slot === slot);
+      if (glyphPower && POWERS[glyphPower.power]) descriptions.push(`${glyphPower.glyph}: ${powerText(POWERS[glyphPower.power], powerLevel(glyphPower.ilvl, 5))}`);
+      for (const aug of item.augments || []) {
+        const A = AUGMENTS[aug.id];
+        if (A) descriptions.push(`${A.name} (${augTarget(aug)}): ${A.desc(aug.pow || 1)}`);
+      }
+      const source = el('div', 'character-power-source');
+      source.append(el('span', 'character-power-slot', escapeHtml(SLOT_NAMES[slot] || slot)), el('b', 'character-power-item', escapeHtml(itemName(equipped))), el('span', 'character-power-description', escapeHtml(descriptions.join(' '))));
+      powers.appendChild(source);
+    }
+    for (const set of setPowers) {
+      const power = set.power && POWERS[set.power];
+      const desc = power ? powerText(power, powerLevel(set.ilvl, 3)) : '';
+      const bonuses = set.stats.map(([key, value]) => `${key} ${value > 0 ? '+' : ''}${Math.round(value * 10) / 10}`).join(' · ');
+      const source = el('div', 'character-power-source');
+      source.append(el('span', 'character-power-slot', 'Covenant Set'), el('b', 'character-power-item', `${escapeHtml(set.name)} (${set.pieces} pieces)`), el('span', 'character-power-description', escapeHtml([desc, bonuses].filter(Boolean).join(' · '))));
+      powers.appendChild(source);
+    }
+  }
   box.appendChild(el('div', 'character-history', `Kills ${fmtInt(c.kills || 0)} · Deaths ${c.deaths || 0} · Deepest ${c.deepest || 0}`));
   if (endgameUnlocked(c)) { const mb = el('button', 'btn small', 'Infernal Marks'); mb.onclick = () => { sfx('ui'); G.ui.marks.open(); }; box.appendChild(mb); }
-  return box;
+  return { box, auditDetails, powers };
 }
 
 /** Attribute points spent so far (everything over the class's starting attributes). */
@@ -948,13 +1161,19 @@ function equipmentColumn(c) {
   return left;
 }
 
-export function renderCharacter(body) {
+export function renderCharacter(body, panel) {
   const c = G.char;
+  if (panel && panel.root) panel.root.classList.add('character-panel');
   body.innerHTML = '';
 
   const wrap = el('div', 'inv-wrap character-view');
   wrap.appendChild(equipmentColumn(c));
-  wrap.appendChild(statsBlock());
+  const { box, auditDetails, powers } = statsBlock();
+  wrap.appendChild(box);
+  const fullWidth = el('div', 'character-breakdown-fullwidth');
+  fullWidth.appendChild(auditDetails);
+  if (powers) fullWidth.appendChild(powers);
+  wrap.appendChild(fullWidth);
   body.appendChild(wrap);
 }
 

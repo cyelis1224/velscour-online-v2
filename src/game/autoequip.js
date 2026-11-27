@@ -3,6 +3,6 @@
 import { SLOTS, fitsSlot, canEquipItem } from '../data/items.js';
 
 export function emptyEquipSlot(c, item) {
-  if (!c || !c.equip || !item || item.type !== 'gear' || item.unid || item.sealed || item.locked) return null;
+  if (!c || !c.equip || !item || item.type !== 'gear' || item.unid || item.locked) return null;
   return SLOTS.find((slot) => !c.equip[slot] && fitsSlot(item, slot, c.classId) && canEquipItem(c, item, slot)) || null;
 }

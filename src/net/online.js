@@ -284,6 +284,27 @@ export async function deleteOnlineCharacter(charId) {
   return { deletedId: charId, characters: cachedCharacters };
 }
 
+export async function renameOnlineCharacter(charId, newName) {
+  const trimmedName = String(newName || '').trim();
+  if (trimmedName.length < 2) {
+    throw new Error('Character name must be at least 2 characters.');
+  }
+  if (trimmedName.length > 18) {
+    throw new Error('Character name must be 18 characters or fewer.');
+  }
+  if (isProfaneName(trimmedName)) {
+    throw new Error('Character name contains inappropriate or prohibited language.');
+  }
+  const data = await apiRequest('/api/online/characters/rename', {
+    method: 'POST',
+    body: { charId, name: trimmedName },
+  });
+  lastSavedFingerprints.delete(charId);
+  cachedCharacters = normalizeCharList(data.characters);
+  const renamed = data.character ? migrate({ ...data.character, isOnline: true }) : null;
+  return { character: renamed, characters: cachedCharacters };
+}
+
 let savePromiseChain = Promise.resolve(true);
 let reliquarySavePromiseChain = Promise.resolve(true);
 const lastSavedFingerprints = new Map();

@@ -1,5 +1,7 @@
 // VELSCOUR - entry point.
-import { G, loadSettings } from './state.js';
+import { G, loadSettings, saveSettings } from './state.js';
+import { observeAdaptivePerformance, performanceTier } from './core/performancequality.mjs';
+import { applyPerformanceQuality } from './gfx/vfx.js';
 import { KeepUI } from './ui/keep.js';
 import { initInput, input } from './core/input.js';
 import { camera } from './core/view.js';
@@ -266,6 +268,28 @@ function rasterWatch(raw, ms) {
   else rw.bad = 0;
 }
 
+function applyGraphicsQualitySettings() {
+  const tier = performanceTier(G.settings);
+  const changed = tier !== (G.performanceQualityTier || 0);
+  G.performanceQualityTier = tier;
+  if (changed) applyPerformanceQuality();
+  resize();
+  dropBakes();
+}
+
+function adaptCosmeticQuality(raw) {
+  const result = observeAdaptivePerformance(raw, G.settings, performance.now());
+  if (result.changed) {
+    G.performanceQualityTier = result.tier;
+    applyPerformanceQuality();
+  }
+  if (result.recommend) {
+    G.settings.performanceRecommendationShown = true;
+    saveSettings();
+    UI.log?.('<span style="color:#ffc66b">Sustained low frame rate detected. Try the <b>Extreme Performance</b> preset in Settings &gt; Graphics.</span>');
+  }
+}
+
 let last = performance.now(), lastFrame = 0;   // last: how far the game clock has run; lastFrame: the last animation frame
 function loop(now) {
   requestAnimationFrame(loop);
@@ -277,6 +301,7 @@ function loop(now) {
   const raw = Math.max(0, (now - last) / 1000), dt = Math.min(0.05, raw);
   last = now;
   adaptRes(raw);
+  if (G.mode === 'game' && !document.hidden) adaptCosmeticQuality(raw);
   G.time += dt;
   G.dt = dt;
   G.frame++;
@@ -348,6 +373,8 @@ function reportError(err) {
 
 async function boot() {
   loadSettings();
+  G.performanceQualityTier = performanceTier(G.settings);
+  window.addEventListener('velscour-graphics-quality-change', applyGraphicsQualitySettings);
   G.canvas = $('#game');
   G.ctx = G.canvas.getContext('2d', { alpha: false });
   G.touch = window.matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window && navigator.maxTouchPoints > 0) || (typeof location !== 'undefined' && location.search.includes('touch'));

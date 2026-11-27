@@ -3,12 +3,16 @@ import { G } from '../state.js';
 import { el, fmt, fmtInt, fmtDmg, escapeHtml, clamp, drawFiltered } from '../core/util.js';
 import { shownDmg, heroDmgLevel } from '../data/depth.js';
 import { sfx } from '../core/audio.js';
-import { A, potionIcon } from '../core/assets.js';
+import { A, potionIcon, classSprite } from '../core/assets.js';
+import { pixelSprite } from '../gfx/pixelart.js';
 import { UI, $, droppable } from './ui.js';
 import { skillIconURL, smiteIcon, ultimateIcon, madnessIcon, hearthIcon } from './icons.js';
 import { CLASSES } from '../data/classes.js';
 import { applyManaTexture } from './mana-pool-texture.mjs';
 import { SKILLS, effLevel, manaCost, rageCost, whirlwindRageCost, cooldown, CLASS_SKILLS } from '../data/skills.js';
+import { ELITE_AFFIXES } from '../data/enemies.js';
+import { DUNGEON_AFFIX_BY_ID } from '../data/dungeonaffixes.js';
+import { enemyImage } from '../core/enemyart.js';
 import { xpToNext } from '../game/player.js';
 import { drawMinimap } from '../game/render.js';
 import { assign, SLOT_LABELS } from './skills.js';
@@ -17,7 +21,11 @@ import { updateAutomapPartyRoster } from './partyroster.js';
 import { net } from '../net/network.js';
 import { pickTaunt } from '../data/taunts.js';
 import { isPlayerTargetable } from '../game/targeting.js';
+import { CharacterPortrait } from './characterportrait.js';
+import { appendEnemyHistory, createEnemyHistorySaveQueue, loadEnemyHistory } from './enemyhistory.js';
 import { BOSS_HEALTH_LAYOUT, HEALTH_BAR_CLASSES, bossFrameTrackBounds, drawHealthBarFrame, healthBarClass, healthBarSettings, healthBarSummaryText, healthBarValueText, healthBarVisible, healthBarAffixText, healthBarStatusText, preloadHealthBarArt } from './healthbars.mjs';
+
+const RESISTANCE_LABELS = { phys: 'Physical', fire: 'Fire', cold: 'Cold', light: 'Lightning', poison: 'Poison', arcane: 'Arcane', holy: 'Holy', shadow: 'Shadow', acid: 'Acid' };
 
 preloadHealthBarArt();
 function redrawTargetHealthBarFrame() {
@@ -87,12 +95,18 @@ export const HUD = {
   slots: [],
   last: {},
   portraitOrbFrames: null,
+  enemyHistory: [],
+  enemyHistoryIndex: -1,
+  enemyHistoryReviewing: false,
+  enemyHistoryLoaded: false,
+  enemyHistoryImages: new Map(),
   init() {
     UI.hud = this;
     const geo = A.hudGeo;
     // the bar's aspect (and how much room it takes at the bottom) comes from the art's geometry
     document.documentElement.style.setProperty('--hud-k', String(geo.h / geo.w));
     this.initFrames(geo);
+    CharacterPortrait.init($('#hud'));
 
     // Render special ability procedural icons onto their canvases
     const madIcon = $('#madness-btn .special-icon');
@@ -126,7 +140,14 @@ export const HUD = {
       <div class="dim">Takes hold from the next depth. Now: ×${M.loot.toFixed(2)} drops, ×${M.gold.toFixed(2)} gold, +${M.mf}% magic find.</div>`;
     });
     // tap / click the target window to blow it up (about 2.25x, capped to the screen); again to shrink it back
-    $('#target-box').addEventListener('click', (e) => { e.stopPropagation(); this.tbBig = !this.tbBig; this.last.tbCls = null; this.updateTarget(); });
+    $('#target-box').addEventListener('click', (e) => {
+      if (e.target.closest('#tb-history-controls')) return;
+      e.stopPropagation(); this.tbBig = !this.tbBig; this.last.tbCls = null; this.updateTarget();
+    });
+    $('#tb-history-controls')?.addEventListener('click', (e) => e.stopPropagation());
+    $('#tb-previous')?.addEventListener('click', (e) => { e.stopPropagation(); sfx('ui'); this.navigateEnemyHistory(-1); });
+    $('#tb-next')?.addEventListener('click', (e) => { e.stopPropagation(); sfx('ui'); this.navigateEnemyHistory(1); });
+    this.ensureEnemyHistory();
     const wrap = $('#hud-slots');
     geo.slots.forEach((s, i) => {
       const d = el('div', 'slot');
@@ -847,6 +868,7 @@ export const HUD = {
       }
     }
     this.updateStats(dt);
+    CharacterPortrait.update();
     drawMinimap(w, dt, $('#minimap'));
     updateAutomapPartyRoster();
   },
@@ -903,21 +925,91 @@ export const HUD = {
     this.updateTarget();
   },
 
+  ensureEnemyHistory() {
+    if (this.enemyHistoryLoaded) return;
+    this.enemyHistory = loadEnemyHistory();
+    this.enemyHistorySaver = createEnemyHistorySaveQueue(this.enemyHistory);
+    this.enemyHistoryIndex = this.enemyHistory.length - 1;
+    this.enemyHistoryLoaded = true;
+    this.paintEnemyHistoryControls();
+  },
+  paintEnemyHistoryControls() {
+    const history = this.enemyHistory || [], index = clamp(this.enemyHistoryIndex, 0, Math.max(0, history.length - 1));
+    const prev = $('#tb-previous'), next = $('#tb-next'), position = $('#tb-history-position');
+    if (prev) prev.disabled = history.length < 2 || index <= 0;
+    if (next) next.disabled = history.length < 2 || !this.enemyHistoryReviewing || index >= history.length - 1;
+    if (position) position.textContent = history.length ? `${index + 1} of ${history.length}` : '0 of 0';
+  },
+  recordEnemy(target) {
+    this.ensureEnemyHistory();
+    if (!target._enemyHistoryKey) target._enemyHistoryKey = `enemy-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    if (this.enemyHistory.some((entry) => entry.key === target._enemyHistoryKey)) return;
+    const dungeonAffixes = (target.dungeonAffixIds || []).filter((id) => DUNGEON_AFFIX_BY_ID[id]);
+    const snapshot = {
+      key: target._enemyHistoryKey,
+      name: target.name || 'Unknown Enemy', arch: target.arch || '', art: target.art || '', swap: target.swap || null,
+      classId: target.classId || '', classPal: target.classPal || null,
+      sprite: target.sprite || '', pal: target.pal || null, rank: target.rank || 'normal', level: target.level || 1,
+      hp: target.hp || 0, maxHp: target.maxHp || 0, dmg: target.dmg || 0, speed: target.speed || 0,
+      el: target.el || 'phys', res: Object.fromEntries(Object.entries(target.res || {}).filter(([, value]) => Number.isFinite(Number(value))).map(([key, value]) => [key, Number(value)])),
+      affixes: Array.isArray(target.affixes) ? target.affixes.slice() : [], dungeonAffixes,
+      depth: G.world?.depth || 0, area: G.world?.biome?.name || G.world?.biome?.id || '', dead: !!target.dead,
+      thumbnail: '',
+    };
+    const { added, removedOldest } = appendEnemyHistory(this.enemyHistory, snapshot);
+    if (!added) return;
+    if (removedOldest && this.enemyHistoryReviewing) this.enemyHistoryIndex = Math.max(0, this.enemyHistoryIndex - 1);
+    else if (!this.enemyHistoryReviewing) this.enemyHistoryIndex = this.enemyHistory.length - 1;
+    this.enemyHistorySaver?.schedule();
+    this.paintEnemyHistoryControls();
+  },
+  navigateEnemyHistory(direction) {
+    this.ensureEnemyHistory();
+    if (!this.enemyHistory.length) return;
+    const from = this.enemyHistoryReviewing ? this.enemyHistoryIndex : this.enemyHistory.length - 1;
+    this.enemyHistoryIndex = clamp(from + direction, 0, this.enemyHistory.length - 1);
+    this.enemyHistoryReviewing = this.enemyHistoryIndex < this.enemyHistory.length - 1;
+    this.last.tbCls = this.last.tbName = this.last.tbHp = this.last.tbSub = this.last.tbStats = this.last.tbAffixes = this.last.tbResists = null;
+    this.tbImg = null; this.tbFor = null;
+    this.paintEnemyHistoryControls();
+    this.updateTarget();
+  },
+  historyImage(record) {
+    if (record.thumbnail) {
+      let img = this.enemyHistoryImages.get(record.key);
+      if (!img) {
+        img = new Image();
+        img.onload = () => { if (this.enemyHistoryReviewing && this.enemyHistory[this.enemyHistoryIndex]?.key === record.key) this.updateTarget(); };
+        img.src = record.thumbnail;
+        this.enemyHistoryImages.set(record.key, img);
+        while (this.enemyHistoryImages.size > 12) this.enemyHistoryImages.delete(this.enemyHistoryImages.keys().next().value);
+      }
+      if (img.complete && img.naturalWidth) return img;
+    }
+    return (record.art && enemyImage(record.art, record.swap)) ||
+      (record.classId && classSprite(record.classId, 150, record.classPal || null)) ||
+      (record.sprite && pixelSprite(record.sprite, record.pal, 6)) || null;
+  },
+
   /** The target window: the hovered / attacked / last-hit monster's picture and name; it stays up, greyed, once slain. */
   updateTarget() {
     const p = G.player, w = G.world, box = $('#target-box');
     if (!box) return;
     box.classList.toggle('no-pic', G.settings.showTargetSprite === false);
+    if (this.tbWorld !== w) { this.tbWorld = w; this.tb = null; if (G.lastHit && !w?.creatures?.includes(G.lastHit)) G.lastHit = null; }
+    const live = isPlayerTargetable;
+    const at = p && p.attackTarget && p.attackTarget.target;
+    const cur = live(G.hover) ? G.hover : live(at) ? at : live(G.lastHit) ? G.lastHit : null;
+    if (cur) this.recordEnemy(cur);
+    if (cur && !this.enemyHistoryReviewing) this.tb = cur;
+    const historical = this.enemyHistoryReviewing ? this.enemyHistory[this.enemyHistoryIndex] : (!cur && !this.tb ? this.enemyHistory.at(-1) : null);
+    const t = historical || this.tb;
+    const set = (key, v, fn) => { if (this.last[key] !== v) { this.last[key] = v; fn(v); } };
+    this.paintEnemyHistoryControls();
     if (G.settings.showTargetBox === false) {
       box.classList.add('hidden');
       return;
     }
-    if (this.tbWorld !== w) { this.tbWorld = w; this.tb = null; if (G.lastHit && !w.creatures.includes(G.lastHit)) G.lastHit = null; }
-    const live = (m) => m && !m.dead && m.team === 'enemy' && m.targetable !== false && !m.clutter;
-    const at = p.attackTarget && p.attackTarget.target;
-    const cur = live(G.hover) ? G.hover : live(at) ? at : live(G.lastHit) ? G.lastHit : null;
-    if (cur) this.tb = cur;
-    const t = this.tb, set = (key, v, fn) => { if (this.last[key] !== v) { this.last[key] = v; fn(v); } };
     set('tbOn', !!t, (v) => box.classList.toggle('hidden', !v));
     if (!t) return;
     const dead = !!t.dead || t.hp <= 0;
@@ -926,11 +1018,22 @@ export const HUD = {
     set('tbName', t.name || '???', (v) => { $('#tb-name').textContent = v; box.title = v; });
     set('tbHp', dead ? 0 : Math.ceil(clamp(t.hp / t.maxHp, 0, 1) * 100), (v) => { $('#tb-fill').style.width = v + '%'; });
     const rank = { champion: 'Champion', unique: 'Unique', boss: 'Boss' }[t.rank] || '';
-    set('tbSub', dead ? 'Slain' : [t.level ? 'Level ' + t.level : '', rank].filter(Boolean).join(' · '), (v) => { $('#tb-sub').textContent = v; });
-    if (dead || noPic) return; // keep the last living picture or skip if sprite disabled
-    const img = t.spriteImage && t.spriteImage();
-    if (!img || !img.width || (this.tbImg === img && this.tbFor === t)) return;
-    this.tbImg = img; this.tbFor = t;
+    const prefix = historical ? `Recorded · Depth ${t.depth || '—'}` : '';
+    set('tbSub', [dead ? 'Slain' : (t.level ? 'Level ' + t.level : ''), rank, prefix].filter(Boolean).join(' · '), (v) => { $('#tb-sub').textContent = v; });
+    const statsText = [`HP ${fmtInt(Math.max(0, t.hp || 0))} / ${fmtInt(Math.max(0, t.maxHp || 0))}`, `Damage ${fmtInt(Math.max(0, t.dmg || 0))}`, t.el ? `Type ${t.el}` : '', t.speed ? `Speed ${Number(t.speed).toFixed(1)}` : '', t.area || ''].filter(Boolean).join(' · ');
+    set('tbStats', statsText, (v) => { const elS = $('#tb-stats'); if (elS) elS.textContent = v; });
+    const eliteNames = (t.affixes || []).map((id) => ELITE_AFFIXES[id]?.name || id);
+    const dungeonNames = (t.dungeonAffixes || []).map((id) => DUNGEON_AFFIX_BY_ID[id]?.name || id);
+    const affixText = [...eliteNames.map((name) => `Elite: ${name}`), ...dungeonNames.map((name) => `Dungeon: ${name}`)].join(' · ') || 'None';
+    set('tbAffixes', `Affixes: ${affixText}`, (v) => { const elA = $('#tb-affixes'); if (elA) elA.textContent = v; });
+    const resistText = Object.entries(t.res || {}).filter(([, value]) => Number.isFinite(Number(value)) && Number(value) !== 0)
+      .map(([type, value]) => `${RESISTANCE_LABELS[type] || type}: ${Math.round(Number(value) * 100)}%`).join(' · ') || 'None';
+    set('tbResists', `Resistances: ${resistText}`, (v) => { const elR = $('#tb-resists'); if (elR) elR.textContent = v; });
+    if (noPic || (dead && !historical)) return;
+    const img = historical ? this.historyImage(historical) : t.spriteImage && t.spriteImage();
+    const imageKey = historical ? historical.key : t;
+    if (!img || !img.width || (this.tbImg === img && this.tbFor === imageKey)) return;
+    this.tbImg = img; this.tbFor = imageKey;
     const cv = $('#tb-pic'), g = cv.getContext('2d'), S = cv.width, pad = Math.round(S * 0.05);
     const [bx, by, bw, bh] = opaqueBox(img);
     const k = Math.min((S - pad * 2) / bw, (S - pad * 2) / bh);
@@ -978,6 +1081,7 @@ export const HUD = {
         box.classList.add('hidden');
       }
     }
+    CharacterPortrait.applySettings();
   },
 
   setArea(name, sub, affixes = []) {

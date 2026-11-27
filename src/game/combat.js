@@ -25,9 +25,11 @@ import { skillMorphFor } from '../data/talents.js';
 import { DuelManager, isDuelTarget } from './duel.js';
 import { EXTRA_AFFIX_DEATHS } from './affixcatalogruntime.js';
 import { uniqueDamageAfterDefense } from './uniqueBalance.js';
+import { createCombatSoundGate } from './combat-sound-gate.mjs';
 
 const PLAYER_RES = { fire: 'fire', cold: 'cold', light: 'light', poison: 'poison', acid: 'poison' };
 const LEECH_K = 2; // life/mana leech: a whole monster's life taken returns LEECH_K x leech% of the hero's own
+const allowCombatSound = createCombatSoundGate();
 const isSharedMonsterIdx = (idx) => typeof idx === 'number' && idx > 0 && idx < 2000;
 /** Heal `who` for leeching `frac` of a hit of dmg on tgt: by the share of tgt's life it took, in `who`'s own life. */
 export function leechHeal(who, tgt, dmg, frac) {
@@ -442,7 +444,10 @@ export function hit(src, tgt, amount, el = 'phys', o = {}) {
     const force = clamp(dmg / tgt.maxHp, 0.05, 1);
     if (!(tgt.goreType === 'spark' || tgt.goreType === 'ecto') || chance(0.5)) bloodSpray(tgt.x, tgt.y, 28, ang, Math.round(4 + force * 18), bloodOf(tgt), 0.7 + force);
     if (!o.dot) hitSpark(tgt.x, tgt.y, 28, el);
-    if (!o.dot && !o.silent) sfx(crit ? 'crit' : 'hit', 0.5);
+    if (!o.dot && !o.silent) {
+      const cue = crit ? 'crit' : 'hit';
+      if (allowCombatSound(owner || src, cue, G.time)) sfx(cue, 0.5);
+    }
     if (crit && dmg > tgt.maxHp * 0.3) G.hitStop = Math.max(G.hitStop, 0.035);
   }
 

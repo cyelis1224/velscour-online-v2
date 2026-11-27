@@ -885,6 +885,52 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (pathname === '/api/online/characters/rename' && req.method === 'POST') {
+    readJsonBody(req).then(body => {
+      const auth = getAuthAccount(req, parsedUrl, body);
+      if (!auth) {
+        return sendJson(res, 401, { ok: false, error: 'Session expired or not logged in.' });
+      }
+      const charId = String(body.charId || body.id || '').trim();
+      if (!charId) {
+        return sendJson(res, 400, { ok: false, error: 'Missing character ID.' });
+      }
+      const characters = loadAccountCharacters(auth.account.id);
+      const idx = characters.findIndex(c => c && c.id === charId);
+      if (idx === -1) {
+        return sendJson(res, 404, { ok: false, error: 'Character not found on this account.' });
+      }
+      const existing = characters[idx];
+      const nameCheck = isCharNameAvailable(body.name, charId);
+      if (!nameCheck.available) {
+        return sendJson(res, 409, { ok: false, error: nameCheck.error || 'That character name is unavailable.' });
+      }
+      const oldKey = existing.name ? String(existing.name).trim().toLowerCase() : '';
+      if (oldKey && oldKey !== nameCheck.nameLower) {
+        const reg = onlineCharNames.get(oldKey);
+        if (reg && reg.charId === existing.id) {
+          onlineCharNames.delete(oldKey);
+        }
+      }
+      const updated = { ...existing, name: nameCheck.name };
+      characters[idx] = updated;
+      saveAccountCharacters(auth.account.id, characters);
+      onlineCharNames.set(nameCheck.nameLower, {
+        charId: updated.id,
+        accountId: auth.account.id,
+        name: updated.name,
+      });
+      return sendJson(res, 200, {
+        ok: true,
+        character: updated,
+        characters,
+      });
+    }).catch(err => {
+      sendJson(res, 400, { ok: false, error: err.message || 'Invalid request' });
+    });
+    return;
+  }
+
   if (
     (pathname === '/api/online/characters/save' && (req.method === 'POST' || req.method === 'PUT')) ||
     (pathname.startsWith('/api/online/characters/') && (req.method === 'PUT' || req.method === 'POST'))

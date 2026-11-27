@@ -1,5 +1,10 @@
 // Full-screen menus: title, class select, hero save slots, death, victory, settings, help.
 import { G, saveSettings } from '../state.js';
+import { TICKER_KINDS } from './ticker.js';
+import { KEY_BINDING_ACTIONS, getKeyBinding, setKeyBinding, resetKeyBindings, keyBindingLabel } from '../core/input.js';
+import { CharacterPortrait } from './characterportrait.js';
+import { GORE_PERFORMANCE_WARNING_LIMIT, GORE_PRESET_VERSION, GORE_PRESETS, MAX_CUSTOM_GORE_LIMIT, normalizeGorePreset, goreLimit } from '../gfx/goresettings.mjs';
+import { applyGoreSettings } from '../gfx/vfx.js';
 import { camera } from '../core/view.js';
 import { el, escapeHtml, fmtInt } from '../core/util.js';
 import { sfx, applyVolumes, initAudio } from '../core/audio.js';
@@ -33,9 +38,10 @@ import {
   checkOnlineCharName,
   createOnlineCharacter,
   deleteOnlineCharacter,
+  renameOnlineCharacter,
   fetchOnlineReliquary,
 } from '../net/online.js';
-import { isProfaneName } from '../net/profanity.js';
+import { isProfaneName, validateCharName } from '../net/profanity.js';
 export { hardReload };
 
 let current = null;
@@ -446,6 +452,7 @@ export function classSelect(sel = 'paladin', back = titleScreen) {
   const row = el('div', 'row');
   const name = el('input', 'name-input');
   const go = el('button', 'btn big', 'Begin');
+  const renameBtn = el('button', 'btn', 'Rename');
   const delBtn = el('button', 'btn red', 'Delete');
   const renderInfo = () => {
     const C = CLASSES[sel], h = heroes[sel];
@@ -467,9 +474,15 @@ export function classSelect(sel = 'paladin', back = titleScreen) {
     const hClsTag = hHasCls ? '' : ` ${C.name}`;
     text.innerHTML = (h ? `<h2>${escapeHtml(hName || C.name)}</h2><p><b style="color:#ffd34a">Level ${h.level}${hClsTag}</b> · Depth ${h.depth} · Deepest ${h.deepest || 0} · ${fmtInt(h.gold)} gold</p>` : `<h2>${C.name}</h2>`) +
       `<p>${escapeHtml(C.desc)}</p><p class="dim">Skill trees: <b style="color:#e9dcc4">${C.trees.join(' · ')}</b><br>Primary attribute: <b style="color:#ffd34a">${ATTRS[C.primary].name}</b> · Life ${C.life} · Mana ${C.mana}</p>`;
-    for (const id in cards) cards[id].classList.toggle('sel', id === sel);
+    for (const id in cards) {
+      cards[id].classList.toggle('sel', id === sel);
+      const cardName = cards[id].querySelector('.plaque span');
+      if (cardName && heroes[id]) cardName.textContent = heroes[id].name;
+    }
     name.style.display = h ? 'none' : '';
     go.innerHTML = h ? 'Play' : 'Begin';
+    renameBtn.disabled = !h || delMode;
+    renameBtn.title = h ? 'Rename this hero' : 'Select a saved hero to rename';
     s.classList.toggle('del-mode', delMode);
     delBtn.innerHTML = delMode ? 'Cancel' : 'Delete';
   };
@@ -503,6 +516,44 @@ export function classSelect(sel = 'paladin', back = titleScreen) {
   name.maxLength = 18;
   const backBtn = el('button', 'btn', 'Back');
   backBtn.onclick = () => { sfx('ui'); back(); };
+  renameBtn.onclick = () => {
+    const h = heroes[sel];
+    if (!h || delMode) return;
+    sfx('ui');
+    const dialog = UI.dialog({
+      title: 'Rename Hero',
+      html: `<p>Choose a new name for ${escapeHtml(h.name)}.</p><input class="name-input rename-hero-input" type="text" maxlength="18" value="${escapeHtml(h.name)}" aria-label="Hero name">`,
+      buttons: [
+        { label: 'Cancel' },
+        { label: 'Confirm', cls: 'amber', keepOpen: true, fn: (close) => {
+          const field = dialog.box.querySelector('.rename-hero-input');
+          const val = validateCharName(field.value);
+          const error = dialog.box.querySelector('.rename-hero-error');
+          if (!val.valid) {
+            if (error) error.textContent = val.error;
+            else field.insertAdjacentHTML('afterend', `<p class="rename-hero-error" role="alert">${escapeHtml(val.error)}</p>`);
+            field.focus(); field.select();
+            return;
+          }
+          if (!writeSave({ ...h, name: val.name })) {
+            if (error) error.textContent = 'The new name could not be saved. Please try again.';
+            else field.insertAdjacentHTML('afterend', '<p class="rename-hero-error" role="alert">The new name could not be saved. Please try again.</p>');
+            return;
+          }
+          h.name = val.name;
+          if (G.char?.id === h.id) G.char.name = val.name;
+          renderInfo();
+          close();
+        } },
+      ],
+      cls: 'rename-hero-dialog',
+    });
+    const field = dialog.box.querySelector('.rename-hero-input');
+    field.focus(); field.select();
+    field.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); dialog.box.querySelector('.row .btn.amber')?.click(); }
+    });
+  };
   delBtn.onclick = () => {
     sfx('ui');
     if (!Object.keys(heroes).length) return;
@@ -527,7 +578,7 @@ export function classSelect(sel = 'paladin', back = titleScreen) {
   };
   go.onclick = start;
   name.onkeydown = (e) => { if (e.key === 'Enter') start(); };
-  row.append(backBtn, delBtn, name, go);
+  row.append(backBtn, renameBtn, delBtn, name, go);
   s.appendChild(row);
   renderInfo();
   show(s);
@@ -770,11 +821,13 @@ export function onlineCharSelectScreen(selectedCharId = null, back = titleScreen
 
   const playBtn = el('button', 'btn big online-enter-btn', 'Enter Lobby');
   playBtn.id = 'online-enter-lobby-btn';
+  const renameOnlineBtn = el('button', 'btn online-rename-btn', 'Rename');
+  renameOnlineBtn.id = 'online-rename-char-btn';
   const delBtn = el('button', 'btn red online-delete-btn', 'Delete Character');
   delBtn.id = 'online-delete-char-btn';
 
   const actions = el('div', 'online-detail-actions');
-  actions.append(playBtn, delBtn);
+  actions.append(playBtn, renameOnlineBtn, delBtn);
   rightCol.appendChild(actions);
 
   const enterSelectedLobby = () => {
@@ -785,6 +838,46 @@ export function onlineCharSelectScreen(selectedCharId = null, back = titleScreen
   };
 
   playBtn.onclick = enterSelectedLobby;
+
+  renameOnlineBtn.onclick = () => {
+    const selChar = chars.find(c => c.id === selId);
+    if (!selChar) return;
+    sfx('ui');
+    const dialog = UI.dialog({
+      title: 'Rename Online Character',
+      html: `<p>Choose a new unique name for <b>${escapeHtml(selChar.name)}</b>.</p><input class="name-input rename-hero-input" type="text" maxlength="18" value="${escapeHtml(selChar.name)}" aria-label="Character name">`,
+      buttons: [
+        { label: 'Cancel' },
+        { label: 'Confirm', cls: 'amber', keepOpen: true, fn: async (close) => {
+          const field = dialog.box.querySelector('.rename-hero-input');
+          const setErr = (msg) => {
+            const existing = dialog.box.querySelector('.rename-hero-error');
+            if (existing) existing.textContent = msg;
+            else field.insertAdjacentHTML('afterend', `<p class="rename-hero-error" role="alert">${escapeHtml(msg)}</p>`);
+          };
+          const val = validateCharName(field.value);
+          if (!val.valid) { setErr(val.error); field.focus(); field.select(); return; }
+          if (val.name === selChar.name) { close(); return; }
+          try {
+            const res = await renameOnlineCharacter(selChar.id, val.name);
+            chars = (res?.characters || []).filter(c => c && ACTIVE_CLASS_IDS.includes(c.classId));
+            if (G.char?.id === selChar.id) G.char.name = val.name;
+            renderRoster();
+            close();
+          } catch (err) {
+            setErr(err.message || 'Could not rename character.');
+            field.focus(); field.select();
+          }
+        } },
+      ],
+      cls: 'rename-hero-dialog',
+    });
+    const field = dialog.box.querySelector('.rename-hero-input');
+    field.focus(); field.select();
+    field.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); dialog.box.querySelector('.row .btn.amber')?.click(); }
+    });
+  };
 
   delBtn.onclick = () => {
     const selChar = chars.find(c => c.id === selId);
@@ -887,11 +980,13 @@ export function onlineCharSelectScreen(selectedCharId = null, back = titleScreen
         </div>
       `;
       delBtn.disabled = true;
+      renameOnlineBtn.disabled = true;
       playBtn.disabled = true;
       return;
     }
 
     delBtn.disabled = false;
+    renameOnlineBtn.disabled = false;
     playBtn.disabled = false;
     const C = CLASSES[selChar.classId] || CLASSES.paladin;
 
@@ -1281,6 +1376,7 @@ export function settingsDialog() {
     <button type="button" class="settings-tab-btn" data-tab="audio">Audio</button>
     <button type="button" class="settings-tab-btn" data-tab="graphics">Graphics</button>
     <button type="button" class="settings-tab-btn" data-tab="hud">HUD &amp; UI</button>
+    <button type="button" class="settings-tab-btn" data-tab="controls">Controls</button>
     <button type="button" class="settings-tab-btn" data-tab="mouseCursor">Mouse Cursor</button>
     <button type="button" class="settings-tab-btn" data-tab="autoplay">Auto-Play</button>
   </div>
@@ -1291,7 +1387,9 @@ export function settingsDialog() {
       <label>Hero backups</label><button class="btn small" data-backups>View</button>
       <label>Pause while menus open (Single Player)</label><input type="checkbox" data-k="pauseMenus" ${st.pauseMenus !== false ? 'checked' : ''}>
       <label title="Off: a Sky Battle cut scene you have already watched once plays at 20x">Don't skip cutscenes</label><input type="checkbox" data-k="noSkipCine" ${st.noSkipCine ? 'checked' : ''}>
+      <label title="Immediately fast-forward scripted cutscenes and camera transitions">Skip cutscenes and camera transitions</label><input type="checkbox" data-k="skipCutscenes" ${st.skipCutscenes ? 'checked' : ''}>
       <label title="Summons, totems and turrets on your skill bar are cast again the moment one is missing (timed ones only with an enemy near). Auto-play does its own summoning">Auto-cast summons</label><input type="checkbox" data-k="autoSummon" ${st.autoSummon !== false ? 'checked' : ''}>
+      <label title="Automatically equip eligible gear from drops and vendor purchases when its matching equipment slot is empty">Auto-equip gear in empty slots</label><input type="checkbox" data-k="autoEquip" ${st.autoEquip !== false ? 'checked' : ''}>
     </div>
   </div>
   <div class="settings-tab-pane" data-pane="audio">
@@ -1303,9 +1401,13 @@ export function settingsDialog() {
   </div>
   <div class="settings-tab-pane" data-pane="graphics">
     <div class="settings-grid">
+      <label title="Extreme Performance lowers cosmetic rendering work while keeping combat, warnings, enemy populations, and rewards unchanged">Graphics preset</label><select data-performance-preset><option value="standard">Standard</option><option value="extreme">Extreme Performance</option></select>
+      <label title="Automatically sheds cosmetic particles and lighting when frame pacing stays low, then restores them gradually">Adaptive performance</label><input type="checkbox" data-adaptive-performance ${st.adaptivePerformance ? 'checked' : ''}>
       <label>Camera zoom</label><input type="range" min="0.7" max="1.6" step="0.05" value="${st.zoom}" data-k="zoom">
       <label title="30 draws half the frames: smoother than a frame rate that keeps dipping, and a phone stays cooler (a hot phone slows itself down after a long session)">Frame rate cap</label><select data-k="fpsCap"><option value="0">None</option><option value="30">30 fps</option></select>
-      <label>Gore</label><select data-k="gore"><option value="0">Off</option><option value="1">Bloody</option><option value="2">Extreme</option></select>
+      <label title="Cosmetic splatter and gib intensity. Does not change combat damage or hazards.">Gore level</label><select data-gore-preset>${GORE_PRESETS.map((preset, i) => `<option value="${i}">${preset.name} — ${Number.isFinite(preset.limit) ? `${preset.limit.toLocaleString()} splatters` : '∞ splatters'}</option>`).join('')}</select>
+      <label title="Use a custom maximum number of cosmetic splatters instead of the selected preset limit">Custom splatter limit</label><div class="gore-custom-control"><label><input type="checkbox" data-gore-custom ${st.goreCustomEnabled ? 'checked' : ''}> Custom</label><input type="number" min="1" max="${MAX_CUSTOM_GORE_LIMIT}" step="1" value="${Math.max(1, Math.min(MAX_CUSTOM_GORE_LIMIT, Number(st.goreCustomLimit) || 150))}" data-gore-limit aria-label="Custom maximum splatter count"></div>
+      <div class="gore-performance-warning" data-gore-warning role="status" aria-live="polite"></div>
       <label>Screen shake</label><input type="checkbox" data-k="shake" ${st.shake ? 'checked' : ''}>
       <label title="Reduce full-screen flashes, flashbangs, and rapid hit strobing">Reduce flashing effects</label><input type="checkbox" data-k="reduceFlashing" ${st.reduceFlashing ? 'checked' : ''}>
       <label title="The photosensitive epilepsy warning shown after &quot;Click to awaken&quot; (its &quot;Don't show this window again&quot; box turns this off)">Flashing-lights warning at start</label><input type="checkbox" data-k="flashWarning" ${st.flashWarning !== false ? 'checked' : ''}>
@@ -1318,6 +1420,13 @@ export function settingsDialog() {
   </div>
   <div class="settings-tab-pane" data-pane="hud">
     <div class="settings-grid">
+      <label title="Messages, quest updates and WARNINGs for enemy attacks crawl along a bar across the top of the screen. Off: the old centre messages and log lines">Top-of-screen ticker</label><input type="checkbox" data-k="ticker" ${st.ticker !== false ? 'checked' : ''}>
+      <label>Ticker size</label><input type="range" min="0.6" max="1.8" step="0.05" value="${st.tickerSize ?? 1}" data-k="tickerSize">
+      ${TICKER_KINDS.map(([, k, n]) => `<label>&nbsp;&nbsp;Ticker shows ${n}</label><input type="checkbox" data-k="${k}" ${st[k] !== false ? 'checked' : ''}>`).join('')}
+      <label>Character portrait window</label><input type="checkbox" data-portrait="visible" ${(st.characterPortrait?.visible !== false) ? 'checked' : ''}>
+      <label>Lock portrait movement and resizing</label><input type="checkbox" data-portrait="locked" ${st.characterPortrait?.locked ? 'checked' : ''}>
+      <label>Portrait size <output data-portrait-size>${st.characterPortrait?.size || 100}%</output></label><input type="range" min="75" max="150" step="25" value="${st.characterPortrait?.size || 100}" data-portrait="size">
+      <label>Portrait position</label><button type="button" class="btn small" data-portrait-reset>Reset position</button>
       <label>Damage numbers</label><input type="checkbox" data-k="dmgNumbers" ${st.dmgNumbers ? 'checked' : ''}>
       <label title="Off: a bar shows only for a moment over a monster you hit, and never over bosses">Life bars over every enemy (bosses too)</label><input type="checkbox" data-k="lifeBars" ${st.lifeBars !== false ? 'checked' : ''}>
       <label>Hero stats plaque (Battle Ledger)</label><input type="checkbox" data-k="showHeroStats" ${st.showHeroStats !== false ? 'checked' : ''}>
@@ -1336,6 +1445,15 @@ export function settingsDialog() {
       <label title="Customize ornate boss and overhead creature health bars, theme, size, and info toggles">Health Bars</label><button type="button" class="btn small" data-healthbar-settings>Customize Health Bars</button>
       <label title="Changes terrain and wall transparency on the TAB map only; markers stay clear">TAB Map Transparency</label><div style="display:flex;align-items:center;gap:6px"><input type="range" min="0" max="100" step="1" value="${st.tabMapTransparency ?? 45}" data-k="tabMapTransparency" style="flex:1"><output data-map-opacity style="min-width:34px;text-align:right">${st.tabMapTransparency ?? 45}%</output><button type="button" class="btn small" data-reset-map-opacity>Reset</button></div>
     </div>
+  </div>
+  <div class="settings-tab-pane" data-pane="controls">
+    <p class="dim" style="margin:0 0 8px">Click a binding, then press the key you want to use. If another action already uses that key, the two bindings swap. Press Escape to cancel.</p>
+    <div class="settings-grid">
+      <label>Keyboard bindings</label><button type="button" class="btn small" data-reset-keybinds>Reset defaults</button>
+      <span data-keybind-rows></span>
+      <label>Mouse buttons</label><span class="dim">LMB and RMB remain assigned to the action bar</span>
+    </div>
+    <p class="dim" data-keybind-status aria-live="polite"></p>
   </div>
   <div class="settings-tab-pane" data-pane="mouseCursor">
     <div class="cursor-live-preview" data-cursor-preview tabindex="0"><b>Live Cursor Preview</b><span>Move your mouse here to preview the cursor, trail, and locator effects.</span></div>
@@ -1386,7 +1504,8 @@ export function settingsDialog() {
       <label title="Off: auto-play never equips, sells, buys, stashes, sockets, upgrades or enchants gear; in town it only buys potions. A full bag doesn't stop it: it keeps playing and leaves new gear on the ground. Locked items (the lock in the item's panel) are never touched either way">Auto-play manages gear (equip, sell, buy, upgrade)</label><input type="checkbox" data-k="autoGear" ${st.autoGear !== false ? 'checked' : ''}>
     </div>
   </div>`;
-  const d = UI.dialog({ title: 'Settings', html, cls: 'settings-dialog', buttons: [{ label: 'Done', fn: () => { camera.computeZoom(); if (UI.hud) UI.hud.applyVisibilitySettings(); saveSettings(); } }] });
+  let stopKeyCaptureListener = () => {};
+  const d = UI.dialog({ title: 'Settings', html, cls: 'settings-dialog', buttons: [{ label: 'Done', fn: () => { stopKeyCaptureListener(); camera.computeZoom(); if (UI.hud) UI.hud.applyVisibilitySettings(); saveSettings(); } }] });
   const tabBtns = d.box.querySelectorAll('.settings-tab-btn');
   const tabPanes = d.box.querySelectorAll('.settings-tab-pane');
   const setTab = (name) => {
@@ -1400,8 +1519,117 @@ export function settingsDialog() {
       setTab(btn.dataset.tab);
     };
   });
-  if (!['general', 'audio', 'graphics', 'hud', 'mouseCursor', 'autoplay'].includes(activeSettingsTab)) activeSettingsTab = 'general';
+  if (!['general', 'audio', 'graphics', 'hud', 'controls', 'mouseCursor', 'autoplay'].includes(activeSettingsTab)) activeSettingsTab = 'general';
   setTab(activeSettingsTab);
+  // Controls tab: keyboard rebinding
+  const keybindRows = d.box.querySelector('[data-keybind-rows]');
+  if (keybindRows) {
+    keybindRows.outerHTML = KEY_BINDING_ACTIONS.map((action) => `<label>${escapeHtml(action.label)}</label><button type="button" class="btn small" data-keybind="${action.id}">${escapeHtml(keyBindingLabel(getKeyBinding(action.id)))}</button>`).join('');
+  }
+  const keybindButtons = [...d.box.querySelectorAll('[data-keybind]')];
+  const keybindStatus = d.box.querySelector('[data-keybind-status]');
+  let capturingKeybind = null;
+  const refreshKeybindButtons = () => keybindButtons.forEach((button) => { button.textContent = keyBindingLabel(getKeyBinding(button.dataset.keybind)); });
+  const stopKeyCapture = (message) => {
+    const button = capturingKeybind ? keybindButtons.find((item) => item.dataset.keybind === capturingKeybind) : null;
+    if (button) button.classList.remove('keybind-capturing');
+    capturingKeybind = null;
+    if (message && keybindStatus) keybindStatus.textContent = message;
+  };
+  keybindButtons.forEach((button) => {
+    button.onclick = () => {
+      if (capturingKeybind) { stopKeyCapture(''); refreshKeybindButtons(); }
+      capturingKeybind = button.dataset.keybind;
+      button.classList.add('keybind-capturing');
+      button.textContent = 'Press a key…';
+      const action = KEY_BINDING_ACTIONS.find((item) => item.id === capturingKeybind);
+      if (keybindStatus) keybindStatus.textContent = `Press a key for ${action.label}. Escape cancels.`;
+    };
+  });
+  const captureKeydown = (e) => {
+    if (!d.box.isConnected) { window.removeEventListener('keydown', captureKeydown, true); return; }
+    if (!capturingKeybind) return;
+    e.preventDefault(); e.stopPropagation();
+    if (e.code === 'Escape') { stopKeyCapture('Key rebinding cancelled.'); refreshKeybindButtons(); return; }
+    if (setKeyBinding(capturingKeybind, e.code)) {
+      stopKeyCapture('Binding saved. Any action that used that key was moved to the previous key.');
+      refreshKeybindButtons();
+    } else if (keybindStatus) keybindStatus.textContent = 'That key could not be assigned.';
+  };
+  window.addEventListener('keydown', captureKeydown, true);
+  stopKeyCaptureListener = () => window.removeEventListener('keydown', captureKeydown, true);
+  d.wrap.addEventListener('pointerdown', (e) => { if (e.target === d.wrap) stopKeyCaptureListener(); }, true);
+  const resetKeybindsBtn = d.box.querySelector('[data-reset-keybinds]');
+  if (resetKeybindsBtn) resetKeybindsBtn.onclick = () => {
+    resetKeyBindings();
+    stopKeyCapture('All keyboard bindings restored to their defaults.');
+    refreshKeybindButtons();
+  };
+  // Performance & scalable gore controls
+  const performancePreset = d.box.querySelector('[data-performance-preset]');
+  const adaptivePerformance = d.box.querySelector('[data-adaptive-performance]');
+  if (performancePreset) {
+    performancePreset.value = st.graphicsPreset === 'extreme' ? 'extreme' : 'standard';
+    performancePreset.onchange = () => {
+      st.graphicsPreset = performancePreset.value === 'extreme' ? 'extreme' : 'standard';
+      window.dispatchEvent(new Event('velscour-graphics-quality-change'));
+      saveSettings();
+    };
+  }
+  if (adaptivePerformance) {
+    adaptivePerformance.onchange = () => {
+      st.adaptivePerformance = adaptivePerformance.checked;
+      window.dispatchEvent(new Event('velscour-graphics-quality-change'));
+      saveSettings();
+    };
+  }
+  const gorePresetControl = d.box.querySelector('[data-gore-preset]');
+  const goreCustomControl = d.box.querySelector('[data-gore-custom]');
+  const goreLimitControl = d.box.querySelector('[data-gore-limit]');
+  const goreWarning = d.box.querySelector('[data-gore-warning]');
+  const refreshGoreControls = () => {
+    st.gore = normalizeGorePreset(st.gore);
+    if (gorePresetControl) gorePresetControl.value = String(st.gore);
+    if (goreCustomControl) goreCustomControl.checked = !!st.goreCustomEnabled;
+    if (goreLimitControl) goreLimitControl.disabled = !st.goreCustomEnabled || st.gore === 0;
+    const limit = goreLimit(st);
+    if (goreWarning) {
+      goreWarning.textContent = st.gore === GORE_PRESETS.length - 1 && !st.goreCustomEnabled
+        ? 'Performance warning: Unlimited has no splatter cap and may cause frame drops on slower systems.'
+        : limit > GORE_PERFORMANCE_WARNING_LIMIT
+          ? `Performance warning: ${limit.toLocaleString()} simultaneous splatters may cause frame drops.` : '';
+    }
+  };
+  const saveGoreControls = () => {
+    st.gorePresetVersion = GORE_PRESET_VERSION;
+    refreshGoreControls(); applyGoreSettings(); saveSettings();
+  };
+  refreshGoreControls();
+  if (gorePresetControl) gorePresetControl.oninput = gorePresetControl.onchange = () => { st.gore = Number(gorePresetControl.value); saveGoreControls(); };
+  if (goreCustomControl) goreCustomControl.oninput = goreCustomControl.onchange = () => { st.goreCustomEnabled = goreCustomControl.checked; saveGoreControls(); };
+  if (goreLimitControl) {
+    goreLimitControl.oninput = () => {
+      if (goreLimitControl.value === '') return;
+      st.goreCustomLimit = Math.max(1, Math.min(MAX_CUSTOM_GORE_LIMIT, Math.floor(Number(goreLimitControl.value) || 1)));
+      saveGoreControls();
+    };
+    goreLimitControl.onchange = () => {
+      st.goreCustomLimit = Math.max(1, Math.min(MAX_CUSTOM_GORE_LIMIT, Math.floor(Number(goreLimitControl.value) || 150)));
+      goreLimitControl.value = String(st.goreCustomLimit); saveGoreControls();
+    };
+  }
+  // Character Portrait controls
+  d.box.querySelectorAll('[data-portrait]').forEach((inp) => {
+    inp.oninput = inp.onchange = () => {
+      const c = (st.characterPortrait ||= { visible: true, locked: false, size: 100, position: null });
+      const key = inp.dataset.portrait;
+      c[key] = inp.type === 'checkbox' ? inp.checked : Number(inp.value);
+      if (key === 'size') { const out = d.box.querySelector('[data-portrait-size]'); if (out) out.textContent = `${c.size}%`; }
+      CharacterPortrait.refreshSettings(); saveSettings();
+    };
+  });
+  const prReset = d.box.querySelector('[data-portrait-reset]');
+  if (prReset) prReset.onclick = () => { CharacterPortrait.resetPosition(); };
   // Mouse Cursor live controls
   const cursorSettings = () => (st.mouseCursor ||= { ...MOUSE_CURSOR_DEFAULTS });
   const cursorOutput = (key, value) => {
@@ -1450,7 +1678,6 @@ export function settingsDialog() {
       inp.onchange = () => { f[k] = inp.type === 'checkbox' ? inp.checked : Number(inp.value); saveLootFilterSettings(); };
     });
   };
-  d.box.querySelector('[data-k=gore]').value = String(st.gore ?? 0);
   d.box.querySelector('[data-k=fpsCap]').value = String(st.fpsCap ?? 30);
   d.box.querySelector('[data-backups]').onclick = () => { sfx('ui'); backupsDialog(); };
   const cui = d.box.querySelector('[data-customize-ui]');

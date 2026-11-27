@@ -272,3 +272,62 @@ test('Phase 2A: Non-destructive 500->100 live save migration, skill refund, clas
   const covLow = makeCovenant(20, { depth: 20, pieceId: firstPiece });
   assert.ok(covLow && covLow.relic === 'cov' && covLow.rarity <= 1, 'Level-scaled Covenant respects drop depth quality');
 });
+
+test('Phase 2B: Ticker, Keyboard Rebinding (touch intact), Stat Breakdown, Portrait, Enemy History, Potion Buy Max, Gore & Perf Quality', async () => {
+  const { tickerKind, TICKER_KINDS } = await import('../../src/ui/ticker.js');
+  assert.equal(tickerKind('WARNING: Incoming beam!'), 'warn');
+  assert.equal(tickerKind('Quest complete: Depth 5 cleared'), 'quest');
+  assert.equal(tickerKind('Picked up 120 gold'), 'loot');
+  assert.ok(TICKER_KINDS.length >= 5);
+
+  const { input, KEY_BINDING_ACTIONS, getKeyBinding, setKeyBinding, resetKeyBindings, keyBindingLabel } = await import('../../src/core/input.js');
+  assert.ok(KEY_BINDING_ACTIONS.length >= 20);
+  assert.ok(input.joy && input.activeTouches instanceof Map, 'Touch joystick & pinch state preserved in input.js');
+  assert.equal(getKeyBinding('inventory'), 'KeyI');
+  setKeyBinding('inventory', 'KeyO');
+  assert.equal(getKeyBinding('inventory'), 'KeyO');
+  input.pressed.add('KeyO');
+  assert.equal(input.consume('KeyI'), true, 'Rebound inventory key resolves via KeyI alias');
+  assert.equal(keyBindingLabel('KeyO'), 'O');
+  resetKeyBindings();
+  assert.equal(getKeyBinding('inventory'), 'KeyI');
+
+  const { potionPurchaseQuote, POTION_BELT_CAPACITY } = await import('../../src/game/potionpurchase.js');
+  assert.equal(POTION_BELT_CAPACITY, 30);
+  const q = potionPurchaseQuote(10, 5000, 100, 'max');
+  assert.equal(q.quantity, 20);
+  assert.equal(q.total, 2000);
+  assert.equal(q.canBuy, true);
+
+  const { appendEnemyHistory, ENEMY_HISTORY_LIMIT } = await import('../../src/ui/enemyhistory.js');
+  const hist = [];
+  for (let i = 0; i < ENEMY_HISTORY_LIMIT + 5; i++) appendEnemyHistory(hist, { key: `k${i}`, name: `Mob ${i}` });
+  assert.equal(hist.length, ENEMY_HISTORY_LIMIT, 'Enemy history caps at 100 records');
+
+  const { createCombatSoundGate } = await import('../../src/game/combat-sound-gate.mjs');
+  const gate = createCombatSoundGate(0.05);
+  const actor = {};
+  assert.equal(gate(actor, 'hit', 1.0), true);
+  assert.equal(gate(actor, 'hit', 1.01), false, 'Duplicate hit sound within window is coalesced');
+  assert.equal(gate(actor, 'hit', 1.06), true, 'Sound plays again after cooldown window');
+
+  const { goreLimit, GORE_PRESETS } = await import('../../src/gfx/goresettings.mjs');
+  assert.equal(GORE_PRESETS.length, 10);
+  assert.equal(goreLimit({ gore: 0 }), 0);
+  assert.equal(goreLimit({ gore: 3 }), 150);
+  assert.equal(goreLimit({ gore: 3, goreCustomEnabled: true, goreCustomLimit: 500 }), 500);
+
+  const { performanceTier, particleBudget, allowParticleType } = await import('../../src/core/performancequality.mjs');
+  assert.equal(performanceTier({ graphicsPreset: 'extreme' }), 2);
+  assert.equal(particleBudget(false, 2), 700);
+  assert.equal(allowParticleType('smoke', 1), false);
+  assert.equal(allowParticleType('blood', 2), true);
+
+  const { buildEquipmentStatReport } = await import('../../src/game/statbreakdown.mjs');
+  assert.equal(typeof buildEquipmentStatReport, 'function');
+  const { portraitResource } = await import('../../src/ui/characterportrait.js');
+  assert.equal(portraitResource({ classId: 'barbarian' }, { rage: 45 }).current, 45);
+  const { writeBoltGeometry } = await import('../../src/gfx/lightninggeometry.mjs');
+  const seg = new Float32Array(18);
+  assert.ok(writeBoltGeometry(seg, 0, 0, 100, 100) >= 2);
+});

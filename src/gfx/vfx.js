@@ -6,6 +6,9 @@ import { camera, isoX, isoY, HW, HH, screenDirToTile } from '../core/view.js';
 import { makeCanvas, rand, TAU, shade, randi, pick, fmt, shuffle, clamp, colourSprites, measureCtx, spriteCanvas, frozen, cpuCanvas } from '../core/util.js';
 import { groundHidden } from './terrain.js';
 import { bonesReady, boneDeck, boneLook, drawBoneGib } from './bonegibs.js';
+import { addGoreDecal, goreDecalAge, goreDecalAlphaForAge, goreDecalGrowForAge, goreDecalOutsideView, GORE_DECAL_LIFETIME, goreLimit, goreMultiplier, trimGoreDecals } from './goresettings.mjs';
+import { writeBoltGeometry, appendBoltGeometry } from './lightninggeometry.mjs';
+import { allowParticleType, particleBudget } from '../core/performancequality.mjs';
 
 export const ELEM = {
   phys: { name: 'Physical', core: '#ffffff', glow: '#e0d8c8', dark: '#7a7060', sfx: 'phys' },
@@ -23,9 +26,11 @@ export const ELEM = {
 };
 export const elem = (k) => ELEM[k] || ELEM.phys;
 
-const MAX_P = () => (G.touch ? 1400 : 3000);
+const MAX_P = () => particleBudget(G.touch, G.performanceQualityTier || 0);
 export const particles = [];
 export const decals = []; // live decals: growing pools, scorch, frost (capped, drawn every frame)
+const goreDecals = []; // cosmetic blood/gore only; bounded by goreLimit(G.settings)
+let goreClock = 0;
 // Finished blood (splats, grown pools) never changes again: it is stamped once into the baked floor chunks
 // (render.js drawFloors -> stampDecals) and costs nothing per frame after that, so it isn't capped like the live ones.
 // Each has a rising `seq`; a chunk remembers the last seq it has stamped.
@@ -99,6 +104,7 @@ function splatSprite(color, idx) {
 let evict = 0, dead = 0;
 function kill(p) { if (p.life > 0) { p.life = -1; dead++; if (p.spr) spriteGibs--; } }
 export function spawn(p) {
+  if (!allowParticleType(p.type, G.performanceQualityTier || 0)) return p;
   if (particles.length - dead >= MAX_P()) {
     while (evict < particles.length && particles[evict].life <= 0) evict++;
     if (evict < particles.length) kill(particles[evict++]);
@@ -138,8 +144,9 @@ export function smoke(x, y, z, color = '#2a2420', n = 4, size = 8) {
 
 /** Blood spray: angle = direction of travel in tile space. */
 export function bloodSpray(x, y, z, angle, n, color, force = 1) {
-  if (G.settings.gore === 0) { burst(x, y, z, 'phys', Math.ceil(n / 3), 2); return; }
-  n = Math.round(n * (G.settings.gore === 2 ? 1.6 : 1));
+  const mult = goreMultiplier('spray', G.settings);
+  if (mult <= 0) { burst(x, y, z, 'phys', Math.ceil(n / 3), 2); return; }
+  n = Math.max(1, Math.round(n * mult));
   for (let i = 0; i < n; i++) {
     const a = angle + rand(-0.9, 0.9), s = rand(0.8, 4.5) * force;
     spawn({
@@ -156,8 +163,9 @@ export function bloodSpray(x, y, z, angle, n, color, force = 1) {
  *  bone sheet has loaded. */
 let spriteGibs = 0;
 export function gibs(x, y, z, n, color, boneColor = '#e8dcc0', force = 1, sets = null, o = {}) {
-  if (G.settings.gore === 0) return;
-  n = Math.round(n * (G.settings.gore === 2 ? 1.5 : 1));
+  const mult = goreMultiplier('gibs', G.settings);
+  if (mult <= 0) return;
+  n = Math.max(1, Math.round(n * mult));
   const M = sets && A.gibImg && A.gibMeta;
   const deck = bonesReady() ? boneDeck(n, o.loose) : null, coat = o.blood === undefined ? color : o.blood;
   for (let i = 0; i < n; i++) {
@@ -188,13 +196,40 @@ export function gibs(x, y, z, n, color, boneColor = '#e8dcc0', force = 1, sets =
 }
 
 // ----------------------------------------------------------------- decals
-export function addDecal(x, y, color, size = 1, kind = 'splat', alpha = 0.9) {
-  if (kind === 'splat' && G.settings.gore === 0) return;
+export function addDecal(x, y, color, size = 1, kind = 'splat', alpha = 0.9, opts = null) {
+  const isGore = opts?.gore ?? (kind === 'splat' || kind === 'pool');
+  if (isGore && goreLimit(G.settings) <= 0) return;
   const max = G.touch ? 500 : 1100;
-  const d = { x, y, color, size, kind, alpha, rot: rand(TAU), idx: randi(0, 7), grow: kind === 'pool' ? 0 : 1, life: kind === 'scorch' || kind === 'frost' ? 14 : 9999, t: 0 };
+  const d = { x, y, color, size, kind, alpha, rot: rand(TAU), idx: randi(0, 7), grow: kind === 'pool' ? 0 : 1, life: isGore ? GORE_DECAL_LIFETIME : (kind === 'scorch' || kind === 'frost' ? 14 : 9999), bornAt: goreClock, t: 0 };
+  if (isGore) {
+    addGoreDecal(goreDecals, d, goreLimit(G.settings));
+    return;
+  }
   if (kind === 'splat') { bake(d); return; }
   if (decals.length >= max) decals.shift();
   decals.push(d);
+}
+
+export function applyGoreSettings() { trimGoreDecals(goreDecals, goreLimit(G.settings)); }
+export function applyPerformanceQuality() {
+  const tier = G.performanceQualityTier || 0;
+  const limit = MAX_P();
+  let live = 0;
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    if (p.life <= 0 || !allowParticleType(p.type, tier)) {
+      if (p.life > 0 && p.spr) spriteGibs--;
+      continue;
+    }
+    particles[live++] = p;
+  }
+  particles.length = live;
+  if (particles.length > limit) {
+    const drop = particles.length - limit;
+    for (let i = 0; i < drop; i++) if (particles[i].spr) spriteGibs--;
+    particles.splice(0, drop);
+  }
+  evict = 0; dead = 0;
 }
 
 // ---------------------------------------------------------------- effects
@@ -252,32 +287,24 @@ export function screenAngle(a) {
 export class Bolt {
   // jagged lightning between two points (tile coords + z)
   constructor(x0, y0, z0, x1, y1, z1, color, dur = 0.25, width = 3) {
-    Object.assign(this, { x0, y0, z0, x1, y1, z1, color, dur, width, t: 0, seg: null, regen: 0 });
+    Object.assign(this, { x0, y0, z0, x1, y1, z1, color, dur, width, t: 0, seg: new Float32Array(18), segCount: 0, built: false, regen: 0 });
   }
   build() {
     const ax = isoX(this.x0, this.y0), ay = isoY(this.x0, this.y0) - this.z0;
     const bx = isoX(this.x1, this.y1), by = isoY(this.x1, this.y1) - this.z1;
     // the tower's warp throws cut-away points 1e7 px off: such a bolt would need a million segments
-    if (Math.abs(ax) > 1e6 || Math.abs(ay) > 1e6 || Math.abs(bx) > 1e6 || Math.abs(by) > 1e6) { this.seg = []; return; }
-    const len = Math.hypot(bx - ax, by - ay);
-    const n = Math.min(48, Math.max(3, Math.floor(len / 12)));
-    const nx = -(by - ay) / (len || 1), ny = (bx - ax) / (len || 1);
-    const pts = [[ax, ay]];
-    for (let i = 1; i < n; i++) {
-      const t = i / n, off = rand(-1, 1) * Math.min(18, len * 0.12);
-      pts.push([ax + (bx - ax) * t + nx * off, ay + (by - ay) * t + ny * off]);
-    }
-    pts.push([bx, by]);
-    this.seg = pts;
+    if (Math.abs(ax) > 1e6 || Math.abs(ay) > 1e6 || Math.abs(bx) > 1e6 || Math.abs(by) > 1e6) { this.segCount = 0; this.built = true; return; }
+    this.segCount = writeBoltGeometry(this.seg, ax, ay, bx, by, Math.random);
+    this.built = true;
   }
   update(dt) {
     this.t += dt; this.regen -= dt;
-    if (this.regen <= 0) { this.build(); this.regen = 0.05; }
+    if (this.regen <= 0 && (this.dur >= 0.12 || !this.built)) { this.build(); this.regen = 0.08; }
     return this.t < this.dur;
   }
   draw(ctx) {
-    if (!this.seg) this.build();
-    if (this.seg.length < 2) return;
+    if (!this.built) this.build();
+    if (this.segCount < 2) return;
     const k = this.t / this.dur;
     ctx.globalAlpha = 1 - k * 0.7;
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
@@ -285,7 +312,7 @@ export class Bolt {
       ctx.strokeStyle = pass ? '#ffffff' : this.color;
       ctx.lineWidth = pass ? this.width * 0.4 : this.width * 1.8;
       ctx.beginPath();
-      this.seg.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+      appendBoltGeometry(ctx, this.seg, this.segCount);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
@@ -771,11 +798,20 @@ export function addLight(x, y, radius, intensity = 1, z = 20, color = null, prio
 }
 
 export function clearVfx() {
-  particles.length = 0; spriteGibs = 0; evict = 0; dead = 0; decals.length = 0; bakedDecals.length = 0; effects.length = 0; texts.length = 0; lights.length = 0;
+  particles.length = 0; spriteGibs = 0; evict = 0; dead = 0; decals.length = 0; goreDecals.length = 0; goreClock = 0; bakedDecals.length = 0; effects.length = 0; texts.length = 0; lights.length = 0;
 }
 
 // --------------------------------------------------------------- update
 export function updateVfx(dt, world) {
+  goreClock += dt;
+  if (goreDecals.length) {
+    let w = 0;
+    for (let i = 0; i < goreDecals.length; i++) {
+      const d = goreDecals[i];
+      if (goreDecalAge(d, goreClock) < GORE_DECAL_LIFETIME) goreDecals[w++] = d;
+    }
+    goreDecals.length = w;
+  }
   // Bursts often expire hundreds of particles together. Compact once instead
   // of shifting the surviving array on every expired particle (quadratic work).
   let live = 0;
@@ -879,6 +915,15 @@ export function drawDecals(ctx, vr, stamped = null) {
     if ((stamped && stamped(d, px, py)) || groundHidden(d.x, d.y)) continue;
     ctx.globalAlpha = d.alpha;
     drawSplat(ctx, d, d.size * HW * 1.6, ba, bb, bc, bd, be, bf);
+  }
+  for (const d of goreDecals) {
+    const age = goreDecalAge(d, goreClock);
+    if (age >= GORE_DECAL_LIFETIME) continue;
+    const px = isoX(d.x, d.y), py = isoY(d.x, d.y);
+    const s = d.size * HW * 1.6 * (d.kind === 'pool' ? 0.3 + 0.7 * goreDecalGrowForAge(d, age) : 1);
+    if (goreDecalOutsideView(d, px, py, vr, s) || groundHidden(d.x, d.y)) continue;
+    ctx.globalAlpha = goreDecalAlphaForAge(d, age);
+    drawSplat(ctx, d, s, ba, bb, bc, bd, be, bf);
   }
   for (const d of decals) {
     const px = isoX(d.x, d.y), py = isoY(d.x, d.y);
