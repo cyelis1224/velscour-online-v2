@@ -331,3 +331,35 @@ test('Phase 2B: Ticker, Keyboard Rebinding (touch intact), Stat Breakdown, Portr
   const seg = new Float32Array(18);
   assert.ok(writeBoltGeometry(seg, 0, 0, 100, 100) >= 2);
 });
+
+test('Phase 3: 510 Sea of Sand monsters/humanoids, 60 Castle Creatures & 10 Castle Raids, Mimic still chestOnly', async () => {
+  const { SAND_KIN, sandCreatures, sandBosses, sandMythics, isDesert } = await import('../../src/data/sandkin.js');
+  assert.equal(SAND_KIN.length, 510, `Expected 510 Sea of Sand bestiary entries, got ${SAND_KIN.length}`);
+  assert.ok(sandCreatures().length > 350);
+  assert.ok(sandBosses().length >= 70);
+  assert.equal(sandCreatures().length + sandBosses().length + sandMythics().length, SAND_KIN.length);
+  assert.equal(isDesert({ id: 'sea_of_sand' }), true);
+
+  const { SAND_KITS } = await import('../../src/game/sandkits.js');
+  assert.ok(Object.keys(SAND_KITS).length >= 500, 'Every Sea of Sand entry has a combat kit');
+
+  const { CASTLE_KIN } = await import('../../src/data/castlekin.js');
+  assert.equal(CASTLE_KIN.length, 60, '60 Castle Creatures & Bosses loaded');
+  const { CASTLE_RAIDS } = await import('../../src/game/castleraids.js');
+  assert.equal(CASTLE_RAIDS.length, 10, '10 Castle Raid Bosses loaded');
+
+  const { RAID_BOSSES } = await import('../../src/game/raid.js');
+  assert.ok(RAID_BOSSES.some((b) => CASTLE_RAIDS.some((c) => c.id === b.id)), 'Castle raids pushed into RAID_BOSSES');
+
+  const { ART_BY_ID, artPool, MIMIC_ART } = await import('../../src/data/bestiary.js');
+  assert.ok(ART_BY_ID[SAND_KIN[0].id], 'Sand bestiary registered in ART_BY_ID');
+  assert.ok(ART_BY_ID[CASTLE_KIN[0].id], 'Castle bestiary registered in ART_BY_ID');
+  assert.equal(MIMIC_ART.chestOnly, true);
+  assert.ok(!artPool('abomination').some((a) => a.chestOnly), 'Mimics stay excluded from normal monster pools');
+
+  const fs = await import('node:fs');
+  const sheets = JSON.parse(fs.readFileSync('assets/sprites/enemies/enemies.json', 'utf8'));
+  assert.ok(sheets['special/mimic'], 'special/mimic preserved in enemies.json');
+  assert.ok(sheets['castle/bosses'] && sheets['castle/creatures_1'], 'Castle atlases in enemies.json');
+  assert.ok(sheets['sand/01_dune_hollows'] && sheets['sand2/01_linen_court'], 'Sea of Sand atlases in enemies.json');
+});

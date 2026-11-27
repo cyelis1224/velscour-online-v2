@@ -15,6 +15,7 @@ import { hit } from './combat.js';
 import { Projectile, Delayed, Area, Fissure, explode, coneTargets, lineTargets } from './hazards.js';
 import { ARCH } from '../data/enemies.js';
 import { ART_BY_ID } from '../data/bestiary.js';
+import { isDesert, sandBosses } from '../data/sandkin.js';
 import { bodyR } from '../world/map.js';
 import { makeMonster, monsterBase, Monster } from './monster.js';
 import { riftHold, isSuperbossDepth, endgameScaling, endgameBaseLevel, FINAL_DEPTH } from '../data/depth.js';
@@ -23,6 +24,7 @@ import { UI } from '../ui/ui.js';
 import { madnessReady } from './mayhem.js';
 import { SIGS, SIG_NAMES, PASSIVES } from './raidsigs.js';
 import { heresyRaid, worldHeresies, heresyAllows } from './heresies.js';
+import { CASTLE_RAIDS } from './castleraids.js';
 
 // ------------------------------------------------------------------------------------------------ the bosses
 // art: bestiary art ids (one is picked); fx: their projectile look; adds: archetypes that come to their aid;
@@ -512,6 +514,8 @@ export const RAID_BOSSES = [
     ],
   },
 ];
+// the fourth host: the Castle's ten bosses, each with its own fight-long rule (game/castleraids.js)
+RAID_BOSSES.push(...CASTLE_RAIDS);
 
 export const RAID_MODS = {
   empowered: { name: 'Empowered', desc: 'deals 25% more damage' },
@@ -580,7 +584,8 @@ export function makeRaidBoss(world, arena, depth, level, opts = {}) {
   const tpl = opts.tpl || candidates[Math.floor(rnd() * candidates.length)];
   if (c && !opts.tpl && !G.room && !opts.rnd) c.lastRaid = tpl.id;
   const validArt = tpl.art.filter((id) => ART_BY_ID[id]);
-  const artId = opts.art || validArt[Math.floor(rnd() * validArt.length)];
+  const sBosses = isDesert(world.biome) ? sandBosses() : [];
+  const artId = opts.art || (!opts.court && !tpl.sigs && sBosses.length && rnd() < 0.6 && sBosses[Math.floor(rnd() * sBosses.length)].id) || validArt[Math.floor(rnd() * validArt.length)];
   const art = ART_BY_ID[artId];
   const mods = rollMods(depth, rnd);
   const fifth = worldHeresies(world).includes('fifth'); // the Fifth Phase Heresy: one more modifier (and a phase, below)
@@ -590,7 +595,8 @@ export function makeRaidBoss(world, arena, depth, level, opts = {}) {
   }
   if (tpl.innate && !mods.includes(tpl.innate)) mods.unshift(tpl.innate);
   const has = (k) => mods.includes(k);
-  const m = makeMonster(world, art.arch, world.biome, level, 'boss', arena.cx + 4, arena.cy, 0, { art: artId, swap: null }, rnd);
+  const m = makeMonster(world, art.arch, world.biome, level, 'boss', arena.cx + 4, arena.cy, 0, { art: artId, swap: null }, rnd, true);
+  if (art.sandKin) { m.sandArt = art; m.ks = {}; } // a desert boss still shouts (game/sandkits.js bossYell)
   const B = monsterBase(level);
   if (world.riftHold) B.hp *= riftHold(level);
   const endgame = depth > FINAL_DEPTH ? endgameScaling(depth) : { health: 1, damage: 1 };
