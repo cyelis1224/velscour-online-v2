@@ -9,6 +9,7 @@ import { rand, TAU, rasterSprites, rasterFallback, rasterFallbackOn } from './co
 import { UI, $ } from './ui/ui.js';
 import { HUD } from './ui/hud.js';
 import { applyUILayoutSettings } from './ui/layoutcustomizer.js';
+import { initMouseCursor } from './ui/mousecursor.js';
 import { TouchUI } from './ui/touch.js';
 import { GameChat } from './ui/chat.js';
 import { LoadingScreen } from './ui/loading.js';
@@ -440,6 +441,7 @@ async function boot() {
   }
   HUD.init();
   applyUILayoutSettings();
+  initMouseCursor();
   if (G.touch) TouchUI.init();
   applyVolumes();
   titleScreen();
