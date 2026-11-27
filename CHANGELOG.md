@@ -4,6 +4,28 @@ All notable changes to Velscour Online are documented in this file.
 
 ---
 
+## [0.4.0] - 2026-11-27
+
+### Added
+- **Act III Expansion — Bellmourn, City State Phobos, Castle Velscour & 3D Broken Spires (Upstream PRs #289–#296)**:
+  - Added **Bellmourn** (Act III Town, unlocked at Depth 50 via Act Travel Portal & town waypoints), **City State Phobos** (11-ward walled city with residents, hidden houses, errands, and Ward Lords), and **Castle Velscour** (100 floors across 10 wings, 3D Three.js **Broken Spires**, leap stones & swing chains, 10 wing raid bosses, and Lord Velscour's 3 multi-form Throne Above battles).
+  - Imported 340+ Act III & **Dungeon Horrors** enemy sprites (`assets/sprites/enemies/phobos_*.webp`, `dungeon_horrors_*.webp`) and 11 Phobos tileset packs (`assets/tiles/ph_*/`), harmonized to the 100-depth campaign (`cityDepth` 51–61, `castleDepth` 55–100).
+- **100-Depth 4-Act Campaign, Infinite Endgame & Progression Overhaul**:
+  - Restructured the main campaign to 4 Acts across Depths 1–100 (`FINAL_DEPTH = 100`) with continuous Infinite Endgame scaling at Depths 101+ (`+17% HP / +2.3% DMG` per 25 depths, anchored at level 100 base stats).
+  - Non-destructive live save migration (`campaignOverhaulV2`, `skillRespecV1`, `migrateClassWeaponEquipment`) remaps legacy 500-depth online characters cleanly without losing hero levels, Infernal Marks, gold, or gear.
+  - Added rank-scaled skill resource costs, level-only skill points with Choose-Your-First-Skill tutorial, Class Weapon Proficiency with lighter multiplayer **Smart Loot** (`55%` primary / `15%` secondary / `30%` off-class for trading), **Account Heirlooms**, and level-scaled **Covenants**.
+- **510 Sea of Sand & 60 Castle Creatures Bestiaries + 10 Castle Raid Bosses (Upstream PRs #281–#285)**:
+  - Imported 510 Sea of Sand monsters/humanoids with bespoke combat kits & creature shouts (`src/data/sandkin.js`, `src/game/sandkits.js`) and 60 Castle Creatures & Bosses with 10 new Castle Raid Bosses (`src/data/castlekin.js`, `src/game/castlekin.js`, `src/game/castleraids.js`).
+- **UI, QoL, Controls & Performance Upgrades**:
+  - Added **Top Event Ticker** (`src/ui/ticker.js`, PRs #286/#294) with size & category filters while preserving online system chat logs.
+  - Added full **Keyboard Rebinding & Controls Tab** (`src/core/input.js`, `src/ui/screens.js`) while keeping Android/Capacitor touch controls intact.
+  - Added **Equipment Bonus Breakdown Browser** (`src/data/statformulas.mjs`, `src/game/statbreakdown.mjs`) in the Character panel, **Movable Character Portrait HUD** (`src/ui/characterportrait.js`), **Previous Enemy History** (`src/ui/enemyhistory.js`), **3-Panel Desktop Vendor Layout** & Alchemist **Buy Max** (`src/game/potionpurchase.js`), and **Hero Rename** for both Single Player and Online characters (`POST /api/online/characters/rename`).
+  - Added 10-tier **Scalable Gore** (`src/gfx/goresettings.mjs`), **Extreme / Adaptive Performance Quality** (`src/core/performancequality.mjs`), pooled lightning geometry (`src/gfx/lightninggeometry.mjs`), and combat sound coalescing (`src/game/combat-sound-gate.mjs`).
+
+### Fixed & Improved
+- **Stability & Co-op Fixes (Phase 1)**:
+  - Fixed Serpentine Tower roof sweep/portal + Ninja `z = 0` (PR #279), Keep decorations (PR #280), Altar of Heresy 45° rotation (PR #287), Snowy Summit frozen gates & burrow recovery (PR #288), Healthbar settings isolation, chest-only Mimic spawns, Eternal Breach affixes & account Heresy, stacked Champion overhead names (`×N`), and Act I chickens / Act II desert critters.
+
 ## [0.3.1] - 2026-11-26
 
 ### Added

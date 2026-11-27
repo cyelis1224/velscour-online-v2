@@ -1105,11 +1105,11 @@ const server = http.createServer((req, res) => {
       serverTime: Date.now(),
       buildTime: latestBuild,
       changelog: [
-        "Tessariel's Keep (Personal Online Hall): Added the baked 3D Great Hall with Sagas, daily Bounties, Deeds, Renown, Embers, Furnishings, Trophies, War Table, Sacred Flame, and your online account's other heroes walking the hall (with account-bound Ember & Vault gear).",
-        "51-Upgrade Infernal Marks Library & PvP Normalization: Rebuilt Infernal Marks into a 6-tab upgrade library (Offensive, Defensive, Resources, Loot, Utility, Endgame) with progressive post-100 XP, bulk buy/refund, and PvP Arena normalization caps.",
-        "Account-Wide Reliquary Gold & Shared Jewel Box + Custom Chest Art: Added server-synced Reliquary Gold transfers, account-wide Jewel Box storage with automatic gem migration, 20 dungeon chest visual variants, and new Storage/Reliquary/Jewel Box artwork.",
-        "Sheer Drops, 20 Treasure Imps, Gilded Critters, Pack Leaders & Traps: Added 10 void-cliff Sheer Drop biomes, 20 Treasure Imp variants with custom sprites and loot trails, Gilded Critters overhaul, 15-role Enemy Pack Leaders, Environmental Traps, and safe Mimic reveals.",
-        "Altar of Heresy Rank 75, Co-op Scaling & Engine Polish: Expanded Altar of Heresy to Rank 75 (3-column UI + co-op host Heresy sync), added desktop 2-4x raster sprites, 3D Altar of Heresy, class-specific mana orb colors, Unique/Champion durability + co-op HP scaling, and PvP duel fixes."
+        "Act III Expansion (Bellmourn, City State Phobos & Castle Velscour): Explore Bellmourn (unlocked at Depth 50), 11 walled wards of City State Phobos, and 100 floors of Castle Velscour featuring 3D Broken Spires, 340+ Phobos & Dungeon Horrors enemies, 10 wing raids, and Lord Velscour's 3-form Throne Above finale.",
+        "100-Depth 4-Act Campaign & Progression Overhaul: Streamlined 4-Act campaign (Depths 1-100) with continuous Infinite Endgame (101+), non-destructive live save migration, rank-scaled skill costs, Class Weapon Proficiency with trade-friendly Smart Loot (55/15/30), Account Heirlooms, and level-scaled Covenants.",
+        "510 Sea of Sand & 60 Castle Creatures + 10 Castle Raids: Imported 510 desert bestiary entries with custom combat kits & shouts plus 60 Castle Creatures/Bosses and 10 Castle Raid Bosses.",
+        "UI, QoL & Performance Upgrades: Added Top Event Ticker, Keyboard Rebinding (touch controls preserved), Equipment Bonus Breakdown Browser, Movable Character Portrait HUD, Previous Enemy History, 3-Panel Vendor & Alchemist Buy Max, Online & Solo Hero Rename, 10-tier Scalable Gore, and Extreme Performance Quality.",
+        "Stability & Co-op Fixes: Fixed Serpentine Tower roof sweep/portal & Ninja shadow, Keep decorations, 45° Altar of Heresy rotation, Snowy Summit frozen gates & burrow recovery, chest-only Mimics, stacked Champion labels, and Act I/II town ambient critters."
       ],
       downloads: {
         android: {
