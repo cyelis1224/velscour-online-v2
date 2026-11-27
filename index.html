@@ -108,12 +108,16 @@
           </div>
         </div>
       </div>
-      <div id="boss-bar" class="hidden">
+      <div id="boss-bar" class="hidden healthbar-boss">
+        <canvas id="boss-frame" aria-hidden="true"></canvas>
+        <img id="boss-emblem" src="assets/ui/healthbars/boss.webp" alt="">
         <div id="boss-name"></div>
         <div id="boss-track">
           <div id="boss-fill"></div>
+          <div id="boss-health-text"></div>
         </div>
         <div id="boss-sub"></div>
+        <div id="boss-extra"></div>
       </div>
       <div id="rift-bar" class="hidden" aria-live="polite"><b>ABYSSAL RIFT</b><span id="rift-tier"></span><span
           id="rift-clock"></span><span id="rift-track"><i id="rift-fill"></i></span><span id="rift-pct"></span></div>

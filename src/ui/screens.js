@@ -15,6 +15,7 @@ import { attachTitleFx } from './titlefx.js';
 import { creditsScreen } from './credits.js';
 import { openCustomizeUI } from './layoutcustomizer.js';
 import { MOUSE_CURSOR_DEFAULTS, refreshMouseCursor } from './mousecursor.js';
+import { openHealthBarSettings } from './healthbar-settings.mjs';
 import { RARITY, shownEquip, SLOTS, SLOT_NAMES } from '../data/items.js';
 import { DOLL } from './inventory.js';
 import { itemCell, rarityClass, itemTooltip } from './itemui.js';
@@ -1332,6 +1333,7 @@ export function settingsDialog() {
       <label title="Off: the best drops are named first and lesser ones only close by, so a big fight's loot doesn't bury the screen; hover any item for its name">Show every item name</label><input type="checkbox" data-k="allItemNames" ${st.allItemNames ? 'checked' : ''}>
       <label>Standard skill bar on mobile (landscape)</label><input type="checkbox" data-k="mobileSkillBar" ${st.mobileSkillBar !== false ? 'checked' : ''}>
       <label title="Drag, resize, hide, and save profiles for HUD elements">HUD &amp; UI Layout</label><button class="btn small" data-customize-ui>Customize UI</button>
+      <label title="Customize ornate boss and overhead creature health bars, theme, size, and info toggles">Health Bars</label><button type="button" class="btn small" data-healthbar-settings>Customize Health Bars</button>
       <label title="Changes terrain and wall transparency on the TAB map only; markers stay clear">TAB Map Transparency</label><div style="display:flex;align-items:center;gap:6px"><input type="range" min="0" max="100" step="1" value="${st.tabMapTransparency ?? 45}" data-k="tabMapTransparency" style="flex:1"><output data-map-opacity style="min-width:34px;text-align:right">${st.tabMapTransparency ?? 45}%</output><button type="button" class="btn small" data-reset-map-opacity>Reset</button></div>
     </div>
   </div>
@@ -1453,6 +1455,8 @@ export function settingsDialog() {
   d.box.querySelector('[data-backups]').onclick = () => { sfx('ui'); backupsDialog(); };
   const cui = d.box.querySelector('[data-customize-ui]');
   if (cui) cui.onclick = () => { sfx('ui'); d.close(); openCustomizeUI(); };
+  const hbs = d.box.querySelector('[data-healthbar-settings]');
+  if (hbs) hbs.onclick = () => { sfx('ui'); openHealthBarSettings(); };
   const rmo = d.box.querySelector('[data-reset-map-opacity]');
   if (rmo) rmo.onclick = () => {
     st.tabMapTransparency = 45;

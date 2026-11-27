@@ -16,6 +16,33 @@ import { elem } from '../gfx/vfx.js';
 import { updateAutomapPartyRoster } from './partyroster.js';
 import { net } from '../net/network.js';
 import { pickTaunt } from '../data/taunts.js';
+import { isPlayerTargetable } from '../game/targeting.js';
+import { BOSS_HEALTH_LAYOUT, HEALTH_BAR_CLASSES, bossFrameTrackBounds, drawHealthBarFrame, healthBarClass, healthBarSettings, healthBarSummaryText, healthBarValueText, healthBarVisible, healthBarAffixText, healthBarStatusText, preloadHealthBarArt } from './healthbars.mjs';
+
+preloadHealthBarArt();
+function redrawTargetHealthBarFrame() {
+  const bar = $('#boss-bar'), canvas = $('#boss-frame');
+  if (!bar || !canvas || bar.classList.contains('hidden')) return;
+  const cls = HEALTH_BAR_CLASSES.find((entry) => entry.id === bar.dataset.healthbarClass);
+  const rootRect = bar.getBoundingClientRect();
+  if (!cls || !rootRect.width || !rootRect.height) return;
+  if (cls.id === 'boss') {
+    const emblemSize = Math.min(rootRect.width * BOSS_HEALTH_LAYOUT.emblemWidth, rootRect.height * BOSS_HEALTH_LAYOUT.emblemHeight);
+    const emblemRight = rootRect.width * BOSS_HEALTH_LAYOUT.emblemCenterX + emblemSize / 2;
+    const frameBounds = bossFrameTrackBounds(rootRect.width, rootRect.height * BOSS_HEALTH_LAYOUT.frameHeight, emblemRight);
+    bar.style.setProperty('--hb-boss-track-left', `${frameBounds.left}px`);
+    bar.style.setProperty('--hb-boss-track-right', `${rootRect.width - frameBounds.right}px`);
+  }
+  if (bar.classList.contains('classic') || bar.classList.contains('no-frame')) return;
+  const rect = canvas.getBoundingClientRect(), dpr = Math.max(1, Number(G.dpr) || 1);
+  if (!rect.width || !rect.height) return;
+  const width = Math.ceil(rect.width * dpr), height = Math.ceil(rect.height * dpr);
+  if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, rect.width, rect.height);
+  drawHealthBarFrame(ctx, cls, 0, 0, rect.width, rect.height, 'target');
+}
+if (typeof document !== 'undefined') document.addEventListener('healthbarartready', redrawTargetHealthBarFrame);
 
 const TAUNT_KEY = 'Velscour_taunts_v1'; // Velscour's level-up deck: the last mood and the lines already shown
 import { Meter } from '../game/dpsmeter.js';
@@ -675,19 +702,68 @@ export const HUD = {
       if (s.last.cdt !== cdTxt) { s.last.cdt = cdTxt; s.cdt.textContent = cdTxt; }
       if (s.last.nm !== nm) { s.last.nm = nm; s.nomana.classList.toggle('hidden', !nm); }
     }
-    // boss bar
-    const boss = w && w.boss && !w.boss.dead && w.boss.awake ? w.boss : null;
-    set('boss', boss ? boss.id : 0, () => {
-      $('#boss-bar').classList.toggle('hidden', !boss);
-      if (boss) $('#boss-name').textContent = boss.name;
-      // a raid boss's phase changes, as marks on the bar
+    // The ornate top banner shows the awake boss first, then a targeted boss.
+    const activeBoss = w && w.boss && !w.boss.dead && w.boss.awake ? w.boss : null;
+    const attackTarget = p.attackTarget && p.attackTarget.target;
+    let ordinaryTarget = null;
+    if (isPlayerTargetable(G.hover)) ordinaryTarget = G.hover;
+    else if (isPlayerTargetable(attackTarget)) ordinaryTarget = attackTarget;
+    else if (isPlayerTargetable(G.lastHit)) ordinaryTarget = G.lastHit;
+    const barSettings = healthBarSettings();
+    const targetedBoss = ordinaryTarget && healthBarClass(ordinaryTarget).id === 'boss' ? ordinaryTarget : null;
+    const barTarget = activeBoss && healthBarVisible(activeBoss, 'target') ? activeBoss
+      : targetedBoss && healthBarVisible(targetedBoss, 'target') ? targetedBoss : null;
+    const barClass = barTarget === activeBoss ? HEALTH_BAR_CLASSES.find((entry) => entry.id === 'boss') : healthBarClass(barTarget);
+    const boss = activeBoss;
+    set('boss', barTarget ? `${barTarget.id}|${barClass.id}|${barSettings.theme}|${barSettings.target.width}|${barSettings.target.height}|${barSettings.target.opacity}|${barSettings.target.verticalOffset}|${barSettings.target.decorativeBorders}|${barSettings.target.smoothHealthDepletion}|${G.W}|${G.H}|${G.dpr}` : '', () => {
+      const bar = $('#boss-bar'), visible = !!barTarget;
+      bar.classList.toggle('hidden', !visible);
+      for (const id of ['normal', 'champion', 'unique', 'boss', 'nemesis', 'imp', 'companion']) bar.classList.toggle(`healthbar-${id}`, visible && id === barClass.id);
+      bar.dataset.healthbarClass = barClass.id;
+      bar.classList.toggle('classic', barSettings.theme === 'classic');
+      bar.classList.toggle('no-frame', !barSettings.target.decorativeBorders);
+      bar.classList.toggle('healthbar-smooth', !!barSettings.target.smoothHealthDepletion);
+      bar.style.setProperty('--hb-target-width', String(barSettings.target.width / 100));
+      bar.style.setProperty('--hb-target-height', String(barSettings.target.height / 100));
+      bar.style.setProperty('--hb-target-base-height', barSettings.theme === 'classic' ? '64px' : barClass.id === 'boss' ? '178px' : '124px');
+      bar.style.setProperty('--hb-target-opacity', String(barSettings.target.opacity / 100));
+      bar.style.setProperty('--hb-target-offset', `${barSettings.target.verticalOffset}px`);
+      const bossLayout = barClass.id === 'boss' ? {
+        'frame-top': BOSS_HEALTH_LAYOUT.frameTop, 'frame-height': BOSS_HEALTH_LAYOUT.frameHeight,
+        'track-left': BOSS_HEALTH_LAYOUT.trackLeft, 'track-right': BOSS_HEALTH_LAYOUT.trackRight,
+        'track-top': BOSS_HEALTH_LAYOUT.trackTop, 'track-height': BOSS_HEALTH_LAYOUT.trackHeight,
+        'emblem-center-x': BOSS_HEALTH_LAYOUT.emblemCenterX, 'emblem-center-y': BOSS_HEALTH_LAYOUT.emblemCenterY,
+        'emblem-width': BOSS_HEALTH_LAYOUT.emblemWidth, 'emblem-height': BOSS_HEALTH_LAYOUT.emblemHeight,
+        'name-left': BOSS_HEALTH_LAYOUT.nameLeft, 'name-right': BOSS_HEALTH_LAYOUT.nameRight,
+        'name-top': BOSS_HEALTH_LAYOUT.nameTop, 'name-height': BOSS_HEALTH_LAYOUT.nameHeight,
+        'summary-top': BOSS_HEALTH_LAYOUT.summaryTop, 'extra-top': BOSS_HEALTH_LAYOUT.extraTop,
+      } : null;
+      if (bossLayout) for (const [key, value] of Object.entries(bossLayout)) bar.style.setProperty(`--hb-boss-${key}`, `${value * 100}%`);
+      if (!visible) return;
+      redrawTargetHealthBarFrame();
+      const emb = $('#boss-emblem');
+      if (emb) { emb.src = `assets/ui/healthbars/${barClass.icon}.webp`; emb.alt = barClass.label; }
+      $('#boss-name').textContent = barTarget.name || '';
       const tr = $('#boss-track');
       tr.querySelectorAll('.boss-mark').forEach((e) => e.remove());
-      if (boss && boss.raid) for (const k of boss.raid.marks) { const d = el('div', 'boss-mark'); d.style.left = k * 100 + '%'; tr.appendChild(d); }
+      if (barTarget === activeBoss && activeBoss.raid) for (const k of activeBoss.raid.marks) { const d = el('div', 'boss-mark'); d.style.left = k * 100 + '%'; tr.appendChild(d); }
+      const root = bar.parentElement;
+      if (root) root.style.setProperty('--healthbar-objective-top', `${bar.offsetTop + bar.offsetHeight + 8}px`);
     });
-    if (boss) set('bossHp', Math.round((boss.hp / boss.maxHp) * 500) / 5, (v) => { $('#boss-fill').style.width = v + '%'; });
-    set('bossSub', boss && boss.raid ? boss.raid.label() : boss && boss.vel ? boss.vel.label() : '', (v) => { $('#boss-sub').textContent = v; });
-    set('bossWard', !!(boss && boss.ward < 1), (v) => { $('#boss-bar').classList.toggle('warded', v); });
+    if (barTarget) {
+      const actualHp = Math.max(0, Math.min(1, Number(barTarget.hp) / Math.max(1, Number(barTarget.maxHp))));
+      set('bossHp', Math.round(actualHp * 1000) / 10, (v) => { $('#boss-fill').style.width = v + '%'; });
+      set('bossValueText', healthBarValueText(barTarget, barSettings), (v) => { const elT = $('#boss-health-text'); if (elT) elT.textContent = v; });
+      const encounterState = barTarget === activeBoss ? (activeBoss.raid ? activeBoss.raid.label() : activeBoss.vel ? activeBoss.vel.label() : '') : '';
+      set('bossSub', [healthBarSummaryText(barTarget, barSettings), encounterState].filter(Boolean).join('  ·  '), (v) => { $('#boss-sub').textContent = v; });
+      set('bossExtra', [healthBarAffixText(barTarget), healthBarStatusText(barTarget)].filter(Boolean).join('   ·   '), (v) => { const elE = $('#boss-extra'); if (elE) elE.textContent = v; });
+      set('bossWard', !!(barTarget.ward && barTarget.ward < 1), (v) => { $('#boss-bar').classList.toggle('warded', v); });
+    } else {
+      set('bossValueText', '', (v) => { const elT = $('#boss-health-text'); if (elT) elT.textContent = v; });
+      set('bossSub', '', (v) => { $('#boss-sub').textContent = v; });
+      set('bossExtra', '', (v) => { const elE = $('#boss-extra'); if (elE) elE.textContent = v; });
+      set('bossWard', false, (v) => { $('#boss-bar').classList.toggle('warded', v); });
+    }
     // the Abyssal Rift's clock and quota (game/rifts.js)
     const R = w && w.rift;
     set('rift', R ? `${R.tier}|${Math.ceil(R.left)}|${R.pct}|${R.guardian ? 1 : 0}|${R.done ? 1 : 0}|${R.failed ? 1 : 0}|${boss ? 1 : 0}` : '', (v) => {

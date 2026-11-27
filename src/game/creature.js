@@ -11,6 +11,8 @@ import { drawRuneWeapon } from '../gfx/runeweapon.js';
 import { drawSlime } from '../gfx/slimeart.js';
 import { TURRET3D, drawTurret3D } from '../gfx/gunner3d.js';
 import { goesOver, sheerCount } from '../gfx/sheer.js';
+import { drawOverheadHealthBar, healthBarSettings, healthBarVisible, overheadHealthBarEligible } from '../ui/healthbars.mjs';
+let healthBarRenderErrorReported = false;
 
 let UID = 0;
 
@@ -165,10 +167,17 @@ export function drawXray(oc, camT, rings, box, under) {
       oc.setTransform(camT);
       oc.globalCompositeOperation = 'source-over';
       oc.globalAlpha = Math.max(0.5, e.a);
-      lifeBar(oc, e.bx, e.by, e.bw, e.bh, e.bf, e.bc);
-      lay(camT, e.bx - 1, e.by, e.bw + 2, e.bh);
+      try {
+        drawOverheadHealthBar(oc, e.barCreature, e.bx, e.by, e.bw, e.bh);
+        lay(camT, e.bx - 1, e.by, e.bw + 2, e.bh);
+      } catch (error) {
+        if (!healthBarRenderErrorReported) {
+          healthBarRenderErrorReported = true;
+          console.error('[health-bar] overhead bar failed; continuing world rendering', error);
+        }
+      }
     }
-    e.who = e.img = e.t = null; e.bar = false; // nothing held past the frame
+    e.who = e.img = e.t = e.barCreature = null; e.bar = false; // nothing held past the frame
   }
   oc.globalCompositeOperation = 'source-over'; oc.globalAlpha = 1;
   xray.n = 0;
@@ -642,21 +651,28 @@ export class Creature {
     }
     // life bars: over every enemy, bosses too (Settings › life bars; off, one only flashes up over a monster that was
     // hit, bosses aside) and over hurt summons. In the world's frame they go on the see-through layer, over the spells.
-    let col = null, bw = 24, bh = 4;
-    if (this.team === 'enemy' && (G.settings.lifeBars !== false ? this.targetable !== false : this.hpShow > 0 && this.rank !== 'boss')) {
-      const big = this.rank === 'boss';
-      bw = big ? Math.max(40, Math.min(84, w * 0.75)) : Math.max(22, Math.min(46, w * 0.8)); bh = big ? 6 : 4;
-      col = BAR[this.rank] || BAR.normal;
-    } else if (this.team === 'player' && !this.isPlayer && this.summon && this.maxHp > 0 && this.hp < this.maxHp) col = '#30c040';
-    this.barTop = null;
-    if (!col) return;
-    const kb = G.barK || 1; // first person scales a creature by its depth; its bar keeps near a fixed size
-    bw *= kb; bh *= kb;
-    const x = px - bw / 2, y = py - 4 * kb - bh, f = clamp(this.hp / this.maxHp, 0, 1);
-    this.barTop = y; // champion and unique names sit above it (render.js drawOverheadNames)
-    const e = xray.on && xray.n && xray.list[xray.n - 1];
-    if (e && e.who === this) { e.bar = true; e.bx = x; e.by = y; e.bw = bw; e.bh = bh; e.bf = f; e.bc = col; }
-    else lifeBar(ctx, x, y, bw, bh, f, col);
+    this.barTop = null; this.barHeight = 0;
+    try {
+      let bw = 24, bh = 4;
+      const showHealth = healthBarVisible(this, 'overhead') && overheadHealthBarEligible(this);
+      if (!showHealth) return;
+      const appearance = healthBarSettings().overhead;
+      bw = Math.max(70, Math.min(144, w * 1.85)) * appearance.width / 100;
+      bh = 12 * appearance.height / 100;
+      const kb = G.barK || 1;
+      bw *= kb; bh *= kb;
+      const x = px - bw / 2, y = py - 4 * kb - bh + appearance.verticalOffset;
+      this.barTop = y; this.barHeight = bh;
+      const e = xray.on && xray.n && xray.list[xray.n - 1];
+      if (e && e.who === this) { e.bar = true; e.barCreature = this; e.bx = x; e.by = y; e.bw = bw; e.bh = bh; }
+      else drawOverheadHealthBar(ctx, this, x, y, bw, bh);
+    } catch (error) {
+      this.barTop = null; this.barHeight = 0;
+      if (!healthBarRenderErrorReported) {
+        healthBarRenderErrorReported = true;
+        console.error('[health-bar] overhead setup failed; continuing creature rendering', error);
+      }
+    }
   }
 }
 
