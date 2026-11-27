@@ -85,8 +85,19 @@ class VelscourFight {
     addLight(22, 11.5, 4.5, 0.9, 50, '#ff5020'); // the throne's own hellish glow
     if (!p) return true;
     if (!this.phase) {
+      // Keep Velscour firmly seated on his throne until a hero actually steps into the throne room.
+      m.x = SEAT[0]; m.y = SEAT[1]; m.z = SEAT_Z;
+      m.awake = false; m.aggro = null; m.target = null; m.moving = false;
       this.faceHero();
-      if (!(inArena(p.x, p.y, 0.92) && dist(p.x, p.y, m.x, m.y) < 15)) { m.awake = false; this.lastHp = m.hp; return true; }
+      const players = [];
+      if (!p.dead) players.push(p);
+      if (G.remotePlayers) {
+        for (const rp of G.remotePlayers.values()) {
+          if (!rp.dead && (rp.world === w || (rp.worldKind === w.kind && rp.depth === w.depth))) players.push(rp);
+        }
+      }
+      const inThrone = players.some((pl) => inArena(pl.x, pl.y, 0.92) && dist(pl.x, pl.y, SEAT[0], SEAT[1]) < 15);
+      if (!inThrone) { this.lastHp = m.hp; return true; }
       this.begin();
     }
     if (p.dead) return true;

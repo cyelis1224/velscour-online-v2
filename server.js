@@ -1105,9 +1105,10 @@ const server = http.createServer((req, res) => {
       serverTime: Date.now(),
       buildTime: latestBuild,
       changelog: [
-        "Tessariel's Keep FPS Optimization: Pre-baked window light shafts, batched chandelier/candelabra candles and brazier flames into raster sprites, throttled Sacred Flame pixel simulation to 20 FPS, eliminated 4K occluder mipmap draws, and consolidated Keep light sources and fireflies.",
-        "Top Event Ticker Speed & Placement: Slowed notice scroll speed for comfortable reading and dynamically anchored the bar in the open top-center gap (or below HUD buttons on narrow viewports) so it never covers Stats, Bag, Skills, Talents, or Menu buttons.",
-        "Bugfix: Fixed `TypeError: UI.event is not a function` in `happenings.js` when announcing dungeon affixes by adding `UI.event()` and log listener hooks in `src/ui/ui.js`."
+        "New Sea of Sand Soundtrack: Added a dedicated music track (`sea_of_sand.mp3`) shared across Sunscorch Oasis, the Sea of Sand, and the Scorpion King's Pyramid with seamless location music routing.",
+        "Fixed `t.use is not a function` crash when clicking non-interactive NPCs or decorative world objects by validating `.use` handlers in `controls.js`, `player.js`, and `phobosquests.js`.",
+        "Depths Portal Cap Fixed (1–100): Capped the campaign Depths Portal floor picker and town portal labels strictly at Floor 100 (`FINAL_DEPTH`) so Floor 101 is no longer selectable.",
+        "Fixed Velscour Early Spawn / Throne Aggro Bug: Stopped `burrowing` / `teleporting` dungeon affixes from teleporting asleep bosses or Velscour to the entrance hall, cleared random dungeon affixes on Velscour's Throne, and pinned Velscour to his throne until a hero actually steps into his throne room."
       ],
       downloads: {
         android: {

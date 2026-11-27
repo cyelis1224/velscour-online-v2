@@ -4,6 +4,21 @@ All notable changes to Velscour Online are documented in this file.
 
 ---
 
+## [0.4.2] - 2026-11-27
+
+### Added
+- **Sea of Sand & Sunscorch Oasis Music (`assets/audio/music/sea_of_sand.mp3`, `src/core/audio.js`, `src/game/musicrouting.mjs`, `src/game/hearth.js`)**:
+  - Added a dedicated continuous music track for **Sunscorch Oasis**, the **Sea of Sand**, and the **Scorpion King's Pyramid** with seamless town/dungeon/hearthstone routing.
+
+### Fixed
+- **Interaction Crash (`t.use is not a function`) (`src/game/controls.js`, `src/game/player.js`, `src/game/phobosquests.js`)**:
+  - Filtered non-interactive NPCs/chests/portals without a callable `use()` function out of `interactableAt()` and added a defensive `typeof t.use === 'function'` guard in `Player.update()`.
+- **Depths Portal Floor 101 Cap (`src/game/game.js`)**:
+  - Capped `maxPortalFloor()`, `confirmDungeon()`, town portal labels, and post-Velscour progression strictly at `FINAL_DEPTH` (Floor 100) so the Depths Portal stops cleanly at 100 while Unbound Exploration (1–100) and Abyssal Rifts serve endgame progression.
+- **Velscour Early Spawn / Entrance Attack (`src/game/monster.js`, `src/game/velscour.js`, `src/game/game.js`, `src/game/autoplay.js`)**:
+  - Fixed `burrowing` (`monster.js`) and `teleporting` / `blink_strike` / `boss_teleportation` (`game.js`) dungeon affixes teleporting asleep bosses and Velscour straight onto the player at the entrance hall.
+  - Cleared random dungeon affixes on Velscour's Throne (`biome.id === 'throne'` / `depth === FINAL_DEPTH` / `world.unbound`), excluded Velscour from `twin_guardians`, halted `Monster.update()` while `vel.holdBoss()` is active, pinned Velscour firmly to his throne seat until a hero enters the throne room arena, and placed `enterUnbound` / `finalBoss` just outside the throne room doors.
+
 ## [0.4.1] - 2026-11-27
 
 ### Fixed & Improved

@@ -95,7 +95,7 @@ function spawn(R, art, x, y, rank = 'normal', lv = 0) {
 }
 const foesFor = (R, q, s, re) => { const pool = poolOf(q, s), f = re ? pool.filter((a) => new RegExp(re).test(a.name)) : pool; return f.length ? f : pool; };
 function npc(R, name, art, x, y, title, use) {
-  const n = { name, title, enemyArt: art, x, y, reach: 1.8, flip: Math.random() < 0.5, talkText: '', talkT: 0, talkAge: 0, bubbleLines: 3, pqNpc: true, use,
+  const n = { name, title, enemyArt: art, x, y, reach: 1.8, flip: Math.random() < 0.5, talkText: '', talkT: 0, talkAge: 0, bubbleLines: 3, pqNpc: true, use: typeof use === 'function' ? use : null,
     update(dt) { this.talkAge += dt; this.talkT = Math.max(0, this.talkT - dt); } };
   R.world.npcs.push(n); loadArtFor([art]); return n;
 }
@@ -200,7 +200,7 @@ const STEPS = {
     },
     tick(R, q, s, st, L, dt) {
       const n = L.who, p = G.player; if (!n || !p) return;
-      if (!L.free && G.autoplayOn && !L.guards.some((m) => !m.dead) && dist(p.x, p.y, n.x, n.y) < 2.5) n.use();
+      if (!L.free && G.autoplayOn && !L.guards.some((m) => !m.dead) && dist(p.x, p.y, n.x, n.y) < 2.5 && typeof n.use === 'function') n.use();
       if (!L.free) return;
       if (L.marks[0]) L.marks[0].hidden = false;
       const d = dist(p.x, p.y, n.x, n.y);

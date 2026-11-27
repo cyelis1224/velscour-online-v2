@@ -1435,7 +1435,8 @@ export const Auto = {
     else if (ct && !foes.includes(ct)) foes.push(ct);
     // retreat to town when nearly dead with nothing left to heal with
     const healLeft = c.potions.hp + c.potions.rejuv > 0 || this.readySkill((s) => s.kind === 'heal');
-    const sealed = (w.raid && w.raid.sealed) || (w.Velscour && w.Velscour.phase > 0 && !w.Velscour.m.dead); // no way out of a sealed boss room or Velscour's arena
+    const vb = w.velscour || w.Velscour;
+    const sealed = (w.raid && w.raid.sealed) || (vb && vb.phase > 0 && !vb.m.dead); // no way out of a sealed boss room or Velscour's arena
     const canHearth = hearthReady();
     const tp = w.portals.find((q) => q.type === 'town');
     const canRetreat = canHearth || !!tp;

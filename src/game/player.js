@@ -911,6 +911,7 @@ export class Player extends Creature {
     }
     if (this.interact) {
       const t = this.interact;
+      if (!t || typeof t.use !== 'function') { this.interact = null; return; }
       if (dist(this.x, this.y, t.x, t.y) <= (t.reach || 1.4)) { this.interact = null; this.moveTarget = null; this.path = null; t.use(); return; }
       this.walkTo(t.x, t.y, dt);
       return;

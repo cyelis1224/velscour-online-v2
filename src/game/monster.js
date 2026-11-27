@@ -172,6 +172,7 @@ export class Monster extends Creature {
     const canAct = this.tickStatus(dt, (k, amount, src) => hit(src, this, amount, k === 'burn' ? 'fire' : k === 'poison' ? 'poison' : k === 'bleed' ? 'blood' : 'shadow', { dot: true, crit: false }));
     if (this.dead) return;
     if (this.entering) { this.entering(dt); return; } // ambush arrivals (game/mayhem.js)
+    if (this.vel && this.vel.holdBoss()) { this.moving = false; return; } // Velscour seated on throne, hovering, hidden or bound (game/velscour.js)
     if (this.life && this.lifeT > this.life) { this.dead = true; burst(this.x, this.y, 20, this.el || 'arcane', 10, 2); return; }
     // charm wears off
     const ch = this.curses.charm;
@@ -214,12 +215,12 @@ export class Monster extends Creature {
         this.affixPhaseT = (this.affixPhaseT || 0) + dt;
         this.ghost = Math.sin(this.affixPhaseT * 2.2) > 0.1;
       }
-      if (dungeonAffixes.includes('burrowing') && !this.static) {
+      if (dungeonAffixes.includes('burrowing') && this.awake && !this.static && !this.isVelscour && !this.raid && !(this.vel && this.vel.holdBoss())) {
         this.affixBurrowT = (this.affixBurrowT || rand(4, 7)) - dt;
         if (this.affixBurrowT <= 0) {
           this.affixBurrowT = rand(6, 10);
           const tgt = this.target || w.player;
-          if (tgt) {
+          if (tgt && !tgt.dead && dist(this.x, this.y, tgt.x, tgt.y) <= 18) {
             const ang = rand(TAU), r = rand(1.5, 3.5);
             const [nx, ny] = w.map.nudge(tgt.x + Math.cos(ang) * r, tgt.y + Math.sin(ang) * r, this.r || 0.3);
             smoke(this.x, this.y, 14, '#7c654d', 0.8);

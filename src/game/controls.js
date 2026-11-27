@@ -27,14 +27,15 @@ function creatureAt(sx, sy) {
 function interactableAt(tx, ty, sx, sy) {
   const w = G.world;
   for (const n of w.npcs) {
+    if (n.hidden || typeof n.use !== 'function') continue;
     if (n.sbox) {
       const [x0, y0, x1, y1] = n.sbox;
       const [a, b] = camera.toScreen(x0, y0), [c, d] = camera.toScreen(x1, y1);
       if (sx >= a - 4 && sx <= c + 4 && sy >= b - 4 && sy <= d + 4) return n;
     }
   }
-  for (const c of w.chests) if (!c.opened && dist(c.x, c.y, tx, ty) < 0.8) return c;
-  for (const p of w.portals) if (dist(p.x, p.y, tx, ty) < 1.2 || (sy < camera.tileToScreen(p.x, p.y)[1] && sy > camera.tileToScreen(p.x, p.y, 80)[1] && Math.abs(sx - camera.tileToScreen(p.x, p.y)[0]) < 30 * camera.zoom)) return p;
+  for (const c of w.chests) if (!c.opened && typeof c.use === 'function' && dist(c.x, c.y, tx, ty) < 0.8) return c;
+  for (const p of w.portals) if (typeof p.use === 'function' && (dist(p.x, p.y, tx, ty) < 1.2 || (sy < camera.tileToScreen(p.x, p.y)[1] && sy > camera.tileToScreen(p.x, p.y, 80)[1] && Math.abs(sx - camera.tileToScreen(p.x, p.y)[0]) < 30 * camera.zoom))) return p;
   if (w.raid && w.raid.sealed && G.player && !w.raid.inside(G.player)) {
     const g = w.raid.arena.gate;
     const gy = (g.y0 + g.y1 + 1) / 2;
@@ -42,9 +43,10 @@ function interactableAt(tx, ty, sx, sy) {
       return { x: g.x - 1.5, y: gy, reach: 2.2, use: () => w.raid.promptJoin(G.player, true) };
     }
   }
-  if (w.Velscour && w.Velscour.sealed && G.player) {
+  const vb = w.velscour || w.Velscour;
+  if (vb && vb.sealed && typeof vb.promptJoin === 'function' && G.player) {
     if (tx >= 18 && tx <= 26 && ty >= 31 && ty <= 33.5) {
-      return { x: 22, y: 33.5, reach: 2.2, use: () => w.Velscour.promptJoin(G.player, true) };
+      return { x: 22, y: 33.5, reach: 2.2, use: () => vb.promptJoin(G.player, true) };
     }
   }
   return null;

@@ -5,6 +5,7 @@
 import { G } from '../state.js';
 import { rand, chance, TAU } from '../core/util.js';
 import { sfx, playMusic, setAmbience } from '../core/audio.js';
+import { locationMusicKind } from './musicrouting.mjs';
 import { camera } from '../core/view.js';
 import { addEffect, Ring, Column, sparkle, spawn, floatText } from '../gfx/vfx.js';
 import { UI } from '../ui/ui.js';
@@ -296,7 +297,8 @@ export function returnFromHearth() {
         : `Depth ${dungeonWorld.depth}`);
     const sub = dungeonWorld.biome ? dungeonWorld.biome.name : 'Dungeon';
     HUD.setArea(title, sub);
-    playMusic('wilds', { delay: 2 });
+    const musicKind = locationMusicKind(dungeonWorld);
+    playMusic(musicKind, musicKind === 'wilds' ? { delay: 2 } : {});
     if (dungeonWorld.biome) setAmbience(dungeonWorld.biome.id);
 
     if (G.room && net.connected) {

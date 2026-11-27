@@ -1,7 +1,7 @@
 // Sound: the user's samples (assets/audio/, imported by `process_assets.py audio`), with procedural Web Audio
 // fallbacks for sounds that have no sample (or until the samples finish loading), plus the music + ambience directors.
 //   sfx(name)           one-shot: a random sample from SAMPLES[name] if loaded, else the procedural SOUNDS[name]
-//   playMusic(kind)     'title' | 'town' | 'wilds' (dungeons + overworld biomes): songs with quiet breaks between them
+//   playMusic(kind)     'title' | 'town' | 'sea_of_sand' | 'wilds' (dungeons + overworld biomes): songs with quiet breaks between them
 //   setAmbience(key)    a biome id or 'town': a looped ambient bed that drifts louder and softer (the title has none)
 // Songs and beds stream through <audio> elements routed into the Web Audio graph, so they're never fully decoded.
 import { G } from '../state.js';
@@ -435,6 +435,8 @@ export const TITLE_SONG = 'hymn_of_the_abyss';
 const MUSIC = {
   title: { songs: [TITLE_SONG], gap: [10, 16], vol: 0.9 },
   town: { songs: ['empty_school'], gap: [30, 70], vol: 0.75 },
+  // One continuous loop shared by Sunscorch Oasis, the Sea of Sand and its pyramid.
+  sea_of_sand: { songs: ['sea_of_sand'], loop: true, gap: [0, 0], vol: 0.7 },
   // dungeons and overworld biomes: shuffled, with long ambience-only breaks; it carries on across levels
   wilds: { songs: ['stone_room_reverberation', 'stone_room_reverberation_2'], shuffle: true, gap: [45, 120], vol: 0.6 },
 };
@@ -498,7 +500,7 @@ function startSong(at = 0) {
   m.song = m.last = m.queue.shift();
   if (manifest && !(m.song in manifest.music)) { m.song = null; m.next = 0; return; }
   const deck = m.deck;
-  deck.load(m.song, songUrls[m.song] || `${AUDIO}music/${m.song}.mp3`, false, at || def.at || 0);
+  deck.load(m.song, songUrls[m.song] || `${AUDIO}music/${m.song}.mp3`, !!def.loop, at || def.at || 0);
   deck.g.gain.cancelScheduledValues(ac.currentTime); deck.g.gain.setValueAtTime(0, ac.currentTime);
   deck.fade(def.vol, at || def.at ? 0.4 : 0.05);
   m.next = 0;
@@ -569,7 +571,7 @@ function tick() {
   const now = ac.currentTime;
   if (music) {
     const m = music;
-    if (m.song && !m.deck.playing && m.deck.el.ended) { m.song = null; m.next = now + R2(m.def.gap); }   // song over: a break
+    if (m.song && !m.def.loop && !m.deck.playing && m.deck.el.ended) { m.song = null; m.next = now + R2(m.def.gap); }   // song over: a break
     if (!m.song && m.next && now >= m.next) startSong();
   }
   const on = !!(music && music.song && music.deck.playing);

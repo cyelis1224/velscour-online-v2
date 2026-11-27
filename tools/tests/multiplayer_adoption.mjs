@@ -433,3 +433,16 @@ test('Phase 4: Act III Bellmourn, City State Phobos, 100-Floor Castle Velscour, 
   assert.ok(sheets['phobos/castle_1'] && sheets['phobos/finale_crimson'], 'Phobos sheets present in enemies.json');
   assert.ok(sheets['dungeon_horrors/charnel_vaults'] && sheets['dungeon_horrors/bosses_gaol_and_barracks'], 'Dungeon Horrors sheets present in enemies.json');
 });
+
+test('v0.4.2 regressions: safe interact guard, Depths Portal capped at 100, and Velscour throne guard', async () => {
+  const fs = await import('node:fs');
+  const controlsSrc = fs.readFileSync('src/game/controls.js', 'utf8');
+  const playerSrc = fs.readFileSync('src/game/player.js', 'utf8');
+  const monsterSrc = fs.readFileSync('src/game/monster.js', 'utf8');
+  const gameSrc = fs.readFileSync('src/game/game.js', 'utf8');
+  assert.match(controlsSrc, /typeof n\.use !== 'function'/, 'interactableAt ignores NPCs without callable use()');
+  assert.match(playerSrc, /if \(!t \|\| typeof t\.use !== 'function'\)/, 'Player.update guards t.use before invoking');
+  assert.match(monsterSrc, /if \(this\.vel && this\.vel\.holdBoss\(\)\)/, 'Monster.update halts while Velscour is held on throne');
+  assert.match(monsterSrc, /dungeonAffixes\.includes\('burrowing'\) && this\.awake && !this\.static && !this\.isVelscour/, 'Burrowing affix never teleports asleep monsters or Velscour');
+  assert.match(gameSrc, /const isVelscourThrone = biome\.id === 'throne' \|\| depth === FINAL_DEPTH \|\| world\.unbound;/, 'Velscour throne clears random dungeon affixes');
+});
